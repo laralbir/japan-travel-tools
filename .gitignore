@@ -27,3 +27,9 @@ local.properties
 *.swp
 *~
 .vscode/
+
+# Local Authorized Devices for ADB Deployment (NEVER COMMIT)
+authorized-devices.local.conf
+authorized-devices.local.json
+.devices.local
+

@@ -67,6 +67,8 @@ Este proyecto se rige por las directrices definidas en [`AGENTS.md`](AGENTS.md):
    - Cada publicación en `main` genera su tag y una **GitHub Release** con el archivo `.apk` funcional adjunto.
 5. **Revisión y Respuesta Activa a GitHub Issues**:
    - Durante el desarrollo se revisan periódicamente los **Issues de GitHub**, analizando técnicamente si procede o no su reparación, respondiendo siempre en el propio issue y aplicando el ciclo SDD + TDD para los issues aceptados.
+6. **Despliegue ADB Debug en Dispositivos Autorizados (Sin Commitear)**:
+   - Permite instalar y lanzar la versión Debug mediante ADB simultáneamente en la lista local de dispositivos autorizados (`authorized-devices.local.conf`, excluido en `.gitignore`) ejecutando `./gradlew installAuthorizedDebug` (ver plantilla en [`authorized-devices.example.conf`](authorized-devices.example.conf)).
 
 ---
 
