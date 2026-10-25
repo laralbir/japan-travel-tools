@@ -160,6 +160,16 @@ Dado que el usuario utilizará la aplicación simultáneamente en varios disposi
    - La lista real de dispositivos autorizados (números de serie ADB e IPs locales de depuración) se almacenará en el archivo local **`authorized-devices.local.conf`**, el cual estará **estrictamente excluido del control de versiones en `.gitignore`** para que nunca se pueda commitear por error.
    - Se incluirá una plantilla versionada (`authorized-devices.example.conf`) y la tarea automatizada `./gradlew installAuthorizedDebug` (junto con `scripts/deploy-authorized-devices.sh`) que cruzará los dispositivos conectados en `adb devices` contra la lista autorizada e instalará la versión Debug únicamente en los dispositivos permitidos.
 
+### RF-00.13: Diálogos y Modales de Confirmación de Seguridad para Acciones de Edición y Eliminación
+1. **Prevención de Pérdidas Accidentales de Información de Viaje**:
+   - Cualquier acción destructiva o de eliminación definitiva (eliminar un tramo de transporte/vuelo/tren, eliminar una parada del itinerario, eliminar un plan de viaje completo, eliminar una ciudad meteorológica, o eliminar un documento/entrada/reserva o guía de viaje) **nunca debe ejecutarse inmediatamente sin confirmación previa**.
+   - Toda acción de borrado debe desplegar un diálogo modal de confirmación (`AppConfirmationDialog`) que:
+     - Identifique con claridad el tipo y nombre del elemento a eliminar.
+     - Advierta que la acción no se puede deshacer.
+     - Presente un botón de confirmación destructivo claramente visible (color de peligro / error `Akabeni`) y un botón de cancelación seguro.
+2. **Confirmación en Acciones de Edición y Guardado de Cambios**:
+   - Al modificar o sobrescribir datos críticos existentes en los editores modales, la interfaz debe solicitar confirmación o verificar la intención del viajero antes de persistir la sobrescritura, evitando cambios involuntarios al interactuar con el dispositivo en movimiento.
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin / BDD)
@@ -208,3 +218,10 @@ Dado que el usuario utilizará la aplicación simultáneamente en varios disposi
 - **Dado** que el usuario ha iniciado sesión con la misma cuenta de Google en su tablet **TCL NXTPAPER 11 Plus** y en su móvil **Pixel 10 Pro XL**
 - **Cuando** en la tablet añade un nuevo tramo de *Shinkansen*, importa un PDF de hotel y edita el horario del *Día 3*, y ambos dispositivos tienen conexión a internet
 - **Entonces** el móvil **Pixel 10 Pro XL** descarga y persiste localmente los cambios y los archivos PDF/fotos, quedando disponibles en el móvil incluso si posteriormente se activa el Modo Avión.
+
+### Escenario 9: Prevención de borrados o modificaciones accidentales mediante modal de confirmación
+- **Dado** que el usuario pulsa en el botón `🗑️ Eliminar` sobre cualquier transporte, parada de itinerario, plan de viaje, ciudad meteorológica, documento o guía
+- **Cuando** se despliega el diálogo modal de confirmación
+- **Entonces** si pulsa *"Cancelar"*, la acción se aborta de inmediato y el elemento se mantiene inalterado.
+- **Y cuando** pulsa *"Eliminar"*, se ejecuta el borrado seguro con confirmación visual.
+- **Y de igual forma**, si modifica un elemento existente y pulsa *"Guardar"*, se solicita confirmación de actualización para evitar sobrescrituras accidentales.

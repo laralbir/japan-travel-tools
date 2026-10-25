@@ -7,6 +7,22 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.16] - 2026-10-25
+
+### Added
+- **Modales de Confirmación de Seguridad para Acciones de Edición y Eliminación (`SPEC-00 RF-00.13`)**:
+  - **Componente Universal `AppConfirmationDialog` y `ConfirmationDialogBuilder`**:
+    - Diálogos modales nativos (`AlertDialog`) con soporte destructivo (`isDestructive = true`, botón en rojo de peligro) y de modificación segura.
+  - **Protección contra Borrados Accidentales en Toda la Suite**:
+    - **Vuelos y Transportes**: Confirmación antes de eliminar cualquier tramo desde la tarjeta o desde el editor.
+    - **Planificador de Viaje**: Confirmación antes de borrar un plan de viaje completo, eliminar paradas o cargar datos demo.
+    - **Ciudades Meteorológicas**: Confirmación antes de eliminar cualquier ciudad de la lista de seguimiento.
+    - **Bóveda de Documentos y Reservas**: Confirmación antes de suprimir billetes, reservas de hotel o entradas de parques/museos.
+    - **Guías de Viaje**: Confirmación antes de borrar artículos o notas offline.
+    - **Portabilidad JSON**: Confirmación antes de vaciar el plan o reemplazarlo al importar un JSON.
+  - **Protección contra Sobrescrituras Accidentales al Editar**:
+    - Confirmación modal al pulsar "💾 Guardar" en registros existentes para evitar modificaciones involuntarias mientras se usa el móvil en movimiento.
+
 ## [0.0.1-beta.15] - 2026-10-25
 
 ### Added
