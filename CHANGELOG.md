@@ -7,6 +7,17 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.7] - 2026-10-25
+
+### Changed
+- **Menú Lateral (`ModalNavigationDrawer`) y Estandarización Geométrica de Botones (`SPEC-00 RF-00.2`)**:
+  - Navegación unificada mediante menú lateral desplegable (`☰ Menú` o deslizando desde el borde izquierdo) con las 12 herramientas organizadas en 5 secciones (*Herramientas Rápidas*, *Planificación y Rutas*, *Voz e IA*, *Documentos y Guías*, *Sistema*).
+  - Estandarización estricta de todos los botones (`AppPrimaryButton`, `AppSecondaryButton`, `AppButtonRow`, `AppOptionButton`) con altura fija (`50.dp` / `44.dp`), radio uniforme (`12.dp` / `10.dp`), una sola línea de texto (`maxLines = 1`) y alineación simétrica 50%/50% sin descuadres.
+- **Revisión y Corrección del Motor de IA y Traductor por Voz (`SPEC-06`)**:
+  - `GeminiAssistantEngine`: Conversión automática de cualquier importe en yenes (`¥`, `yenes`, `JPY`, `円`) e IVA japonés (+10%), respuestas contextuales reales sobre *Suica*, *Shinkansen*, *Nara*, *Hakone/Fuji*, *Hiroshima/Miyajima*, *Tokio*, *Kioto*, *Osaka*, *cajeros 7-Eleven* y *envío de maletas Takkyubin*.
+  - `AiPlanBuilderEngine`: Respeta los horarios existentes que no se solapen y añade rutas completas según la ciudad pedida por el usuario (*Nara*, *Hakone*, *Hiroshima*, *Osaka*).
+  - `OfflineTranslatorEngine`: Ampliación del diccionario conversacional por voz (baños, precios, agua, mesa en restaurante, alergias, dieta vegetariana, equipaje, farmacia) evitando que el locutor japonés lea palabras en español.
+
 ## [0.0.1-beta.6] - 2026-10-25
 
 ### Changed

@@ -48,8 +48,12 @@ Establecer los cimientos funcionales y de experiencia de usuario de **Japan Trav
      - Modo Claro: `#3F6E4E` | Modo Oscuro: `#9CCFA4`.
    - **Tipografía Amplia y Legible**:
      - Cuerpo de texto principal en `15.sp`–`16.sp`, textos secundarios nunca inferiores a `13.sp`–`14.sp`, títulos de tarjeta en `18.sp`–`20.sp` y cifras clave en `26.sp`–`32.sp`.
-   - **Baja Densidad Cognitiva (Una tarea por vista)**:
-     - Evitar apilar múltiples herramientas complejas en una misma pantalla de scroll infinito; utilizar selectores de sub-vista limpios (ej. `Divisa y Reloj` vs `Tiempo Open-Meteo`; `Traductor de Voz` vs `Asistente Gemini`; `Pasaporte y Reservas` vs `Guías`) y ocultar metadatos técnicos innecesarios (como coordenadas GPS en crudo).
+   - **Navegación por Menú Lateral (`ModalNavigationDrawer` / `PermanentNavigationDrawer`)**:
+     - Toda la navegación entre las herramientas de la aplicación se realiza mediante un **Menú Lateral Desplegable (`ModalNavigationDrawer`)** accesible desde el botón de menú `☰` en la barra superior (`TopAppBar`) o deslizando desde el borde izquierdo (y panel lateral fijo en tablet).
+     - El menú lateral organiza las 12 herramientas en grupos claros (*Herramientas Rápidas*, *Planificación y Rutas*, *Voz e Inteligencia Artificial*, *Documentos y Guías*, *Sistema*), permitiendo abrir directamente cada herramienta en su propia pantalla limpia sin filas de sub-pestañas ni barras inferiores saturadas.
+   - **Estandarización Estricta de Botones (Cero Descuadres)**:
+     - Todos los botones de acción principales (`AppPrimaryButton`) y secundarios (`AppSecondaryButton`) comparten exactamente la misma geometría: **altura fija de `50.dp`**, radio `RoundedCornerShape(12.dp)`, tipografía `15.sp` con `maxLines = 1` y `TextOverflow.Ellipsis`, y dos únicos estilos cromáticos (`primary` y `surfaceVariant` con borde `outline`).
+     - Cuando dos botones se colocan en paralelo (`AppButtonRow`), ambos utilizan `Modifier.weight(1f).height(50.dp)` garantizando alineación simétrica perfecta sin saltos de línea ni alturas desiguales.
 
 ### RF-00.3: Persistencia de Configuración
 1. Toda configuración modificada por el usuario en la app o en cualquiera de sus herramientas (idioma, tema, país de origen en relojes, divisas seleccionadas, bloqueo biométrico, etc.) se guardará automáticamente en almacenamiento local persistente.

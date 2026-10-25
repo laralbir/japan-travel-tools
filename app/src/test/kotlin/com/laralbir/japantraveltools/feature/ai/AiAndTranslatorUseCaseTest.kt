@@ -37,5 +37,31 @@ class AiAndTranslatorUseCaseTest {
         val platformReply = OfflineTranslatorEngine.translateFromJapaneseSpeech("新幹線のホームは16番線です")
         assertTrue(platformReply.spanishSpokenText.contains("andén", ignoreCase = true) || platformReply.spanishSpokenText.contains("16"))
     }
+
+    @Test
+    fun `OfflineTranslatorEngine translates everyday questions without leaking raw Spanish into Japanese TTS`() {
+        val restroom = OfflineTranslatorEngine.translateToJapanese("¿Dónde está el baño por favor?")
+        assertTrue(restroom.japaneseText.contains("トイレ"))
+        assertTrue(!restroom.japaneseText.contains("baño", ignoreCase = true))
+
+        val price = OfflineTranslatorEngine.translateToJapanese("¿Cuánto cuesta esto?")
+        assertTrue(price.japaneseText.contains("いくら"))
+
+        val water = OfflineTranslatorEngine.translateToJapanese("Agua para dos personas por favor")
+        assertTrue(water.japaneseText.contains("水") || water.japaneseText.contains("2名") || water.japaneseText.contains("二人"))
+    }
+
+    @Test
+    fun `GeminiAssistantEngine answers specific topics accurately and converts inline yen amounts`() {
+        val suicaAnswer = GeminiAssistantEngine.generateSmartTravelAnswer("¿Cómo funciona la Suica y el tren?", 160.0)
+        assertTrue(suicaAnswer.contains("Suica", ignoreCase = true))
+        assertTrue(suicaAnswer.contains("IC", ignoreCase = true))
+
+        val naraAnswer = GeminiAssistantEngine.generateSmartTravelAnswer("¿Qué ver en Nara en medio día?", 160.0)
+        assertTrue(naraAnswer.contains("Todai-ji", ignoreCase = true) || naraAnswer.contains("ciervos", ignoreCase = true))
+
+        val priceQuery = GeminiAssistantEngine.generateSmartTravelAnswer("¿Cuánto son 3200 yenes en euros?", 160.0)
+        assertTrue(priceQuery.contains("20.00 EUR") || priceQuery.contains("20,00 EUR"))
+    }
 }
 
