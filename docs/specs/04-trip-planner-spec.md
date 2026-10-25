@@ -79,6 +79,12 @@ Proporcionar una herramienta integral y **100% funcional offline** para planific
    - Permite preparar el viaje cómodamente desde un ordenador, editor de código, hoja de cálculo, otra aplicación externa o pedirle a un LLM externo que genere el archivo `.json` siguiendo el esquema, e importarlo en la app con un toque (mediante archivo `.json` o portapapeles).
    - Permite elegir entre **Fusionar (`Merge`)** con el plan actual o **Reemplazar (`Replace`)** el plan existente, validando previamente la estructura JSON sin corromper datos locales.
 
+### RF-04.7: Selectores de Fecha Interactivos Nativos (`AppDatePickerField`)
+1. **Eliminación de Cajas de Texto de Fecha**:
+   - La fecha de inicio del plan de viaje (`startDateIso`) y la fecha de las paradas (`dateIso`) deben seleccionarse mediante un selector interactivo nativo de Material 3 (`DatePickerDialog`), eliminando la introducción manual de texto en formato `YYYY-MM-DD`.
+2. **Formato Amigable y Localizado**:
+   - Muestra la fecha seleccionada en formato amigable (ej. *"11 nov 2026"*) y el formato ISO estándar (`YYYY-MM-DD`), abriendo el calendario al pulsar el campo.
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin / BDD)
@@ -107,3 +113,8 @@ Proporcionar una herramienta integral y **100% funcional offline** para planific
 - **Dado** que existe previsión meteorológica de Open-Meteo para la fecha y ciudad del día seleccionado
 - **Cuando** el usuario visualiza el día en el Planificador de Viaje
 - **Entonces** ve la tarjeta climática del día (temperatura máx/mín, probabilidad de lluvia, recomendación de paraguas e idoneidad Exterior vs. Interior) y puede optimizar las paradas con IA según el clima.
+
+### Escenario 6: Selección de fecha de inicio del viaje mediante selector visual
+- **Dado** que el usuario abre el modal para crear o editar un plan de viaje
+- **Cuando** pulsa sobre el selector de fecha de inicio
+- **Entonces** se despliega el calendario táctil de Material 3 (`DatePickerDialog`) permitiendo seleccionar el día deseado sin teclear cadenas de texto `YYYY-MM-DD`.

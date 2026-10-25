@@ -7,6 +7,24 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.19] - 2026-10-25
+
+### Added
+- **Selectores de Fechas Interactivos Nativos (`SPEC-00 RF-00.14` & `SPEC-04 RF-04.7`)**:
+  - **Componente Universal `AppDatePickerField`**:
+    - Sustituye los campos de texto libre con formato manual `YYYY-MM-DD` por un selector interactivo basado en `DatePickerDialog` de Material 3 Compose.
+    - Presentación amigable y legible para el viajero en español e inglés (ej. `12 de nov de 2026 (2026-11-12)` o `Nov 12, 2026 (2026-11-12)`).
+    - Campo de sólo lectura con icono de calendario (`📅`) y zona táctil completa que despliega el calendario emergente sin mostrar el teclado virtual.
+  - **Conversor Seguro de Fechas `DateSelectorHelper`**:
+    - Conversión bidireccional entre cadenas ISO-8601 (`YYYY-MM-DD`) y milisegundos UTC a medianoche, evitando cualquier desviación por husos horarios locales.
+    - Manejo seguro de fallbacks ante entradas vacías o formatos anómalos.
+  - **Integración Completa en Formularios de la Suite**:
+    - **Planificador de Viaje (`PlanEditorModalSheet`)**: Selección gráfica de la fecha de inicio del viaje.
+    - **Gestor de Transportes (`TransportSegmentEditorModalSheet`)**: Selección interactiva de la fecha del trayecto para vuelos, trenes Shinkansen, metro y autobuses.
+    - **Itinerario de Actividades (`ItineraryStopEditorModalSheet`)**: Selección visual de la fecha de la actividad sincronizada con el número de día.
+  - **Batería de Tests Unitarios TDD (`DateSelectorHelperTest`)**:
+    - Pruebas exhaustivas de parsing ISO a UTC, formateo UTC a ISO, formateo display multiidioma y resiliencia ante errores.
+
 ## [0.0.1-beta.18] - 2026-10-25
 
 ### Added
