@@ -1,10 +1,12 @@
 package com.laralbir.japantraveltools.feature.weather
 
+import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.math.roundToInt
@@ -27,6 +29,173 @@ enum class PlanningSuitability(
 ) {
     OUTDOOR_OPTIMAL("⛩️ Ideal Exterior (Templos / Parques)", "⛩️ Outdoor Optimal (Shrines / Parks)"),
     INDOOR_RECOMMENDED("🏛️ Recomendado Cubierto (Museos / Shotengai)", "🏛️ Indoor Recommended (Museums / Arcades)")
+}
+
+data class WeatherCityItem(
+    val id: String,
+    val nameEs: String,
+    val nameEn: String,
+    val latitude: Double,
+    val longitude: Double,
+    val isDefault: Boolean = false
+)
+
+object WeatherCityCatalog {
+    fun defaultCities(): List<WeatherCityItem> = listOf(
+        WeatherCityItem("TOKYO", "Tokio", "Tokyo", 35.6762, 139.6503, isDefault = true),
+        WeatherCityItem("KYOTO", "Kioto", "Kyoto", 35.0116, 135.7681, isDefault = true),
+        WeatherCityItem("OSAKA", "Osaka", "Osaka", 34.6937, 135.5023, isDefault = true),
+        WeatherCityItem("HAKONE_FUJI", "Hakone / Monte Fuji", "Hakone / Mt. Fuji", 35.2324, 139.1069, isDefault = true),
+        WeatherCityItem("NARA", "Nara", "Nara", 34.6851, 135.8048, isDefault = false),
+        WeatherCityItem("HIROSHIMA", "Hiroshima", "Hiroshima", 34.3853, 132.4553, isDefault = false)
+    )
+
+    fun destinationPresets(): List<WeatherCityItem> = listOf(
+        WeatherCityItem("TOKYO", "Tokio", "Tokyo", 35.6762, 139.6503),
+        WeatherCityItem("KYOTO", "Kioto", "Kyoto", 35.0116, 135.7681),
+        WeatherCityItem("OSAKA", "Osaka", "Osaka", 34.6937, 135.5023),
+        WeatherCityItem("HAKONE_FUJI", "Hakone / Monte Fuji", "Hakone / Mt. Fuji", 35.2324, 139.1069),
+        WeatherCityItem("NARA", "Nara", "Nara", 34.6851, 135.8048),
+        WeatherCityItem("HIROSHIMA", "Hiroshima", "Hiroshima", 34.3853, 132.4553),
+        WeatherCityItem("MIYAJIMA", "Miyajima / Itsukushima", "Miyajima / Itsukushima", 34.2964, 132.3197),
+        WeatherCityItem("KAMAKURA", "Kamakura", "Kamakura", 35.3192, 139.5467),
+        WeatherCityItem("NIKKO", "Nikko", "Nikko", 36.7581, 139.5986),
+        WeatherCityItem("TAKAYAMA", "Takayama", "Takayama", 36.1460, 137.2522),
+        WeatherCityItem("KANAZAWA", "Kanazawa", "Kanazawa", 36.5613, 136.6562),
+        WeatherCityItem("SAPPORO", "Sapporo (Hokkaido)", "Sapporo (Hokkaido)", 43.0618, 141.3545),
+        WeatherCityItem("FUKUOKA", "Fukuoka (Hakata)", "Fukuoka (Hakata)", 33.5902, 130.4017),
+        WeatherCityItem("NAGOYA", "Nagoya", "Nagoya", 35.1815, 136.9066),
+        WeatherCityItem("YOKOHAMA", "Yokohama", "Yokohama", 35.4437, 139.6380),
+        WeatherCityItem("KOBE", "Kobe", "Kobe", 34.6901, 135.1955),
+        WeatherCityItem("OKINAWA", "Okinawa (Naha)", "Okinawa (Naha)", 26.2124, 127.6809),
+        WeatherCityItem("SENDAI", "Sendai", "Sendai", 38.2682, 140.8694)
+    )
+}
+
+object WeatherCityJsonCodec {
+    fun exportCitiesJson(cities: List<WeatherCityItem>): String {
+        val sb = StringBuilder()
+        sb.appendLine("{")
+        sb.appendLine("  \"cities\": [")
+        cities.forEachIndexed { index, c ->
+            val comma = if (index < cities.lastIndex) "," else ""
+            sb.appendLine("    {")
+            sb.appendLine("      \"id\": \"${escape(c.id)}\",")
+            sb.appendLine("      \"nameEs\": \"${escape(c.nameEs)}\",")
+            sb.appendLine("      \"nameEn\": \"${escape(c.nameEn)}\",")
+            sb.appendLine("      \"latitude\": ${c.latitude},")
+            sb.appendLine("      \"longitude\": ${c.longitude},")
+            sb.appendLine("      \"isDefault\": ${c.isDefault}")
+            sb.appendLine("    }$comma")
+        }
+        sb.appendLine("  ]")
+        sb.append("}")
+        return sb.toString()
+    }
+
+    fun importCitiesJson(json: String): List<WeatherCityItem> {
+        val block = extractArrayBlock(json, "cities")
+        if (block.isBlank()) return emptyList()
+        val objects = splitJsonObjects(block)
+        return objects.mapNotNull { obj ->
+            val id = extractJsonString(obj, "id") ?: return@mapNotNull null
+            val nameEs = extractJsonString(obj, "nameEs") ?: id
+            val nameEn = extractJsonString(obj, "nameEn") ?: nameEs
+            val lat = extractJsonDouble(obj, "latitude") ?: 35.0
+            val lon = extractJsonDouble(obj, "longitude") ?: 135.0
+            val isDef = extractJsonBoolean(obj, "isDefault") ?: false
+            WeatherCityItem(id, nameEs, nameEn, lat, lon, isDef)
+        }
+    }
+
+    private fun escape(text: String): String =
+        text.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "")
+
+    private fun extractArrayBlock(json: String, arrayKey: String): String {
+        val keyIndex = json.indexOf("\"$arrayKey\"")
+        if (keyIndex == -1) return ""
+        val startBracket = json.indexOf('[', keyIndex)
+        if (startBracket == -1) return ""
+        var depth = 0
+        var inQuotes = false
+        var isEscaped = false
+        for (i in startBracket until json.length) {
+            val char = json[i]
+            if (isEscaped) {
+                isEscaped = false
+                continue
+            }
+            if (char == '\\' && inQuotes) {
+                isEscaped = true
+                continue
+            }
+            if (char == '"') {
+                inQuotes = !inQuotes
+                continue
+            }
+            if (!inQuotes) {
+                if (char == '[') depth++
+                else if (char == ']') {
+                    depth--
+                    if (depth == 0) {
+                        return json.substring(startBracket + 1, i).trim()
+                    }
+                }
+            }
+        }
+        return ""
+    }
+
+    private fun splitJsonObjects(arrayBlock: String): List<String> {
+        val result = mutableListOf<String>()
+        var depth = 0
+        var inQuotes = false
+        var isEscaped = false
+        var start = -1
+        for (i in arrayBlock.indices) {
+            val char = arrayBlock[i]
+            if (isEscaped) {
+                isEscaped = false
+                continue
+            }
+            if (char == '\\' && inQuotes) {
+                isEscaped = true
+                continue
+            }
+            if (char == '"') {
+                inQuotes = !inQuotes
+                continue
+            }
+            if (!inQuotes) {
+                if (char == '{') {
+                    if (depth == 0) start = i
+                    depth++
+                } else if (char == '}') {
+                    depth--
+                    if (depth == 0 && start != -1) {
+                        result.add(arrayBlock.substring(start, i + 1))
+                        start = -1
+                    }
+                }
+            }
+        }
+        return result
+    }
+
+    private fun extractJsonString(obj: String, key: String): String? {
+        val regex = Regex("\"$key\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"")
+        return regex.find(obj)?.groupValues?.get(1)?.replace("\\\"", "\"")?.replace("\\n", "\n")?.replace("\\\\", "\\")
+    }
+
+    private fun extractJsonDouble(obj: String, key: String): Double? {
+        val regex = Regex("\"$key\"\\s*:\\s*([0-9.-]+)")
+        return regex.find(obj)?.groupValues?.get(1)?.toDoubleOrNull()
+    }
+
+    private fun extractJsonBoolean(obj: String, key: String): Boolean? {
+        val regex = Regex("\"$key\"\\s*:\\s*(true|false)")
+        return regex.find(obj)?.groupValues?.get(1)?.toBooleanStrictOrNull()
+    }
 }
 
 enum class JapanWeatherCity(
@@ -58,8 +227,72 @@ data class WeatherDayForecast(
 )
 
 object SharedWeatherForecastStore {
+    private var appContext: Context? = null
+    private const val CITIES_FILE_NAME = "saved_weather_cities.json"
+
+    private val _citiesState = MutableStateFlow(WeatherCityCatalog.defaultCities())
+    val citiesState: StateFlow<List<WeatherCityItem>> = _citiesState.asStateFlow()
+
     private val _forecastsState = MutableStateFlow(OpenMeteoWeatherUseCase.defaultSeedForecasts())
     val forecastsState: StateFlow<List<WeatherDayForecast>> = _forecastsState.asStateFlow()
+
+    fun init(context: Context) {
+        if (appContext == null) {
+            appContext = context.applicationContext
+            loadFromDisk()
+        }
+    }
+
+    fun saveToDisk() {
+        val ctx = appContext ?: return
+        try {
+            val file = File(ctx.filesDir, CITIES_FILE_NAME)
+            file.writeText(WeatherCityJsonCodec.exportCitiesJson(_citiesState.value))
+        } catch (_: Exception) {}
+    }
+
+    fun loadFromDisk() {
+        val ctx = appContext ?: return
+        try {
+            val file = File(ctx.filesDir, CITIES_FILE_NAME)
+            if (file.exists() && file.length() > 0) {
+                val loaded = WeatherCityJsonCodec.importCitiesJson(file.readText())
+                if (loaded.isNotEmpty()) {
+                    _citiesState.value = loaded
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
+    fun addCity(city: WeatherCityItem) {
+        val current = _citiesState.value.toMutableList()
+        val idx = current.indexOfFirst { it.id == city.id }
+        if (idx >= 0) {
+            current[idx] = city
+        } else {
+            current.add(city)
+        }
+        _citiesState.value = current
+
+        // If no forecasts exist for this city, create initial seed forecasts
+        val existing = _forecastsState.value.filter { it.cityKey == city.id }
+        if (existing.isEmpty()) {
+            val seed = OpenMeteoWeatherUseCase.generateSeedForCity(city.id)
+            _forecastsState.value = _forecastsState.value + seed
+        }
+        saveToDisk()
+    }
+
+    fun updateCity(city: WeatherCityItem) {
+        addCity(city)
+    }
+
+    fun deleteCity(cityId: String) {
+        if (_citiesState.value.size <= 1) return // Keep at least one city
+        _citiesState.value = _citiesState.value.filterNot { it.id == cityId }
+        _forecastsState.value = _forecastsState.value.filterNot { it.cityKey == cityId }
+        saveToDisk()
+    }
 
     fun updateCityForecasts(cityKey: String, updatedDays: List<WeatherDayForecast>) {
         if (updatedDays.isEmpty()) return
@@ -222,24 +455,73 @@ object OpenMeteoWeatherUseCase {
             tempMaxC = 14.0,
             tempMinC = 5.5,
             precipitationProbabilityMax = 5
+        ),
+        evaluateForecastDay(
+            cityKey = "NARA",
+            dateIso = "2026-11-15",
+            wmoCode = 1,
+            tempMaxC = 17.5,
+            tempMinC = 8.5,
+            precipitationProbabilityMax = 15
+        ),
+        evaluateForecastDay(
+            cityKey = "HIROSHIMA",
+            dateIso = "2026-11-16",
+            wmoCode = 0,
+            tempMaxC = 18.0,
+            tempMinC = 9.0,
+            precipitationProbabilityMax = 10
+        )
+    )
+
+    fun generateSeedForCity(cityKey: String): List<WeatherDayForecast> = listOf(
+        evaluateForecastDay(
+            cityKey = cityKey,
+            dateIso = "2026-11-11",
+            wmoCode = 1,
+            tempMaxC = 18.5,
+            tempMinC = 10.0,
+            precipitationProbabilityMax = 15
+        ),
+        evaluateForecastDay(
+            cityKey = cityKey,
+            dateIso = "2026-11-12",
+            wmoCode = 2,
+            tempMaxC = 17.0,
+            tempMinC = 9.5,
+            precipitationProbabilityMax = 25
+        ),
+        evaluateForecastDay(
+            cityKey = cityKey,
+            dateIso = "2026-11-13",
+            wmoCode = 0,
+            tempMaxC = 19.0,
+            tempMinC = 11.0,
+            precipitationProbabilityMax = 10
         )
     )
 
     suspend fun fetchCityForecastOnline(city: JapanWeatherCity): Result<List<WeatherDayForecast>> =
-        withContext(Dispatchers.IO) {
-            runCatching {
-                val url = URL(buildOpenMeteoUrl(city.latitude, city.longitude))
-                val conn = (url.openConnection() as HttpURLConnection).apply {
-                    requestMethod = "GET"
-                    connectTimeout = 4500
-                    readTimeout = 4500
-                }
-                val body = conn.inputStream.bufferedReader().use { it.readText() }
-                val parsed = parseOpenMeteoDailyJson(city.key, body)
-                require(parsed.isNotEmpty()) { "Empty Open-Meteo daily forecast" }
-                parsed
+        fetchCoordinatesForecastOnline(city.key, city.latitude, city.longitude)
+
+    suspend fun fetchCoordinatesForecastOnline(
+        cityKey: String,
+        latitude: Double,
+        longitude: Double
+    ): Result<List<WeatherDayForecast>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val url = URL(buildOpenMeteoUrl(latitude, longitude))
+            val conn = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 4500
+                readTimeout = 4500
             }
+            val body = conn.inputStream.bufferedReader().use { it.readText() }
+            val parsed = parseOpenMeteoDailyJson(cityKey, body)
+            require(parsed.isNotEmpty()) { "Empty Open-Meteo daily forecast" }
+            parsed
         }
+    }
 
     private fun extractStringArray(block: String, key: String): List<String> {
         val afterKey = block.substringAfter("\"$key\"", "")

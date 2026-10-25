@@ -55,6 +55,32 @@ Proporcionar una herramienta de **Previsión Meteorológica y Planificación Cli
      - Ajusta los márgenes de desplazamiento y actualiza el resumen de optimización (`aiOptimizationSummary`) explicando qué ajustes climáticos se han aplicado.
    - Además, el paquete exportable/importable `PortableTravelPlanBundle` (`JSON`) conserva estas recomendaciones para poder compartirlas entre dispositivos o apps externas.
 
+### RF-07.4: Gestión Dinámica de Ciudades y Destinos (CRUD Completo y Presets)
+1. **Añadir Nuevas Ciudades (`➕ Añadir Ciudad` / `CityWeatherEditorModalSheet`)**:
+   - El usuario puede añadir cualquier ciudad o destino de Japón a la previsión meteorológica.
+   - **Catálogo de Presets Populares**: Selector rápido con un solo toque que auto-rellena las coordenadas exactas de destinos frecuentes en Japón:
+     - *Nara* (34.6851, 135.8048)
+     - *Hiroshima* (34.3853, 132.4553)
+     - *Miyajima / Itsukushima* (34.2964, 132.3197)
+     - *Kamakura* (35.3192, 139.5467)
+     - *Nikko* (36.7581, 139.5986)
+     - *Takayama* (36.1460, 137.2522)
+     - *Kanazawa* (36.5613, 136.6562)
+     - *Sapporo* (43.0618, 141.3545)
+     - *Fukuoka* (33.5902, 130.4017)
+     - *Nagoya* (35.1815, 136.9066)
+     - *Yokohama* (35.4437, 139.6380)
+     - *Kobe* (34.6901, 135.1955)
+     - *Okinawa / Naha* (26.2124, 127.6809)
+     - *Sendai* (38.2682, 140.8694)
+   - **Coordenadas Personalizadas**: Campos de texto para nombre en español, inglés, latitud y longitud personalizadas con validación numérica estricta.
+2. **Editar Ciudades Existentes (`✏️ Editar Ciudad`)**:
+   - Modificar el nombre de la ciudad o ajustar sus coordenadas geográficas en cualquier momento.
+3. **Eliminar Ciudades (`🗑️ Eliminar Ciudad`)**:
+   - Eliminar una ciudad que ya no forme parte de la ruta del viajero, suprimiendo sus previsiones asociadas y seleccionando automáticamente la siguiente ciudad activa. Se previene la eliminación si solo queda una ciudad en la lista.
+4. **Persistencia Local Automática Offline (`Context.filesDir/saved_weather_cities.json`)**:
+   - Todas las ciudades añadidas, modificadas o eliminadas persisten indefinidamente en el almacenamiento interno privado del dispositivo sin perderse al reiniciar la app o apagar el teléfono.
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin)
