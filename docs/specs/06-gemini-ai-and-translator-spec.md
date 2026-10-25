@@ -90,6 +90,25 @@ Dotar a **Japan Travel Tools** de capacidades de Inteligencia Artificial mediant
    - Aclaración explícita de que la clave es 100% opcional; la app funciona de manera autónoma sin internet ni registro gracias a su Motor Experto On-Device.
 6. **Configuración Centralizada en Ajustes**:
    - La configuración completa de la API Key se gestiona de forma centralizada en la pantalla de **Ajustes** (`SettingsPreferencesScreen`), manteniendo la pantalla del **Asistente IA** despejada de formularios de configuración y proporcionando un acceso directo mediante el botón `⚙️ Configurar en Ajustes` que traslada al viajero a la pantalla de Ajustes.
+7. **Verificación Activa y Diagnóstico de Conexión (`testApiKeyConnection`)**:
+   - Botón `⚡ Probar Conexión` en la tarjeta de configuración que ejecuta un ping real contra la API de Gemini (`generateContent`).
+   - Muestra diagnósticos claros en pantalla:
+     - `200 OK`: Confirmación exitosa con indicación del modelo verificado.
+     - `403 PERMISSION_DENIED`: Alerta explícita de clave no válida o sin permisos, recordando que las claves de Google AI Studio empiezan siempre por `AIzaSy...`.
+     - `429 RESOURCE_EXHAUSTED`: Advertencia de cuota excedida temporalmente.
+     - Error de Red / Offline: Advertencia de falta de conexión para verificar.
+8. **Transparencia y Alertas Visibles de Error Cloud (Fin del Fallback Silencioso)**:
+   - Cuando el usuario tiene una API Key configurada pero la llamada a Gemini Cloud falla, el resultado de `queryAssistant` expone `cloudErrorDetail` (código HTTP y causa).
+   - En la interfaz del Asistente IA se muestra un aviso prominente informando de que Gemini Cloud falló y que se ofrece la respuesta del Motor Experto Offline como respaldo, erradicando cualquier confusión del viajero.
+9. **Selector de Modelos de Gemini (`pref_gemini_model_id`)**:
+   - Selector en Ajustes para alternar entre modelos oficiales:
+     - `Gemini 2.0 Flash` (`gemini-2.0-flash`, recomendado por defecto).
+     - `Gemini 2.0 Flash Lite` (`gemini-2.0-flash-lite`, ultrarrápido de baja latencia).
+     - `Gemini 1.5 Pro` (`gemini-1.5-pro`, razonamiento profundo para itinerarios).
+     - `Gemini 1.5 Flash` (`gemini-1.5-flash`).
+     - `Gemini 2.5 Flash` (`gemini-2.5-flash`).
+     - Opción de modelo personalizado libre.
+   - Parseo de respuesta con `org.json.JSONObject` nativo de Android extrayendo de forma segura `candidates[0].content.parts[0].text`.
 
 ---
 

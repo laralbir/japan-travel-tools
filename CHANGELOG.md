@@ -7,6 +7,31 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.29] - 2026-10-25
+
+### Added
+- **Diagnóstico Activo de Conexión y Fin del Fallback Silencioso en Gemini Cloud (`SPEC-06 RF-06.2 / RF-06.3`)**:
+  - **Botón `⚡ Probar Conexión con Gemini` en Ajustes (`GeminiApiKeySetupCard`)**:
+    - Permite verificar en vivo contra la API de Google si la clave ingresada y el modelo seleccionado funcionan correctamente antes de realizar consultas.
+    - Proporciona diagnósticos claros e inequívocos:
+      - `✅ Conexión con Gemini exitosa (Modelo: ...)` ante respuesta HTTP 200.
+      - `❌ Error 403 (Permiso Denegado)` alertando si la clave no es válida o si se ha pegado un identificador erróneo (recordando que las claves de Google AI Studio siempre inician con `AIzaSy...`).
+      - `⚠️ Error 429` ante saturación de cuota y diagnósticos de conectividad offline.
+  - **Tarjeta de Advertencia Visible en el Asistente IA (`AiAssistantScreen`)**:
+    - Cuando el usuario tiene una clave de Gemini guardada pero la llamada cloud falla (ej. por HTTP 403 con clave incorrecta), la app **ya no oculta silenciosamente el error**.
+    - Se muestra una tarjeta de alerta destacada explicando el fallo exacto de Gemini Cloud y aclarando que se proporciona la respuesta del **Motor Experto Offline** como respaldo para que el viajero nunca se quede sin información.
+- **Selector de Modelos de Google Gemini Cloud (`GeminiApiKeyHelper.getAvailableModels()`)**:
+  - Selector con chips interactivos en Ajustes para alternar entre los modelos oficiales de Google AI Studio:
+    - **Gemini 2.0 Flash** (Recomendado, rápido y multimodal).
+    - **Gemini 2.0 Flash Lite** (Máxima velocidad y menor latencia).
+    - **Gemini 1.5 Pro** (Razonamiento profundo para itinerarios complejos).
+    - **Gemini 1.5 Flash** (Generación previa estable).
+    - **Gemini 2.5 Flash** (Última versión 2.5 de Google).
+  - Persistencia de la preferencia en `UserPreferencesRepository` (`pref_gemini_model_id`) y visualización dinámica del modelo activo en la cabecera del Asistente IA.
+  - Parseo robusto de respuestas JSON con `org.json.JSONObject` de Android para evitar fallos de regex en caracteres escapados.
+- **Batería de Tests Unitarios TDD (`GeminiApiKeyHelperTest`)**:
+  - Cobertura de catálogo de modelos, construcción dinámica de URLs para cada modelo, evaluación semántica de errores HTTP y pruebas simuladas de conexión con éxito y error.
+
 ## [0.0.1-beta.28] - 2026-10-25
 
 ### Added
