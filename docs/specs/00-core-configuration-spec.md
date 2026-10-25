@@ -151,6 +151,12 @@ Dado que el usuario utilizará la aplicación simultáneamente en varios disposi
    - En cuanto el dispositivo detecta conexión (`Wi-Fi`, `eSIM` o `SIM`, configurable para *"Sincronizar archivos pesados solo por Wi-Fi"* para no gastar datos de la eSIM en Japón), sincroniza automáticamente en segundo plano o al pulsar **"Sincronizar ahora 🔄"**.
    - En caso de edición concurrente en dos dispositivos offline, se resuelve por entidad individual mediante timestamp (`updatedAtMillis` más reciente prevalece) sin sobrescribir ni perder cambios de otras entidades.
 
+### RF-00.12: Instalación y Depuración (ADB + Debug) sobre Listado Configurable de Dispositivos Autorizados (No Commiteable)
+1. El proyecto debe permitir compilar, instalar y lanzar en modo **Debug** la aplicación mediante **ADB (`adb install` / `android install`)** sobre una lista configurable de dispositivos autorizados (por ejemplo, el **Pixel 10 Pro XL**, el **Pixel 9 Pro XL** y la tablet **TCL NXTPAPER 11 Plus**, tanto por cable USB como por *ADB Wireless Debugging*).
+2. **Privacidad de Identificadores de Hardware (Git-Ignored)**:
+   - La lista real de dispositivos autorizados (números de serie ADB e IPs locales de depuración) se almacenará en el archivo local **`authorized-devices.local.conf`**, el cual estará **estrictamente excluido del control de versiones en `.gitignore`** para que nunca se pueda commitear por error.
+   - Se incluirá una plantilla versionada (`authorized-devices.example.conf`) y la tarea automatizada `./gradlew installAuthorizedDebug` (junto con `scripts/deploy-authorized-devices.sh`) que cruzará los dispositivos conectados en `adb devices` contra la lista autorizada e instalará la versión Debug únicamente en los dispositivos permitidos.
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin / BDD)

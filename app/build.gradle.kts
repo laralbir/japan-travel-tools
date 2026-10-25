@@ -83,3 +83,10 @@ dependencies {
   implementation(libs.androidx.navigation3.runtime)
   implementation(libs.androidx.lifecycle.viewmodel.navigation3)
 }
+
+tasks.register<Exec>("installAuthorizedDebug") {
+  group = "install"
+  description = "Builds and installs the Debug APK via ADB/Android CLI only on devices listed in authorized-devices.local.conf (git-ignored)."
+  workingDir = rootProject.projectDir
+  commandLine("zsh", "${rootProject.projectDir}/scripts/deploy-authorized-devices.sh")
+}
