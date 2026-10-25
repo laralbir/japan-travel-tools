@@ -297,6 +297,26 @@ data class UserPreferences(
 - **Teclados Numéricos Decimales Especializados (`KeyboardOptions(keyboardType = KeyboardType.Decimal)`)**:
   - Aplicados en el importe del conversor de divisas (`CurrencyScreen`) y en las coordenadas de latitud/longitud de ciudades (`CityWeatherEditorModalSheet`), garantizando que el sistema operativo despliegue el teclado numérico en lugar del alfanumérico.
 
+### 3.10. Sincronización Multi-Dispositivo con Cuenta de Google del Sistema y Respaldo en Google Drive (`GoogleAccountSelectorHelper`, `GoogleDriveSyncHelper`, `JapanTravelCloudSyncBundle`)
+- **`GoogleAccountSelectorHelper`**:
+  - **Propósito**: Eliminar la introducción manual de correos electrónicos en la app.
+  - **Mecanismo Android**: Construye el intent nativo del sistema `AccountManager.newChooseAccountIntent(null, null, arrayOf("com.google"), false, null, null, null, null)` para permitir al usuario seleccionar entre las cuentas de Google ya configuradas en el teléfono o tablet mediante el launcher `rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult())`.
+  - **Persistencia**: Asocia la cuenta seleccionada a `UserPreferencesRepository` con el correo obtenido del resultado `AccountManager.KEY_ACCOUNT_NAME`.
+- **`GoogleDriveSyncHelper` & `JapanTravelCloudSyncBundle`**:
+  - **Paquete de Sincronización (`schemaVersion = 1`)**:
+    - Serializa en JSON consolidado y legible todos los datos de viaje del usuario:
+      - `travelPlans`: Colección de planes de viaje (`PortableTravelPlanBundle`), incluyendo itinerarios diarios, paradas y tramos de transporte (`ItineraryStopItem`, `TransportSegmentItem`).
+      - `travelGuides`: Guías de viaje redactadas o importadas (`TravelGuideArticle`).
+      - `travelDocuments`: Reservas, billetes y entradas guardadas (`TravelDocumentItem`).
+      - `weatherCities`: Ciudades personalizadas configuradas en el pronóstico meteorológico (`WeatherCityItem`).
+      - `userPreferences`: Preferencias de tema, idioma, divisas y zona horaria.
+    - Metadatos de auditoría: `accountEmail`, `timestampMillis`, `deviceModel` (ej. *"Pixel 10 Pro XL"*, *"TCL NXTPAPER 11 Plus"*), `backupId`.
+  - **Operaciones de Sincronización y Respaldo**:
+    - `buildCloudSyncBundle(...)`: Ensambla el estado unificado de todos los almacenes locales (`SharedTravelPlanStore`, `SharedDocumentsAndGuidesStore`, `SharedWeatherForecastStore`, `UserPreferencesRepository`).
+    - `exportCloudBackupJson(...)`: Exporta el JSON legible para respaldo o subida a Google Drive.
+    - `importCloudBackupJson(...)`: Deserializa y valida el paquete, fusionando los datos en los almacenes correspondientes sin pérdida de paradas ni documentos.
+    - `saveCloudBackupToDrive(...)` & `restoreCloudBackupFromDrive(...)`: Gestión con Storage Access Framework de Android (`Intent.ACTION_CREATE_DOCUMENT` / `Intent.ACTION_OPEN_DOCUMENT`) para guardar en la carpeta de Google Drive del usuario y restaurar en cualquier otro dispositivo.
+
 ---
 
 ## 4. Estrategia de Testing (TDD)
@@ -321,6 +341,7 @@ Cada funcionalidad sigue el ciclo **Red -> Green -> Refactor**:
      - Selector universal de horas y controles numéricos con steppers (`TimeSelectorHelper`, `NumericInputHelper`, `AppTimePickerField` y `AppNumberStepperField`): pruebas unitarias de parseo, formateo canónico `HH:mm`, saneamiento y delimitación de rangos enteros `min..max`, operaciones `increment`/`decrement` y configuración de teclados numéricos decimales.
      - Búsqueda predictiva y geocodificación de ciudades (`CityGeocodingHelper`): pruebas unitarias de búsqueda por prefijo/fuzzy match en catálogo local, resolución de coordenadas para destinos japoneses e internacionales, y parseo de respuestas de geocodificación.
      - Visor a pantalla completa con zoom táctil (`ZoomPanState` & `FullScreenZoomableImageViewerDialog`): cálculo matemático de escala (`1.0x` a `5.0x`), traslación acotada dentro del contenedor, alternador por doble toque y restablecimiento a estado original para fotografías de Pasaporte y DNI.
+     - Sincronización multi-dispositivo con Google Drive (`GoogleDriveSyncHelper` & `JapanTravelCloudSyncBundle`): pruebas unitarias de serialización y deserialización del paquete consolidado de viaje, exportación a JSON, validación de esquemas, fusión de planes y guías sin pérdidas, y persistencia de metadatos de sincronización de cuenta.
 2. **Tests de UI / Instrumentados (`src/androidTest/java`)**:
    - **Compose UI Test (`createComposeRule`) + Room In-Memory Database**.
    - Verificación de navegación, cambio de tema Claro/Oscuro, interacción con el conversor, selector de zona horaria de origen, creación/lectura de guías de viaje y línea temporal/mapa del planificador.

@@ -246,6 +246,16 @@ object SharedDocumentsAndGuidesStore {
         saveToDisk()
     }
 
+    fun replaceAllDocuments(docs: List<TravelDocumentItem>) {
+        _documentsState.value = docs
+        saveToDisk()
+    }
+
+    fun replaceAllGuides(guides: List<TravelGuideArticle>) {
+        _guidesState.value = guides
+        saveToDisk()
+    }
+
     fun resetToDefaults() {
         _documentsState.value = DefaultTravelGuidesCatalog.initialDocuments()
         _guidesState.value = DefaultTravelGuidesCatalog.initialGuides()

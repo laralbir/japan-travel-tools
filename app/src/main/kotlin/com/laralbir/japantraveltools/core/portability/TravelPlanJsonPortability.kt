@@ -155,6 +155,18 @@ object SharedTravelPlanStore {
         saveToDisk()
     }
 
+    fun replaceAllPlans(plans: List<PortableTravelPlanBundle>, activePlanId: String? = null) {
+        if (plans.isEmpty()) return
+        _allPlansState.value = plans
+        val active = if (activePlanId != null) {
+            plans.firstOrNull { it.id == activePlanId } ?: plans.first()
+        } else {
+            plans.firstOrNull { it.id == _planState.value.id } ?: plans.first()
+        }
+        _planState.value = active
+        saveToDisk()
+    }
+
     private fun updatePlanInList(updated: PortableTravelPlanBundle) {
         val list = _allPlansState.value.toMutableList()
         val idx = list.indexOfFirst { it.id == updated.id }

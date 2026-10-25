@@ -88,6 +88,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavKey
+import com.laralbir.japantraveltools.core.cloud.GoogleDriveSyncCard
 import com.laralbir.japantraveltools.core.i18n.AppLanguagePreference
 import com.laralbir.japantraveltools.core.i18n.EffectiveLanguage
 import com.laralbir.japantraveltools.core.i18n.LanguageResolver
@@ -203,7 +204,7 @@ enum class JapanDrawerDestination(
 // ============================================================================
 
 @Composable
-private fun AppPrimaryButton(
+fun AppPrimaryButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -232,7 +233,7 @@ private fun AppPrimaryButton(
 }
 
 @Composable
-private fun AppSecondaryButton(
+fun AppSecondaryButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -6003,8 +6004,6 @@ private fun SettingsPreferencesScreen(
     prefs: UserPreferences,
     prefsRepository: DefaultUserPreferencesRepository
 ) {
-    var emailInput by rememberSaveable { mutableStateOf(prefs.googleAccountEmail ?: "carlos.travel.japan@gmail.com") }
-
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -6071,32 +6070,11 @@ private fun SettingsPreferencesScreen(
         }
 
         item {
-            KotlinConfCard {
-                Text(
-                    text = if (isEs) "Sincronización con Cuenta Google" else "Google Account Sync",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = emailInput,
-                    onValueChange = { emailInput = it },
-                    label = { Text("Google Account Email", fontSize = 15.sp) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(14.dp))
-                AppPrimaryButton(
-                    text = if (isEs) "🔄 Sincronizar Dispositivos" else "🔄 Sync Devices",
-                    onClick = {
-                        prefsRepository.setGoogleAccountSync(
-                            email = emailInput,
-                            lastSyncedMillis = System.currentTimeMillis()
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
+            GoogleDriveSyncCard(
+                isEs = isEs,
+                prefs = prefs,
+                prefsRepository = prefsRepository
+            )
         }
 
         item {

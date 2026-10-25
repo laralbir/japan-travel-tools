@@ -7,6 +7,24 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.28] - 2026-10-25
+
+### Added
+- **Selector de Cuenta de Google del Sistema (`GoogleAccountSelectorHelper`) (`SPEC-00 RF-00.11`)**:
+  - **Diálogo Nativo del Sistema Android**: Se erradica por completo la escritura manual del correo electrónico (`OutlinedTextField`), reemplazándolo por un selector nativo del sistema operativo mediante `AccountManager.newChooseAccountIntent(...)`.
+  - **Selección de Cuenta en 1 Toque**: El usuario puede elegir directamente cualquiera de las cuentas de Google ya configuradas en el dispositivo Android (Pixel 10/9 Pro XL, TCL NXTPAPER 11 Plus, etc.) con total fluidez y seguridad.
+  - **Gestión y Desconexión de Cuenta**: Posibilidad de cambiar de cuenta o desvincularla en cualquier momento desde los Ajustes, mostrando la cuenta activa con insignia visual y correo enmascarado.
+- **Sincronización Total con Google Drive y Multi-Dispositivo (`GoogleDriveSyncHelper`) (`SPEC-00 RF-00.11`)**:
+  - **Copia de Seguridad Integral (`JapanTravelCloudSyncBundle`)**: Exporta e importa en formato JSON portable todo el ecosistema de datos del viajero: planes de viaje, paradas de itinerarios, tramos de transporte (vuelos, trenes bala Shinkansen, metro, autobuses), guías turísticas y de supervivencia, documentos/reservas y ciudades meteorológicas configuradas.
+  - **Integración con Google Drive vía Android Storage Access Framework**:
+    - **Exportar a Google Drive (`CreateDocument`)**: Permite guardar el archivo de backup (`japan-travel-backup-${account}.json`) directamente en la carpeta de Google Drive del usuario o en almacenamiento local/SD, sin necesidad de configuración compleja de consolas de API o tokens externos.
+    - **Restaurar desde Google Drive (`OpenDocument`)**: Permite restaurar el backup desde Google Drive en cualquier otro dispositivo con la misma cuenta de Google, sincronizando planes y guías al instante.
+  - **Fusión Inteligente sin Pérdidas (`mergeSyncBundles`)**: Algoritmo de combinación que integra datos entre dispositivos sumando planes, guías, documentos y ciudades sin borrar los existentes y evitando duplicidades.
+  - **Sincronización Rápida en Caché Local**: Botón de sincronización con 1 toque para actualizar el estado local y registrar la marca temporal exacta de la última sincronización.
+  - **Componente Visual `GoogleDriveSyncCard` en Ajustes**: Tarjeta moderna con diseño KotlinConf que muestra la cuenta activa, contadores de elementos sincronizados (planes, guías, documentos, ciudades), botones de acción rápida e información clara de privacidad.
+- **Batería de Tests Unitarios TDD (`GoogleDriveSyncHelperTest`)**:
+  - 10 tests unitarios exhaustivos que comprueban la generación y serialización simétrica del bundle, exportación/importación JSON, fusión sin duplicados de planes, guías, documentos y ciudades meteorológicas, saneamiento de nombres de backup y validación/enmascaramiento seguro de cuentas de Google.
+
 ## [0.0.1-beta.27] - 2026-10-25
 
 ### Added

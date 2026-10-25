@@ -316,6 +316,11 @@ object SharedWeatherForecastStore {
         }
     }
 
+    fun replaceAllCities(cities: List<WeatherCityItem>) {
+        _citiesState.value = cities
+        saveToDisk()
+    }
+
     fun addCity(city: WeatherCityItem) {
         _deletedCityIds.remove(city.id)
         val current = _citiesState.value.toMutableList()
