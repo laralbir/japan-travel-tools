@@ -7,6 +7,26 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.22] - 2026-10-25
+
+### Added
+- **Modales de Confirmación Universal y Sistema de Double Check para Acciones Sensibles (`SPEC-00 RF-00.13`)**:
+  - **Cobertura Universal de Borrado**:
+    - Se garantiza que el 100% de las acciones de eliminación en la aplicación requieran confirmación modal obligatoria antes de proceder, erradicando cualquier borrado inmediato por toques accidentales.
+    - Se añade confirmación obligatoria a las acciones que carecían de ella: **Borrado de Días Completos de Itinerario** (`deleteDay`), **Eliminación de Fotografías de Identidad Oficial** (Pasaporte y DNI en `IdVaultScreen`), y **Vaciado de Itinerario** (`updatePlan` vacío).
+  - **Sistema de Doble Comprobación (Double Check)**:
+    - Diseñado específicamente para acciones de alto impacto y elementos sensibles:
+      - **Borrar Plan de Viaje Completo**: previene la pérdida de semanas de planificación.
+      - **Borrar Día Completo del Itinerario**: previene la supresión accidental de todas las visitas y paradas del día.
+      - **Quitar Fotografías de Pasaporte / DNI**: protege datos de identidad legales cruciales durante el viaje.
+      - **Vaciar Itinerario**: previene el reseteo accidental de la agenda de viaje.
+    - **Mecanismo Interactivo de Seguridad**:
+      - Banner de alerta visual crítica con icono de emergencia (`🚨`).
+      - Interruptor obligatorio de confirmación: *"🚨 DOBLE COMPROBACIÓN: Confirmo que deseo eliminar este elemento sensible de forma definitiva y entiendo que es 100% irreversible."*
+      - El botón de confirmación destructivo (`🗑️ Eliminar Definitivamente`) permanece **estrictamente bloqueado y deshabilitado** hasta que el usuario activa conscientemente el interruptor.
+  - **Batería de Tests Unitarios TDD (`ConfirmationDialogHelperTest`)**:
+    - Nuevos tests unitarios verificando `buildSensitiveDeleteConfirmation` en español e inglés, banderas de `requiresDoubleCheck`, textos de advertencia, prompts de confirmación y ejecución fiel de `onConfirm`.
+
 ## [0.0.1-beta.21] - 2026-10-25
 
 ### Added

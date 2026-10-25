@@ -2026,10 +2026,10 @@ private fun TripPlannerTabScreen(
                     text = if (isEs) "🗑️ Borrar Plan" else "🗑️ Delete Plan",
                     selected = false,
                     onClick = {
-                        confirmationDialogState = ConfirmationDialogBuilder.buildDeleteConfirmation(
+                        confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
                             itemName = portablePlan.tripTitle,
-                            itemTypeEs = "plan de viaje",
-                            itemTypeEn = "travel plan",
+                            itemTypeEs = "plan de viaje completo",
+                            itemTypeEn = "complete travel plan",
                             isEs = isEs,
                             onConfirm = { SharedTravelPlanStore.deleteCurrentPlan() }
                         )
@@ -2108,7 +2108,15 @@ private fun TripPlannerTabScreen(
                 AppOptionButton(
                     text = if (isEs) "🗑️ Borrar Día $selectedDay" else "🗑️ Delete Day $selectedDay",
                     selected = false,
-                    onClick = { SharedTravelPlanStore.deleteDay(selectedDay) },
+                    onClick = {
+                        confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
+                            itemName = if (isEs) "Día $selectedDay (${dayStops.size} paradas)" else "Day $selectedDay (${dayStops.size} stops)",
+                            itemTypeEs = "día completo del itinerario",
+                            itemTypeEn = "full itinerary day",
+                            isEs = isEs,
+                            onConfirm = { SharedTravelPlanStore.deleteDay(selectedDay) }
+                        )
+                    },
                     modifier = Modifier.width(150.dp)
                 )
             }
@@ -4722,6 +4730,13 @@ private fun IdDocumentPhotoSection(
         }
     }
 
+    var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
+
+    AppConfirmationDialog(
+        state = confirmationDialogState,
+        onDismiss = { confirmationDialogState = null }
+    )
+
     Surface(
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,
@@ -4752,8 +4767,16 @@ private fun IdDocumentPhotoSection(
                     onPrimaryClick = { photoPickerLauncher.launch("image/*") },
                     secondaryText = if (isEs) "🗑️ Quitar Foto" else "🗑️ Delete Photo",
                     onSecondaryClick = {
-                        SharedDocumentsAndGuidesStore.deleteIdPhoto(context, fileName)
-                        onPhotoChanged()
+                        confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
+                            itemName = title,
+                            itemTypeEs = "foto de identidad oficial",
+                            itemTypeEn = "official identity photo",
+                            isEs = isEs,
+                            onConfirm = {
+                                SharedDocumentsAndGuidesStore.deleteIdPhoto(context, fileName)
+                                onPhotoChanged()
+                            }
+                        )
                     }
                 )
             } else {
@@ -5717,16 +5740,11 @@ private fun JsonPortabilityModalSheet(
                 },
                 onSecondaryClick = {
                     if (currentPlan.itineraryStops.isNotEmpty()) {
-                        confirmationDialogState = ConfirmationDialogState(
-                            title = if (isEs) "¿Vaciar itinerario?" else "Clear itinerary?",
-                            message = if (isEs) {
-                                "Se eliminarán todas las paradas y tramos de transporte del plan actual. Esta acción no se puede deshacer."
-                            } else {
-                                "All stops and transport segments in the current plan will be deleted. This action cannot be undone."
-                            },
-                            confirmButtonText = if (isEs) "🗑️ Vaciar" else "🗑️ Clear",
-                            dismissButtonText = if (isEs) "Cancelar" else "Cancel",
-                            isDestructive = true,
+                        confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
+                            itemName = currentPlan.tripTitle.ifBlank { if (isEs) "Itinerario activo" else "Active itinerary" },
+                            itemTypeEs = "todas las paradas y tramos del itinerario",
+                            itemTypeEn = "all stops and transport segments in itinerary",
+                            isEs = isEs,
                             onConfirm = {
                                 SharedTravelPlanStore.updatePlan(
                                     PortableTravelPlanBundle(
