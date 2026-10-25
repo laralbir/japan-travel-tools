@@ -14,14 +14,14 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 - [x] **TASK-002**: Redactar especificaciones funcionales completas en `/docs/specs/` (`SPEC-00` a `SPEC-04`), análisis técnico en `/docs/analysis/` y guía de usuario en `/docs/user-guide.md`.
 - [x] **TASK-003**: Configurar ramas **Gitflow** (`main` y `develop`) con el commit fundacional de especificación.
 - [x] **TASK-004**: Seleccionar y especificar el **template / sistema de diseño moderno** de la app: basado en **[JetBrains KotlinConf App](https://jetbrains.github.io/kotlinconf-app/)** combinado con una **paleta de colores tradicionales de Japón (`Akabeni` rojo Torii, `Ai-iro` índigo, `Matcha`, papel `Washi` en modo claro y tinta `Sumi` en modo oscuro)**, optimizado para **Pixel 10 Pro XL**, **Pixel 9 Pro XL** y la tablet **TCL NXTPAPER 11 Plus** (`SPEC-00`).
-- [ ] **TASK-005**: Crear esqueleto del proyecto Android basado en el diseño de `kotlinconf-app` (Kotlin + Jetpack Compose + Design System japonés + Gradle Version Catalog + Room + DataStore + Ktor/Retrofit + AboutLibraries + Testing dependencies) en rama `feature/project-scaffolding`.
-- [ ] **TASK-006**: Configurar numeración de versión `0.0.1-beta.1` en `app/build.gradle.kts` y verificar compilación de APK (`./gradlew testDebugUnitTest assembleDebug`).
+- [x] **TASK-005**: Crear esqueleto del proyecto Android basado en el diseño de `kotlinconf-app` (Kotlin + Jetpack Compose + Design System japonés + Gradle Version Catalog + Room + DataStore + Ktor/Retrofit + AboutLibraries + Testing dependencies) en rama `feature/project-scaffolding`.
+- [x] **TASK-006**: Configurar numeración de versión `0.0.1-beta.1` en `app/build.gradle.kts` y verificar compilación de APK (`./gradlew testDebugUnitTest assembleDebug`).
 
 ---
 
 ## Hito 2: Configuración Core, Idioma, Tema y Persistencia (`SPEC-00`)
 
-- [ ] **TASK-101 (TDD)**: Escribir tests unitarios para `LanguageResolver` (idioma del sistema `es` -> Español, `en` -> Inglés, cualquier otro como `fr`/`ja` -> fallback a Inglés; selección manual prevalece).
+- [x] **TASK-101 (TDD)**: Escribir tests unitarios para `LanguageResolver` (idioma del sistema `es` -> Español, `en` -> Inglés, cualquier otro como `fr`/`ja` -> fallback a Inglés; selección manual prevalece).
 - [ ] **TASK-102 (TDD)**: Implementar `UserPreferencesRepository` con Jetpack DataStore y sus tests de persistencia (tema Claro/Oscuro/Sistema, idioma, preferencias de herramientas).
 - [ ] **TASK-103 (TDD)**: Implementar recursos de cadenas `res/values/strings.xml` (EN por defecto) y `res/values-es/strings.xml` (ES), junto con `SettingsViewModel` y `SettingsScreen`.
 - [ ] **TASK-104 (TDD)**: Implementar apartado **"Acerca de y Licencias Open Source"** (`AboutScreen` y `OpenSourceLicensesScreen` con plugin `AboutLibraries`), mostrando la versión exacta de la app (`0.0.1-beta.X` / `0.0.1`), créditos de datos abiertos (Frankfurter API) y todas las librerías de terceros usadas con sus licencias offline.

@@ -21,3 +21,5 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Documentación de **Fase 2: Análisis Técnico** en `/docs/analysis/architecture-and-tech-stack.md`.
 - Documentación de **Fase 3: Plan de Tareas (TDD)** en `/docs/tasks/backlog.md`, incluyendo en el TODO la búsqueda y selección de un template moderno y útil para la app antes del scaffolding.
 - Guía de usuario en español (`docs/user-guide.md`) y guía de flujo de trabajo Gitflow/Releases/Issues (`docs/development-workflow.md`), incluyendo el protocolo obligatorio de revisión, análisis de procedencia y respuesta a **GitHub Issues**.
+- Scaffolding inicial del proyecto Android (`0.0.1-beta.1`) en Kotlin 2.x + Jetpack Compose con el tema visual japonés (`NipponLightColorScheme` *Washi* / `NipponDarkColorScheme` *Sumi* + *Akabeni* + *Ai-iro* + *Matcha*) y recursos multiidioma base (`values/` EN y `values-es/` ES).
+- Implementación TDD de `LanguageResolver` y `LanguageResolverTest` (`TASK-101`) con fallback automático a Inglés cuando el idioma del sistema no es Español ni Inglés.

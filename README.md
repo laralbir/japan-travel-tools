@@ -95,7 +95,9 @@ Toda la documentación técnica y funcional se encuentra en español dentro del 
 
 ## Próximos Pasos (TODO Inmediato)
 - [x] **Template moderno seleccionado (`TASK-004`)**: Basado en **[JetBrains KotlinConf App](https://jetbrains.github.io/kotlinconf-app/)** con paleta de colores tradicionales de Japón (*Washi*, *Sumi*, *Akabeni Torii*, *Ai-iro Indigo*, *Matcha*).
-- [ ] **Crear scaffolding del proyecto Android (`TASK-005` y `TASK-006`)**: Inicializar el proyecto Kotlin + Jetpack Compose implementando el tema visual japonés estilo `kotlinconf-app` y verificar la primera compilación `0.0.1-beta.1`.
+- [x] **Scaffolding del proyecto Android y compilación `0.0.1-beta.1` (`TASK-005`, `TASK-006`)**: Proyecto Kotlin + Jetpack Compose compilando con éxito y tests unitarios en verde.
+- [x] **Resolución de Idioma TDD (`TASK-101`)**: `LanguageResolver` y `LanguageResolverTest` implementados y pasando al 100%.
+- [ ] **Persistencia de Preferencias con DataStore (`TASK-102`)**: Implementar `UserPreferencesRepository` con sus tests unitarios.
 
 ---
 
