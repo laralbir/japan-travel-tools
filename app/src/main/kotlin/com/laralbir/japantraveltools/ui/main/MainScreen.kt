@@ -2442,27 +2442,10 @@ private fun TransportTabScreen(
     }
 
     if (isCreatingSegment || editingSegment != null) {
-        val initialSeg = editingSegment ?: TransportSegmentItem(
+        val initialSeg = editingSegment ?: TransportPlannerUseCase.createEmptySegment(
             id = "seg-${System.currentTimeMillis()}",
             order = segments.size + 1,
-            type = TransportMode.TRAIN_SHINKANSEN,
-            operatorName = "JR Shinkansen",
-            lineOrNumber = "Nozomi #21",
-            departureCode = "TYO",
-            departureName = "Tokyo Station",
-            departureZoneId = "Asia/Tokyo",
-            departureTerminalOrPlatform = "Andén 16",
-            checkInTime = null,
-            boardingTime = "2026-11-12T08:45",
-            departureTimeIso = "2026-11-12T09:00",
-            arrivalCode = "KYO",
-            arrivalName = "Kyoto Station",
-            arrivalZoneId = "Asia/Tokyo",
-            arrivalTerminalOrPlatform = "Andén 13",
-            arrivalTimeIso = "2026-11-12T11:15",
-            seatOrCarInfo = "Vagón 7 · Asiento 12E",
-            stationExitOrBelt = "Salida Central",
-            passOrPaymentBadge = "JR Pass / IC"
+            initialMode = selectedFilter ?: TransportMode.TRAIN_SHINKANSEN
         )
         TransportSegmentEditorModalSheet(
             isEs = isEs,
@@ -2824,17 +2807,25 @@ private fun TransportSegmentEditorModalSheet(
     onSave: (TransportSegmentItem) -> Unit,
     onDelete: (String) -> Unit
 ) {
-    var selectedType by rememberSaveable { mutableStateOf(initialSegment.type) }
-    var operatorText by rememberSaveable { mutableStateOf(initialSegment.operatorName) }
-    var lineNumberText by rememberSaveable { mutableStateOf(initialSegment.lineOrNumber) }
-    var depNameText by rememberSaveable { mutableStateOf(initialSegment.departureName) }
-    var arrNameText by rememberSaveable { mutableStateOf(initialSegment.arrivalName) }
-    var depTimeText by rememberSaveable { mutableStateOf(initialSegment.departureTimeIso.substringAfter('T')) }
-    var arrTimeText by rememberSaveable { mutableStateOf(initialSegment.arrivalTimeIso.substringAfter('T')) }
-    var checkInTimeText by rememberSaveable { mutableStateOf(initialSegment.checkInTime?.substringAfter('T') ?: "") }
-    var boardingTimeText by rememberSaveable { mutableStateOf(initialSegment.boardingTime?.substringAfter('T') ?: "") }
-    var platformText by rememberSaveable { mutableStateOf(initialSegment.departureTerminalOrPlatform) }
-    var seatText by rememberSaveable { mutableStateOf(initialSegment.seatOrCarInfo) }
+    var selectedType by rememberSaveable(initialSegment.id) { mutableStateOf(initialSegment.type) }
+    var operatorText by rememberSaveable(initialSegment.id) { mutableStateOf(if (isNew) "" else initialSegment.operatorName) }
+    var lineNumberText by rememberSaveable(initialSegment.id) { mutableStateOf(if (isNew) "" else initialSegment.lineOrNumber) }
+    var depNameText by rememberSaveable(initialSegment.id) { mutableStateOf(if (isNew) "" else initialSegment.departureName) }
+    var arrNameText by rememberSaveable(initialSegment.id) { mutableStateOf(if (isNew) "" else initialSegment.arrivalName) }
+    var depTimeText by rememberSaveable(initialSegment.id) {
+        mutableStateOf(if (isNew || !initialSegment.departureTimeIso.contains('T')) "" else initialSegment.departureTimeIso.substringAfter('T'))
+    }
+    var arrTimeText by rememberSaveable(initialSegment.id) {
+        mutableStateOf(if (isNew || !initialSegment.arrivalTimeIso.contains('T')) "" else initialSegment.arrivalTimeIso.substringAfter('T'))
+    }
+    var checkInTimeText by rememberSaveable(initialSegment.id) {
+        mutableStateOf(if (isNew || initialSegment.checkInTime == null || !initialSegment.checkInTime.contains('T')) "" else initialSegment.checkInTime.substringAfter('T'))
+    }
+    var boardingTimeText by rememberSaveable(initialSegment.id) {
+        mutableStateOf(if (isNew || initialSegment.boardingTime == null || !initialSegment.boardingTime.contains('T')) "" else initialSegment.boardingTime.substringAfter('T'))
+    }
+    var platformText by rememberSaveable(initialSegment.id) { mutableStateOf(if (isNew) "" else initialSegment.departureTerminalOrPlatform) }
+    var seatText by rememberSaveable(initialSegment.id) { mutableStateOf(if (isNew) "" else initialSegment.seatOrCarInfo) }
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
 
     AppConfirmationDialog(
@@ -2856,7 +2847,7 @@ private fun TransportSegmentEditorModalSheet(
         ) {
             Text(
                 text = if (isNew) {
-                    if (isEs) "➕ Añadir Tren o Vuelo" else "➕ Add Train or Flight"
+                    if (isEs) "➕ Añadir Transporte" else "➕ Add Transport"
                 } else {
                     if (isEs) "✏️ Editar Transporte" else "✏️ Edit Transport"
                 },
@@ -2868,7 +2859,7 @@ private fun TransportSegmentEditorModalSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                listOf(TransportMode.TRAIN_SHINKANSEN, TransportMode.FLIGHT, TransportMode.SUBWAY_METRO).forEach { mode ->
+                listOf(TransportMode.TRAIN_SHINKANSEN, TransportMode.FLIGHT, TransportMode.SUBWAY_METRO, TransportMode.BUS).forEach { mode ->
                     AppOptionButton(
                         text = if (isEs) mode.labelEs else mode.labelEn,
                         selected = selectedType == mode,
@@ -2885,7 +2876,7 @@ private fun TransportSegmentEditorModalSheet(
                 OutlinedTextField(
                     value = operatorText,
                     onValueChange = { operatorText = it },
-                    label = { Text(if (isEs) "Compañía (ej. JR)" else "Operator", fontSize = 14.sp) },
+                    label = { Text(if (isEs) "Compañía (ej. JR, ANA)" else "Operator (e.g. JR, ANA)", fontSize = 14.sp) },
                     singleLine = true,
                     modifier = Modifier.weight(1f)
                 )
@@ -2905,14 +2896,14 @@ private fun TransportSegmentEditorModalSheet(
                 OutlinedTextField(
                     value = depNameText,
                     onValueChange = { depNameText = it },
-                    label = { Text(if (isEs) "Origen" else "From", fontSize = 14.sp) },
+                    label = { Text(if (isEs) "Origen (ej. Tokyo)" else "From (e.g. Tokyo)", fontSize = 14.sp) },
                     singleLine = true,
                     modifier = Modifier.weight(1f)
                 )
                 OutlinedTextField(
                     value = arrNameText,
                     onValueChange = { arrNameText = it },
-                    label = { Text(if (isEs) "Destino" else "To", fontSize = 14.sp) },
+                    label = { Text(if (isEs) "Destino (ej. Kyoto)" else "To (e.g. Kyoto)", fontSize = 14.sp) },
                     singleLine = true,
                     modifier = Modifier.weight(1f)
                 )
@@ -2981,25 +2972,34 @@ private fun TransportSegmentEditorModalSheet(
             AppButtonRow(
                 primaryText = if (isEs) "💾 Guardar Transporte" else "💾 Save Transport",
                 onPrimaryClick = {
-                    val depCode = depNameText.take(3).uppercase(Locale.ROOT).ifBlank { "TYO" }
-                    val arrCode = arrNameText.take(3).uppercase(Locale.ROOT).ifBlank { "KYO" }
+                    val depCode = depNameText.trim().take(3).uppercase(Locale.ROOT).ifBlank { "TYO" }
+                    val arrCode = arrNameText.trim().take(3).uppercase(Locale.ROOT).ifBlank { "KYO" }
                     val baseDate = if (initialSegment.departureTimeIso.contains('T')) {
                         initialSegment.departureTimeIso.substringBefore('T')
                     } else "2026-11-12"
+                    val defaultOp = when (selectedType) {
+                        TransportMode.FLIGHT -> if (isEs) "Vuelo" else "Flight"
+                        TransportMode.TRAIN_SHINKANSEN -> if (isEs) "Shinkansen / Tren" else "Shinkansen / Train"
+                        TransportMode.SUBWAY_METRO -> if (isEs) "Metro" else "Subway"
+                        TransportMode.BUS -> if (isEs) "Autobús" else "Bus"
+                    }
+                    val depTimeClean = depTimeText.trim().ifBlank { "09:00" }
+                    val arrTimeClean = arrTimeText.trim().ifBlank { "11:00" }
                     val updated = initialSegment.copy(
                         type = selectedType,
-                        operatorName = operatorText.ifBlank { "JR" },
-                        lineOrNumber = lineNumberText,
+                        operatorName = operatorText.trim().ifBlank { defaultOp },
+                        lineOrNumber = lineNumberText.trim(),
                         departureCode = depCode,
-                        departureName = depNameText.ifBlank { "Tokyo" },
-                        departureTimeIso = "${baseDate}T${depTimeText.ifBlank { "09:00" }}",
+                        departureName = depNameText.trim().ifBlank { if (isEs) "Origen" else "Origin" },
+                        departureTimeIso = "${baseDate}T$depTimeClean",
                         checkInTime = if (checkInTimeText.isNotBlank()) "${baseDate}T${checkInTimeText.trim()}" else null,
                         boardingTime = if (boardingTimeText.isNotBlank()) "${baseDate}T${boardingTimeText.trim()}" else null,
                         arrivalCode = arrCode,
-                        arrivalName = arrNameText.ifBlank { "Kyoto" },
-                        arrivalTimeIso = "${baseDate}T${arrTimeText.ifBlank { "11:15" }}",
-                        departureTerminalOrPlatform = platformText,
-                        seatOrCarInfo = seatText
+                        arrivalName = arrNameText.trim().ifBlank { if (isEs) "Destino" else "Destination" },
+                        arrivalTimeIso = "${baseDate}T$arrTimeClean",
+                        departureTerminalOrPlatform = platformText.trim(),
+                        seatOrCarInfo = seatText.trim(),
+                        passOrPaymentBadge = if (selectedType == TransportMode.FLIGHT) "Flight" else "IC Card / JR"
                     )
                     if (isNew) {
                         onSave(updated)

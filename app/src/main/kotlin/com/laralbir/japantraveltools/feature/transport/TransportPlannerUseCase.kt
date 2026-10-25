@@ -46,6 +46,34 @@ data class ConnectionCalculation(
 
 object TransportPlannerUseCase {
 
+    fun createEmptySegment(
+        id: String = "seg-${System.currentTimeMillis()}",
+        order: Int = 1,
+        initialMode: TransportMode = TransportMode.TRAIN_SHINKANSEN,
+        zoneId: String = "Asia/Tokyo"
+    ): TransportSegmentItem = TransportSegmentItem(
+        id = id,
+        order = order,
+        type = initialMode,
+        operatorName = "",
+        lineOrNumber = "",
+        departureCode = "",
+        departureName = "",
+        departureZoneId = zoneId,
+        departureTerminalOrPlatform = "",
+        checkInTime = null,
+        boardingTime = null,
+        departureTimeIso = "",
+        arrivalCode = "",
+        arrivalName = "",
+        arrivalZoneId = zoneId,
+        arrivalTerminalOrPlatform = "",
+        arrivalTimeIso = "",
+        seatOrCarInfo = "",
+        stationExitOrBelt = "",
+        passOrPaymentBadge = ""
+    )
+
     fun defaultSampleSegments(): List<TransportSegmentItem> = listOf(
         TransportSegmentItem(
             id = "seg-flight-1",
