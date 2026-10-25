@@ -25,7 +25,8 @@ data class TravelDocumentItem(
     val referenceOrNotes: String,
     val isPinned: Boolean = false,
     val internalUriPath: String? = null,
-    val lastReadPage: Int = 1
+    val lastReadPage: Int = 1,
+    val fileUri: String? = internalUriPath
 )
 
 data class TravelGuideArticle(
@@ -137,11 +138,53 @@ object DefaultTravelGuidesCatalog {
 }
 
 object SharedDocumentsAndGuidesStore {
+    private var storageContext: Context? = null
+    private const val DOCS_FILE_NAME = "saved_documents.json"
+    private const val GUIDES_FILE_NAME = "saved_guides.json"
+
     private val _documentsState = MutableStateFlow(DefaultTravelGuidesCatalog.initialDocuments())
     val documentsState: StateFlow<List<TravelDocumentItem>> = _documentsState.asStateFlow()
 
     private val _guidesState = MutableStateFlow(DefaultTravelGuidesCatalog.initialGuides())
     val guidesState: StateFlow<List<TravelGuideArticle>> = _guidesState.asStateFlow()
+
+    fun init(context: Context) {
+        if (storageContext != null) return
+        storageContext = context.applicationContext
+        loadFromDisk()
+    }
+
+    private fun saveToDisk() {
+        val ctx = storageContext ?: return
+        runCatching {
+            val docsFile = File(ctx.filesDir, DOCS_FILE_NAME)
+            docsFile.writeText(DocumentsAndGuidesJsonCodec.exportDocumentsJson(_documentsState.value))
+            val guidesFile = File(ctx.filesDir, GUIDES_FILE_NAME)
+            guidesFile.writeText(DocumentsAndGuidesJsonCodec.exportGuidesJson(_guidesState.value))
+        }
+    }
+
+    private fun loadFromDisk() {
+        val ctx = storageContext ?: return
+        runCatching {
+            val docsFile = File(ctx.filesDir, DOCS_FILE_NAME)
+            if (docsFile.exists() && docsFile.length() > 0) {
+                val loaded = DocumentsAndGuidesJsonCodec.importDocumentsJson(docsFile.readText())
+                if (loaded.isNotEmpty()) {
+                    _documentsState.value = loaded
+                }
+            }
+        }
+        runCatching {
+            val guidesFile = File(ctx.filesDir, GUIDES_FILE_NAME)
+            if (guidesFile.exists() && guidesFile.length() > 0) {
+                val loaded = DocumentsAndGuidesJsonCodec.importGuidesJson(guidesFile.readText())
+                if (loaded.isNotEmpty()) {
+                    _guidesState.value = loaded
+                }
+            }
+        }
+    }
 
     fun upsertDocument(document: TravelDocumentItem) {
         val current = _documentsState.value.toMutableList()
@@ -152,10 +195,17 @@ object SharedDocumentsAndGuidesStore {
             current.add(0, document)
         }
         _documentsState.value = current
+        saveToDisk()
     }
 
     fun deleteDocument(id: String) {
-        _documentsState.value = _documentsState.value.filterNot { it.id == id }
+        val current = _documentsState.value
+        val docToDelete = current.firstOrNull { it.id == id }
+        if (docToDelete?.fileUri != null) {
+            deleteDocumentAttachment(docToDelete.fileUri)
+        }
+        _documentsState.value = current.filterNot { it.id == id }
+        saveToDisk()
     }
 
     fun upsertGuide(guide: TravelGuideArticle) {
@@ -167,15 +217,46 @@ object SharedDocumentsAndGuidesStore {
             current.add(0, guide)
         }
         _guidesState.value = current
+        saveToDisk()
     }
 
     fun deleteGuide(id: String) {
         _guidesState.value = _guidesState.value.filterNot { it.id == id }
+        saveToDisk()
     }
 
     fun resetToDefaults() {
         _documentsState.value = DefaultTravelGuidesCatalog.initialDocuments()
         _guidesState.value = DefaultTravelGuidesCatalog.initialGuides()
+        saveToDisk()
+    }
+
+    // Attachments for documents (PDFs, Ticket photos, QR codes)
+    fun getDocumentsDir(context: Context): File {
+        val dir = File(context.filesDir, "documents")
+        if (!dir.exists()) dir.mkdirs()
+        return dir
+    }
+
+    fun saveDocumentAttachment(context: Context, sourceUri: Uri, originalName: String? = null): String? {
+        return runCatching {
+            val ext = originalName?.substringAfterLast('.', "")?.let { if (it.isNotBlank()) ".$it" else "" } ?: ""
+            val fileName = "doc_${System.currentTimeMillis()}$ext"
+            val targetFile = File(getDocumentsDir(context), fileName)
+            context.contentResolver.openInputStream(sourceUri)?.use { input ->
+                targetFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            targetFile.absolutePath
+        }.getOrNull()
+    }
+
+    fun deleteDocumentAttachment(filePath: String): Boolean {
+        return runCatching {
+            val file = File(filePath)
+            if (file.exists()) file.delete() else true
+        }.getOrDefault(false)
     }
 
     // Photo vault in Context.filesDir/id_vault/
@@ -207,6 +288,150 @@ object SharedDocumentsAndGuidesStore {
     fun getIdPhotoFile(context: Context, fileName: String): File? {
         val file = File(getIdVaultDir(context), fileName)
         return if (file.exists() && file.length() > 0) file else null
+    }
+}
+
+object DocumentsAndGuidesJsonCodec {
+    fun exportDocumentsJson(docs: List<TravelDocumentItem>): String {
+        val sb = StringBuilder()
+        sb.appendLine("{")
+        sb.appendLine("  \"documents\": [")
+        docs.forEachIndexed { index, doc ->
+            val comma = if (index < docs.lastIndex) "," else ""
+            sb.appendLine("    {")
+            sb.appendLine("      \"id\": \"${escape(doc.id)}\",")
+            sb.appendLine("      \"title\": \"${escape(doc.title)}\",")
+            sb.appendLine("      \"category\": \"${doc.category.name}\",")
+            sb.appendLine("      \"referenceOrNotes\": \"${escape(doc.referenceOrNotes)}\",")
+            val fileUriStr = if (doc.fileUri != null) "\"${escape(doc.fileUri)}\"" else "null"
+            sb.appendLine("      \"fileUri\": $fileUriStr,")
+            sb.appendLine("      \"isPinned\": ${doc.isPinned}")
+            sb.appendLine("    }$comma")
+        }
+        sb.appendLine("  ]")
+        sb.appendLine("}")
+        return sb.toString()
+    }
+
+    fun importDocumentsJson(json: String): List<TravelDocumentItem> {
+        val block = extractArrayBlock(json, "documents")
+        val objs = splitJsonObjects(block)
+        return objs.mapNotNull { obj ->
+            val id = extractString(obj, "id") ?: return@mapNotNull null
+            val title = extractString(obj, "title") ?: ""
+            val catName = extractString(obj, "category") ?: DocumentCategory.TICKET.name
+            val cat = runCatching { DocumentCategory.valueOf(catName) }.getOrDefault(DocumentCategory.TICKET)
+            val notes = extractString(obj, "referenceOrNotes") ?: ""
+            val fileUri = extractString(obj, "fileUri")
+            val isPinned = extractBoolean(obj, "isPinned") ?: false
+            TravelDocumentItem(
+                id = id,
+                title = title,
+                category = cat,
+                referenceOrNotes = notes,
+                fileUri = fileUri,
+                isPinned = isPinned
+            )
+        }
+    }
+
+    fun exportGuidesJson(guides: List<TravelGuideArticle>): String {
+        val sb = StringBuilder()
+        sb.appendLine("{")
+        sb.appendLine("  \"guides\": [")
+        guides.forEachIndexed { index, g ->
+            val comma = if (index < guides.lastIndex) "," else ""
+            sb.appendLine("    {")
+            sb.appendLine("      \"id\": \"${escape(g.id)}\",")
+            sb.appendLine("      \"title\": \"${escape(g.title)}\",")
+            sb.appendLine("      \"cityRegion\": \"${escape(g.cityRegion)}\",")
+            val tagsStr = g.tags.joinToString(", ") { "\"${escape(it)}\"" }
+            sb.appendLine("      \"tags\": [$tagsStr],")
+            sb.appendLine("      \"markdownSummary\": \"${escape(g.markdownSummary)}\"")
+            sb.appendLine("    }$comma")
+        }
+        sb.appendLine("  ]")
+        sb.appendLine("}")
+        return sb.toString()
+    }
+
+    fun importGuidesJson(json: String): List<TravelGuideArticle> {
+        val block = extractArrayBlock(json, "guides")
+        val objs = splitJsonObjects(block)
+        return objs.mapNotNull { obj ->
+            val id = extractString(obj, "id") ?: return@mapNotNull null
+            val title = extractString(obj, "title") ?: ""
+            val cityRegion = extractString(obj, "cityRegion") ?: "Tokyo"
+            val notes = extractString(obj, "markdownSummary") ?: ""
+            val tagsBlock = extractArrayBlock(obj, "tags")
+            val tags = """\"([^\"]*)\"""".toRegex().findAll(tagsBlock).map { it.groupValues[1] }.toList()
+            TravelGuideArticle(
+                id = id,
+                title = title,
+                cityRegion = cityRegion,
+                tags = tags.ifEmpty { listOf("Tips") },
+                markdownSummary = notes
+            )
+        }
+    }
+
+    private fun escape(raw: String): String =
+        raw.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
+
+    private fun unescape(raw: String): String =
+        raw.replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\")
+
+    private fun extractString(source: String, key: String): String? {
+        val regex = """"$key"\s*:\s*(?:"((?:\\.|[^"\\])*)"|(null))""".toRegex()
+        val match = regex.find(source) ?: return null
+        val quoted = match.groupValues[1]
+        val isNull = match.groupValues[2] == "null"
+        return if (isNull) null else unescape(quoted)
+    }
+
+    private fun extractBoolean(source: String, key: String): Boolean? {
+        val regex = """"$key"\s*:\s*(true|false)""".toRegex()
+        return regex.find(source)?.groupValues?.get(1)?.toBooleanStrictOrNull()
+    }
+
+    private fun extractArrayBlock(source: String, key: String): String {
+        val keyIdx = source.indexOf("\"$key\"")
+        if (keyIdx == -1) return ""
+        val openBracket = source.indexOf('[', keyIdx)
+        if (openBracket == -1) return ""
+        var depth = 0
+        for (i in openBracket until source.length) {
+            when (source[i]) {
+                '[' -> depth++
+                ']' -> {
+                    depth--
+                    if (depth == 0) return source.substring(openBracket + 1, i)
+                }
+            }
+        }
+        return ""
+    }
+
+    private fun splitJsonObjects(arrayContent: String): List<String> {
+        val result = mutableListOf<String>()
+        var depth = 0
+        var objStart = -1
+        for (i in arrayContent.indices) {
+            when (arrayContent[i]) {
+                '{' -> {
+                    if (depth == 0) objStart = i
+                    depth++
+                }
+                '}' -> {
+                    depth--
+                    if (depth == 0 && objStart != -1) {
+                        result.add(arrayContent.substring(objStart, i + 1))
+                        objStart = -1
+                    }
+                }
+            }
+        }
+        return result
     }
 }
 
