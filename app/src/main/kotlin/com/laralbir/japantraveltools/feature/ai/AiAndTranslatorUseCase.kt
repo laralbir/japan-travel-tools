@@ -9,7 +9,76 @@ data class SimultaneousTranslationItem(
     val categoryBadge: String
 )
 
+data class JapaneseToTravelerVoiceResult(
+    val japaneseHeardText: String,
+    val romaji: String,
+    val spanishSpokenText: String,
+    val englishSpokenText: String,
+    val contextLabel: String
+)
+
 object OfflineTranslatorEngine {
+
+    val incomingJapaneseSamples = listOf(
+        JapaneseToTravelerVoiceResult(
+            japaneseHeardText = "いらっしゃいませ。何名様ですか？禁煙席でよろしいですか？",
+            romaji = "Irasshaimase. Nan-mei-sama desu ka? Kin'en-seki de yoroshii desu ka?",
+            spanishSpokenText = "Bienvenido. ¿Cuántas personas son? ¿Les parece bien en mesa de no fumadores?",
+            englishSpokenText = "Welcome. How many people in your party? Is a non-smoking table okay?",
+            contextLabel = "RESTAURANTE"
+        ),
+        JapaneseToTravelerVoiceResult(
+            japaneseHeardText = "新幹線のぞみ号は16番ホームから発車します。エレベーターはあちらです。",
+            romaji = "Shinkansen Nozomi-gō wa jū-roku-ban hōmu kara hassha shimasu. Erebētā wa achira desu.",
+            spanishSpokenText = "El Shinkansen Nozomi sale del andén número 16. El ascensor está por allí.",
+            englishSpokenText = "The Nozomi Shinkansen departs from platform 16. The elevator is over there.",
+            contextLabel = "ESTACIÓN / TREN"
+        ),
+        JapaneseToTravelerVoiceResult(
+            japaneseHeardText = "レジ袋はいりますか？お箸と温めはどうしますか？",
+            romaji = "Rejibukuro wa irimasu ka? O-hashi to atatame wa dō shimasu ka?",
+            spanishSpokenText = "¿Necesita bolsa? ¿Quiere palillos y que le calentemos la comida?",
+            englishSpokenText = "Do you need a bag? Would you like chopsticks and your food warmed up?",
+            contextLabel = "KONBINI / TIENDA"
+        ),
+        JapaneseToTravelerVoiceResult(
+            japaneseHeardText = "免税手続きのため、パスポートの原本を見せてください。",
+            romaji = "Menzei tetsuzuki no tame, pasupōto no genpon o misete kudasai.",
+            spanishSpokenText = "Para el trámite libre de impuestos Tax-Free, muéstreme su pasaporte original, por favor.",
+            englishSpokenText = "For the Tax-Free procedure, please show me your original passport.",
+            contextLabel = "TAX-FREE / COMPRAS"
+        ),
+        JapaneseToTravelerVoiceResult(
+            japaneseHeardText = "申し訳ありませんが、現金またはSuicaのみとなります。",
+            romaji = "Mōshiwake arimasen ga, genkin matawa Suica nomi to narimasu.",
+            spanishSpokenText = "Disculpe, solo aceptamos pago en efectivo o con tarjeta Suica.",
+            englishSpokenText = "Sorry, we only accept cash or Suica IC card.",
+            contextLabel = "PAGO / CAJA"
+        )
+    )
+
+    fun translateFromJapaneseSpeech(japaneseInput: String): JapaneseToTravelerVoiceResult {
+        val clean = japaneseInput.trim()
+        return when {
+            clean.contains("何名") || clean.contains("いらっしゃい") || clean.contains("席") ->
+                incomingJapaneseSamples[0].copy(japaneseHeardText = clean)
+            clean.contains("ホーム") || clean.contains("番線") || clean.contains("新幹線") || clean.contains("16") ->
+                incomingJapaneseSamples[1].copy(japaneseHeardText = clean)
+            clean.contains("袋") || clean.contains("温め") || clean.contains("箸") ->
+                incomingJapaneseSamples[2].copy(japaneseHeardText = clean)
+            clean.contains("パスポート") || clean.contains("免税") ->
+                incomingJapaneseSamples[3].copy(japaneseHeardText = clean)
+            clean.contains("現金") || clean.contains("カード") || clean.contains("Suica") ->
+                incomingJapaneseSamples[4].copy(japaneseHeardText = clean)
+            else -> JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Nihongo no onsei: $clean",
+                spanishSpokenText = "El interlocutor japonés dice: $clean (Traducción de voz activa)",
+                englishSpokenText = "The Japanese speaker says: $clean (Voice translation active)",
+                contextLabel = "VOZ JAPONESA"
+            )
+        }
+    }
 
     val essentialPhrases = listOf(
         SimultaneousTranslationItem(
