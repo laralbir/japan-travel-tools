@@ -61,3 +61,4 @@ Dotar a **Japan Travel Tools** de capacidades de Inteligencia Artificial mediant
 - **Dado** que el usuario consulta a Gemini qué ver en 4 horas en Uji
 - **Cuando** recibe la respuesta estructurada y pulsa *"Guardar como Guía de Viaje"* o *"Añadir al Planificador"*
 - **Entonces** la información se guarda en la base de datos local de Guías (`SPEC-03`) o de Horarios (`SPEC-04`) disponible 100% offline.
+

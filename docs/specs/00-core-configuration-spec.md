@@ -132,6 +132,25 @@ En un viaje a Japón es habitual alternar entre una **eSIM de datos japonesa** (
      - Si **procede**: se comenta el diagnóstico y plan de resolución, se incorpora al flujo `Especificación -> Análisis -> Tareas -> TDD (Test que reproduce el bug -> Fix)`, se vincula el commit con `Closes #<id>` y se notifica al cerrar.
      - Si **no procede**: se responde explicando los motivos técnicos o de diseño por los que se descarta o se solicita aclaración al autor.
 
+### RF-00.11: Sincronización Multi-Dispositivo con Cuenta de Google (Móvil Pixel <-> Tablet TCL NXTPAPER)
+Dado que el usuario utilizará la aplicación simultáneamente en varios dispositivos (por ejemplo, planificando o leyendo guías en la **Tablet TCL NXTPAPER 11 Plus** en el hotel y consultando horarios/documentos en la calle con el **Google Pixel 10 Pro XL / Pixel 9 Pro XL**), la aplicación permitirá sincronizar todos los datos mediante la **misma Cuenta de Google** manteniendo intacto el principio **100% Offline-First**:
+1. **Inicio de Sesión con Cuenta de Google (`Credential Manager API` — Sign in with Google)**:
+   - Opcional (la app sigue funcionando 100% sin cuenta si el usuario no desea iniciar sesión).
+   - Al vincular la misma cuenta de Google en el móvil y en la tablet, se habilita la sincronización en la nube privada del usuario (**Google Drive `appDataFolder` / Firebase Cloud Storage + Firestore**).
+2. **Alcance Total de Datos Sincronizados**:
+   - **Preferencias de usuario (`DataStore`)**: Idioma, tema, país de origen de relojes, divisas favoritas.
+   - **Base de datos estructurada (`Room`)**:
+     - Itinerarios, días y horarios del **Planificador de Viaje (`SPEC-04`)** con sus ubicaciones de Google Maps.
+     - Trayectos de **Vuelos, Trenes, Metros y Autobuses (`SPEC-05`)**.
+     - **Guías de Viaje (`SPEC-03`)**, notas y metadatos de documentos.
+     - Historial de respuestas de **Gemini y frases guardadas (`SPEC-06`)**.
+   - **Archivos físicos y fotografías (`Context.filesDir`)**:
+     - Fotos del **Pasaporte y DNI** (cifradas en tránsito y almacenadas en el espacio privado de la cuenta del usuario), **PDFs de billetes/hoteles/guías** y **fotos de paradas del planificador**, descargándose automáticamente a la caché interna privada de cada dispositivo para que estén **disponibles 100% offline en todos ellos**.
+3. **Motor de Sincronización Offline-First (`WorkManager` + Resolución de Conflictos `Last-Write-Wins` por Entidad)**:
+   - Toda creación o edición en un dispositivo (incluso en Modo Avión) se guarda inmediatamente en local con una marca de tiempo `updatedAtMillis`, un contador de versión y un flag `pendingSync = true`.
+   - En cuanto el dispositivo detecta conexión (`Wi-Fi`, `eSIM` o `SIM`, configurable para *"Sincronizar archivos pesados solo por Wi-Fi"* para no gastar datos de la eSIM en Japón), sincroniza automáticamente en segundo plano o al pulsar **"Sincronizar ahora 🔄"**.
+   - En caso de edición concurrente en dos dispositivos offline, se resuelve por entidad individual mediante timestamp (`updatedAtMillis` más reciente prevalece) sin sobrescribir ni perder cambios de otras entidades.
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin / BDD)
@@ -175,3 +194,8 @@ En un viaje a Japón es habitual alternar entre una **eSIM de datos japonesa** (
 - **Entonces** la píldora de estado en la cabecera muestra en tiempo real el tipo de conexión activo (ej. `eSIM · 5G`, `Wi-Fi` u `Offline`).
 - **Y cuando** el usuario toca sobre dicho indicador de conexión
 - **Entonces** se abre el selector rápido que le permite desplegar el panel nativo de conectividad de Android (`Settings.Panel.ACTION_INTERNET_CONNECTIVITY`) o el gestor de **SIM / eSIM** para cambiar entre Wi-Fi, SIM y eSIM en un toque.
+
+### Escenario 8: Sincronización entre Tablet TCL NXTPAPER 11 Plus y Móvil Pixel 10/9 Pro XL con la misma cuenta de Google
+- **Dado** que el usuario ha iniciado sesión con la misma cuenta de Google en su tablet **TCL NXTPAPER 11 Plus** y en su móvil **Pixel 10 Pro XL**
+- **Cuando** en la tablet añade un nuevo tramo de *Shinkansen*, importa un PDF de hotel y edita el horario del *Día 3*, y ambos dispositivos tienen conexión a internet
+- **Entonces** el móvil **Pixel 10 Pro XL** descarga y persiste localmente los cambios y los archivos PDF/fotos, quedando disponibles en el móvil incluso si posteriormente se activa el Modo Avión.
