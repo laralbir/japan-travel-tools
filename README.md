@@ -24,9 +24,14 @@ Aplicación Android **offline-first** con herramientas esenciales para viajar a 
 3. **Bóveda de Identificación (Pasaporte y DNI a mano) [En Especificación - Beta]**
    - Acceso rápido offline a las fotografías de tu Pasaporte y DNI/documento de identidad (anverso/reverso) para mostrar en controles, hoteles o compras *Tax-Free*.
    - Almacenamiento privado interno de la aplicación con protección opcional mediante **Biometría / PIN del dispositivo**.
-4. **Repositorio de Documentos de Viaje [En Especificación - Beta]**
+4. **Repositorio de Documentos y Guías de Viaje [En Especificación - Beta]**
    - Gestión y visualización offline de PDFs e imágenes de billetes de vuelo, reservas de hotel, JR Pass, seguros de viaje y entradas.
-   - Categorización, búsqueda rápida y visor integrado sin depender de conexión a internet.
+   - **Gestor y Creador de Guías de Viaje**: Permite tanto importar guías externas (PDF con marcador de página, Markdown, mapas en imagen) como crear y editar guías propias por ciudad/región con texto enriquecido y fotos adjuntas offline.
+5. **Planificador de Viaje con Fotos, Google Maps, Calendario y Horarios [En Especificación - Beta]**
+   - Calendario de viaje por días y línea temporal de horarios (`Timeline` en zona horaria `Asia/Tokyo`) con detección de solapamientos.
+   - Galería de fotos offline asociada a cada parada o actividad del itinerario.
+   - **Integración dual con Google Maps**: Mapa interactivo embebido (`Maps Compose`) con marcadores numerados de la ruta del día + almacenamiento offline de coordenadas/direcciones en japonés y lanzamiento directo de rutas en la app de Google Maps.
+   - Sincronización/exportación opcional al Calendario del sistema / Google Calendar y vinculación directa con PDFs de reservas y guías de viaje.
 
 ---
 
@@ -56,7 +61,8 @@ Toda la documentación técnica y funcional se encuentra en español dentro del 
   - [00 - Visión General, Configuración, Idioma, Tema y Offline-First](docs/specs/00-core-configuration-spec.md)
   - [01 - Herramienta: Relojes y Ubicación (Hora Local y País Origen)](docs/specs/01-world-clock-spec.md)
   - [02 - Herramienta: Conversor de Divisa Offline-First (EUR <-> JPY)](docs/specs/02-currency-converter-spec.md)
-  - [03 - Herramienta: Pasaporte/DNI y Repositorio de Documentos](docs/specs/03-documents-and-id-vault-spec.md)
+  - [03 - Herramienta: Pasaporte/DNI, Repositorio de Documentos y Guías de Viaje](docs/specs/03-documents-and-id-vault-spec.md)
+  - [04 - Herramienta: Planificador de Viaje (Fotos, Google Maps, Calendario y Horarios)](docs/specs/04-trip-planner-spec.md)
 - **Análisis Técnico**:
   - [Arquitectura, Stack Tecnológico y Estrategia TDD](docs/analysis/architecture-and-tech-stack.md)
 - **Planificación de Tareas**:

@@ -73,6 +73,47 @@ En Japón necesitarás mostrar tu pasaporte frecuentemente (compras *Tax-Free*, 
    - 🚄 **Transporte (JR Pass / Trenes)**
    - 🛡️ **Seguros**
    - 🎟️ **Entradas y Reservas**
+   - 📖 **Guías de Viaje**
    - 📁 **Otros**
 3. **Fijar importantes (`📌`)**: Marca como favoritos los documentos que vayas a usar hoy para que aparezcan los primeros de la lista.
 4. **100% Offline**: Todos los PDFs e imágenes quedan guardados dentro de la app y se abren con el lector integrado sin necesitar conexión a internet ni aplicaciones externas.
+
+### 4.3. Agregar y Crear Guías de Viaje (Importadas y Propias)
+Dentro de la sección **Guías de Viaje**, puedes reunir toda tu información turística por ciudades (*Tokio*, *Kioto*, *Osaka*, *Nara*, etc.):
+1. **Importar Guías Externas**:
+   - Sube tus guías en **PDF**, archivos **Markdown (`.md`)** o **imágenes de mapas turísticos** (como el mapa del metro de Tokio o mapas de templos).
+   - El visor recuerda automáticamente la **última página leída** en PDFs largos.
+2. **Crear tus Propias Guías con Fotos**:
+   - Pulsa **`+ Nueva Guía`** para redactar tus propios apuntes (por ejemplo, *"Mejores sitios de Ramen en Shinjuku"* o *"Ruta por Higashiyama"*).
+   - Añade etiquetas, texto con formato y adjunta **fotos de referencia** desde tu galería para consultarlas sin conexión.
+
+---
+
+## 5. Herramienta: Planificador de Viaje (Fotos, Google Maps, Calendario y Horarios)
+
+Organiza tu itinerario día por día y hora por hora en un solo lugar conectado con tus fotos, mapas y documentos.
+
+### 5.1. Calendario y Línea Temporal de Horarios (`Timeline`)
+1. Crea tu viaje indicando las fechas de inicio y fin (por ejemplo, del *10 al 24 de noviembre*).
+2. Selecciona cualquier día en el **Calendario** superior para ver o editar su **Línea Temporal de Horarios**.
+3. Añade paradas o actividades indicando:
+   - **Hora de inicio y fin** (siempre en hora de Japón para evitar confusiones con el cambio horario).
+   - **Categoría** (*Templo/Lugar*, *Comida/Restaurante*, *Transporte/Tren*, *Hotel*, *Compras*, *Ocio*).
+   - Si dos actividades se solapan en horario, la app te mostrará un aviso visual inmediato.
+
+### 5.2. Fotos en cada Parada del Itinerario
+- Añade **fotos de referencia** en cada actividad (por ejemplo, la foto de la entrada del restaurante, el plato que quieres pedir o el cartel de la estación) o añade las fotos que vayas tomando durante el viaje.
+- Todas las fotos quedan guardadas offline dentro de la tarjeta del horario.
+
+### 5.3. Integración Dual con Google Maps (Mapa Integrado + App de Google Maps)
+1. **Guardar Ubicaciones y Enlaces**:
+   - En cada actividad puedes pegar un enlace compartido de **Google Maps**, introducir coordenadas o anotar el nombre y dirección en japonés (muy útil para enseñar al taxista).
+2. **Mapa Interactivo del Día (Integrado en la App)**:
+   - Cambia a la vista **Mapa del Día** para ver dentro de la app todos los puntos de tu jornada con **marcadores numerados (`1`, `2`, `3`...)** unidos por orden horario.
+   - Al tocar un marcador del mapa, verás al instante su horario, fotos y notas.
+3. **Abrir Ruta en Google Maps**:
+   - Pulsa **"Abrir en Google Maps"** o **"Cómo llegar"** en cualquier actividad para lanzar directamente las indicaciones paso a paso en la aplicación de Google Maps (aprovechando los mapas sin conexión que tengas descargados en Google Maps).
+
+### 5.4. Sincronización con tu Calendario y Vínculo con Reservas
+- **Vincular Documentos y Guías**: Enlaza directamente el PDF de tu reserva de hotel, entrada de museo o guía de barrio a la actividad correspondiente del horario para abrirlo con un toque.
+- **Exportar a Google Calendar / Calendario del Sistema**: Pulsa **"Añadir al Calendario"** para exportar una actividad o todo tu itinerario al calendario de tu teléfono con la zona horaria de Japón (`Asia/Tokyo`) configurada automáticamente.

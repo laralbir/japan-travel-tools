@@ -43,17 +43,31 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 
 ---
 
-## Hito 5: Herramienta 3 — Pasaporte/DNI y Repositorio de Documentos (`SPEC-03`)
+## Hito 5: Herramienta 3 — Pasaporte/DNI, Documentos y Guías de Viaje (`SPEC-03`)
 
-- [ ] **TASK-401 (TDD)**: Escribir tests unitarios para `DocumentRepository` e `InternalFileStorageManager` (copia segura de imágenes y PDFs a `Context.filesDir`, borrado limpio y listado por categoría).
+- [ ] **TASK-401 (TDD)**: Escribir tests unitarios para `DocumentRepository`, `TravelGuideRepository` e `InternalFileStorageManager` (copia segura de imágenes, PDFs y Markdown a `Context.filesDir`, borrado limpio, marcador de página en PDFs y filtrado por categoría/ciudad).
 - [ ] **TASK-402 (TDD)**: Implementar sección de **Identificación Rápida (Pasaporte y DNI)** con captura de cámara / Photo Picker, metadatos rápidos copiables y visor a pantalla completa con zoom (`pinch-to-zoom`).
 - [ ] **TASK-403 (TDD)**: Integrar `BiometricPrompt` opcional para desbloquear la visualización de Pasaporte y DNI según la preferencia persistida del usuario.
-- [ ] **TASK-404 (TDD)**: Implementar **Repositorio de Documentos de Viaje** (categorías: Vuelos, Hoteles, Transporte, Seguros, Entradas, Otros), buscador offline y visor PDF integrado (`PdfRenderer`).
+- [ ] **TASK-404 (TDD)**: Implementar **Repositorio de Documentos de Viaje** (categorías: Vuelos, Hoteles, Transporte, Seguros, Entradas, Guías, Otros), buscador offline y visor PDF integrado (`PdfRenderer`).
+- [ ] **TASK-405 (TDD)**: Implementar **Gestor y Creador de Guías de Viaje (`TravelGuidesScreen` y `GuideEditorScreen`)** para importar guías externas (PDF/Markdown/Imágenes) y crear/editar guías propias con notas, etiquetas por ciudad y galería de fotos offline.
 
 ---
 
-## Hito 6: Cierre de Beta, Aprobación y Release Estable `v0.0.1`
+## Hito 6: Herramienta 4 — Planificador de Viaje con Fotos, Google Maps, Calendario y Horarios (`SPEC-04`)
 
-- [ ] **TASK-501**: Ejecutar batería completa de tests unitarios e instrumentados y validar uso 100% en Modo Avión.
-- [ ] **TASK-502**: Revisión y aprobación del usuario de cada herramienta para retirar la etiqueta `BETA`.
-- [ ] **TASK-503**: Merge a `main` vía Gitflow (`release/0.0.1`), generación de tag `v0.0.1`, compilación de APK final y publicación en **GitHub Releases**.
+- [ ] **TASK-501 (TDD)**: Escribir tests unitarios para el dominio del planificador: generación de días entre fechas (`CreateTripUseCase`), ordenación cronológica de horarios en `Asia/Tokyo`, y detección de solapamientos horarios (`DetectScheduleConflictsUseCase`).
+- [ ] **TASK-502 (TDD)**: Escribir tests unitarios e implementar `ParseGoogleMapsUrlUseCase` y modelos de ubicación (extracción de coordenadas `lat, lng` y nombres desde URLs/Geo URIs y construcción de Intents de ruta hacia Google Maps).
+- [ ] **TASK-503 (TDD)**: Implementar `TripPlannerDao` (Room) y `TripPlannerRepository` con soporte para vincular múltiples fotos offline (`filesDir/planner_photos/`), documentos (`SPEC-03`) y guías de viaje a cada actividad del horario.
+- [ ] **TASK-504 (TDD)**: Implementar vista de **Calendario y Línea Temporal de Horarios (`DayTimelineView`)** con tarjetas de actividad, galería de miniaturas de fotos y avisos de solapamiento.
+- [ ] **TASK-505 (TDD)**: Implementar integración dual con **Google Maps**:
+  - Vista de **Mapa Interactivo Embebido (`DayEmbeddedMapView` con Maps Compose)** mostrando marcadores numerados por orden horario y polilínea de ruta diaria.
+  - Botones de acción rápida **"Abrir en Google Maps"** y **"Cómo llegar"** mediante Deep Links/Intents compatibles con mapas offline de Google Maps.
+- [ ] **TASK-506 (TDD)**: Implementar `SystemCalendarExporter` para sincronizar/exportar actividades o el itinerario completo al Calendario de Android / Google Calendar con zona horaria `Asia/Tokyo`.
+
+---
+
+## Hito 7: Cierre de Beta, Aprobación y Release Estable `v0.0.1`
+
+- [ ] **TASK-601**: Ejecutar batería completa de tests unitarios e instrumentados y validar uso 100% en Modo Avión.
+- [ ] **TASK-602**: Revisión y aprobación del usuario de cada herramienta para retirar la etiqueta `BETA`.
+- [ ] **TASK-603**: Merge a `main` vía Gitflow (`release/0.0.1`), generación de tag `v0.0.1`, compilación de APK final y publicación en **GitHub Releases**.

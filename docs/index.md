@@ -11,7 +11,8 @@ Documentos de especificación que definen el **qué** antes de diseñar o escrib
 - [**00 — Especificación Core: Idioma, Tema, Persistencia y Offline-First**](specs/00-core-configuration-spec.md)
 - [**01 — Especificación: Relojes de Viaje y Ubicación (Hora Local y País Origen)**](specs/01-world-clock-spec.md)
 - [**02 — Especificación: Conversor de Divisa Offline-First (EUR <-> JPY)**](specs/02-currency-converter-spec.md)
-- [**03 — Especificación: Pasaporte/DNI a Mano y Repositorio de Documentos**](specs/03-documents-and-id-vault-spec.md)
+- [**03 — Especificación: Pasaporte/DNI a Mano, Repositorio de Documentos y Guías de Viaje**](specs/03-documents-and-id-vault-spec.md)
+- [**04 — Especificación: Planificador de Viaje (Fotos, Google Maps, Calendario y Horarios)**](specs/04-trip-planner-spec.md)
 
 ### 2. Análisis Técnico (`/docs/analysis/`)
 Documentos que transforman las especificaciones en decisiones de arquitectura, modelos de datos y contratos verificables:
