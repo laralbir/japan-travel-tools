@@ -1163,6 +1163,14 @@ private fun WeatherToolScreen(isEs: Boolean) {
     var statusMessage by remember { mutableStateOf<String?>(null) }
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
 
+    LaunchedEffect(portablePlan.itineraryStops, portablePlan.transportSegments) {
+        SharedWeatherForecastStore.syncCitiesFromPlan(
+            stops = portablePlan.itineraryStops,
+            segments = portablePlan.transportSegments,
+            forceResetDeleted = false
+        )
+    }
+
     AppConfirmationDialog(
         state = confirmationDialogState,
         onDismiss = { confirmationDialogState = null }
@@ -1229,23 +1237,58 @@ private fun WeatherToolScreen(isEs: Boolean) {
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
                     )
-                    Button(onClick = {
-                        editingCity = null
-                        isCreatingCity = true
-                    }) {
-                        Text(if (isEs) "➕ Ciudad" else "➕ City", fontSize = 13.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = {
+                                SharedWeatherForecastStore.syncCitiesFromPlan(
+                                    stops = portablePlan.itineraryStops,
+                                    segments = portablePlan.transportSegments,
+                                    forceResetDeleted = false
+                                )
+                                statusMessage = if (isEs) "🔄 Sincronizado con itinerario" else "🔄 Synced with trip plan"
+                            },
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Text(if (isEs) "🔄 Plan" else "🔄 Plan", fontSize = 12.sp)
+                        }
+                        Button(
+                            onClick = {
+                                editingCity = null
+                                isCreatingCity = true
+                            },
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(if (isEs) "➕ Ciudad" else "➕ City", fontSize = 12.sp)
+                        }
                     }
                 }
                 Spacer(Modifier.height(6.dp))
                 Text(
                     text = if (isEs) {
-                        "Previsión del tiempo para tus destinos en Japón. Puedes añadir, editar o eliminar ciudades con sus coordenadas."
+                        "Previsión del tiempo obtenida automáticamente de los destinos de tus transportes e itinerarios. Puedes añadir, editar o eliminar ciudades con sus coordenadas."
                     } else {
-                        "Weather forecast for your Japan destinations. Add, edit, or delete cities with custom coordinates."
+                        "Weather forecast automatically obtained from your transport and itinerary destinations. Add, edit, or delete cities freely."
                     },
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
+                if (statusMessage != null) {
+                    Spacer(Modifier.height(10.dp))
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = statusMessage ?: "",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
+                    }
+                }
 
                 Spacer(Modifier.height(14.dp))
 
