@@ -72,6 +72,7 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 - [x] **TASK-507 (TDD)**: Implementar exportación e importación de planes de viaje y transporte en formato **JSON legible (`TravelPlanJsonCodec` + `JsonPortabilityModalSheet`)** con soporte de fusión (`Merge`) y reemplazo (`Replace`) para preparar viajes desde apps externas.
 - [x] **TASK-508 (TDD)**: Persistencia real offline-first en almacenamiento local (`context.filesDir`) para planes, transportes, documentos, guías y reservas + soporte completo de gestión de múltiples planes (Crear / Editar / Cambiar / Borrar planes de viaje) + adjuntos de archivos y PDFs a documentos y reservas.
 - [x] **TASK-509 (TDD)**: Asistente IA de Viaje interactivo y funcional (`SPEC-06 RF-06.2`): Estado reactivo de carga (`isLoading` con `CircularProgressIndicator` en el botón "Consultar IA"), arquitectura híbrida (Gemini REST API en la nube con API Key configurable + motor experto on-device offline con más de 20 categorías de viaje a Japón), insignia de procedencia y hora, acciones de copiado y guardado directo en Bóveda de Guías.
+- [x] **TASK-510 (TDD)**: Gestión dinámica de ciudades y destinos meteorológicos (`SPEC-07 RF-07.4`): Modelo `WeatherCityItem`, CRUD completo (`addCity`, `updateCity`, `deleteCity`) en `SharedWeatherForecastStore`, catálogo de presets con 14 destinos populares de Japón, persistencia offline en `saved_weather_cities.json`, y modal sheet `CityWeatherEditorModalSheet`.
 
 ---
 

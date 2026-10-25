@@ -7,6 +7,25 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.14] - 2026-10-25
+
+### Added
+- **Gestión Dinámica de Ciudades y Destinos Meteorológicos (`SPEC-07 RF-07.4`)**:
+  - **Catálogo Dinámico y CRUD Completo de Ciudades**:
+    - Reemplazo del enum estático por el modelo dinámico `WeatherCityItem(id, nameEs, nameEn, latitude, longitude, isDefault)`.
+    - **Añadir Nuevas Ciudades**: Botón `➕ Añadir Ciudad` en el panel del tiempo que abre la hoja modal `CityWeatherEditorModalSheet`.
+    - **Editar Coordenadas y Nombre**: Botón `✏️ Editar` en la tarjeta de la ciudad seleccionada para ajustar nombre en español, inglés o coordenadas GPS con validación numérica estricta (`latitude` entre -90 y 90, `longitude` entre -180 y 180).
+    - **Eliminar Ciudades**: Botón `🗑️ Eliminar` para suprimir destinos que el usuario no vaya a visitar (con protección para no dejar la lista vacía).
+  - **Selector Rápido de Destinos Populares de Japón (1-Touch Presets)**:
+    - Carrusel horizontal con chips de acceso inmediato a 14 destinos turísticos emblemáticos de Japón con coordenadas GPS preconfiguradas:
+      - *Nara* (`34.6851, 135.8048`), *Hiroshima* (`34.3853, 132.4553`), *Miyajima / Itsukushima* (`34.2965, 132.3197`), *Kamakura* (`35.3192, 139.5467`), *Nikko* (`36.7580, 139.5989`), *Takayama* (`36.1460, 137.2520`), *Kanazawa* (`36.5613, 136.6562`), *Sapporo* (`43.0618, 141.3545`), *Fukuoka* (`33.5904, 130.4017`), *Nagoya* (`35.1815, 136.9066`), *Yokohama* (`35.4437, 139.6380`), *Kobe* (`34.6901, 135.1955`), *Okinawa (Naha)* (`26.2124, 127.6809`), y *Sendai* (`38.2682, 140.8694`).
+    - Al pulsar cualquiera de los presets se rellenan automáticamente los campos de nombre y coordenadas en el formulario.
+  - **Previsión Online en Tiempo Real para Cualquier Destino**:
+    - Integración de `OpenMeteoWeatherUseCase.fetchCoordinatesForecastOnline(cityKey, lat, lon)` que consulta `https://api.open-meteo.com/v1/forecast` para las coordenadas exactas de la ciudad elegida en tiempo real y sin necesidad de API Key.
+  - **Persistencia Local Automática Offline-First**:
+    - `SharedWeatherForecastStore.saveToDisk()` / `loadFromDisk()`: Serialización automática de la lista personalizada de ciudades en `context.filesDir/saved_weather_cities.json` con `WeatherCityJsonCodec`.
+    - Todas las ciudades añadidas, modificadas o eliminadas persisten indefinidamente tras el cierre o reinicio de la aplicación, manteniendo además las semillas offline por defecto si no hay conexión.
+
 ## [0.0.1-beta.13] - 2026-10-25
 
 ### Fixed & Enhanced
