@@ -206,3 +206,4 @@ object TransportPlannerUseCase {
         return if (h > 0) "${h}h ${m}m" else "${m}m"
     }
 }
+

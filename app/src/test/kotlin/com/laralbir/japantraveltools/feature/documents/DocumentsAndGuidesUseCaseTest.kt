@@ -61,3 +61,4 @@ class DocumentsAndGuidesUseCaseTest {
         assertTrue(kyotoGuides.all { it.cityRegion.equals("Kyoto", ignoreCase = true) })
     }
 }
+

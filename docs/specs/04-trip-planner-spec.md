@@ -65,6 +65,15 @@ Proporcionar una herramienta integral y **100% funcional offline** para planific
 1. Una actividad del planificador puede enlazar uno o varios documentos del repositorio (ej. vincular la actividad *"Check-in Hotel Shinjuku 15:00"* con el PDF de la reserva del hotel, o vincular *"Visita a Fushimi Inari 08:30"* con la Guía de Kioto).
 2. Desde la propia tarjeta del horario se puede abrir el PDF/imagen o guía vinculada con un solo toque.
 
+### RF-04.6: Exportación e Importación de Planes de Viaje y Transporte en Formato Legible (`JSON` Abierto)
+1. El usuario podrá **exportar e importar** sus planes completos de viaje en un **formato JSON legible por humanos (`pretty-printed`, UTF-8)** con un esquema documentado (`schemaVersion: 1`):
+   - Incluye **Itinerarios diarios, calendarios y horarios (`ItineraryStopItem`)** con sus coordenadas, nombres en japonés y notas.
+   - Incluye **Planes de Transporte Multimodal (`TransportSegmentItem` de `SPEC-05`: vuelos, trenes Shinkansen, metros y autobuses)**.
+   - Incluye **Guías de Viaje personalizadas (`TravelGuideArticle` de `SPEC-03`)**.
+2. **Casos de uso de Preparación Externa**:
+   - Permite preparar el viaje cómodamente desde un ordenador, editor de código, hoja de cálculo, otra aplicación externa o pedirle a un LLM externo que genere el archivo `.json` siguiendo el esquema, e importarlo en la app con un toque (mediante archivo `.json` o portapapeles).
+   - Permite elegir entre **Fusionar (`Merge`)** con el plan actual o **Reemplazar (`Replace`)** el plan existente, validando previamente la estructura JSON sin corromper datos locales.
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin / BDD)
@@ -83,3 +92,8 @@ Proporcionar una herramienta integral y **100% funcional offline** para planific
 - **Dado** que el usuario está planificando su viaje desde España (`Europe/Madrid`) y programa una reserva de cena a las `19:30` (hora de Japón)
 - **Cuando** pulsa *"Sincronizar / Añadir al Calendario"*
 - **Entonces** el evento se registra con el huso horario `Asia/Tokyo` para que al aterrizar en Japón su calendario muestre exactamente las `19:30`.
+
+### Escenario 4: Exportar e importar un plan completo (Itinerario + Vuelos/Trenes/Metros/Buses) en JSON legible
+- **Dado** que el usuario prepara un archivo `japan-trip-plan.json` en una herramienta externa con días, horarios, coordenadas y tramos de vuelo/Shinkansen
+- **Cuando** importa el JSON en la aplicación
+- **Entonces** el Planificador de Viaje y el Planificador de Transporte cargan y persisten automáticamente todas las paradas y trayectos para su uso 100% offline.

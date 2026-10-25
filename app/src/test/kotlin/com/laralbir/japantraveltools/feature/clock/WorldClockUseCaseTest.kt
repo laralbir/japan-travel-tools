@@ -54,3 +54,4 @@ class WorldClockUseCaseTest {
         assertEquals(DayPeriod.EVENING, comparisonSummer.japanDayPeriod)
     }
 }
+

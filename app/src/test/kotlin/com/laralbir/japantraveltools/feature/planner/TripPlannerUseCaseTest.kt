@@ -67,3 +67,4 @@ class TripPlannerUseCaseTest {
         assertEquals(139.7966553, coords.second, 0.0001)
     }
 }
+
