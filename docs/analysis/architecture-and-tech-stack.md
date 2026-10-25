@@ -317,6 +317,24 @@ data class UserPreferences(
     - `importCloudBackupJson(...)`: Deserializa y valida el paquete, fusionando los datos en los almacenes correspondientes sin pérdida de paradas ni documentos.
     - `saveCloudBackupToDrive(...)` & `restoreCloudBackupFromDrive(...)`: Gestión con Storage Access Framework de Android (`Intent.ACTION_CREATE_DOCUMENT` / `Intent.ACTION_OPEN_DOCUMENT`) para guardar en la carpeta de Google Drive del usuario y restaurar en cualquier otro dispositivo.
 
+### 3.11. Diagnóstico de Gemini Cloud, Selector de Modelos y Alertas de Conexión
+- **Gestor de Verificación de Clave (`GeminiApiKeyHelper.testApiKeyConnection`)**:
+  - Función suspendida que ejecuta una petición de prueba controlada contra `https://generativelanguage.googleapis.com/v1beta/models/{modelId}:generateContent?key=$apiKey`.
+  - Evalúa la respuesta HTTP de Google:
+    - `200 OK`: Éxito confirmado.
+    - `403 FORBIDDEN` / `PERMISSION_DENIED`: Error de permisos o clave inválida (destacando que las claves de Google AI Studio inician siempre con `AIzaSy`).
+    - `400 BAD_REQUEST`: Parámetros no válidos.
+    - `404 NOT_FOUND`: Modelo no encontrado o no habilitado.
+    - `429 TOO_MANY_REQUESTS`: Cuota excedida.
+- **Transparencia en Asistente (`AiTravelAssistantResult.cloudErrorDetail`)**:
+  - Si la llamada a Gemini Cloud falla teniendo el usuario una API Key configurada, no se produce un fallback silencioso.
+  - La respuesta registra `source = OFFLINE_EXPERT` y añade `cloudErrorDetail: String` explicando la causa (ej. `HTTP 403: Permiso Denegado / Clave no válida`).
+  - La UI muestra una tarjeta de advertencia visible para que el viajero comprenda exactamente por qué se recurrió al motor offline.
+- **Catálogo y Selector de Modelos (`GeminiModelCatalog`)**:
+  - Opciones: `gemini-2.0-flash` (por defecto), `gemini-2.0-flash-lite`, `gemini-1.5-pro`, `gemini-1.5-flash`, `gemini-2.5-flash` y modelo personalizado.
+  - Persistido en `UserPreferencesRepository` (`pref_gemini_model_id`).
+  - Parseo seguro de respuesta JSON usando `org.json.JSONObject` para extraer `candidates[0].content.parts[0].text`.
+
 ---
 
 ## 4. Estrategia de Testing (TDD)

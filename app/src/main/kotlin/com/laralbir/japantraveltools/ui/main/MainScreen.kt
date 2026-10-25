@@ -4097,6 +4097,7 @@ private fun AiAssistantScreen(
     var geminiPrompt by rememberSaveable { mutableStateOf("") }
     var assistantAnswer by rememberSaveable { mutableStateOf<String?>(null) }
     var assistantSource by rememberSaveable { mutableStateOf<String?>(null) }
+    var assistantErrorDetail by rememberSaveable { mutableStateOf<String?>(null) }
     var assistantTime by rememberSaveable { mutableStateOf<String?>(null) }
     var isLoading by rememberSaveable { mutableStateOf(false) }
     var actionStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
@@ -4106,15 +4107,19 @@ private fun AiAssistantScreen(
         if (clean.isBlank() || isLoading) return
         isLoading = true
         actionStatusMessage = null
+        assistantErrorDetail = null
         coroutineScope.launch {
             val result = GeminiAssistantEngine.queryAssistant(
                 prompt = clean,
                 apiKey = prefs.geminiApiKey,
                 eurToJpyRate = 164.80,
-                currentPlan = portablePlan
+                currentPlan = portablePlan,
+                modelId = prefs.geminiModelId,
+                isEs = isEs
             )
             assistantAnswer = result.answer
             assistantSource = result.source.name
+            assistantErrorDetail = result.cloudErrorDetail
             assistantTime = result.timestampFormatted
             isLoading = false
         }
@@ -4167,13 +4172,16 @@ private fun AiAssistantScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     val hasKey = !prefs.geminiApiKey.isNullOrBlank()
+                    val modelName = remember(prefs.geminiModelId) {
+                        com.laralbir.japantraveltools.feature.ai.GeminiApiKeyHelper.resolveModelName(prefs.geminiModelId)
+                    }
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = if (hasKey) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer
                     ) {
                         Text(
                             text = if (hasKey) {
-                                if (isEs) "✨ Gemini 2.0 Flash (Cloud)" else "✨ Gemini 2.0 Flash (Cloud)"
+                                "✨ $modelName (Cloud)"
                             } else {
                                 if (isEs) "⚡ Motor Experto (100% Offline)" else "⚡ Expert Engine (Offline)"
                             },
@@ -4376,6 +4384,47 @@ private fun AiAssistantScreen(
                                         fontSize = 12.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
+                                }
+                            }
+
+                            if (assistantErrorDetail != null) {
+                                Spacer(Modifier.height(10.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = MaterialTheme.colorScheme.errorContainer,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Text("⚠️", fontSize = 16.sp)
+                                            Text(
+                                                text = if (isEs) "Fallo al conectar con Gemini Cloud" else "Failed to connect to Gemini Cloud",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp,
+                                                color = MaterialTheme.colorScheme.onErrorContainer
+                                            )
+                                        }
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(
+                                            text = assistantErrorDetail!!,
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onErrorContainer
+                                        )
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(
+                                            text = if (isEs) {
+                                                "ℹ️ Se muestra a continuación la respuesta del Motor Experto Offline como respaldo."
+                                            } else {
+                                                "ℹ️ Showing response from Offline Expert Engine as fallback."
+                                            },
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.85f)
+                                        )
+                                    }
                                 }
                             }
 

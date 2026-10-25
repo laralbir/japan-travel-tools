@@ -1089,26 +1089,31 @@ enum class AssistantSource {
 data class AiTravelAssistantResult(
     val answer: String,
     val source: AssistantSource,
-    val timestampFormatted: String
+    val timestampFormatted: String,
+    val cloudErrorDetail: String? = null
 )
 
 object GeminiAssistantEngine {
 
     /**
      * Executes an AI query via Gemini Cloud API if an API key is available and connectivity exists,
-     * otherwise falls back seamlessly to the comprehensive offline expert engine.
+     * otherwise falls back seamlessly to the comprehensive offline expert engine, providing
+     * transparent error diagnostics if the cloud call failed.
      */
     suspend fun queryAssistant(
         prompt: String,
         apiKey: String?,
         eurToJpyRate: Double,
-        currentPlan: PortableTravelPlanBundle? = null
+        currentPlan: PortableTravelPlanBundle? = null,
+        modelId: String? = null,
+        isEs: Boolean = true
     ): AiTravelAssistantResult = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val cleanPrompt = prompt.trim()
         val nowFormatted = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
 
+        var cloudError: String? = null
         if (!apiKey.isNullOrBlank()) {
-            val cloudAnswer = queryGeminiCloudApi(cleanPrompt, apiKey, eurToJpyRate, currentPlan)
+            val (cloudAnswer, err) = queryGeminiCloudApi(cleanPrompt, apiKey, eurToJpyRate, currentPlan, modelId, isEs)
             if (cloudAnswer != null && cloudAnswer.isNotBlank()) {
                 return@withContext AiTravelAssistantResult(
                     answer = cloudAnswer,
@@ -1116,13 +1121,15 @@ object GeminiAssistantEngine {
                     timestampFormatted = nowFormatted
                 )
             }
+            cloudError = err
         }
 
         val offlineAnswer = generateSmartTravelAnswer(cleanPrompt, eurToJpyRate, currentPlan)
         AiTravelAssistantResult(
             answer = offlineAnswer,
             source = AssistantSource.OFFLINE_EXPERT,
-            timestampFormatted = nowFormatted
+            timestampFormatted = nowFormatted,
+            cloudErrorDetail = cloudError
         )
     }
 
@@ -1130,16 +1137,21 @@ object GeminiAssistantEngine {
         prompt: String,
         apiKey: String,
         eurToJpyRate: Double,
-        currentPlan: PortableTravelPlanBundle?
-    ): String? {
+        currentPlan: PortableTravelPlanBundle?,
+        modelId: String? = null,
+        isEs: Boolean = true
+    ): Pair<String?, String?> {
+        val resolvedModel = if (modelId.isNullOrBlank()) GeminiApiKeyHelper.DEFAULT_MODEL_ID else modelId.trim()
+        val prefix = apiKey.trim().take(6)
         return try {
-            val url = java.net.URL("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey")
+            val endpointUrl = GeminiApiKeyHelper.buildGenerateContentUrl(apiKey, resolvedModel)
+            val url = java.net.URL(endpointUrl)
             val connection = (url.openConnection() as java.net.HttpURLConnection).apply {
                 requestMethod = "POST"
                 setRequestProperty("Content-Type", "application/json; charset=UTF-8")
                 setRequestProperty("Accept", "application/json")
                 connectTimeout = 8000
-                readTimeout = 12000
+                readTimeout = 14000
                 doOutput = true
             }
 
@@ -1158,17 +1170,35 @@ object GeminiAssistantEngine {
             }
 
             val responseCode = connection.responseCode
-            if (responseCode == 200) {
+            if (responseCode in 200..299) {
                 val responseText = connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
-                val textPattern = """"text"\s*:\s*"((?:[^"\\]|\\.)*)"""".toRegex()
-                val match = textPattern.find(responseText)
-                val rawText = match?.groupValues?.get(1)
-                rawText?.replace("\\n", "\n")?.replace("\\\"", "\"")?.replace("\\\\", "\\")
+                val text = try {
+                    val root = org.json.JSONObject(responseText)
+                    val candidates = root.optJSONArray("candidates")
+                    val firstCandidate = candidates?.optJSONObject(0)
+                    val content = firstCandidate?.optJSONObject("content")
+                    val parts = content?.optJSONArray("parts")
+                    parts?.optJSONObject(0)?.optString("text")?.takeIf { it.isNotBlank() }
+                } catch (_: Exception) {
+                    null
+                } ?: run {
+                    val textPattern = """"text"\s*:\s*"((?:[^"\\]|\\.)*)"""".toRegex()
+                    val match = textPattern.find(responseText)
+                    match?.groupValues?.get(1)?.replace("\\n", "\n")?.replace("\\\"", "\"")?.replace("\\\\", "\\")
+                }
+                text to null
             } else {
-                null
+                val errorBody = connection.errorStream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
+                val errorMsg = GeminiApiKeyHelper.evaluateHttpError(responseCode, errorBody, prefix, isEs)
+                null to errorMsg
             }
-        } catch (_: Exception) {
-            null
+        } catch (e: Exception) {
+            val msg = if (isEs) {
+                "📶 Error de conexión con Gemini Cloud (${e.localizedMessage ?: "timeout"})."
+            } else {
+                "📶 Gemini Cloud connection error (${e.localizedMessage ?: "timeout"})."
+            }
+            null to msg
         }
     }
 

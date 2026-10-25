@@ -25,7 +25,8 @@ data class UserPreferences(
     val syncOnlyOnWifi: Boolean = true,
     val googleAccountEmail: String? = null,
     val lastCloudSyncEpochMillis: Long? = null,
-    val geminiApiKey: String? = null
+    val geminiApiKey: String? = null,
+    val geminiModelId: String = "gemini-2.0-flash"
 )
 
 interface KeyValueStore {
@@ -112,6 +113,7 @@ class DefaultUserPreferencesRepository(
         val email = store.getString(KEY_GOOGLE_EMAIL, null)
         val syncTime = store.getLong(KEY_LAST_SYNC, -1L).takeIf { it > 0L }
         val apiKey = store.getString(KEY_GEMINI_API_KEY, null)
+        val modelId = store.getString(KEY_GEMINI_MODEL, "gemini-2.0-flash") ?: "gemini-2.0-flash"
 
         return UserPreferences(
             themeMode = runCatching { AppThemeMode.valueOf(themeStr) }.getOrDefault(AppThemeMode.SYSTEM),
@@ -126,7 +128,8 @@ class DefaultUserPreferencesRepository(
             syncOnlyOnWifi = syncWifi,
             googleAccountEmail = email,
             lastCloudSyncEpochMillis = syncTime,
-            geminiApiKey = apiKey
+            geminiApiKey = apiKey,
+            geminiModelId = modelId
         )
     }
 
@@ -186,6 +189,12 @@ class DefaultUserPreferencesRepository(
         refresh()
     }
 
+    fun setGeminiModelId(modelId: String) {
+        val safeModel = modelId.trim().ifBlank { "gemini-2.0-flash" }
+        store.putString(KEY_GEMINI_MODEL, safeModel)
+        refresh()
+    }
+
     companion object {
         private const val KEY_THEME = "pref_theme_mode"
         private const val KEY_LANGUAGE = "pref_language"
@@ -200,6 +209,7 @@ class DefaultUserPreferencesRepository(
         private const val KEY_GOOGLE_EMAIL = "pref_google_account_email"
         private const val KEY_LAST_SYNC = "pref_last_cloud_sync_millis"
         private const val KEY_GEMINI_API_KEY = "pref_gemini_api_key"
+        private const val KEY_GEMINI_MODEL = "pref_gemini_model_id"
     }
 }
 
