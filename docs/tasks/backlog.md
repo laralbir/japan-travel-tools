@@ -61,6 +61,7 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 - [x] **TASK-403 (TDD)**: Integrar bloqueo de privacidad persistido para desbloquear la visualización de Pasaporte y DNI.
 - [x] **TASK-404 (TDD)**: Implementar **Repositorio de Documentos de Viaje** (categorías: Vuelos, Hoteles, Transporte, Seguros, Entradas, Guías) y buscador offline.
 - [x] **TASK-405 (TDD)**: Implementar sección de **Guías de Viaje Offline** organizadas por ciudad (*Tokio*, *Kioto*, *Osaka*) con etiquetas y contador de fotos.
+- [x] **TASK-406 (TDD)**: Visor a pantalla completa y zoom táctil para Pasaporte y DNI (`SPEC-03 RF-03.1.3`): Escribir tests unitarios e implementar `ZoomPanState` con cálculo de escala `1.0x` a `5.0x`, traslación acotada, alternancia por doble toque y restablecimiento; implementar `FullScreenZoomableImageViewerDialog` e integrar apertura al tocar las fotos en `IdDocumentPhotoSection`.
 
 ---
 
