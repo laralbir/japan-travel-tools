@@ -100,6 +100,10 @@ import com.laralbir.japantraveltools.feature.planner.TripPlannerUseCase
 import com.laralbir.japantraveltools.feature.settings.OpenSourceLibrariesCatalog
 import com.laralbir.japantraveltools.feature.transport.TransportMode
 import com.laralbir.japantraveltools.feature.transport.TransportPlannerUseCase
+import com.laralbir.japantraveltools.feature.weather.JapanWeatherCity
+import com.laralbir.japantraveltools.feature.weather.OpenMeteoWeatherUseCase
+import com.laralbir.japantraveltools.feature.weather.PlanningSuitability
+import com.laralbir.japantraveltools.feature.weather.SharedWeatherForecastStore
 import com.laralbir.japantraveltools.ui.theme.JapanTravelToolsTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -826,6 +830,140 @@ private fun ClocksAndCurrencyDashboardScreen(
                 }
             }
         }
+
+        item {
+            // Open-Meteo Weather & Climate Planner Card (SPEC-07: User & AI Planning Intelligence)
+            OpenMeteoWeatherPlannerCard(isEs = isEs)
+        }
+    }
+}
+
+@Composable
+private fun OpenMeteoWeatherPlannerCard(isEs: Boolean) {
+    val coroutineScope = rememberCoroutineScope()
+    val allForecasts by SharedWeatherForecastStore.forecastsState.collectAsState()
+    var selectedCity by rememberSaveable { mutableStateOf(JapanWeatherCity.TOKYO) }
+    var isSyncingWeather by remember { mutableStateOf(false) }
+    var weatherSyncStatus by remember {
+        mutableStateOf(
+            if (isEs) "📡 Open-Meteo (JMA Japón) · Semilla Offline Lista"
+            else "📡 Open-Meteo (JMA Japan) · Offline Seed Ready"
+        )
+    }
+
+    val cityDays = remember(allForecasts, selectedCity) {
+        allForecasts.filter { it.cityKey == selectedCity.key }.ifEmpty {
+            listOf(OpenMeteoWeatherUseCase.defaultSeedForecasts().first())
+        }
+    }
+
+    KotlinConfCard(accentBorderColor = MaterialTheme.colorScheme.primary) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (isEs) "🌦️ Tiempo y Planificación Climática (Open-Meteo)" else "🌦️ Open-Meteo Weather & Climate Planner",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            BetaBadgePill(text = "OPEN-METEO")
+        }
+
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = weatherSyncStatus,
+            fontSize = 11.sp,
+            color = MaterialTheme.colorScheme.tertiary,
+            fontWeight = FontWeight.SemiBold
+        )
+
+        Spacer(Modifier.height(8.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            JapanWeatherCity.entries.forEach { city ->
+                FilterChip(
+                    selected = selectedCity == city,
+                    onClick = { selectedCity = city },
+                    label = { Text(if (isEs) city.nameEs else city.nameEn, fontSize = 11.sp) }
+                )
+            }
+            OutlinedButton(
+                enabled = !isSyncingWeather,
+                onClick = {
+                    isSyncingWeather = true
+                    coroutineScope.launch {
+                        val res = OpenMeteoWeatherUseCase.fetchCityForecastOnline(selectedCity)
+                        res.onSuccess { liveDays ->
+                            SharedWeatherForecastStore.updateCityForecasts(selectedCity.key, liveDays)
+                            weatherSyncStatus = if (isEs) {
+                                "✅ Actualizado en vivo desde api.open-meteo.com (${selectedCity.nameEs}, ${liveDays.size} días)"
+                            } else {
+                                "✅ Live synced from api.open-meteo.com (${selectedCity.nameEn}, ${liveDays.size} days)"
+                            }
+                        }.onFailure {
+                            weatherSyncStatus = if (isEs) {
+                                "📡 Modo Offline: mostrando previsión local cacheada para ${selectedCity.nameEs}"
+                            } else {
+                                "📡 Offline Mode: showing locally cached forecast for ${selectedCity.nameEn}"
+                            }
+                        }
+                        isSyncingWeather = false
+                    }
+                },
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text(if (isEs) "🔄 Actualizar Open-Meteo" else "🔄 Sync Open-Meteo", fontSize = 11.sp)
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+        cityDays.take(3).forEach { day ->
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = if (day.suitability == PlanningSuitability.INDOOR_RECOMMENDED) {
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                } else {
+                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f)
+                },
+                border = BorderStroke(
+                    1.dp,
+                    if (day.suitability == PlanningSuitability.INDOOR_RECOMMENDED) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+            ) {
+                Column(modifier = Modifier.padding(10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${day.condition.emoji} ${day.dateIso} · ${day.tempMaxC.toInt()}°C / ${day.tempMinC.toInt()}°C · ☔ ${day.precipitationProbabilityMax}%",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 13.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        BetaBadgePill(
+                            text = if (isEs) day.suitability.badgeEs else day.suitability.badgeEn
+                        )
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = if (isEs) day.userPlanningAdviceEs else day.userPlanningAdviceEn,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -839,11 +977,16 @@ private fun TripPlannerAdaptiveScreen(
 ) {
     val context = LocalContext.current
     val portablePlan by SharedTravelPlanStore.planState.collectAsState()
+    val weatherForecasts by SharedWeatherForecastStore.forecastsState.collectAsState()
     val stops = portablePlan.itineraryStops
 
     var selectedDay by rememberSaveable { mutableIntStateOf(1) }
     var selectedStopForMap by remember { mutableStateOf<ItineraryStopItem?>(null) }
     var showJsonSheet by rememberSaveable { mutableStateOf(false) }
+
+    val selectedDayWeather = remember(weatherForecasts, selectedDay) {
+        SharedWeatherForecastStore.forecastForDayNumber(selectedDay)
+    }
 
     val availableDays = remember(stops) {
         stops.map { it.dayNumber }.distinct().sorted().ifEmpty { listOf(1, 2) }
@@ -908,6 +1051,49 @@ private fun TripPlannerAdaptiveScreen(
                     text = if (isEs) "✨ Mejorar / Ampliar Plan con Gemini IA" else "✨ Improve / Expand Plan with Gemini AI",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
+                )
+            }
+            OutlinedButton(
+                onClick = {
+                    val weatherAdapted = AiPlanBuilderEngine.optimizePlanWithWeather(
+                        currentPlan = portablePlan,
+                        forecasts = weatherForecasts
+                    )
+                    SharedTravelPlanStore.updatePlan(weatherAdapted)
+                },
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = if (isEs) "🌦️✨ Adaptar Ruta al Clima (Open-Meteo)" else "🌦️✨ Adapt Route to Weather (Open-Meteo)",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        // Daily Open-Meteo Weather Planning Strip for User & AI (SPEC-07 RF-07.2)
+        Spacer(Modifier.height(6.dp))
+        Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${selectedDayWeather.condition.emoji} Open-Meteo Día $selectedDay: ${selectedDayWeather.tempMaxC.toInt()}°/${selectedDayWeather.tempMinC.toInt()}°C · ☔${selectedDayWeather.precipitationProbabilityMax}% · 🗻Fuji ${selectedDayWeather.fujiVisibilityPercent}%",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                BetaBadgePill(
+                    text = if (isEs) selectedDayWeather.suitability.badgeEs else selectedDayWeather.suitability.badgeEn
                 )
             }
         }
@@ -1986,6 +2172,24 @@ private fun GeminiAndTranslatorScreen(
                         }
                     ) {
                         Text(if (isEs) "✨ Crear / Mejorar Plan en la App" else "✨ Create / Improve Plan in App", fontSize = 12.sp)
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            val weatherForecasts = SharedWeatherForecastStore.forecastsState.value
+                            val updated = AiPlanBuilderEngine.optimizePlanWithWeather(
+                                currentPlan = portablePlan,
+                                forecasts = weatherForecasts
+                            )
+                            SharedTravelPlanStore.updatePlan(updated)
+                            aiPlanStatusBanner = if (isEs) {
+                                "🌦️ IA + Open-Meteo: paradas adaptadas según previsión de lluvia/sol (${weatherForecasts.size} días)."
+                            } else {
+                                "🌦️ AI + Open-Meteo: stops adapted to rain/sun forecast (${weatherForecasts.size} days)."
+                            }
+                        }
+                    ) {
+                        Text(if (isEs) "🌦️✨ Optimizar con Clima Open-Meteo" else "🌦️✨ Optimize with Open-Meteo", fontSize = 12.sp)
                     }
 
                     OutlinedButton(onClick = { showJsonSheet = true }) {

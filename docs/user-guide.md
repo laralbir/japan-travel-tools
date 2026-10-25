@@ -206,3 +206,17 @@ En la pantalla principal (Home) y en la barra superior tienes siempre a mano el 
 - **Análisis Inteligente de Menús y Fotos**: Haz una foto a la carta de un restaurante japonés y **Gemini** te explicará cada plato, sus ingredientes y te mostrará los precios ya convertidos a Euros (`EUR`).
 - **Planificación y Dudas al Instante**: Pregúntale a Gemini rutas alternativas, etiqueta en templos/*onsen* o combinaciones de trenes.
 - **Guardado Automático Offline**: Todas las respuestas de Gemini se guardan en la memoria del teléfono para leerlas sin internet y puedes convertirlas con un toque en una **Guía de Viaje** o en paradas de tu **Planificador**.
+
+---
+
+## 8. Herramienta: Tiempo y Planificación Climática con Open-Meteo (`SPEC-07`)
+
+La previsión del tiempo en Japón (usando **Open-Meteo API + Agencia Meteorológica de Japón JMA**, sin requerir clave de API y con caché offline) está integrada tanto para ayudarte a decidir tu ropa y ruta del día como para alimentar al optimizador de planes con IA:
+
+1. **Para tu Planificación Diaria**:
+   - Consulta la previsión por ciudades (**Tokio**, **Kioto**, **Osaka**, **Hakone / Monte Fuji**) en la pantalla principal o directamente en la franja superior de cada día del **Planificador de Viaje**.
+   - Verás la temperatura máxima/mínima (`°C`), la probabilidad de lluvia (`☔ %`), el **Índice de Visibilidad del Monte Fuji (`🗻 %`)** y una etiqueta inteligente:
+     - **`⛩️ Ideal Exterior (Templos / Parques)`**: días despejados ideales para caminar y fotografiar exteriores.
+     - **`🏛️ Recomendado Cubierto (Museos / Shotengai)`**: días con lluvia prevista donde conviene llevar paraguas y priorizar mercados techados (*Nishiki*, *Kuromon*), galerías comerciales cubiertas (*Shotengai*) o museos.
+2. **Para la Planificación Automática con IA (`🌦️✨ Adaptar Ruta al Clima`)**:
+   - Pulsa **"🌦️✨ Adaptar Ruta al Clima (Open-Meteo)"** en el Planificador de Viaje o en la pestaña de **IA Gemini** para que la IA cruce automáticamente tu itinerario con la previsión meteorológica de cada día y añada alternativas cubiertas y avisos climáticos en las paradas afectadas por lluvia.

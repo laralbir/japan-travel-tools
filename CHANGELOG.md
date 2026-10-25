@@ -7,6 +7,14 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.3] - 2026-10-25
+
+### Added
+- **Herramienta de Previsión Meteorológica con Open-Meteo para Usuario e IA (`SPEC-07`)**:
+  - `OpenMeteoWeatherUseCase` y `SharedWeatherForecastStore` conectados a `https://api.open-meteo.com/v1/forecast` (modelos globales + **JMA Japón** en `Asia/Tokyo`, sin API Key) con semilla offline preinstalada para *Tokio*, *Kioto*, *Osaka* y *Hakone / Monte Fuji*.
+  - Clasificación automática de códigos WMO (`0..99`), etiqueta de idoneidad diaria (`⛩️ Ideal Exterior` vs `🏛️ Recomendado Cubierto`), avisos de paraguas e **Índice de Visibilidad del Monte Fuji (`🗻 %`)** integrados en el Dashboard y en cada jornada del Planificador de Viaje.
+  - `AiPlanBuilderEngine.optimizePlanWithWeather`: permite a la IA integrada adaptar las paradas del itinerario según el tiempo previsto por Open-Meteo (añadiendo alternativas cubiertas como mercados *Nishiki/Kuromon* y galerías *Shotengai* en días de lluvia).
+
 ## [0.0.1-beta.2] - 2026-10-25
 
 ### Added

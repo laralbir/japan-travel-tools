@@ -11,8 +11,8 @@ data class OpenSourceLibraryNotice(
 )
 
 object OpenSourceLibrariesCatalog {
-    const val APP_VERSION_NAME = "0.0.1-beta.2"
-    const val APP_VERSION_CODE = 2
+    const val APP_VERSION_NAME = "0.0.1-beta.3"
+    const val APP_VERSION_CODE = 3
 
     val thirdPartyLibraries: List<OpenSourceLibraryNotice> = listOf(
         OpenSourceLibraryNotice(
@@ -68,6 +68,15 @@ object OpenSourceLibrariesCatalog {
             license = "MIT License (Open Source API)",
             purposeEn = "Open-source daily currency exchange rates (EUR <-> JPY) cached locally for offline use.",
             purposeEs = "Fuente open-source de tipos de cambio diarios (EUR <-> JPY) cacheados localmente para uso offline."
+        ),
+        OpenSourceLibraryNotice(
+            name = "Open-Meteo Weather Forecast API (JMA Japan)",
+            artifactId = "https://api.open-meteo.com/v1/forecast",
+            version = "v1 (WMO + JMA High-Resolution)",
+            author = "Open-Meteo Open Source Project / Japan Meteorological Agency",
+            license = "CC BY 4.0 / GPLv3 (Open Source Weather API)",
+            purposeEn = "Open-source weather forecasts for Tokyo, Kyoto, Osaka & Mt. Fuji used for user & Gemini AI itinerary planning.",
+            purposeEs = "Previsión meteorológica open-source (JMA Japón) para Tokio, Kioto, Osaka y Monte Fuji usada para planificar por el usuario y la IA."
         ),
         OpenSourceLibraryNotice(
             name = "JUnit 4 & Kotlinx Coroutines Test",

@@ -2,7 +2,7 @@
 
 Aplicación Android **offline-first** con herramientas esenciales para viajar a Japón, desarrollada en **Kotlin** y **Jetpack Compose** siguiendo metodologías **SDD (Spec-Driven Development)** y **TDD (Test-Driven Development)** para agentes de Inteligencia Artificial.
 
-> **Estado actual del proyecto**: `v0.0.1-beta.2` (Suite funcional offline-first con portabilidad JSON legible de itinerarios/transportes y constructor/optimizador de planes con IA Gemini).
+> **Estado actual del proyecto**: `v0.0.1-beta.3` (Suite funcional offline-first con previsión meteorológica Open-Meteo para planificación de usuario e IA, portabilidad JSON legible de itinerarios/transportes y constructor/optimizador de planes con IA Gemini).
 
 ---
 
@@ -48,6 +48,10 @@ Aplicación Android **offline-first** con herramientas esenciales para viajar a 
 7. **Asistente IA con Google Gemini y Acceso Directo a Traducción Simultánea [En Especificación - Beta]**
    - **Acceso Directo Global a Traducción Simultánea (`ES/EN <-> Japonés`)**: Modo conversación cara a cara por voz y texto (con pantalla dividida reversible 180°, pronunciación en *Romaji*, OCR de cámara para menús/carteles con ML Kit Offline y salto rápido a *Google Translate / Pixel Live Translate*).
    - **Asistente de Viaje con Gemini (`Gemini API` + `Gemini Nano On-Device` en Pixel 9/10 Pro XL)**: Análisis visual de cartas de restaurantes japoneses (con conversión automática de precios a `EUR`), recomendaciones contextuales y **Creador / Optimizador de Planes de Viaje (`AI Plan Builder`)** capaz de generar nuevos itinerarios y mejorar los planes existentes en la app (resolviendo conflictos horarios y añadiendo nuevas jornadas y conexiones Shinkansen/vuelos).
+8. **Previsión Meteorológica y Planificación Climática con Open-Meteo (`SPEC-07`) [En Especificación - Beta]**
+   - Integración con **Open-Meteo API** (modelos globales + **JMA — Japan Meteorological Agency**, 100% open-source y sin API Key) con semilla estacional y caché **Offline-First** para *Tokio*, *Kioto*, *Osaka* y *Hakone / Monte Fuji*.
+   - **Útil para el Usuario**: Clasificación diaria (`⛩️ Ideal Exterior` vs. `🏛️ Recomendado Cubierto`), avisos de paraguas (`☔ %`), temperaturas máx/mín y **porcentaje de visibilidad del Monte Fuji (`🗻 %`)** integrado en cada día del Planificador de Viaje.
+   - **Útil para la IA (`Weather-Aware AI Planner`)**: Inyecta la previsión de Open-Meteo en `AiPlanBuilderEngine` para que la IA adapte automáticamente las paradas del itinerario en días de lluvia añadiendo alternativas cubiertas (*mercados Nishiki/Kuromon*, *galerías Shotengai*, museos).
 
 ---
 
@@ -85,6 +89,7 @@ Toda la documentación técnica y funcional se encuentra en español dentro del 
   - [04 - Herramienta: Planificador de Viaje (Fotos, Google Maps, Calendario y Horarios)](docs/specs/04-trip-planner-spec.md)
   - [05 - Herramienta: Planificador de Transporte (Vuelos, Trenes/Shinkansen, Metros y Autobuses)](docs/specs/05-flight-planner-spec.md)
   - [06 - Herramienta: Asistente IA con Gemini y Acceso Directo a Traducción Simultánea](docs/specs/06-gemini-ai-and-translator-spec.md)
+  - [07 - Herramienta: Previsión Meteorológica con Open-Meteo para Planificación de Usuario e IA](docs/specs/07-weather-open-meteo-spec.md)
 - **Análisis Técnico**:
   - [Arquitectura, Stack Tecnológico y Estrategia TDD](docs/analysis/architecture-and-tech-stack.md)
 - **Planificación de Tareas**:
