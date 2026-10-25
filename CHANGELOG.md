@@ -7,6 +7,14 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.5] - 2026-10-25
+
+### Added
+- **Traducción Simultánea Bidireccional por Voz y Audio (`SPEC-06 RF-06.1`)**:
+  - Integración de reconocimiento de voz (`RecognizerIntent` en `es-ES`/`en-US` y `ja-JP`) y síntesis de voz nativa (`TextToSpeech` en `Locale.JAPAN` y `es-ES`/`en-US`).
+  - **Voz del Viajero (`🎙️ Hablar Yo ➔ 🔊 Suena Japonés`)**: El usuario habla en español/inglés y el móvil locuta automáticamente la traducción en japonés para el interlocutor.
+  - **Voz del Japonés (`🎙️ Escuchar Japonés ➔ 🔊 Me habla en Español`)**: El interlocutor habla en japonés y el móvil traduce y locuta automáticamente la respuesta en español/inglés para que el viajero la escuche sin necesidad de saber leer japonés.
+
 ## [0.0.1-beta.4] - 2026-10-25
 
 ### Changed
