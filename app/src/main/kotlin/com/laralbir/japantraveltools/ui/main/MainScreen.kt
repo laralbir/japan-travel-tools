@@ -78,6 +78,8 @@ import com.laralbir.japantraveltools.core.i18n.EffectiveLanguage
 import com.laralbir.japantraveltools.core.i18n.LanguageResolver
 import com.laralbir.japantraveltools.core.network.ActiveConnectionKind
 import com.laralbir.japantraveltools.core.network.ConnectivityStatusHelper
+import com.laralbir.japantraveltools.core.portability.AiPlanBuilderEngine
+import com.laralbir.japantraveltools.core.portability.SharedTravelPlanStore
 import com.laralbir.japantraveltools.core.preferences.AppThemeMode
 import com.laralbir.japantraveltools.core.preferences.DefaultUserPreferencesRepository
 import com.laralbir.japantraveltools.core.preferences.SharedPrefsKeyValueStore
@@ -828,7 +830,7 @@ private fun ClocksAndCurrencyDashboardScreen(
 }
 
 // ============================================================================
-// TAB 2: TRIP PLANNER WITH PHOTOS, GOOGLE MAPS DUAL & CALENDAR (SPEC-04)
+// TAB 2: TRIP PLANNER WITH PHOTOS, GOOGLE MAPS DUAL, CALENDAR & JSON/AI (SPEC-04)
 // ============================================================================
 @Composable
 private fun TripPlannerAdaptiveScreen(
@@ -836,16 +838,30 @@ private fun TripPlannerAdaptiveScreen(
     isTabletWide: Boolean
 ) {
     val context = LocalContext.current
+    val portablePlan by SharedTravelPlanStore.planState.collectAsState()
+    val stops = portablePlan.itineraryStops
+
     var selectedDay by rememberSaveable { mutableIntStateOf(1) }
-    var stops by remember { mutableStateOf(TripPlannerUseCase.defaultSampleStops()) }
     var selectedStopForMap by remember { mutableStateOf<ItineraryStopItem?>(null) }
+    var showJsonSheet by rememberSaveable { mutableStateOf(false) }
+
+    val availableDays = remember(stops) {
+        stops.map { it.dayNumber }.distinct().sorted().ifEmpty { listOf(1, 2) }
+    }
 
     val dayStops = remember(stops, selectedDay) {
         TripPlannerUseCase.sortAndDetectConflicts(stops.filter { it.dayNumber == selectedDay })
     }
 
+    if (showJsonSheet) {
+        JsonPortabilityModalSheet(
+            isEs = isEs,
+            onDismiss = { showJsonSheet = false }
+        )
+    }
+
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        // KotlinConf-style Day Schedule Chips
+        // KotlinConf-style Header + JSON Export/Import & AI Plan Optimizer
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -859,6 +875,59 @@ private fun TripPlannerAdaptiveScreen(
             BetaBadgePill()
         }
 
+        // JSON Export/Import + Gemini AI Plan Builder Action Bar (RF-04.6 & RF-06.2)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 6.dp)
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(
+                onClick = { showJsonSheet = true },
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = if (isEs) "📥/📤 Exportar / Importar JSON" else "📥/📤 Export / Import JSON",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Button(
+                onClick = {
+                    val updated = AiPlanBuilderEngine.improveAndExpandPlan(
+                        currentPlan = portablePlan,
+                        userInstruction = "Optimizar conflictos horarios y añadir Día 3 en Osaka con Shinkansen"
+                    )
+                    SharedTravelPlanStore.updatePlan(updated)
+                    selectedDay = 3
+                },
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = if (isEs) "✨ Mejorar / Ampliar Plan con Gemini IA" else "✨ Improve / Expand Plan with Gemini AI",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        if (portablePlan.aiOptimizationSummary.isNotBlank()) {
+            Spacer(Modifier.height(6.dp))
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "🤖 ${portablePlan.aiOptimizationSummary}",
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                )
+            }
+        }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -866,16 +935,19 @@ private fun TripPlannerAdaptiveScreen(
                 .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            FilterChip(
-                selected = selectedDay == 1,
-                onClick = { selectedDay = 1 },
-                label = { Text(if (isEs) "Día 1 · 11 Nov · Tokio (Asakusa/Shinjuku)" else "Day 1 · Nov 11 · Tokyo") }
-            )
-            FilterChip(
-                selected = selectedDay == 2,
-                onClick = { selectedDay = 2 },
-                label = { Text(if (isEs) "Día 2 · 12 Nov · Kioto (Inari/Gion)" else "Day 2 · Nov 12 · Kyoto") }
-            )
+            availableDays.forEach { dayNum ->
+                val dayLabel = when (dayNum) {
+                    1 -> if (isEs) "Día 1 · 11 Nov · Tokio (Asakusa/Shinjuku)" else "Day 1 · Nov 11 · Tokyo"
+                    2 -> if (isEs) "Día 2 · 12 Nov · Kioto (Inari/Gion)" else "Day 2 · Nov 12 · Kyoto"
+                    3 -> if (isEs) "Día 3 · 13 Nov · Osaka (Castillo/Dotonbori ✨IA)" else "Day 3 · Nov 13 · Osaka (✨AI)"
+                    else -> if (isEs) "Día $dayNum · Japón" else "Day $dayNum · Japan"
+                }
+                FilterChip(
+                    selected = selectedDay == dayNum,
+                    onClick = { selectedDay = dayNum },
+                    label = { Text(dayLabel) }
+                )
+            }
         }
 
         if (isTabletWide) {
@@ -1161,15 +1233,162 @@ private fun exportStopToSystemCalendar(context: android.content.Context, stop: I
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun JsonPortabilityModalSheet(
+    isEs: Boolean,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    var jsonEditorText by remember { mutableStateOf(SharedTravelPlanStore.exportCurrentJson()) }
+    var statusMessage by remember { mutableStateOf("") }
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 8.dp)
+                .navigationBarsPadding()
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (isEs) "📥/📤 Portabilidad JSON (Itinerario + Vuelos/Trenes)" else "📥/📤 JSON Portability (Itinerary + Transport)",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                BetaBadgePill(text = "JSON v1.0")
+            }
+
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = if (isEs) {
+                    "Formato legible para preparar rutas, vuelos, Shinkansen, metro o autobús en una app externa o con IA e importarlos al instante."
+                } else {
+                    "Human-readable format to prepare itineraries, flights, Shinkansen, subway, or bus plans in an external app or AI and import them."
+                },
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = {
+                        val exported = SharedTravelPlanStore.exportCurrentJson()
+                        jsonEditorText = exported
+                        runCatching {
+                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "application/json"
+                                putExtra(Intent.EXTRA_SUBJECT, "Japan Travel Plan JSON")
+                                putExtra(Intent.EXTRA_TEXT, exported)
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(Intent.createChooser(sendIntent, "JSON").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                        }
+                        statusMessage = if (isEs) "✅ JSON exportado y listo para compartir." else "✅ JSON exported and ready to share."
+                    },
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(if (isEs) "📤 Exportar / Compartir JSON" else "📤 Export / Share JSON", fontSize = 11.sp)
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        val res = SharedTravelPlanStore.importJson(jsonEditorText, mergeWithExisting = true)
+                        if (res.isSuccess) {
+                            jsonEditorText = SharedTravelPlanStore.exportCurrentJson()
+                            statusMessage = if (isEs) "✅ Plan importado y fusionado (Merge) con éxito." else "✅ Plan imported and merged successfully."
+                        } else {
+                            statusMessage = if (isEs) "⚠️ Error de formato JSON. Verifica la sintaxis." else "⚠️ Invalid JSON format."
+                        }
+                    },
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(if (isEs) "📥 Importar (Fusionar)" else "📥 Import (Merge)", fontSize = 11.sp)
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        val res = SharedTravelPlanStore.importJson(jsonEditorText, mergeWithExisting = false)
+                        if (res.isSuccess) {
+                            jsonEditorText = SharedTravelPlanStore.exportCurrentJson()
+                            statusMessage = if (isEs) "✅ Plan reemplazado íntegramente desde JSON." else "✅ Plan replaced from JSON."
+                        } else {
+                            statusMessage = if (isEs) "⚠️ Error de formato JSON." else "⚠️ Invalid JSON format."
+                        }
+                    },
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(if (isEs) "🔄 Importar (Reemplazar)" else "🔄 Import (Replace)", fontSize = 11.sp)
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        SharedTravelPlanStore.resetToDefaults()
+                        jsonEditorText = SharedTravelPlanStore.exportCurrentJson()
+                        statusMessage = if (isEs) "🔄 Restaurado plan semilla original." else "🔄 Restored default seed plan."
+                    },
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(if (isEs) "Restaurar Base" else "Reset Seed", fontSize = 11.sp)
+                }
+            }
+
+            if (statusMessage.isNotBlank()) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = statusMessage,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                value = jsonEditorText,
+                onValueChange = { jsonEditorText = it },
+                label = { Text("japan-travel-plan.v1 (JSON)") },
+                textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
+                maxLines = 12,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp)
+            )
+            Spacer(Modifier.height(12.dp))
+        }
+    }
+}
+
 // ============================================================================
 // TAB 3: MULTIMODAL TRANSPORT PLANNER (FLIGHTS, SHINKANSEN, METRO, BUS - SPEC-05)
 // ============================================================================
 @Composable
 private fun TransportMultiModalScreen(isEs: Boolean) {
+    val portablePlan by SharedTravelPlanStore.planState.collectAsState()
+    val segments = portablePlan.transportSegments
     var selectedFilter by rememberSaveable { mutableStateOf<TransportMode?>(null) }
-    val segments = remember { TransportPlannerUseCase.defaultSampleSegments() }
+    var showJsonSheet by rememberSaveable { mutableStateOf(false) }
+
     val filtered = remember(segments, selectedFilter) {
         if (selectedFilter == null) segments else segments.filter { it.type == selectedFilter }
+    }
+
+    if (showJsonSheet) {
+        JsonPortabilityModalSheet(
+            isEs = isEs,
+            onDismiss = { showJsonSheet = false }
+        )
     }
 
     LazyColumn(
@@ -1189,6 +1408,41 @@ private fun TransportMultiModalScreen(isEs: Boolean) {
                     fontWeight = FontWeight.Bold
                 )
                 BetaBadgePill()
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp)
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = { showJsonSheet = true },
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = if (isEs) "📥/📤 Exportar / Importar Transporte (JSON)" else "📥/📤 Export / Import Transport (JSON)",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Button(
+                    onClick = {
+                        val updated = AiPlanBuilderEngine.improveAndExpandPlan(
+                            currentPlan = portablePlan,
+                            userInstruction = "Añadir Shinkansen Nozomi Kioto-Osaka y optimizar conexiones"
+                        )
+                        SharedTravelPlanStore.updatePlan(updated)
+                    },
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = if (isEs) "✨ Añadir / Optimizar Tramos con Gemini IA" else "✨ Add / Optimize Segments with Gemini AI",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Row(
@@ -1510,11 +1764,24 @@ private fun GeminiAndTranslatorScreen(
     isEs: Boolean,
     isTabletWide: Boolean
 ) {
+    val portablePlan by SharedTravelPlanStore.planState.collectAsState()
     var phraseInput by rememberSaveable { mutableStateOf("¿Dónde está el andén del Shinkansen?") }
     var rotateJapaneseCard180 by rememberSaveable { mutableStateOf(false) }
     var geminiPrompt by rememberSaveable { mutableStateOf("Traducir carta de Ramen y convertir precios ¥ a EUR") }
     var geminiResponse by rememberSaveable {
         mutableStateOf(GeminiAssistantEngine.generateSmartTravelAnswer("ramen", 164.80))
+    }
+    var aiPlanGoalPrompt by rememberSaveable {
+        mutableStateOf("Optimizar solapamientos horarios del viaje y añadir Día 3 completo en Osaka (Castillo + Dotonbori + Shinkansen Nozomi)")
+    }
+    var aiPlanStatusBanner by rememberSaveable { mutableStateOf("") }
+    var showJsonSheet by rememberSaveable { mutableStateOf(false) }
+
+    if (showJsonSheet) {
+        JsonPortabilityModalSheet(
+            isEs = isEs,
+            onDismiss = { showJsonSheet = false }
+        )
     }
 
     val translation = remember(phraseInput) {
@@ -1652,6 +1919,105 @@ private fun GeminiAndTranslatorScreen(
                         fontSize = 13.sp,
                         modifier = Modifier.padding(12.dp)
                     )
+                }
+            }
+        }
+
+        item {
+            // AI Travel & Transport Plan Builder & Optimizer (SPEC-06 RF-06.2)
+            KotlinConfCard(accentBorderColor = MaterialTheme.colorScheme.primary) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (isEs) "🗺️🤖 Creador y Optimizador de Planes con IA (Ruta + Trenes)" else "🗺️🤖 AI Travel & Transport Plan Builder / Optimizer",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    BetaBadgePill(text = "AI PLANNER")
+                }
+
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = if (isEs) {
+                        "Estado actual del plan: ${portablePlan.itineraryStops.size} paradas de itinerario · ${portablePlan.transportSegments.size} tramos de transporte (Vuelos/Shinkansen/Metro/Bus)."
+                    } else {
+                        "Current plan state: ${portablePlan.itineraryStops.size} itinerary stops · ${portablePlan.transportSegments.size} transport segments."
+                    },
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.secondary,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = aiPlanGoalPrompt,
+                    onValueChange = { aiPlanGoalPrompt = it },
+                    label = {
+                        Text(
+                            if (isEs) "Instrucción para crear o mejorar el plan de viaje de la app"
+                            else "Prompt to create or improve the app's travel plan"
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            val updated = AiPlanBuilderEngine.improveAndExpandPlan(
+                                currentPlan = portablePlan,
+                                userInstruction = aiPlanGoalPrompt
+                            )
+                            SharedTravelPlanStore.updatePlan(updated)
+                            aiPlanStatusBanner = if (isEs) {
+                                "✅ IA aplicó mejoras: ${updated.itineraryStops.size} paradas totales (incl. Osaka Día 3) y ${updated.transportSegments.size} tramos de transporte."
+                            } else {
+                                "✅ AI applied improvements: ${updated.itineraryStops.size} total stops (incl. Osaka Day 3) & ${updated.transportSegments.size} transport segments."
+                            }
+                        }
+                    ) {
+                        Text(if (isEs) "✨ Crear / Mejorar Plan en la App" else "✨ Create / Improve Plan in App", fontSize = 12.sp)
+                    }
+
+                    OutlinedButton(onClick = { showJsonSheet = true }) {
+                        Text(if (isEs) "📥/📤 Ver / Exportar JSON" else "📥/📤 View / Export JSON", fontSize = 12.sp)
+                    }
+                }
+
+                if (aiPlanStatusBanner.isNotBlank() || portablePlan.aiOptimizationSummary.isNotBlank()) {
+                    Spacer(Modifier.height(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp)) {
+                            if (aiPlanStatusBanner.isNotBlank()) {
+                                Text(
+                                    text = aiPlanStatusBanner,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            if (portablePlan.aiOptimizationSummary.isNotBlank()) {
+                                Text(
+                                    text = portablePlan.aiOptimizationSummary,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

@@ -2,7 +2,7 @@
 
 Aplicación Android **offline-first** con herramientas esenciales para viajar a Japón, desarrollada en **Kotlin** y **Jetpack Compose** siguiendo metodologías **SDD (Spec-Driven Development)** y **TDD (Test-Driven Development)** para agentes de Inteligencia Artificial.
 
-> **Estado actual del proyecto**: `v0.0.1-beta.1` (Fase 1: Especificación SDD, Análisis, Plan de Tareas y Configuración de Repositorio).
+> **Estado actual del proyecto**: `v0.0.1-beta.2` (Suite funcional offline-first con portabilidad JSON legible de itinerarios/transportes y constructor/optimizador de planes con IA Gemini).
 
 ---
 
@@ -39,15 +39,15 @@ Aplicación Android **offline-first** con herramientas esenciales para viajar a 
    - Calendario de viaje por días y línea temporal de horarios (`Timeline` en zona horaria `Asia/Tokyo`) con detección de solapamientos.
    - Galería de fotos offline asociada a cada parada o actividad del itinerario.
    - **Integración dual con Google Maps**: Mapa interactivo embebido (`Maps Compose`) con marcadores numerados de la ruta del día + almacenamiento offline de coordenadas/direcciones en japonés y lanzamiento directo de rutas en la app de Google Maps.
-   - Sincronización/exportación opcional al Calendario del sistema / Google Calendar y vinculación directa con PDFs de reservas y guías de viaje.
+   - Sincronización/exportación opcional al Calendario del sistema / Google Calendar, vinculación directa con PDFs de reservas y guías de viaje, y **exportación/importación en formato `JSON` legible (`japan-travel-plan.v1`)** para preparar itinerarios desde aplicaciones externas.
 6. **Planificador de Vuelos, Trenes, Metros y Autobuses [En Especificación - Beta]**
-   - Gestión de trayectos multimodales (vuelos internacionales/domésticos, trenes **Shinkansen / JR**, líneas de **Metro** y **Autobuses** interurbanos/urbanos) 100% offline.
+   - Gestión de trayectos multimodales (vuelos internacionales/domésticos, trenes **Shinkansen / JR**, líneas de **Metro** y **Autobuses** interurbanos/urbanos) 100% offline e **importables/exportables en `JSON` legible**.
    - **Vuelos**: Apertura de check-in online, hora de facturación en mostrador y cierre de equipaje, hora de embarque, puerta, asiento, salida, llegada (`+1`/`+2` días) y cálculo automático de duración real entre zonas horarias.
    - **Trenes, Metros y Autobuses**: Línea y color oficial, códigos de estación (`G19` ➔ `G01`), nombres en japonés para paneles, andén (`Platform`), número de coche/vagón recomendado, asiento, reserva de maletas grandes en Shinkansen, cobertura **JR Pass / Suica**, **número exacto de salida de estación (`Exit`)** y dársena de autobús (`Bus Bay`).
    - **Calculador de Escalas y Transbordos (`Layovers & Transfers`)**: Tiempo total de conexión, margen hasta el siguiente embarque o cambio de andén/terminal, alerta de conexión ajustada y acceso directo a tarjetas de embarque o billetes QR (`SPEC-03`).
 7. **Asistente IA con Google Gemini y Acceso Directo a Traducción Simultánea [En Especificación - Beta]**
    - **Acceso Directo Global a Traducción Simultánea (`ES/EN <-> Japonés`)**: Modo conversación cara a cara por voz y texto (con pantalla dividida reversible 180°, pronunciación en *Romaji*, OCR de cámara para menús/carteles con ML Kit Offline y salto rápido a *Google Translate / Pixel Live Translate*).
-   - **Asistente de Viaje con Gemini (`Gemini API` + `Gemini Nano On-Device` en Pixel 9/10 Pro XL)**: Análisis visual de cartas de restaurantes japoneses (con conversión automática de precios a `EUR`), recomendaciones contextuales y persistencia offline de todas las respuestas para exportarlas a Guías o al Planificador.
+   - **Asistente de Viaje con Gemini (`Gemini API` + `Gemini Nano On-Device` en Pixel 9/10 Pro XL)**: Análisis visual de cartas de restaurantes japoneses (con conversión automática de precios a `EUR`), recomendaciones contextuales y **Creador / Optimizador de Planes de Viaje (`AI Plan Builder`)** capaz de generar nuevos itinerarios y mejorar los planes existentes en la app (resolviendo conflictos horarios y añadiendo nuevas jornadas y conexiones Shinkansen/vuelos).
 
 ---
 

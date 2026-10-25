@@ -28,3 +28,4 @@ class AiAndTranslatorUseCaseTest {
         assertTrue(enriched.contains("7.50 EUR") || enriched.contains("7,50 EUR"))
     }
 }
+

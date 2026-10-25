@@ -202,3 +202,4 @@ class DefaultUserPreferencesRepository(
         private const val KEY_GEMINI_API_KEY = "pref_gemini_api_key"
     }
 }
+

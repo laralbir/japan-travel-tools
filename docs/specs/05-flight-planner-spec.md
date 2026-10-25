@@ -68,12 +68,14 @@ Permite además **encadenar tramos multimodales** en un mismo trayecto (por ejem
      - En escalas aéreas: alerta si el margen hasta el embarque es `< 60 min` (o `< 90 min` con cambio de terminal/inmigración).
      - En transbordos de tren/metro/autobús: alerta si el margen de cambio de andén en grandes estaciones es `< 7 min` (o `< 15 min` entre Shinkansen y líneas convencionales/metro).
 
-### RF-05.4: Integración con Documentos (`SPEC-03`), Planificador (`SPEC-04`) y Calendario
+### RF-05.4: Integración con Documentos (`SPEC-03`), Planificador (`SPEC-04`), Exportación/Importación JSON y Calendario
 1. **Vínculo directo con Billetes, QR y Reservas (`SPEC-03`)**:
    - Cada tramo permite adjuntar o enlazar su **Tarjeta de Embarque**, **Billete de Shinkansen / QR de SmartEX**, **Reserva de Highway Bus** o captura de ruta guardada en el Repositorio de Documentos para abrirla con un toque sin conexión.
 2. **Integración con el Planificador de Viaje (`SPEC-04`) y Google Maps**:
    - Los trayectos de vuelo, tren, metro y autobús se integran en la línea temporal del día (`SPEC-04`) y permiten abrir la estación/aeropuerto/parada o lanzar la ruta de transporte público en **Google Maps**.
-3. **Recordatorios Locales Offline y Exportación a Calendario**:
+3. **Exportación e Importación en JSON Legible (`SPEC-04 RF-04.6`)**:
+   - Todos los tramos de **Vuelo, Shinkansen/Tren, Metro y Autobús** forman parte del paquete JSON legible de exportación/importación (`transportSegments`), permitiendo prepararlos desde una app externa o compartirlos entre dispositivos.
+4. **Recordatorios Locales Offline y Exportación a Calendario**:
    - Alarmas offline configurables (apertura de check-in, hora de facturación, embarque, o aviso de bajada en la próxima estación de tren/autobús).
    - Exportación al Calendario del sistema / Google Calendar respetando la zona horaria de cada tramo.
 

@@ -74,3 +74,4 @@ class CurrencyConverterUseCaseTest {
         assertEquals(1.085, parsed.rates["USD"] ?: 0.0, 0.001)
     }
 }
+

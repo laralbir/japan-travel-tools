@@ -69,6 +69,7 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 - [x] **TASK-504 (TDD)**: Implementar vista de **Calendario y Línea Temporal de Horarios (`DayTimelineList` / `TimelineStopCard`)** con miniaturas de fotos y avisos de solapamiento.
 - [x] **TASK-505 (TDD)**: Implementar integración dual con **Google Maps** (`EmbeddedRouteMapCard` con marcadores numerados + apertura directa en Google Maps) y vista de doble panel 50/50 en la tablet **TCL NXTPAPER 11 Plus**.
 - [x] **TASK-506 (TDD)**: Implementar exportación de paradas al Calendario de Android / Google Calendar con zona horaria `Asia/Tokyo`.
+- [x] **TASK-507 (TDD)**: Implementar exportación e importación de planes de viaje y transporte en formato **JSON legible (`TravelPlanJsonCodec` + `JsonPortabilityModalSheet`)** con soporte de fusión (`Merge`) y reemplazo (`Replace`) para preparar viajes desde apps externas.
 
 ---
 
@@ -77,6 +78,7 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 - [x] **TASK-601 (TDD)**: Escribir tests unitarios para `TransportPlannerUseCase` (cálculo exacto de duración de vuelo entre zonas horarias distintas `Europe/Madrid` -> `Asia/Qatar` -> `Asia/Tokyo`, tiempos de facturación/embarque, escalas aéreas y transbordos entre Shinkansen, Metro y Autobús con alertas de conexión ajustada).
 - [x] **TASK-602 (TDD)**: Implementar modelo multimodal (`FLIGHT`, `TRAIN_SHINKANSEN`, `SUBWAY_METRO`, `BUS`) con terminales, andenes, vagón, asiento, salida de estación (`Exit`) y dársena de autobús.
 - [x] **TASK-603 (TDD)**: Implementar `TransportMultiModalScreen` con tarjetas de tramo y tarjetas automáticas de escala/transbordo.
+- [x] **TASK-604 (TDD)**: Integrar los planes de vuelos, Shinkansen, metro y autobús en el paquete JSON exportable/importable (`PortableTravelPlanBundle`) y en el almacén reactivo `SharedTravelPlanStore`.
 
 ---
 
@@ -85,6 +87,7 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 - [x] **TASK-701 (TDD)**: Escribir tests unitarios e implementar `OfflineTranslatorEngine` para traducir frases de viaje entre `ES/EN <-> Japonés` con pronunciación en Romaji.
 - [x] **TASK-702 (TDD)**: Escribir tests unitarios e implementar `GeminiAssistantEngine` con conversión automática de precios en yenes (`¥`) de cartas de restaurantes a `EUR`.
 - [x] **TASK-703 (TDD)**: Implementar el **Acceso Directo Global a Traducción Simultánea** en la cabecera y la pantalla `GeminiAndTranslatorScreen` con tarjeta japonesa giratoria **180°** para mostrador/mesa.
+- [x] **TASK-704 (TDD)**: Implementar `AiPlanBuilderEngine` para permitir a la IA Gemini crear nuevos planes de viaje y mejorar/optimizar los planes existentes en la app (resolución de conflictos horarios + adición de nuevas jornadas y tramos de Shinkansen/transporte).
 
 ---
 
