@@ -108,3 +108,17 @@ Durante todo el ciclo de desarrollo (al inicio de cada sesión, antes de planifi
      - **Si NO procede (Duplicado, no reproducible, por diseño o fuera de alcance)**:
        1. Responder educada y detalladamente en el issue (`gh issue comment <id>`) justificando técnicamente por qué no procede o pidiendo información adicional si no es reproducible.
        2. Etiquetar/cerrar el issue según corresponda (`wontfix`, `invalid`, `duplicate`) tras dejar constancia escrita de la respuesta.
+
+---
+
+## 7. Despliegue y Debug por ADB en Dispositivos Autorizados (Sin Commitear)
+
+Para probar el desarrollo en dispositivos físicos reales (ej. **Google Pixel 10 Pro XL**, **Google Pixel 9 Pro XL** y **Tablet TCL NXTPAPER 11 Plus**) mediante **ADB / Wireless Debugging**:
+
+1. **Archivo de configuración local ignorado por Git (`authorized-devices.local.conf`)**:
+   - **PROHIBIDO commitear** números de serie reales, direcciones IP de depuración inalámbrica o identificadores privados de dispositivos.
+   - El archivo `authorized-devices.local.conf` está incluido en `.gitignore`.
+   - En el repositorio solo se versiona la plantilla de ejemplo [`authorized-devices.example.conf`](authorized-devices.example.conf).
+2. **Instalación y Lanzamiento Seguro**:
+   - Utilizar la tarea de Gradle `./gradlew installAuthorizedDebug` o el script `./scripts/deploy-authorized-devices.sh`.
+   - Este flujo verifica qué dispositivos están conectados por ADB (`adb devices`) e instala/ejecuta el APK de Debug **exclusivamente** en aquellos cuyo serial o `IP:puerto` esté listado en `authorized-devices.local.conf`.

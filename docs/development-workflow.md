@@ -102,3 +102,30 @@ Durante el desarrollo es obligatorio revisar los issues abiertos en GitHub media
      - Referenciar el número de issue en los commits (`fix(scope): description (#123)`) y cerrarlo comentando la solución aplicada.
    - **Cuando NO procede repararlo**:
      - Publicar comentario explicando de forma clara y justificada por qué no aplica (duplicado, comportamiento esperado según spec o fuera de alcance) antes de cerrarlo.
+
+---
+
+## 6. Instalación y Pruebas por ADB en Dispositivos Autorizados (`authorized-devices.local.conf`)
+
+Para probar las compilaciones de desarrollo (`Debug`) directamente en tus dispositivos físicos (**Pixel 10 Pro XL**, **Pixel 9 Pro XL**, **TCL NXTPAPER 11 Plus**) sin exponer sus números de serie o IPs en Git:
+
+1. **Crear el archivo local de dispositivos autorizados (solo la primera vez)**:
+   ```bash
+   cp authorized-devices.example.conf authorized-devices.local.conf
+   ```
+   *(El archivo `authorized-devices.local.conf` está protegido en `.gitignore` y nunca se commiteará).*
+2. **Consultar el serial o IP de tus dispositivos conectados por ADB**:
+   ```bash
+   ~/Library/Android/sdk/platform-tools/adb devices -l
+   ```
+3. **Añadir tus dispositivos en `authorized-devices.local.conf`**:
+   ```text
+   48091FDAP00XXX | Google Pixel 10 Pro XL
+   39241FDJH00YYY | Google Pixel 9 Pro XL
+   TCLNXT11P00ZZZ | Tablet TCL NXTPAPER 11 Plus
+   ```
+4. **Compilar, instalar y abrir en todos los dispositivos autorizados conectados**:
+   ```bash
+   ./gradlew installAuthorizedDebug
+   ```
+   *(O directamente `./scripts/deploy-authorized-devices.sh`). Cualquier otro dispositivo o emulador conectado que no figure en tu lista local será ignorado por seguridad.*
