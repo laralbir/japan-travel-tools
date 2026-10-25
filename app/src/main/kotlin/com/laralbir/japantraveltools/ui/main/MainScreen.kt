@@ -1161,6 +1161,12 @@ private fun WeatherToolScreen(isEs: Boolean) {
     var isCreatingCity by remember { mutableStateOf(false) }
     var isSyncingWeather by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf<String?>(null) }
+    var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
+
+    AppConfirmationDialog(
+        state = confirmationDialogState,
+        onDismiss = { confirmationDialogState = null }
+    )
 
     val selectedCity = remember(allCities, selectedCityId) {
         allCities.firstOrNull { it.id == selectedCityId } ?: allCities.firstOrNull() ?: WeatherCityCatalog.defaultCities().first()
@@ -1306,11 +1312,20 @@ private fun WeatherToolScreen(isEs: Boolean) {
                             }
                             if (allCities.size > 1) {
                                 OutlinedButton(onClick = {
-                                    val toDelete = selectedCity.id
-                                    val nextCity = allCities.firstOrNull { it.id != toDelete }?.id ?: "TOKYO"
-                                    SharedWeatherForecastStore.deleteCity(toDelete)
-                                    selectedCityId = nextCity
-                                    statusMessage = if (isEs) "🗑️ Ciudad eliminada" else "🗑️ City deleted"
+                                    val cityName = if (isEs) selectedCity.nameEs else selectedCity.nameEn
+                                    confirmationDialogState = ConfirmationDialogBuilder.buildDeleteConfirmation(
+                                        itemName = cityName,
+                                        itemTypeEs = "ciudad",
+                                        itemTypeEn = "city",
+                                        isEs = isEs,
+                                        onConfirm = {
+                                            val toDelete = selectedCity.id
+                                            val nextCity = allCities.firstOrNull { it.id != toDelete }?.id ?: "TOKYO"
+                                            SharedWeatherForecastStore.deleteCity(toDelete)
+                                            selectedCityId = nextCity
+                                            statusMessage = if (isEs) "🗑️ Ciudad «$cityName» eliminada" else "🗑️ City «$cityName» deleted"
+                                        }
+                                    )
                                 }) {
                                     Text("🗑️", fontSize = 12.sp)
                                 }
@@ -1451,6 +1466,12 @@ private fun CityWeatherEditorModalSheet(
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
     val presets = remember { WeatherCityCatalog.destinationPresets() }
+    var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
+
+    AppConfirmationDialog(
+        state = confirmationDialogState,
+        onDismiss = { confirmationDialogState = null }
+    )
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1583,7 +1604,15 @@ private fun CityWeatherEditorModalSheet(
                         latitude = lat,
                         longitude = lon
                     )
-                    onSave(saved)
+                    if (isNew) {
+                        onSave(saved)
+                    } else {
+                        confirmationDialogState = ConfirmationDialogBuilder.buildEditConfirmation(
+                            itemName = saved.nameEs,
+                            isEs = isEs,
+                            onConfirm = { onSave(saved) }
+                        )
+                    }
                 },
                 secondaryText = if (isNew) {
                     if (isEs) "Cancelar" else "Cancel"
@@ -1592,7 +1621,17 @@ private fun CityWeatherEditorModalSheet(
                 },
                 secondaryEnabled = isNew || existingCount > 1,
                 onSecondaryClick = {
-                    if (isNew) onDismiss() else onDelete(initialCity.id)
+                    if (isNew) {
+                        onDismiss()
+                    } else {
+                        confirmationDialogState = ConfirmationDialogBuilder.buildDeleteConfirmation(
+                            itemName = if (isEs) initialCity.nameEs else initialCity.nameEn,
+                            itemTypeEs = "ciudad",
+                            itemTypeEn = "city",
+                            isEs = isEs,
+                            onConfirm = { onDelete(initialCity.id) }
+                        )
+                    }
                 }
             )
             Spacer(Modifier.height(16.dp))
@@ -1624,8 +1663,14 @@ private fun TripPlannerTabScreen(
     var editingStop by remember { mutableStateOf<ItineraryStopItem?>(null) }
     var isCreatingStop by remember { mutableStateOf(false) }
     var isCreatingPlan by remember { mutableStateOf(false) }
-    var isEditingPlan by remember { mutableStateOf(false) }
+    var isEditingPlan by remember { mutableStateOf<Boolean>(false) }
     var isSwitchingPlan by remember { mutableStateOf(false) }
+    var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
+
+    AppConfirmationDialog(
+        state = confirmationDialogState,
+        onDismiss = { confirmationDialogState = null }
+    )
 
     val dayStops = remember(allStops, selectedDay) {
         TripPlannerUseCase.sortAndDetectConflicts(
@@ -1775,7 +1820,15 @@ private fun TripPlannerTabScreen(
                 AppOptionButton(
                     text = if (isEs) "🗑️ Borrar Plan" else "🗑️ Delete Plan",
                     selected = false,
-                    onClick = { SharedTravelPlanStore.deleteCurrentPlan() },
+                    onClick = {
+                        confirmationDialogState = ConfirmationDialogBuilder.buildDeleteConfirmation(
+                            itemName = portablePlan.tripTitle,
+                            itemTypeEs = "plan de viaje",
+                            itemTypeEn = "travel plan",
+                            isEs = isEs,
+                            onConfirm = { SharedTravelPlanStore.deleteCurrentPlan() }
+                        )
+                    },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -1883,7 +1936,20 @@ private fun TripPlannerTabScreen(
                         isCreatingStop = true
                     },
                     secondaryText = if (isEs) "🔄 Cargar Demo" else "🔄 Load Demo",
-                    onSecondaryClick = { SharedTravelPlanStore.resetToDefaults() }
+                    onSecondaryClick = {
+                        confirmationDialogState = ConfirmationDialogState(
+                            title = if (isEs) "¿Cargar datos demo?" else "Load demo data?",
+                            message = if (isEs) {
+                                "Se sobrescribirá el itinerario actual con los datos de prueba. ¿Deseas continuar?"
+                            } else {
+                                "The current itinerary will be overwritten with sample data. Continue?"
+                            },
+                            confirmButtonText = if (isEs) "🔄 Cargar" else "🔄 Load",
+                            dismissButtonText = if (isEs) "Cancelar" else "Cancel",
+                            isDestructive = true,
+                            onConfirm = { SharedTravelPlanStore.resetToDefaults() }
+                        )
+                    }
                 )
             }
         } else {
@@ -1901,7 +1967,13 @@ private fun TripPlannerTabScreen(
                             editingStop = stopToEdit
                         },
                         onDeleteStop = { stopToDelete ->
-                            SharedTravelPlanStore.deleteStop(stopToDelete.id)
+                            confirmationDialogState = ConfirmationDialogBuilder.buildDeleteConfirmation(
+                                itemName = stopToDelete.title,
+                                itemTypeEs = "parada",
+                                itemTypeEn = "stop",
+                                isEs = isEs,
+                                onConfirm = { SharedTravelPlanStore.deleteStop(stopToDelete.id) }
+                            )
                         },
                         onOpenGoogleMaps = { stop ->
                             val geoUri = Uri.parse(
@@ -2019,6 +2091,12 @@ private fun ItineraryStopEditorModalSheet(
     var japaneseNameText by rememberSaveable { mutableStateOf(initialStop.placeNameJapanese) }
     var notesText by rememberSaveable { mutableStateOf(initialStop.notes) }
     var selectedCategory by rememberSaveable { mutableStateOf(initialStop.category) }
+    var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
+
+    AppConfirmationDialog(
+        state = confirmationDialogState,
+        onDismiss = { confirmationDialogState = null }
+    )
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -2126,7 +2204,15 @@ private fun ItineraryStopEditorModalSheet(
                         notes = notesText,
                         category = selectedCategory
                     )
-                    onSave(updated)
+                    if (isNew) {
+                        onSave(updated)
+                    } else {
+                        confirmationDialogState = ConfirmationDialogBuilder.buildEditConfirmation(
+                            itemName = updated.title,
+                            isEs = isEs,
+                            onConfirm = { onSave(updated) }
+                        )
+                    }
                 },
                 secondaryText = if (isNew) {
                     if (isEs) "Cancelar" else "Cancel"
@@ -2134,7 +2220,17 @@ private fun ItineraryStopEditorModalSheet(
                     if (isEs) "🗑️ Eliminar Parada" else "🗑️ Delete Stop"
                 },
                 onSecondaryClick = {
-                    if (isNew) onDismiss() else onDelete(initialStop.id)
+                    if (isNew) {
+                        onDismiss()
+                    } else {
+                        confirmationDialogState = ConfirmationDialogBuilder.buildDeleteConfirmation(
+                            itemName = initialStop.title,
+                            itemTypeEs = "parada",
+                            itemTypeEn = "stop",
+                            isEs = isEs,
+                            onConfirm = { onDelete(initialStop.id) }
+                        )
+                    }
                 }
             )
             Spacer(Modifier.height(16.dp))
@@ -2156,6 +2252,12 @@ private fun PlanEditorModalSheet(
     var titleText by rememberSaveable { mutableStateOf(initialTitle) }
     var startDateText by rememberSaveable { mutableStateOf(initialStartDate) }
     var daysText by rememberSaveable { mutableStateOf(initialDays.toString()) }
+    var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
+
+    AppConfirmationDialog(
+        state = confirmationDialogState,
+        onDismiss = { confirmationDialogState = null }
+    )
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -2215,11 +2317,17 @@ private fun PlanEditorModalSheet(
                 },
                 onPrimaryClick = {
                     val daysInt = daysText.toIntOrNull()?.coerceIn(1, 45) ?: 7
-                    onSave(
-                        titleText.ifBlank { if (isEs) "Nuevo Viaje a Japón" else "New Japan Trip" },
-                        startDateText.ifBlank { "2026-11-11" },
-                        daysInt
-                    )
+                    val finalTitle = titleText.ifBlank { if (isEs) "Nuevo Viaje a Japón" else "New Japan Trip" }
+                    val finalDate = startDateText.ifBlank { "2026-11-11" }
+                    if (isNew) {
+                        onSave(finalTitle, finalDate, daysInt)
+                    } else {
+                        confirmationDialogState = ConfirmationDialogBuilder.buildEditConfirmation(
+                            itemName = finalTitle,
+                            isEs = isEs,
+                            onConfirm = { onSave(finalTitle, finalDate, daysInt) }
+                        )
+                    }
                 },
                 secondaryText = if (isEs) "Cancelar" else "Cancel",
                 onSecondaryClick = onDismiss
@@ -2318,6 +2426,12 @@ private fun TransportTabScreen(
 
     var editingSegment by remember { mutableStateOf<TransportSegmentItem?>(null) }
     var isCreatingSegment by remember { mutableStateOf(false) }
+    var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
+
+    AppConfirmationDialog(
+        state = confirmationDialogState,
+        onDismiss = { confirmationDialogState = null }
+    )
 
     LaunchedEffect(segments, isEs) {
         SharedTransportAlertStore.evaluate(segments, context, isEs)
@@ -2683,7 +2797,15 @@ private fun TransportTabScreen(
                         },
                         secondaryText = if (isEs) "🗑️ Eliminar" else "🗑️ Delete",
                         onSecondaryClick = {
-                            SharedTravelPlanStore.deleteTransportSegment(seg.id)
+                            confirmationDialogState = ConfirmationDialogBuilder.buildDeleteConfirmation(
+                                itemName = "${seg.operatorName} ${seg.lineOrNumber}",
+                                itemTypeEs = "transporte",
+                                itemTypeEn = "transport",
+                                isEs = isEs,
+                                onConfirm = {
+                                    SharedTravelPlanStore.deleteTransportSegment(seg.id)
+                                }
+                            )
                         }
                     )
                 }
@@ -2713,6 +2835,12 @@ private fun TransportSegmentEditorModalSheet(
     var boardingTimeText by rememberSaveable { mutableStateOf(initialSegment.boardingTime?.substringAfter('T') ?: "") }
     var platformText by rememberSaveable { mutableStateOf(initialSegment.departureTerminalOrPlatform) }
     var seatText by rememberSaveable { mutableStateOf(initialSegment.seatOrCarInfo) }
+    var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
+
+    AppConfirmationDialog(
+        state = confirmationDialogState,
+        onDismiss = { confirmationDialogState = null }
+    )
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -2873,7 +3001,16 @@ private fun TransportSegmentEditorModalSheet(
                         departureTerminalOrPlatform = platformText,
                         seatOrCarInfo = seatText
                     )
-                    onSave(updated)
+                    if (isNew) {
+                        onSave(updated)
+                    } else {
+                        val segName = "${updated.operatorName} ${updated.lineOrNumber}".trim().ifBlank { updated.departureName }
+                        confirmationDialogState = ConfirmationDialogBuilder.buildEditConfirmation(
+                            itemName = segName,
+                            isEs = isEs,
+                            onConfirm = { onSave(updated) }
+                        )
+                    }
                 },
                 secondaryText = if (isNew) {
                     if (isEs) "Cancelar" else "Cancel"
@@ -2881,7 +3018,18 @@ private fun TransportSegmentEditorModalSheet(
                     if (isEs) "🗑️ Eliminar" else "🗑️ Delete"
                 },
                 onSecondaryClick = {
-                    if (isNew) onDismiss() else onDelete(initialSegment.id)
+                    if (isNew) {
+                        onDismiss()
+                    } else {
+                        val segName = "${initialSegment.operatorName} ${initialSegment.lineOrNumber}".trim().ifBlank { initialSegment.departureName }
+                        confirmationDialogState = ConfirmationDialogBuilder.buildDeleteConfirmation(
+                            itemName = segName,
+                            itemTypeEs = "transporte",
+                            itemTypeEn = "transport",
+                            isEs = isEs,
+                            onConfirm = { onDelete(initialSegment.id) }
+                        )
+                    }
                 }
             )
             Spacer(Modifier.height(16.dp))
@@ -4334,6 +4482,12 @@ private fun BookingsVaultScreen(isEs: Boolean) {
 
     var editingDoc by remember { mutableStateOf<TravelDocumentItem?>(null) }
     var isCreatingDoc by remember { mutableStateOf(false) }
+    var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
+
+    AppConfirmationDialog(
+        state = confirmationDialogState,
+        onDismiss = { confirmationDialogState = null }
+    )
 
     if (isCreatingDoc || editingDoc != null) {
         val initialDoc = editingDoc ?: TravelDocumentItem(
@@ -4511,7 +4665,13 @@ private fun BookingsVaultScreen(isEs: Boolean) {
                         },
                         secondaryText = if (isEs) "🗑️ Eliminar" else "🗑️ Delete",
                         onSecondaryClick = {
-                            SharedDocumentsAndGuidesStore.deleteDocument(doc.id)
+                            confirmationDialogState = ConfirmationDialogBuilder.buildDeleteConfirmation(
+                                itemName = doc.title,
+                                itemTypeEs = "documento",
+                                itemTypeEn = "document",
+                                isEs = isEs,
+                                onConfirm = { SharedDocumentsAndGuidesStore.deleteDocument(doc.id) }
+                            )
                         }
                     )
                 }
@@ -4536,6 +4696,12 @@ private fun DocumentEditorModalSheet(
     var selectedCategory by rememberSaveable { mutableStateOf(initialDoc.category) }
     var isPinned by rememberSaveable { mutableStateOf(initialDoc.isPinned) }
     var attachedFilePath by rememberSaveable { mutableStateOf(initialDoc.fileUri ?: initialDoc.internalUriPath) }
+    var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
+
+    AppConfirmationDialog(
+        state = confirmationDialogState,
+        onDismiss = { confirmationDialogState = null }
+    )
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -4680,7 +4846,15 @@ private fun DocumentEditorModalSheet(
                         fileUri = attachedFilePath,
                         internalUriPath = attachedFilePath
                     )
-                    onSave(updated)
+                    if (isNew) {
+                        onSave(updated)
+                    } else {
+                        confirmationDialogState = ConfirmationDialogBuilder.buildEditConfirmation(
+                            itemName = updated.title,
+                            isEs = isEs,
+                            onConfirm = { onSave(updated) }
+                        )
+                    }
                 },
                 secondaryText = if (isNew) {
                     if (isEs) "Cancelar" else "Cancel"
@@ -4688,7 +4862,17 @@ private fun DocumentEditorModalSheet(
                     if (isEs) "🗑️ Eliminar" else "🗑️ Delete"
                 },
                 onSecondaryClick = {
-                    if (isNew) onDismiss() else onDelete(initialDoc.id)
+                    if (isNew) {
+                        onDismiss()
+                    } else {
+                        confirmationDialogState = ConfirmationDialogBuilder.buildDeleteConfirmation(
+                            itemName = initialDoc.title,
+                            itemTypeEs = "documento",
+                            itemTypeEn = "document",
+                            isEs = isEs,
+                            onConfirm = { onDelete(initialDoc.id) }
+                        )
+                    }
                 }
             )
             Spacer(Modifier.height(16.dp))
@@ -4709,6 +4893,12 @@ private fun TravelGuidesScreen(isEs: Boolean) {
 
     var editingGuide by remember { mutableStateOf<TravelGuideArticle?>(null) }
     var isCreatingGuide by remember { mutableStateOf(false) }
+    var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
+
+    AppConfirmationDialog(
+        state = confirmationDialogState,
+        onDismiss = { confirmationDialogState = null }
+    )
 
     if (isCreatingGuide || editingGuide != null) {
         val initialGuide = editingGuide ?: TravelGuideArticle(
@@ -4814,7 +5004,13 @@ private fun TravelGuidesScreen(isEs: Boolean) {
                         },
                         secondaryText = if (isEs) "🗑️ Eliminar" else "🗑️ Delete",
                         onSecondaryClick = {
-                            SharedDocumentsAndGuidesStore.deleteGuide(guide.id)
+                            confirmationDialogState = ConfirmationDialogBuilder.buildDeleteConfirmation(
+                                itemName = guide.title,
+                                itemTypeEs = "guía de viaje",
+                                itemTypeEn = "travel guide",
+                                isEs = isEs,
+                                onConfirm = { SharedDocumentsAndGuidesStore.deleteGuide(guide.id) }
+                            )
                         }
                     )
                 }
@@ -4836,6 +5032,12 @@ private fun GuideEditorModalSheet(
     var titleText by rememberSaveable { mutableStateOf(initialGuide.title) }
     var cityText by rememberSaveable { mutableStateOf(initialGuide.cityRegion) }
     var contentText by rememberSaveable { mutableStateOf(initialGuide.markdownSummary) }
+    var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
+
+    AppConfirmationDialog(
+        state = confirmationDialogState,
+        onDismiss = { confirmationDialogState = null }
+    )
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -4892,7 +5094,15 @@ private fun GuideEditorModalSheet(
                         cityRegion = cityText.ifBlank { "Japón" },
                         markdownSummary = contentText
                     )
-                    onSave(updated)
+                    if (isNew) {
+                        onSave(updated)
+                    } else {
+                        confirmationDialogState = ConfirmationDialogBuilder.buildEditConfirmation(
+                            itemName = updated.title,
+                            isEs = isEs,
+                            onConfirm = { onSave(updated) }
+                        )
+                    }
                 },
                 secondaryText = if (isNew) {
                     if (isEs) "Cancelar" else "Cancel"
@@ -4900,7 +5110,17 @@ private fun GuideEditorModalSheet(
                     if (isEs) "🗑️ Eliminar" else "🗑️ Delete"
                 },
                 onSecondaryClick = {
-                    if (isNew) onDismiss() else onDelete(initialGuide.id)
+                    if (isNew) {
+                        onDismiss()
+                    } else {
+                        confirmationDialogState = ConfirmationDialogBuilder.buildDeleteConfirmation(
+                            itemName = initialGuide.title,
+                            itemTypeEs = "guía de viaje",
+                            itemTypeEn = "travel guide",
+                            isEs = isEs,
+                            onConfirm = { onDelete(initialGuide.id) }
+                        )
+                    }
                 }
             )
             Spacer(Modifier.height(16.dp))
@@ -5121,6 +5341,12 @@ private fun JsonPortabilityModalSheet(
         mutableStateOf(SharedTravelPlanStore.exportCurrentJson())
     }
     var statusMessage by remember { mutableStateOf<String?>(null) }
+    var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
+
+    AppConfirmationDialog(
+        state = confirmationDialogState,
+        onDismiss = { confirmationDialogState = null }
+    )
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -5167,20 +5393,46 @@ private fun JsonPortabilityModalSheet(
                 },
                 onSecondaryClick = {
                     if (currentPlan.itineraryStops.isNotEmpty()) {
-                        SharedTravelPlanStore.updatePlan(
-                            PortableTravelPlanBundle(
-                                schemaVersion = 1,
-                                tripTitle = "Mi Viaje a Japón",
-                                itineraryStops = emptyList(),
-                                transportSegments = emptyList()
-                            )
+                        confirmationDialogState = ConfirmationDialogState(
+                            title = if (isEs) "¿Vaciar itinerario?" else "Clear itinerary?",
+                            message = if (isEs) {
+                                "Se eliminarán todas las paradas y tramos de transporte del plan actual. Esta acción no se puede deshacer."
+                            } else {
+                                "All stops and transport segments in the current plan will be deleted. This action cannot be undone."
+                            },
+                            confirmButtonText = if (isEs) "🗑️ Vaciar" else "🗑️ Clear",
+                            dismissButtonText = if (isEs) "Cancelar" else "Cancel",
+                            isDestructive = true,
+                            onConfirm = {
+                                SharedTravelPlanStore.updatePlan(
+                                    PortableTravelPlanBundle(
+                                        schemaVersion = 1,
+                                        tripTitle = currentPlan.tripTitle.ifBlank { "Mi Viaje a Japón" },
+                                        itineraryStops = emptyList(),
+                                        transportSegments = emptyList()
+                                    )
+                                )
+                                jsonEditorText = SharedTravelPlanStore.exportCurrentJson()
+                                statusMessage = if (isEs) "✅ Datos eliminados." else "✅ Data cleared."
+                            }
                         )
-                        jsonEditorText = SharedTravelPlanStore.exportCurrentJson()
-                        statusMessage = if (isEs) "✅ Datos demo eliminados." else "✅ Demo data cleared."
                     } else {
-                        SharedTravelPlanStore.resetToDefaults()
-                        jsonEditorText = SharedTravelPlanStore.exportCurrentJson()
-                        statusMessage = if (isEs) "✅ Datos demo restaurados." else "✅ Demo data restored."
+                        confirmationDialogState = ConfirmationDialogState(
+                            title = if (isEs) "¿Cargar datos demo?" else "Load demo data?",
+                            message = if (isEs) {
+                                "Se restaurará el itinerario de prueba inicial con paradas en Tokio y Kioto."
+                            } else {
+                                "Initial demo itinerary with Tokyo and Kyoto stops will be restored."
+                            },
+                            confirmButtonText = if (isEs) "🔄 Cargar" else "🔄 Load",
+                            dismissButtonText = if (isEs) "Cancelar" else "Cancel",
+                            isDestructive = false,
+                            onConfirm = {
+                                SharedTravelPlanStore.resetToDefaults()
+                                jsonEditorText = SharedTravelPlanStore.exportCurrentJson()
+                                statusMessage = if (isEs) "✅ Datos demo restaurados." else "✅ Demo data restored."
+                            }
+                        )
                     }
                 }
             )
@@ -5190,13 +5442,26 @@ private fun JsonPortabilityModalSheet(
             AppButtonRow(
                 primaryText = if (isEs) "📥 Importar JSON" else "📥 Import JSON",
                 onPrimaryClick = {
-                    SharedTravelPlanStore.importJson(jsonEditorText, mergeWithExisting = false)
-                        .onSuccess {
-                            statusMessage = if (isEs) "✅ Plan JSON importado." else "✅ JSON plan imported."
+                    confirmationDialogState = ConfirmationDialogState(
+                        title = if (isEs) "¿Importar plan JSON?" else "Import JSON plan?",
+                        message = if (isEs) {
+                            "Se sobrescribirá el itinerario actual con los datos del JSON introducido. ¿Deseas continuar?"
+                        } else {
+                            "The current itinerary will be replaced with the JSON data entered. Continue?"
+                        },
+                        confirmButtonText = if (isEs) "📥 Importar" else "📥 Import",
+                        dismissButtonText = if (isEs) "Cancelar" else "Cancel",
+                        isDestructive = true,
+                        onConfirm = {
+                            SharedTravelPlanStore.importJson(jsonEditorText, mergeWithExisting = false)
+                                .onSuccess {
+                                    statusMessage = if (isEs) "✅ Plan JSON importado." else "✅ JSON plan imported."
+                                }
+                                .onFailure {
+                                    statusMessage = if (isEs) "⚠️ JSON no válido." else "⚠️ Invalid JSON."
+                                }
                         }
-                        .onFailure {
-                            statusMessage = if (isEs) "⚠️ JSON no válido." else "⚠️ Invalid JSON."
-                        }
+                    )
                 },
                 secondaryText = if (isEs) "📤 Compartir JSON" else "📤 Share JSON",
                 onSecondaryClick = {
