@@ -50,6 +50,18 @@ Establecer los cimientos funcionales y de experiencia de usuario de **Japan Trav
 ### RF-00.5: Indicador de Estado Beta por Herramienta
 1. Mientras una herramienta no esté implementada al 100%, validada y aprobada por el usuario, mostrará una etiqueta visual discreta `BETA` y la versión de la aplicación se mantendrá bajo numeración pre-release (`0.0.1-beta.X`).
 
+### RF-00.6: Apartado "Acerca de" (Versión de la App y Librerías Open Source de Terceros)
+1. Dentro de Ajustes (`Settings` / `About`), la aplicación contará con un apartado **"Acerca de / Información de la App"** accesible 100% offline que mostrará:
+   - **Nombre de la aplicación** y logotipo.
+   - **Versión exacta instalada**: `versionName` (ej. `0.0.1-beta.1` o `0.0.1`), `versionCode` y estado de madurez (`BETA` o `Estable`).
+   - **Fuentes de datos abiertas utilizadas**: Mención explícita a **Frankfurter API** (datos del Banco Central Europeo) para los tipos de cambio.
+2. **Listado de Librerías Open Source de Terceros (`Open Source Licenses`)**:
+   - Incluirá una pantalla dedicada donde se listen **todas las librerías open source de terceros** empleadas en el proyecto (ej. *Jetpack Compose*, *Room*, *DataStore*, *Kotlin Coroutines*, *Ktor / OkHttp / Retrofit*, *Kotlinx Serialization*, *Maps Compose*, *Coil*, etc.).
+   - Por cada librería se mostrará:
+     - Nombre de la librería y autor/organización.
+     - Versión utilizada y artefacto Maven.
+     - Tipo y texto completo de la licencia open source (ej. `Apache License 2.0`, `MIT License`) empaquetado localmente en el APK (mediante plugin de Gradle como **AboutLibraries** o `oss-licenses-plugin`) para que pueda consultarse **sin conexión a internet**.
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin / BDD)
@@ -70,3 +82,8 @@ Establecer los cimientos funcionales y de experiencia de usuario de **Japan Trav
 - **Dado** que el dispositivo no tiene conexión a internet (Modo Avión activo)
 - **Cuando** el usuario navega por todas las herramientas (Relojes, Conversor de Divisas, Pasaporte/DNI y Documentos)
 - **Entonces** todas las herramientas funcionan sin errores utilizando datos locales o cacheados.
+
+### Escenario 4: Consulta de versión y licencias Open Source en modo offline
+- **Dado** que el usuario entra en `Ajustes > Acerca de` sin conexión a internet
+- **Cuando** consulta la información de la aplicación y pulsa en *"Librerías de código abierto / Licencias Open Source"*
+- **Entonces** visualiza la versión actual (`0.0.1-beta.X` / `0.0.1`) y la lista completa de librerías de terceros con sus respectivas versiones y textos de licencia cargados localmente.

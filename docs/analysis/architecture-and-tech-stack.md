@@ -28,9 +28,10 @@ Este documento recoge la fase de **Análisis** del flujo SDD para traducir las e
   - **Almacenamiento Interno (`Context.filesDir`)**: Archivos físicos `.jpg`, `.png`, `.pdf`, `.md` del pasaporte, DNI, reservas, guías y fotos del planificador.
 - **Red (Con Caché Offline)**:
   - **Ktor Client** o **Retrofit + OkHttp + Kotlinx Serialization** contra `https://api.frankfurter.dev/v1/`.
-- **Seguridad e Internacionalización**:
+- **Seguridad, Licencias Open Source e Internacionalización**:
   - **AndroidX Biometric (`BiometricPrompt`)** para protección de Pasaporte/DNI.
   - **AndroidX AppCompat (`AppCompatDelegate.setApplicationLocales`)** para soporte nativo multiidioma por aplicación (`es`, `en`).
+  - **AboutLibraries (`com.mikepenz:aboutlibraries-compose-m3`)**: Plugin de Gradle que inspecciona automáticamente el árbol de dependencias en tiempo de compilación y empaqueta un JSON local en el APK con todas las librerías open source de terceros, autores, versiones y textos de licencia para mostrarlos 100% offline en Material Design 3.
 
 ---
 
@@ -55,7 +56,7 @@ flowchart TD
   - `database/`: Configuración de `RoomDatabase`.
   - `datastore/`: `UserPreferencesRepository` (DataStore).
   - `network/`: Cliente HTTP para Frankfurter API.
-- `feature/settings/`: Pantalla y ViewModel de ajustes globales (idioma, tema, biometría).
+- `feature/settings/`: Pantalla y ViewModel de ajustes globales (idioma, tema, biometría) + pantallas `AboutScreen` (versión de la app `BuildConfig.VERSION_NAME` / `VERSION_CODE`) y `OpenSourceLicensesScreen` (listado completo de librerías de terceros).
 - `feature/clock/`:
   - `domain/`: `GetWorldClocksUseCase`, `ResolveTimeZoneFromLocationUseCase`, modelo `ClockComparison`.
   - `data/`: `LocationProvider`, `OfflineTimeZoneResolver`.
