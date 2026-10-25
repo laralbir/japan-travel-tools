@@ -16,6 +16,7 @@ Documentos de especificación que definen el **qué** antes de diseñar o escrib
 - [**05 — Especificación: Planificador de Transporte (Vuelos, Trenes/Shinkansen, Metros y Autobuses)**](specs/05-flight-planner-spec.md)
 - [**06 — Especificación: Asistente IA con Gemini y Acceso Directo a Traducción Simultánea**](specs/06-gemini-ai-and-translator-spec.md)
 - [**07 — Especificación: Previsión Meteorológica con Open-Meteo para Planificación de Usuario e IA**](specs/07-weather-open-meteo-spec.md)
+- [**08 — Guía de Esquema JSON para Generación con IA y Portabilidad**](specs/08-travel-plan-json-schema-guide.md)
 
 ### 2. Análisis Técnico (`/docs/analysis/`)
 Documentos que transforman las especificaciones en decisiones de arquitectura, modelos de datos y contratos verificables:
