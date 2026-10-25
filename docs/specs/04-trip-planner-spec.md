@@ -85,6 +85,20 @@ Proporcionar una herramienta integral y **100% funcional offline** para planific
 2. **Formato Amigable y Localizado**:
    - Muestra la fecha seleccionada en formato amigable (ej. *"11 nov 2026"*) y el formato ISO estándar (`YYYY-MM-DD`), abriendo el calendario al pulsar el campo.
 
+### RF-04.8: Selectores de Hora Interactivos Nativos (`AppTimePickerField`)
+1. **Eliminación de Cajas de Texto Libre para Horas (`HH:mm`)**:
+   - La hora de inicio (`startTimeText`) y la hora de fin (`endTimeText`) de cada parada o actividad del itinerario deben seleccionarse mediante un selector interactivo visual de Material 3 / Android TimePicker (`AppTimePickerField`).
+   - El selector muestra un icono de reloj (`🕒`), abre el diálogo de selección horaria en formato 24 horas y formatea automáticamente la hora en `HH:mm` sin requerir que el usuario teclee dos puntos ni cifras en teclado alfanumérico.
+2. **Soporte de Campos Opcionales y Borrado**:
+   - Permite borrar o desmarcar la hora cuando sea opcional, manteniendo la coherencia visual con el resto de selectores de la aplicación.
+
+### RF-04.9: Controles Numéricos Especializados y Steppers (`AppNumberStepperField`)
+1. **Controles Incrementales / Decrementales (`Stepper`)**:
+   - Para valores enteros discretos como el índice del día (`dayText`, ej. Día 1..N) o el total de días de un viaje (`daysText`, ej. 14 días), el formulario proporciona un componente especializado `AppNumberStepperField` con botones rápidos `[-]` y `[+]`.
+   - Permite incrementar o decrementar el valor en 1 unidad con un solo toque y validar cotas mínimas (`min >= 1`) y máximas.
+2. **Teclado Numérico Directo**:
+   - El campo central permite la introducción directa del número desplegando exclusivamente el teclado numérico (`KeyboardType.Number`), filtrando cualquier carácter no numérico.
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin / BDD)
@@ -118,3 +132,13 @@ Proporcionar una herramienta integral y **100% funcional offline** para planific
 - **Dado** que el usuario abre el modal para crear o editar un plan de viaje
 - **Cuando** pulsa sobre el selector de fecha de inicio
 - **Entonces** se despliega el calendario táctil de Material 3 (`DatePickerDialog`) permitiendo seleccionar el día deseado sin teclear cadenas de texto `YYYY-MM-DD`.
+
+### Escenario 7: Selección de horas de actividad con selector interactivo
+- **Dado** que el usuario añade o edita una parada en el itinerario
+- **Cuando** pulsa sobre el campo de "Inicio" o "Fin"
+- **Entonces** se despliega el selector visual de horas (`AppTimePickerField`), permitiendo fijar horas y minutos con un toque táctil y formateando la hora en `HH:mm`.
+
+### Escenario 8: Ajuste de días con control incremental (`Stepper`)
+- **Dado** que el usuario edita el número de días de un plan o el día asignado a una parada
+- **Cuando** pulsa sobre los botones `[-]` o `[+]`
+- **Entonces** el valor se actualiza inmediatamente respetando los límites mínimos, o bien permite introducir dígitos directamente desplegando el teclado numérico.

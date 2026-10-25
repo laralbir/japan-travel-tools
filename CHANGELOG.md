@@ -7,7 +7,25 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
-## [0.0.1-beta.26] - 2026-10-25
+## [0.0.1-beta.27] - 2026-10-25
+
+### Added
+- **Selectores Interactivos de Hora (`AppTimePickerField`) y Controles Numéricos con Steppers (`AppNumberStepperField`) (`SPEC-00 RF-00.11`, `SPEC-04 RF-04.8/04.9`, `SPEC-05 RF-05.7`)**:
+  - **Selector de Horas Nativo / Material 3 (`AppTimePickerField`)**:
+    - Sustitución completa de las cajas de texto manual para horas (`HH:mm`) en todas las secciones de la aplicación por selectores táctiles visuales con diálogo Material 3 de 24 horas y reloj interactivo.
+    - Integrado en **Paradas del Itinerario** (`ItineraryStopEditorModalSheet`: `Hora Inicio` y `Hora Fin`).
+    - Integrado en **Tramos de Transporte** (`TransportSegmentEditorModalSheet`: `Hora Salida`, `Hora Llegada`, `Facturación (opc)` y `Embarque (opc)`).
+    - Soporte de limpieza rápida (`✕` / botón "Borrar") para campos horarios opcionales.
+  - **Control Incremental de Números (`AppNumberStepperField`)**:
+    - Componente especializado con botones táctiles `[-]` y `[+]` para incrementar o decrementar enteros discretos de 1 en 1 sin teclear.
+    - Integrado en el selector de **Día de la actividad** (`dayText`, 1..99) en paradas del itinerario.
+    - Integrado en la **Duración total del viaje** (`daysText`, 1..90) en la creación y edición de planes de viaje.
+    - Campo central con tipografía centrada y despliegue directo del teclado numérico (`KeyboardType.Number`) filtrando automáticamente caracteres no numéricos.
+  - **Teclados Numéricos Decimales Especializados (`KeyboardOptions(keyboardType = KeyboardType.Decimal)`)**:
+    - Despliegue automático del teclado numérico decimal en el conversor de divisas (`CurrencyScreen`: `inputAmountText`).
+    - Despliegue automático del teclado numérico decimal en las coordenadas geográficas de ciudades (`CityWeatherEditorModalSheet`: `latText` y `lonText`).
+- **Batería de Tests Unitarios TDD (`TimeAndNumericHelperTest`)**:
+  - 8 tests unitarios que verifican exhaustivamente el parseo y validación de horas en 24h (`parseHourAndMinute`, `isValidTime`, `formatTime`, `formatDisplayTime`), saneamiento y delimitación de enteros (`sanitizeInteger`), operaciones de stepper (`increment`, `decrement`) y filtrado de números y decimales (`filterNumeric`, `filterDecimal`).
 
 ### Changed
 - **Centralización Exclusiva de la Configuración de Gemini API Key en Ajustes (`SPEC-06 RF-06.3`)**:

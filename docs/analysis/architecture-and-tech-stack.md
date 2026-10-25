@@ -276,6 +276,27 @@ data class UserPreferences(
 - **Integración con la IA (`AiPlanBuilderEngine.optimizePlanWithWeather`)**:
   - Cruza las fechas de cada día del itinerario con las previsiones de Open-Meteo y enriquece automáticamente las paradas del viaje y las respuestas del asistente Gemini con recomendaciones climáticas y alternativas cubiertas en días lluviosos.
 
+### 3.9. Selectores Visuales de Hora y Controles Numéricos Especializados (`AppTimePickerField`, `TimeSelectorHelper`, `AppNumberStepperField`, `NumericInputHelper`)
+- **`TimeSelectorHelper` & `AppTimePickerField`**:
+  - **Propósito**: Eliminar campos de texto libre para horas (`HH:mm`), proporcionando un componente Compose interactivo y accesible que despliega un diálogo de selección horaria nativo / Material 3 (`TimePickerDialog` / `TimePicker`).
+  - **Funciones utilitarias**:
+    - `parseHourAndMinute(timeStr: String): Pair<Int, Int>`: Parsea de forma segura horas en formato `"HH:mm"`, `"H:m"` o devuelve valores por defecto fiables (`09:00` o la hora actual) ante cadenas vacías o malformadas.
+    - `formatTime(hour: Int, minute: Int): String`: Formatea valores numéricos en cadena canónica de 24 horas `"HH:mm"`.
+    - `formatDisplayTime(timeStr: String, isEs: Boolean): String`: Proporciona la representación legible del horario con soporte opcional de borrado para campos no obligatorios (como facturación o embarque en transportes).
+  - **Componente `AppTimePickerField`**:
+    - Muestra icono de reloj `🕒` o indicador de limpieza `✕`.
+    - Al pulsar el campo o el icono, despliega el diálogo interactivo de horas en formato de 24 horas, eliminando la necesidad de teclear dígitos o caracteres separadores.
+- **`NumericInputHelper` & `AppNumberStepperField`**:
+  - **Propósito**: Sustituir cajas de texto genéricas para valores numéricos enteros (como el día de la parada `dayText` o la duración del viaje `daysText`), integrando un control `Stepper` (`[-]` / `[+]`) y teclado numérico directo (`KeyboardType.Number`).
+  - **Funciones utilitarias**:
+    - `sanitizeInteger(raw: String, min: Int, max: Int, default: Int): Int`: Sanea y acota cualquier entrada asegurando que nunca se almacenen valores ilegales o negativos.
+    - `increment(current: Int, step: Int, max: Int): Int` / `decrement(current: Int, step: Int, min: Int): Int`: Operaciones de avance/retroceso paso a paso.
+  - **Componente `AppNumberStepperField`**:
+    - Botón de decremento `[-]` y botón de incremento `[+]` táctiles para un ajuste rápido con una sola mano.
+    - Campo de edición con `KeyboardOptions(keyboardType = KeyboardType.Number)` para entrada directa cuando se deseen saltos mayores.
+- **Teclados Numéricos Decimales Especializados (`KeyboardOptions(keyboardType = KeyboardType.Decimal)`)**:
+  - Aplicados en el importe del conversor de divisas (`CurrencyScreen`) y en las coordenadas de latitud/longitud de ciudades (`CityWeatherEditorModalSheet`), garantizando que el sistema operativo despliegue el teclado numérico en lugar del alfanumérico.
+
 ---
 
 ## 4. Estrategia de Testing (TDD)
@@ -297,6 +318,7 @@ Cada funcionalidad sigue el ciclo **Red -> Green -> Refactor**:
      - Extracción y sincronización de ciudades del tiempo (`PlanWeatherCityExtractor` & `SharedWeatherForecastStore.syncCitiesFromPlan`): detección automática de ciudades y aeropuertos a partir de los orígenes y destinos de transporte (`TransportSegmentItem`) y de las paradas de la agenda de viaje (`ItineraryStopItem`), con memoria de exclusión de eliminaciones manuales (`deletedCityIds`) y persistencia offline.
      - Componente universal de seguridad para el usuario (`AppConfirmationDialog` & `ConfirmationDialogBuilder`): prevención de pérdidas accidentales de datos en acciones de edición y eliminación (`isDestructive`) para transportes, planes, días, paradas, documentos, guías, fotos de identidad y ciudades. Incluye sistema interactivo de **Double Check** (`requiresDoubleCheck`) con interruptor obligatorio para acciones sensibles (borrado de planes completos, días enteros, fotos de Pasaporte/DNI y vaciado de itinerario), deshabilitando el botón de borrado definitivo hasta su activación deliberada.
      - Selector universal de fechas (`AppDatePickerField` & `DateSelectorHelper`): componente táctil nativo con `DatePickerDialog` de Material 3 para planes de viaje, transportes e itinerarios, eliminando cajas de texto manuales `YYYY-MM-DD`.
+     - Selector universal de horas y controles numéricos con steppers (`TimeSelectorHelper`, `NumericInputHelper`, `AppTimePickerField` y `AppNumberStepperField`): pruebas unitarias de parseo, formateo canónico `HH:mm`, saneamiento y delimitación de rangos enteros `min..max`, operaciones `increment`/`decrement` y configuración de teclados numéricos decimales.
      - Búsqueda predictiva y geocodificación de ciudades (`CityGeocodingHelper`): pruebas unitarias de búsqueda por prefijo/fuzzy match en catálogo local, resolución de coordenadas para destinos japoneses e internacionales, y parseo de respuestas de geocodificación.
      - Visor a pantalla completa con zoom táctil (`ZoomPanState` & `FullScreenZoomableImageViewerDialog`): cálculo matemático de escala (`1.0x` a `5.0x`), traslación acotada dentro del contenedor, alternador por doble toque y restablecimiento a estado original para fotografías de Pasaporte y DNI.
 2. **Tests de UI / Instrumentados (`src/androidTest/java`)**:
