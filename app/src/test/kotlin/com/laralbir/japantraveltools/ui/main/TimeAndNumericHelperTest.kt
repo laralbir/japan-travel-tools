@@ -127,3 +127,4 @@ class TimeAndNumericHelperTest {
         assertEquals("", NumericInputHelper.filterDecimal("invalid"))
     }
 }
+

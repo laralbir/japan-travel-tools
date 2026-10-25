@@ -135,24 +135,24 @@ En un viaje a Japón es habitual alternar entre una **eSIM de datos japonesa** (
      - Si **procede**: se comenta el diagnóstico y plan de resolución, se incorpora al flujo `Especificación -> Análisis -> Tareas -> TDD (Test que reproduce el bug -> Fix)`, se vincula el commit con `Closes #<id>` y se notifica al cerrar.
      - Si **no procede**: se responde explicando los motivos técnicos o de diseño por los que se descarta o se solicita aclaración al autor.
 
-### RF-00.11: Sincronización Multi-Dispositivo con Cuenta de Google (Móvil Pixel <-> Tablet TCL NXTPAPER)
-Dado que el usuario utilizará la aplicación simultáneamente en varios dispositivos (por ejemplo, planificando o leyendo guías en la **Tablet TCL NXTPAPER 11 Plus** en el hotel y consultando horarios/documentos en la calle con el **Google Pixel 10 Pro XL / Pixel 9 Pro XL**), la aplicación permitirá sincronizar todos los datos mediante la **misma Cuenta de Google** manteniendo intacto el principio **100% Offline-First**:
-1. **Inicio de Sesión con Cuenta de Google (`Credential Manager API` — Sign in with Google)**:
-   - Opcional (la app sigue funcionando 100% sin cuenta si el usuario no desea iniciar sesión).
-   - Al vincular la misma cuenta de Google en el móvil y en la tablet, se habilita la sincronización en la nube privada del usuario (**Google Drive `appDataFolder` / Firebase Cloud Storage + Firestore**).
-2. **Alcance Total de Datos Sincronizados**:
-   - **Preferencias de usuario (`DataStore`)**: Idioma, tema, país de origen de relojes, divisas favoritas.
-   - **Base de datos estructurada (`Room`)**:
-     - Itinerarios, días y horarios del **Planificador de Viaje (`SPEC-04`)** con sus ubicaciones de Google Maps.
-     - Trayectos de **Vuelos, Trenes, Metros y Autobuses (`SPEC-05`)**.
-     - **Guías de Viaje (`SPEC-03`)**, notas y metadatos de documentos.
-     - Historial de respuestas de **Gemini y frases guardadas (`SPEC-06`)**.
-   - **Archivos físicos y fotografías (`Context.filesDir`)**:
-     - Fotos del **Pasaporte y DNI** (cifradas en tránsito y almacenadas en el espacio privado de la cuenta del usuario), **PDFs de billetes/hoteles/guías** y **fotos de paradas del planificador**, descargándose automáticamente a la caché interna privada de cada dispositivo para que estén **disponibles 100% offline en todos ellos**.
-3. **Motor de Sincronización Offline-First (`WorkManager` + Resolución de Conflictos `Last-Write-Wins` por Entidad)**:
-   - Toda creación o edición en un dispositivo (incluso en Modo Avión) se guarda inmediatamente en local con una marca de tiempo `updatedAtMillis`, un contador de versión y un flag `pendingSync = true`.
-   - En cuanto el dispositivo detecta conexión (`Wi-Fi`, `eSIM` o `SIM`, configurable para *"Sincronizar archivos pesados solo por Wi-Fi"* para no gastar datos de la eSIM en Japón), sincroniza automáticamente en segundo plano o al pulsar **"Sincronizar ahora 🔄"**.
-   - En caso de edición concurrente en dos dispositivos offline, se resuelve por entidad individual mediante timestamp (`updatedAtMillis` más reciente prevalece) sin sobrescribir ni perder cambios de otras entidades.
+### RF-00.11: Sincronización Multi-Dispositivo con Cuenta de Google (Móvil Pixel <-> Tablet TCL NXTPAPER) y Respaldo en Google Drive
+Dado que el usuario utilizará la aplicación simultáneamente en varios dispositivos (por ejemplo, planificando o leyendo guías en la **Tablet TCL NXTPAPER 11 Plus** en el hotel y consultando horarios/documentos en la calle con el **Google Pixel 10 Pro XL / Pixel 9 Pro XL**), la aplicación permitirá sincronizar todos los datos mediante la **misma Cuenta de Google** y guardarlos en **Google Drive** manteniendo intacto el principio **100% Offline-First**:
+1. **Selección Nativa de Cuentas de Google del Sistema (Cero Escritura Manual)**:
+   - Queda terminantemente prohibido obligar al usuario a escribir su dirección de correo a mano.
+   - La pantalla de Ajustes despliega un selector interactivo nativo (`GoogleAccountSelectorHelper` basado en `AccountManager.newChooseAccountIntent(null, null, arrayOf("com.google"), false, null, null, null, null)`) que consulta y muestra el listado del sistema de cuentas de Google activas en el dispositivo.
+   - Al pulsar *"👤 Seleccionar Cuenta de Google del Dispositivo"*, se abre el diálogo nativo de cuentas de Android; al elegir una, la app asocia automáticamente el correo seleccionado (`googleAccountEmail`) y actualiza la tarjeta de sincronización con el estado activo.
+   - Se incluye un botón para cambiar de cuenta en cualquier momento (*"Cambiar cuenta"*).
+2. **Respaldo y Sincronización en Google Drive (`JapanTravelCloudSyncBundle`)**:
+   - Se crea un contenedor de sincronización integral en JSON (`JapanTravelCloudSyncBundle`) con versión de esquema (`schemaVersion = 1`), correo de la cuenta, marca de tiempo y modelo de dispositivo, que agrupa:
+     - **Planes de viaje e itinerarios (`travelPlans`)**: todos los planes, paradas de la agenda con coordenadas y notas.
+     - **Transporte multimodal (`transportSegments`)**: vuelos, trenes Shinkansen, líneas de metro y autobuses.
+     - **Guías de viaje (`travelGuides`)**: guías y apuntes creados o importados en la app.
+     - **Documentos y entradas (`travelDocuments`)**: reservas de hotel, billetes y entradas con localizador.
+     - **Ciudades meteorológicas (`weatherCities`)**: destinos personalizados y seleccionados.
+     - **Preferencias de usuario**: idioma, tema visual y zona horaria de origen.
+3. **Acciones de Nube de Google Drive**:
+   - **Guardar en Google Drive (`☁️ Guardar Copia en Google Drive`)**: Exporta el paquete consolidado y lo sube/guarda en Google Drive (`japan-travel-backup-<cuenta>.json`) mediante el Storage Access Framework de Android (`Intent.ACTION_CREATE_DOCUMENT`), guardando simultáneamente una copia local sincronizada en `Context.filesDir/cloud_sync/`.
+   - **Sincronizar desde Google Drive (`🔄 Sincronizar desde Google Drive`)**: Permite en el segundo dispositivo (ej. tablet TCL NXTPAPER 11 Plus o móvil Pixel) descargar o abrir el archivo de respaldo de Google Drive (`Intent.ACTION_OPEN_DOCUMENT`), fusionando reactivamente los planes, guías y documentos sin pérdida de información y actualizando la fecha de última sincronización (`lastCloudSyncEpochMillis`).
 
 ### RF-00.12: Instalación y Depuración (ADB + Debug) sobre Listado Configurable de Dispositivos Autorizados (No Commiteable)
 1. El proyecto debe permitir compilar, instalar y lanzar en modo **Debug** la aplicación mediante **ADB (`adb install` / `android install`)** sobre una lista configurable de dispositivos autorizados (por ejemplo, el **Pixel 10 Pro XL**, el **Pixel 9 Pro XL** y la tablet **TCL NXTPAPER 11 Plus**, tanto por cable USB como por *ADB Wireless Debugging*).
@@ -258,3 +258,12 @@ Dado que el usuario utilizará la aplicación simultáneamente en varios disposi
 - **Entonces** se despliega el selector táctil de horas (`AppTimePickerField`), eliminando la escritura manual de horas y minutos
 - **Y cuando** interactúa con un campo numérico entero
 - **Entonces** dispone de botones de incremento/decremento (`[-]` / `[+]`) y teclado numérico directo (`KeyboardType.Number` / `KeyboardType.Decimal`), evitando caracteres no numéricos erróneos.
+
+### Escenario 12: Selección de cuenta de Google del sistema y sincronización con Google Drive
+- **Dado** que el usuario accede a la sección de sincronización en Ajustes
+- **Cuando** pulsa en *"👤 Seleccionar Cuenta de Google del Dispositivo"*
+- **Entonces** se abre el selector nativo del sistema de cuentas de Google de Android y, al elegir una, el correo queda vinculado automáticamente sin teclear nada.
+- **Y cuando** pulsa *"☁️ Guardar Copia en Google Drive"*
+- **Entonces** la app empaqueta todos los planes, paradas, tramos de transporte, guías, documentos y ciudades en un archivo de respaldo `japan-travel-backup.json` y lo guarda en Google Drive y en la caché local.
+- **Y cuando** en otro dispositivo con la misma cuenta pulsa *"🔄 Sincronizar desde Google Drive"*
+- **Entonces** se cargan y fusionan de forma reactiva todos los datos restaurando el viaje completo para uso 100% offline.
