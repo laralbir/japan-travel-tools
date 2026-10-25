@@ -7,6 +7,56 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-25
+
+### Release Oficial Estable — Japan Travel Tools 1.0.0 🇯🇵✈️
+Primera versión oficial de producción para viajeros a Japón. Suite integral 100% offline-first desarrollada con Spec-Driven Development (SDD) y Test-Driven Development (TDD) sobre Android (Kotlin + Jetpack Compose), optimizada para smartphones insignia (**Google Pixel 10 Pro XL**, **Pixel 9 Pro XL**) y tablets (**TCL NXTPAPER 11 Plus**).
+
+#### 🗺️ Herramientas Incluidas en la Suite v1.0.0:
+1. **Relojes y Ubicación Dual (`SPEC-01`)**:
+   - Hora local automática por GPS, hora de Japón (`Asia/Tokyo`) y hora del país de origen (`Europe/Madrid` u otra seleccionada).
+   - Cálculo en tiempo real de diferencia horaria y fases del día (mañana, tarde, noche) para comunicarse con casa sin confusiones.
+2. **Conversor de Divisas Offline-First (`SPEC-02`)**:
+   - Conversión bidireccional instantánea `EUR <-> JPY` con tasas oficiales del Banco Central Europeo (Frankfurter API) y semilla offline.
+   - Despliegue de teclado numérico decimal especializado.
+3. **Bóveda de Documentos de Identidad con Zoom Pellizcando (`SPEC-03`)**:
+   - Almacenamiento seguro y privado en `Context.filesDir` de fotos de Pasaporte, DNI y documentos personalizados (recetas médicas para aduanas japonesas *Yakkan Shoumei*, certificado de vacunas, visados, seguro de viaje y carnet internacional).
+   - Visor a pantalla completa con zoom táctil (`pinch-to-zoom`) de `1.0x` a `5.0x` y alternador por doble toque.
+   - Soporte de Bloqueo Biométrico / PIN configurable.
+4. **Repositorio de Documentos y Creador de Guías (`SPEC-03`)**:
+   - Bóveda de billetes de vuelo, reservas de hotel y JR Pass.
+   - Creador y gestor de guías de viaje propias por regiones con texto enriquecido y fotografías offline.
+5. **Planificador de Viaje con Itinerario y Mapas (`SPEC-04`)**:
+   - Línea temporal de actividades por días en huso horario japonés.
+   - Selectores de fecha nativos de Material 3 (`AppDatePickerField`), selectores de hora (`AppTimePickerField`) y controles numéricos incrementales con steppers (`AppNumberStepperField`).
+   - Integración con Google Maps, geolocalización de coordenadas y exportación/importación en formato `JSON` legible (`japan-travel-plan.v1`).
+6. **Planificador de Transportes Multimodal (`SPEC-05`)**:
+   - Gestión de vuelos (internacionales y domésticos), trenes bala **Shinkansen / JR**, líneas de metro y autobuses.
+   - Cálculo de escalas aéreas y transbordos entre andenes, número exacto de salida de estación (`Exit`) y dársena de autobús (`Bus Bay`).
+   - Sistema de advertencias visuales y notificaciones push para recordatorios de facturación y hora de embarque.
+7. **Asistente IA Híbrido (Google Gemini Cloud + Motor Experto Offline) (`SPEC-06`)**:
+   - Conmutador táctil directo en cabecera `[ ⚡ Flash (Rápido) ]` vs `[ 🧠 PRO (Razonamiento) ]`.
+   - Soporte de modelos oficiales: `Gemini 2.0 Flash`, `Gemini 1.5 Pro`, `Gemini 2.5 Pro`, `Gemini 2.0 Flash Lite` y `Gemini 2.5 Flash`.
+   - Botón `⚡ Probar Conexión con Gemini` en Ajustes y alertas visibles ante fallos de conexión o claves inválidas.
+   - Motor Experto On-Device integrado con más de 20 temáticas de Japón 100% offline.
+   - **Traductor de Voz Fiel y Literal Bidireccional (`Japonés <-> Español/Inglés`)**: Traducción literal sin alucinaciones ni invención conversacional.
+8. **Previsión Meteorológica Open-Meteo (`SPEC-07`)**:
+   - Previsión a 7 días sin necesidad de API Key (modelos globales + JMA).
+   - Porcentaje de visibilidad del Monte Fuji e idoneidad climática (`⛩️ Ideal Exterior` vs `🏛️ Recomendado Cubierto`).
+   - Búsqueda predictiva de ciudades y geocodificación automática de coordenadas con Google Maps.
+   - Sincronización automática de destinos desde planes y transportes.
+9. **Selector de Cuenta Google del Sistema y Sincronización en Drive (`SPEC-00`)**:
+   - Selector nativo de cuentas Android (`AccountManager.newChooseAccountIntent`) sin escritura manual.
+   - Respaldo y restauración del bundle completo (`JapanTravelCloudSyncBundle`) directamente en Google Drive vía Android Storage Access Framework (`CreateDocument` / `OpenDocument`).
+   - Fusión inteligente multi-dispositivo sin pérdidas de datos.
+10. **Seguridad y Usabilidad Universal (`SPEC-00`)**:
+    - Modales de confirmación interactivos y sistema de **Double Check** con interruptor obligatorio para borrados sensibles.
+    - Soporte completo para temas Claro (*Washi*), Oscuro (*Sumi* OLED) y Sistema.
+
+#### 🧪 Calidad, SDD y TDD
+- 100% de la batería de tests unitarios superada sin errores.
+- Flujo Gitflow completado y release final consolidada en `main`.
+
 ## [0.0.1-beta.30] - 2026-10-25
 
 ### Added
