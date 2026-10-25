@@ -7,6 +7,22 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.20] - 2026-10-25
+
+### Added
+- **Traductor de Voz Fiel y Literal Bidireccional (`SPEC-06 RF-06.1.2.6`)**:
+  - **Eliminación Total de Respuestas Conversacionales Inventadas**:
+    - Se elimina el comportamiento de chatbot en `translateFromJapaneseSpeech` que respondía al interlocutor japonés (ej. responder *"¿En qué puedo ayudarle?"* ante *"すみません"*, inventar *"Aquí tiene agua fresca de cortesía"* ante *"お水"*, o generar *"El total a pagar son..."* ante precios en yenes).
+    - Ahora el motor actúa estrictamente como un **intérprete fiel y literal**: traduce lo que se ha dicho tal cual (*"Disculpe / Perdón"*, *"Agua"*, *"1500 yenes"*), erradicando las alucinaciones conversacionales.
+    - Se eliminan también los mensajes meta de chatbot (*"El interlocutor ha respondido en japonés. Por favor, pídele que hable despacio..."*), sustituyéndolos por un analizador léxico y semántico de términos clave.
+  - **Flujo Bidireccional Exacto y Simétrico**:
+    - **1. Habla Japonés ➔ Captura texto japonés ➔ Traduce al español ➔ Habla en español**: Captura de voz japonesa (`ja-JP`), visualización del texto japonés en caracteres grandes (`Kanji/Kana`), pronunciación fonética en Romaji, traducción directa al español y locución por voz (`TextToSpeech` en `es-ES`).
+    - **2. Habla Español ➔ Captura texto en español ➔ Traduce al japonés ➔ Habla en japonés**: Captura de voz en español (`es-ES`), visualización del texto en español, traducción fiel a caracteres japoneses con Romaji, locución por voz (`TextToSpeech` en `ja-JP`) y tarjeta rotable `180°` para mostrar al dependiente.
+  - **Motor Híbrido en Tiempo Real (`OnlineTranslatorClient`)**:
+    - Cliente de traducción rápida online en segundo plano (`Dispatchers.IO`) para traducir libremente cualquier locución o frase no catalogada cuando hay conexión a internet, manteniendo el motor offline local como base 100% offline-first.
+  - **Batería de Tests Unitarios TDD (`AiAndTranslatorUseCaseTest`)**:
+    - Pruebas unitarias de traducción literal estricta y verificación de que nunca se generan respuestas de dependiente ni mensajes meta de chatbot.
+
 ## [0.0.1-beta.19] - 2026-10-25
 
 ### Added
