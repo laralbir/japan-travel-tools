@@ -11,7 +11,7 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 - [x] **TASK-001**: Inicializar repositorio para agentes de IA (`AGENTS.md`, `.gitignore`, `README.md`, `CHANGELOG.md`).
 - [x] **TASK-002**: Redactar especificaciones funcionales completas en `/docs/specs/` (`SPEC-00` a `SPEC-04`), análisis técnico en `/docs/analysis/` y guía de usuario en `/docs/user-guide.md`.
 - [x] **TASK-003**: Configurar ramas **Gitflow** (`main` y `develop`) con el commit fundacional de especificación.
-- [ ] **TASK-004 (TODO Prioritario)**: Buscar, evaluar y seleccionar un **template / sistema de diseño moderno y útil** para la app Android (Jetpack Compose Material 3 Expressive, dashboard de viaje con tarjetas rápidas, navegación adaptativa moderna y estética cuidada inspirada en Japón en modo Claro/Oscuro) antes de generar el scaffolding base.
+- [ ] **TASK-004 (TODO Prioritario)**: Buscar, evaluar y seleccionar un **template / sistema de diseño moderno y útil** para la app Android (Jetpack Compose Material 3 Expressive + Adaptive Layouts), optimizado específicamente para **Pixel 10 Pro XL**, **Pixel 9 Pro XL** y la tablet **TCL NXTPAPER 11 Plus** (11.5" ratio 3:2), antes de generar el scaffolding base.
 - [ ] **TASK-005**: Crear esqueleto del proyecto Android basado en el template seleccionado (Kotlin + Jetpack Compose + Gradle Version Catalog + Room + DataStore + Ktor/Retrofit + Testing dependencies) en rama `feature/project-scaffolding`.
 - [ ] **TASK-006**: Configurar numeración de versión `0.0.1-beta.1` en `app/build.gradle.kts` y verificar compilación de APK (`./gradlew testDebugUnitTest assembleDebug`).
 
@@ -23,7 +23,9 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 - [ ] **TASK-102 (TDD)**: Implementar `UserPreferencesRepository` con Jetpack DataStore y sus tests de persistencia (tema Claro/Oscuro/Sistema, idioma, preferencias de herramientas).
 - [ ] **TASK-103 (TDD)**: Implementar recursos de cadenas `res/values/strings.xml` (EN por defecto) y `res/values-es/strings.xml` (ES), junto con `SettingsViewModel` y `SettingsScreen`.
 - [ ] **TASK-104 (TDD)**: Implementar apartado **"Acerca de y Licencias Open Source"** (`AboutScreen` y `OpenSourceLicensesScreen` con plugin `AboutLibraries`), mostrando la versión exacta de la app (`0.0.1-beta.X` / `0.0.1`), créditos de datos abiertos (Frankfurter API) y todas las librerías de terceros usadas con sus licencias offline.
-- [ ] **TASK-105 (TDD)**: Implementar navegación principal (Bottom Navigation / Navigation Bar) con indicador visual `BETA` para herramientas en desarrollo.
+- [ ] **TASK-105 (TDD)**: Implementar navegación adaptativa (`NavigationSuiteScaffold` + `WindowSizeClass`) con indicador visual `BETA`:
+  - `NavigationBar` inferior ergonómica y Edge-to-Edge en **Pixel 10 Pro XL / Pixel 9 Pro XL**.
+  - `NavigationRail` lateral y layouts multi-panel (`ListDetailPaneScaffold` / `SupportingPaneScaffold`) + alto contraste NXTPAPER en la tablet **TCL NXTPAPER 11 Plus**.
 
 ---
 

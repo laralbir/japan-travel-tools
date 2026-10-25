@@ -10,7 +10,11 @@ Este documento recoge la fase de **Análisis** del flujo SDD para traducir las e
 - **SDK de Android**:
   - `minSdk`: 26 (Android 8.0, soporte nativo completo de `java.time` y `PdfRenderer`).
   - `targetSdk` / `compileSdk`: 35 (Android 15).
-- **UI**: Jetpack Compose + Material Design 3 + Navigation Compose (Type-Safe Navigation).
+- **UI y Diseño Adaptativo Multi-Dispositivo**:
+  - **Jetpack Compose + Material Design 3 + Navigation Compose (Type-Safe Navigation)**.
+  - **Material 3 Adaptive (`androidx.compose.material3.adaptive:adaptive`, `adaptive-layout`, `adaptive-navigation`, `material3-adaptive-navigation-suite`)** + **`WindowSizeClass`**:
+    - Optimización específica para **Google Pixel 10 Pro XL / Pixel 9 Pro XL** (`Compact` width, pantallas altas 20:9 de 6.8" 1344x2992 a 120Hz, `enableEdgeToEdge()`, controles en zona inferior del pulgar).
+    - Optimización específica para **Tablet TCL NXTPAPER 11 Plus** (`Medium` / `Expanded` width, 11.5" 2200x1440 ratio 3:2 a 120Hz): uso de `NavigationSuiteScaffold` (`NavigationRail`), `SupportingPaneScaffold` en el Planificador (Horario + Mapa Google Maps simultáneos) y `ListDetailPaneScaffold` en Documentos y Guías de Viaje, con tokens de contraste reforzado para los modos *Ink Paper* / *Color Paper* de NXTPAPER.
 - **Mapas y Ubicación**:
   - **Google Maps SDK for Android + Maps Compose (`com.google.maps.android:maps-compose`)** para el mapa interactivo embebido en el planificador con marcadores numerados y polilíneas de ruta diaria.
   - **Google Maps Intents / Geo URIs** para lanzar navegación paso a paso y abrir fichas en la app nativa de Google Maps (compatible con mapas offline descargados en Google Maps).

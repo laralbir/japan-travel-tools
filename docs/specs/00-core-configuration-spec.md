@@ -62,6 +62,23 @@ Establecer los cimientos funcionales y de experiencia de usuario de **Japan Trav
      - Versión utilizada y artefacto Maven.
      - Tipo y texto completo de la licencia open source (ej. `Apache License 2.0`, `MIT License`) empaquetado localmente en el APK (mediante plugin de Gradle como **AboutLibraries** o `oss-licenses-plugin`) para que pueda consultarse **sin conexión a internet**.
 
+### RF-00.7: Optimización Adaptativa para Dispositivos Objetivo (Pixel 10 Pro XL, Pixel 9 Pro XL y Tablet TCL NXTPAPER 11 Plus)
+La interfaz de usuario, el rendimiento y la ergonomía táctil deberán estar específicamente optimizados para tres dispositivos de referencia:
+
+1. **Smartphones de Gran Formato — Google Pixel 10 Pro XL y Google Pixel 9 Pro XL (~6.8" Super Actua LTPO OLED, 1344 x 2992 px, 20:9, 1-120 Hz)**:
+   - **Diseño Edge-to-Edge (`enableEdgeToEdge`)**: Aprovechamiento completo de la pantalla de borde a borde respetando los *insets* del recorte de cámara (`displayCutout`), barra de estado y barra de gestos inferior.
+   - **Ergonomía a una mano**: Controles de acción frecuente (teclado rápido de divisas, cambio de día, botones de acción flotantes y barra de navegación inferior `NavigationBar`) situados en el tercio inferior de la pantalla de 6.8" para alcanzarlos cómodamente con el pulgar.
+   - **Fluidez 120 Hz y OLED Dark Mode**: Animaciones sin tirones (*Baseline Profiles* + estado inmutable en Compose) y paleta oscura de alto contraste real para paneles LTPO OLED, además de soporte opcional para colores dinámicos (*Material You / Dynamic Color* en Android 15/16).
+
+2. **Tablet de Lectura — TCL NXTPAPER 11 Plus (11.5" 2.2K, 2200 x 1440 px, ratio 3:2, 120 Hz, pantalla mate estilo papel)**:
+   - **Layouts Adaptativos Multi-Panel (`WindowSizeClass` Medium / Expanded y `NavigationSuiteScaffold`)**:
+     - Sustitución automática de la barra inferior por **`NavigationRail`** lateral (o `PermanentNavigationDrawer` en horizontal) para no desperdiciar espacio vertical en formato 3:2.
+     - **Planificador de Viaje (`SPEC-04`) en Doble Panel (50% / 50%)**: En la TCL NXTPAPER 11 Plus se muestra simultáneamente la **Línea Temporal de Horarios + Fotos** a la izquierda y el **Mapa Interactivo de Google Maps embebido** a la derecha, sincronizados en tiempo real sin necesidad de cambiar de pestaña.
+     - **Documentos y Guías de Viaje (`SPEC-03`) en Maestro-Detalle (`ListDetailPaneScaffold`)**: Lista de documentos/guías a la izquierda y el visor de **PDF / Guía Markdown / Pasaporte** abierto a gran tamaño a la derecha, aprovechando los 11.5" en proporción 3:2 ideales para lectura de documentos y mapas.
+     - **Dashboard / Relojes y Conversor en Cuadrícula (`Grid`)**: Posibilidad de ver los relojes duales y el conversor de divisas en tarjetas paralelas en una sola vista de escritorio de viaje.
+   - **Modo de Alto Contraste / Tinta para Pantalla NXTPAPER**:
+     - Paleta y tipografía con contraste reforzado y bordes definidos (`OutlinedCard` / trazos nítidos sin depender de sombras difusas tenues), optimizada tanto para el modo a color mate como para los modos de lectura **Ink Paper (Blanco y Negro)** y **Color Paper** propios de la tecnología TCL NXTPAPER.
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin / BDD)
@@ -87,3 +104,9 @@ Establecer los cimientos funcionales y de experiencia de usuario de **Japan Trav
 - **Dado** que el usuario entra en `Ajustes > Acerca de` sin conexión a internet
 - **Cuando** consulta la información de la aplicación y pulsa en *"Librerías de código abierto / Licencias Open Source"*
 - **Entonces** visualiza la versión actual (`0.0.1-beta.X` / `0.0.1`) y la lista completa de librerías de terceros con sus respectivas versiones y textos de licencia cargados localmente.
+
+### Escenario 5: Adaptación automática entre Pixel 9/10 Pro XL y Tablet TCL NXTPAPER 11 Plus
+- **Dado** que el usuario abre la aplicación en un **Pixel 10 Pro XL** o **Pixel 9 Pro XL** (`WindowWidthSizeClass.Compact`)
+- **Entonces** la navegación se muestra mediante `NavigationBar` inferior ergonómica con diseño Edge-to-Edge y vistas de un solo panel.
+- **Y cuando** abre la misma aplicación en una tablet **TCL NXTPAPER 11 Plus** (`WindowWidthSizeClass.Medium` / `Expanded`, pantalla 11.5" 3:2)
+- **Entonces** la navegación cambia automáticamente a `NavigationRail` lateral, el Planificador muestra el horario y el mapa de Google Maps lado a lado en doble panel, y las Guías/Documentos se abren en vista Maestro-Detalle con contraste nítido optimizado para pantalla NXTPAPER.
