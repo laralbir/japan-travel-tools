@@ -12,7 +12,7 @@ android {
     applicationId = "com.laralbir.japantraveltools"
     minSdk = 26
     targetSdk = 36
-    versionCode = 26
+    versionCode = 27
     versionName = "0.0.1"
   }
 

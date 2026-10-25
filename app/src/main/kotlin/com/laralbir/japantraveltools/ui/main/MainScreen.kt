@@ -35,6 +35,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -80,6 +81,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -907,7 +909,7 @@ private fun CurrencyToolScreen(
                 OutlinedTextField(
                     value = inputAmountText,
                     onValueChange = { newValue ->
-                        inputAmountText = newValue.filter { it.isDigit() || it == '.' }
+                        inputAmountText = NumericInputHelper.filterDecimal(newValue)
                     },
                     label = {
                         Text(
@@ -915,6 +917,7 @@ private fun CurrencyToolScreen(
                             fontSize = 15.sp
                         )
                     },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1759,15 +1762,17 @@ private fun CityWeatherEditorModalSheet(
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
                     value = latText,
-                    onValueChange = { latText = it; errorMessage = null },
+                    onValueChange = { latText = NumericInputHelper.filterDecimal(it); errorMessage = null },
                     label = { Text("Latitud", fontSize = 14.sp) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
                     modifier = Modifier.weight(1f)
                 )
                 OutlinedTextField(
                     value = lonText,
-                    onValueChange = { lonText = it; errorMessage = null },
+                    onValueChange = { lonText = NumericInputHelper.filterDecimal(it); errorMessage = null },
                     label = { Text("Longitud", fontSize = 14.sp) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
                     modifier = Modifier.weight(1f)
                 )
@@ -2343,21 +2348,23 @@ private fun ItineraryStopEditorModalSheet(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 AppDatePickerField(
                     label = if (isEs) "Fecha Actividad" else "Activity Date",
                     dateIso = stopDateText,
                     onDateSelected = { stopDateText = it },
                     isEs = isEs,
-                    modifier = Modifier.weight(1.3f)
+                    modifier = Modifier.weight(1.1f)
                 )
-                OutlinedTextField(
+                AppNumberStepperField(
+                    label = if (isEs) "Día" else "Day",
                     value = dayText,
-                    onValueChange = { dayText = it.filter { ch -> ch.isDigit() } },
-                    label = { Text(if (isEs) "Día" else "Day", fontSize = 14.sp) },
-                    singleLine = true,
-                    modifier = Modifier.weight(0.7f)
+                    onValueChange = { dayText = it },
+                    minValue = 1,
+                    maxValue = 99,
+                    modifier = Modifier.weight(0.9f)
                 )
             }
 
@@ -2365,18 +2372,18 @@ private fun ItineraryStopEditorModalSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                OutlinedTextField(
-                    value = startTimeText,
-                    onValueChange = { startTimeText = it },
-                    label = { Text(if (isEs) "Inicio (HH:mm)" else "Start (HH:mm)", fontSize = 14.sp) },
-                    singleLine = true,
+                AppTimePickerField(
+                    label = if (isEs) "Hora Inicio" else "Start Time",
+                    timeText = startTimeText,
+                    onTimeSelected = { startTimeText = it },
+                    isEs = isEs,
                     modifier = Modifier.weight(1f)
                 )
-                OutlinedTextField(
-                    value = endTimeText,
-                    onValueChange = { endTimeText = it },
-                    label = { Text(if (isEs) "Fin (HH:mm)" else "End (HH:mm)", fontSize = 14.sp) },
-                    singleLine = true,
+                AppTimePickerField(
+                    label = if (isEs) "Hora Fin" else "End Time",
+                    timeText = endTimeText,
+                    onTimeSelected = { endTimeText = it },
+                    isEs = isEs,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -2528,21 +2535,23 @@ private fun PlanEditorModalSheet(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 AppDatePickerField(
                     label = if (isEs) "Fecha Inicio" else "Start Date",
                     dateIso = startDateText,
                     onDateSelected = { startDateText = it },
                     isEs = isEs,
-                    modifier = Modifier.weight(1.3f)
+                    modifier = Modifier.weight(1.1f)
                 )
-                OutlinedTextField(
+                AppNumberStepperField(
+                    label = if (isEs) "Días" else "Days",
                     value = daysText,
-                    onValueChange = { daysText = it.filter { ch -> ch.isDigit() } },
-                    label = { Text(if (isEs) "Días" else "Days") },
-                    singleLine = true,
-                    modifier = Modifier.weight(0.7f)
+                    onValueChange = { daysText = it },
+                    minValue = 1,
+                    maxValue = 90,
+                    modifier = Modifier.weight(0.9f)
                 )
             }
 
@@ -3169,18 +3178,18 @@ private fun TransportSegmentEditorModalSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                OutlinedTextField(
-                    value = depTimeText,
-                    onValueChange = { depTimeText = it },
-                    label = { Text(if (isEs) "Salida (HH:mm)" else "Dep (HH:mm)", fontSize = 14.sp) },
-                    singleLine = true,
+                AppTimePickerField(
+                    label = if (isEs) "Hora Salida" else "Dep Time",
+                    timeText = depTimeText,
+                    onTimeSelected = { depTimeText = it },
+                    isEs = isEs,
                     modifier = Modifier.weight(1f)
                 )
-                OutlinedTextField(
-                    value = arrTimeText,
-                    onValueChange = { arrTimeText = it },
-                    label = { Text(if (isEs) "Llegada (HH:mm)" else "Arr (HH:mm)", fontSize = 14.sp) },
-                    singleLine = true,
+                AppTimePickerField(
+                    label = if (isEs) "Hora Llegada" else "Arr Time",
+                    timeText = arrTimeText,
+                    onTimeSelected = { arrTimeText = it },
+                    isEs = isEs,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -3189,18 +3198,22 @@ private fun TransportSegmentEditorModalSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                OutlinedTextField(
-                    value = checkInTimeText,
-                    onValueChange = { checkInTimeText = it },
-                    label = { Text(if (isEs) "Facturación (HH:mm, opc)" else "Check-in (HH:mm, opt)", fontSize = 14.sp) },
-                    singleLine = true,
+                AppTimePickerField(
+                    label = if (isEs) "Facturación (opc)" else "Check-in (opt)",
+                    timeText = checkInTimeText,
+                    onTimeSelected = { checkInTimeText = it },
+                    isEs = isEs,
+                    isOptional = true,
+                    onClear = { checkInTimeText = "" },
                     modifier = Modifier.weight(1f)
                 )
-                OutlinedTextField(
-                    value = boardingTimeText,
-                    onValueChange = { boardingTimeText = it },
-                    label = { Text(if (isEs) "Embarque (HH:mm, opc)" else "Boarding (HH:mm, opt)", fontSize = 14.sp) },
-                    singleLine = true,
+                AppTimePickerField(
+                    label = if (isEs) "Embarque (opc)" else "Boarding (opt)",
+                    timeText = boardingTimeText,
+                    onTimeSelected = { boardingTimeText = it },
+                    isEs = isEs,
+                    isOptional = true,
+                    onClear = { boardingTimeText = "" },
                     modifier = Modifier.weight(1f)
                 )
             }

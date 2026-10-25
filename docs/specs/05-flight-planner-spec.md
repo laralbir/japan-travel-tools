@@ -112,6 +112,13 @@ Permite además **encadenar tramos multimodales** en un mismo trayecto (por ejem
 2. **Fidelidad en Modo Edición**:
    - Al abrir un tramo existente mediante `✏️ Editar`, el formulario cargará de forma fidedigna los datos específicos de dicho tramo, aislando el estado de edición mediante clave única (`initialSegment.id`) para prevenir fugas de estado en Compose.
 
+### RF-05.7: Selectores Interactivos de Fecha y Hora (`AppDatePickerField` y `AppTimePickerField`)
+1. **Eliminación de Cajas de Texto de Hora en Transporte**:
+   - Los campos de horario del tramo (`Hora de Salida`, `Hora de Llegada`, `Facturación / Check-in` y `Embarque / Boarding`) deben gestionarse mediante selectores interactivos visuales (`AppTimePickerField`).
+   - Cada campo muestra la hora en formato `HH:mm` o un indicador intuitivo para seleccionarla táctilmente.
+2. **Limpieza y Opcionalidad**:
+   - Para campos opcionales como `Facturación` y `Embarque`, se provee un botón o acción de limpieza rápida (`✕` o botón Borrar) para dejar el campo vacío sin esfuerzo.
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin / BDD)
@@ -149,3 +156,8 @@ Permite además **encadenar tramos multimodales** en un mismo trayecto (por ejem
 - **Dado** que el usuario pulsa «➕ Añadir Transporte» en la pantalla de transportes
 - **Cuando** se despliega el formulario modal de alta (`TransportSegmentEditorModalSheet`)
 - **Entonces** todos los campos de texto e inputs (compañía/operador, número/tren/vuelo, origen, destino, salida, llegada, facturación, embarque, andén/terminal y asiento) se muestran completamente limpios y vacíos (`""`), permitiendo la entrada directa de datos sin requerir el borrado manual de ejemplos precargados.
+
+### Escenario 7: Selección de horas de salida, llegada, facturación y embarque mediante picker
+- **Dado** que el usuario añade o edita un tramo de transporte
+- **Cuando** pulsa sobre el selector de hora de salida o llegada
+- **Entonces** se despliega el selector táctil de horas (`AppTimePickerField`), permitiendo fijar la hora sin teclear y asignando el valor formateado `HH:mm`. Si el usuario pulsa el botón de borrado en un campo opcional (como facturación), este vuelve a quedar vacío.

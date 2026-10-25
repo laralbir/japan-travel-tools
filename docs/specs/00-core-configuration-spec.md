@@ -251,3 +251,10 @@ Dado que el usuario utilizará la aplicación simultáneamente en varios disposi
 - **Cuando** pulsa sobre el campo de fecha o el icono del calendario `📅`
 - **Entonces** se despliega el selector de fecha nativo de Material 3 (`DatePickerDialog`) permitiendo elegir año, mes y día con toques táctiles
 - **Y cuando** pulsa *"Aceptar"*, el campo se actualiza con la fecha seleccionada sin requerir tecleo manual de texto.
+
+### Escenario 11: Selección de horas y entradas numéricas mediante pickers y steppers
+- **Dado** que el usuario abre un formulario con campos horarios (inicio/fin de actividad, salida, llegada, facturación, embarque) o numéricos (días de viaje, día de parada, importe de divisas, coordenadas)
+- **Cuando** interactúa con un campo horario
+- **Entonces** se despliega el selector táctil de horas (`AppTimePickerField`), eliminando la escritura manual de horas y minutos
+- **Y cuando** interactúa con un campo numérico entero
+- **Entonces** dispone de botones de incremento/decremento (`[-]` / `[+]`) y teclado numérico directo (`KeyboardType.Number` / `KeyboardType.Decimal`), evitando caracteres no numéricos erróneos.
