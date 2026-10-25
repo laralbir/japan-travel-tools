@@ -12,7 +12,7 @@ data class OpenSourceLibraryNotice(
 
 object OpenSourceLibrariesCatalog {
     const val APP_VERSION_NAME = "0.0.1"
-    const val APP_VERSION_CODE = 9
+    const val APP_VERSION_CODE = 10
 
     val thirdPartyLibraries: List<OpenSourceLibraryNotice> = listOf(
         OpenSourceLibraryNotice(
