@@ -137,7 +137,10 @@ import com.laralbir.japantraveltools.feature.transport.TransportPlannerUseCase
 import com.laralbir.japantraveltools.feature.transport.TransportSegmentItem
 import com.laralbir.japantraveltools.feature.weather.JapanWeatherCity
 import com.laralbir.japantraveltools.feature.weather.OpenMeteoWeatherUseCase
+import com.laralbir.japantraveltools.feature.weather.PlanningSuitability
 import com.laralbir.japantraveltools.feature.weather.SharedWeatherForecastStore
+import com.laralbir.japantraveltools.feature.weather.WeatherCityCatalog
+import com.laralbir.japantraveltools.feature.weather.WeatherCityItem
 import com.laralbir.japantraveltools.ui.theme.JapanTravelToolsTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -423,6 +426,7 @@ fun JapanTravelToolsAppContent(
     LaunchedEffect(Unit) {
         SharedTravelPlanStore.init(context)
         SharedDocumentsAndGuidesStore.init(context)
+        SharedWeatherForecastStore.init(context)
     }
     val configuration = LocalConfiguration.current
     val isTabletExpanded = configuration.screenWidthDp >= 720
@@ -1137,21 +1141,63 @@ private fun ClocksToolScreen(
 }
 
 // ============================================================================
-// 3. WEATHER TOOL SCREEN (OPEN-METEO)
+// 3. WEATHER TOOL SCREEN (OPEN-METEO WITH DYNAMIC CITIES CRUD & PRESETS)
 // ============================================================================
 @Composable
 private fun WeatherToolScreen(isEs: Boolean) {
     val coroutineScope = rememberCoroutineScope()
+    val allCities by SharedWeatherForecastStore.citiesState.collectAsState()
     val allForecasts by SharedWeatherForecastStore.forecastsState.collectAsState()
     val portablePlan by SharedTravelPlanStore.planState.collectAsState()
-    var selectedCity by rememberSaveable { mutableStateOf(JapanWeatherCity.TOKYO) }
+
+    var selectedCityId by rememberSaveable { mutableStateOf("TOKYO") }
+    var editingCity by remember { mutableStateOf<WeatherCityItem?>(null) }
+    var isCreatingCity by remember { mutableStateOf(false) }
     var isSyncingWeather by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf<String?>(null) }
 
+    val selectedCity = remember(allCities, selectedCityId) {
+        allCities.firstOrNull { it.id == selectedCityId } ?: allCities.firstOrNull() ?: WeatherCityCatalog.defaultCities().first()
+    }
+
     val cityDays = remember(allForecasts, selectedCity) {
-        allForecasts.filter { it.cityKey == selectedCity.key }.ifEmpty {
-            listOf(OpenMeteoWeatherUseCase.defaultSeedForecasts().first())
+        allForecasts.filter { it.cityKey == selectedCity.id }.ifEmpty {
+            OpenMeteoWeatherUseCase.generateSeedForCity(selectedCity.id)
         }
+    }
+
+    if (isCreatingCity || editingCity != null) {
+        val initial = editingCity ?: WeatherCityItem(
+            id = "CITY_${System.currentTimeMillis()}",
+            nameEs = "",
+            nameEn = "",
+            latitude = 35.0,
+            longitude = 135.0
+        )
+        CityWeatherEditorModalSheet(
+            isEs = isEs,
+            initialCity = initial,
+            isNew = isCreatingCity,
+            existingCount = allCities.size,
+            onDismiss = {
+                isCreatingCity = false
+                editingCity = null
+            },
+            onSave = { saved ->
+                SharedWeatherForecastStore.addCity(saved)
+                selectedCityId = saved.id
+                isCreatingCity = false
+                editingCity = null
+                statusMessage = if (isEs) "✅ Ciudad «${saved.nameEs}» guardada" else "✅ City «${saved.nameEn}» saved"
+            },
+            onDelete = { idToDelete ->
+                SharedWeatherForecastStore.deleteCity(idToDelete)
+                isCreatingCity = false
+                editingCity = null
+                selectedCityId = allCities.firstOrNull { it.id != idToDelete }?.id ?: "TOKYO"
+                statusMessage = if (isEs) "🗑️ Ciudad eliminada" else "🗑️ City deleted"
+            }
+        )
     }
 
     LazyColumn(
@@ -1161,15 +1207,45 @@ private fun WeatherToolScreen(isEs: Boolean) {
     ) {
         item {
             KotlinConfCard {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (isEs) "Previsión Open-Meteo" else "Open-Meteo Forecast",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Button(onClick = {
+                        editingCity = null
+                        isCreatingCity = true
+                    }) {
+                        Text(if (isEs) "➕ Ciudad" else "➕ City", fontSize = 13.sp)
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
                 Text(
-                    text = if (isEs) "Previsión Open-Meteo Japón" else "Open-Meteo Japan Forecast",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
+                    text = if (isEs) {
+                        "Previsión del tiempo para tus destinos en Japón. Puedes añadir, editar o eliminar ciudades con sus coordenadas."
+                    } else {
+                        "Weather forecast for your Japan destinations. Add, edit, or delete cities with custom coordinates."
+                    },
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(Modifier.height(12.dp))
+
+                Spacer(Modifier.height(14.dp))
+
+                Text(
+                    text = if (isEs) "Ciudades Activas (${allCities.size}):" else "Active Cities (${allCities.size}):",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(8.dp))
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    JapanWeatherCity.entries.chunked(2).forEach { cityPair ->
+                    allCities.chunked(2).forEach { cityPair ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -1177,10 +1253,61 @@ private fun WeatherToolScreen(isEs: Boolean) {
                             cityPair.forEach { city ->
                                 AppOptionButton(
                                     text = if (isEs) city.nameEs else city.nameEn,
-                                    selected = selectedCity == city,
-                                    onClick = { selectedCity = city },
+                                    selected = selectedCity.id == city.id,
+                                    onClick = { selectedCityId = city.id },
                                     modifier = Modifier.weight(1f)
                                 )
+                            }
+                            if (cityPair.size == 1) {
+                                Spacer(Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                // Selected City Header Card with Edit & Delete actions
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "📍 ${if (isEs) selectedCity.nameEs else selectedCity.nameEn}",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = "Coord: ${selectedCity.latitude}, ${selectedCity.longitude}",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            OutlinedButton(onClick = { editingCity = selectedCity }) {
+                                Text(if (isEs) "✏️ Editar" else "✏️ Edit", fontSize = 12.sp)
+                            }
+                            if (allCities.size > 1) {
+                                OutlinedButton(onClick = {
+                                    val toDelete = selectedCity.id
+                                    val nextCity = allCities.firstOrNull { it.id != toDelete }?.id ?: "TOKYO"
+                                    SharedWeatherForecastStore.deleteCity(toDelete)
+                                    selectedCityId = nextCity
+                                    statusMessage = if (isEs) "🗑️ Ciudad eliminada" else "🗑️ City deleted"
+                                }) {
+                                    Text("🗑️", fontSize = 12.sp)
+                                }
                             }
                         }
                     }
@@ -1188,7 +1315,8 @@ private fun WeatherToolScreen(isEs: Boolean) {
 
                 Spacer(Modifier.height(14.dp))
 
-                cityDays.take(4).forEach { day ->
+                // Forecast Days
+                cityDays.take(5).forEach { day ->
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant,
@@ -1214,6 +1342,27 @@ private fun WeatherToolScreen(isEs: Boolean) {
                                     color = MaterialTheme.colorScheme.primary
                                 )
                             }
+                            Spacer(Modifier.height(4.dp))
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = if (day.suitability == PlanningSuitability.OUTDOOR_OPTIMAL) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.secondaryContainer
+                                }
+                            ) {
+                                Text(
+                                    text = if (isEs) day.suitability.badgeEs else day.suitability.badgeEn,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (day.suitability == PlanningSuitability.OUTDOOR_OPTIMAL) {
+                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.onSecondaryContainer
+                                    },
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
                             Spacer(Modifier.height(6.dp))
                             Text(
                                 text = if (isEs) day.userPlanningAdviceEs else day.userPlanningAdviceEn,
@@ -1234,11 +1383,18 @@ private fun WeatherToolScreen(isEs: Boolean) {
                     },
                     onPrimaryClick = {
                         isSyncingWeather = true
+                        statusMessage = null
                         coroutineScope.launch {
-                            OpenMeteoWeatherUseCase.fetchCityForecastOnline(selectedCity)
-                                .onSuccess { liveDays ->
-                                    SharedWeatherForecastStore.updateCityForecasts(selectedCity.key, liveDays)
-                                }
+                            OpenMeteoWeatherUseCase.fetchCoordinatesForecastOnline(
+                                selectedCity.id,
+                                selectedCity.latitude,
+                                selectedCity.longitude
+                            ).onSuccess { liveDays ->
+                                SharedWeatherForecastStore.updateCityForecasts(selectedCity.id, liveDays)
+                                statusMessage = if (isEs) "🌤️ Previsión en vivo actualizada para ${selectedCity.nameEs}" else "🌤️ Live forecast updated for ${selectedCity.nameEn}"
+                            }.onFailure {
+                                statusMessage = if (isEs) "ℹ️ Sin conexión: usando datos cacheados" else "ℹ️ Offline: using cached forecast"
+                            }
                             isSyncingWeather = false
                         }
                     },
@@ -1260,10 +1416,180 @@ private fun WeatherToolScreen(isEs: Boolean) {
                         text = statusMessage!!,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.secondary
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
+        }
+    }
+}
+
+// ============================================================================
+// MODAL BOTTOM SHEET: CITY WEATHER EDITOR & DESTINATIONS PRESETS
+// ============================================================================
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CityWeatherEditorModalSheet(
+    isEs: Boolean,
+    initialCity: WeatherCityItem,
+    isNew: Boolean,
+    existingCount: Int,
+    onDismiss: () -> Unit,
+    onSave: (WeatherCityItem) -> Unit,
+    onDelete: (String) -> Unit
+) {
+    var nameEsText by rememberSaveable { mutableStateOf(initialCity.nameEs) }
+    var nameEnText by rememberSaveable { mutableStateOf(initialCity.nameEn) }
+    var latText by rememberSaveable { mutableStateOf(initialCity.latitude.toString()) }
+    var lonText by rememberSaveable { mutableStateOf(initialCity.longitude.toString()) }
+    var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
+
+    val presets = remember { WeatherCityCatalog.destinationPresets() }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 18.dp, vertical = 10.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = if (isNew) {
+                    if (isEs) "➕ Añadir Ciudad a Previsión" else "➕ Add City Forecast"
+                } else {
+                    if (isEs) "✏️ Editar Ciudad" else "✏️ Edit City"
+                },
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                text = if (isEs) "🎌 Selecciona un destino popular o escribe sus coordenadas:" else "🎌 Pick a popular destination or enter coordinates:",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // Presets chips in rows
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                presets.chunked(3).forEach { row ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        row.forEach { preset ->
+                            OutlinedButton(
+                                onClick = {
+                                    nameEsText = preset.nameEs
+                                    nameEnText = preset.nameEn
+                                    latText = preset.latitude.toString()
+                                    lonText = preset.longitude.toString()
+                                    errorMessage = null
+                                },
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
+                            ) {
+                                Text(preset.nameEs, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(4.dp))
+
+            OutlinedTextField(
+                value = nameEsText,
+                onValueChange = { nameEsText = it; errorMessage = null },
+                label = { Text(if (isEs) "Nombre de la ciudad (Español)" else "City name (Spanish)", fontSize = 15.sp) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = nameEnText,
+                onValueChange = { nameEnText = it; errorMessage = null },
+                label = { Text(if (isEs) "Nombre de la ciudad (Inglés)" else "City name (English)", fontSize = 15.sp) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = latText,
+                    onValueChange = { latText = it; errorMessage = null },
+                    label = { Text("Latitud", fontSize = 14.sp) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+                OutlinedTextField(
+                    value = lonText,
+                    onValueChange = { lonText = it; errorMessage = null },
+                    label = { Text("Longitud", fontSize = 14.sp) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            if (errorMessage != null) {
+                Text(
+                    text = errorMessage ?: "",
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            AppButtonRow(
+                primaryText = if (isEs) "💾 Guardar Ciudad" else "💾 Save City",
+                onPrimaryClick = {
+                    val lat = latText.toDoubleOrNull()
+                    val lon = lonText.toDoubleOrNull()
+                    if (nameEsText.isBlank()) {
+                        errorMessage = if (isEs) "Introduce el nombre de la ciudad" else "Enter city name"
+                        return@AppButtonRow
+                    }
+                    if (lat == null || lat < -90.0 || lat > 90.0) {
+                        errorMessage = if (isEs) "Latitud inválida (-90.0 a 90.0)" else "Invalid latitude (-90 to 90)"
+                        return@AppButtonRow
+                    }
+                    if (lon == null || lon < -180.0 || lon > 180.0) {
+                        errorMessage = if (isEs) "Longitud inválida (-180.0 a 180.0)" else "Invalid longitude (-180 to 180)"
+                        return@AppButtonRow
+                    }
+
+                    val cityId = if (isNew) {
+                        nameEnText.trim().uppercase().replace(" ", "_").replace(Regex("[^A-Z0-9_]"), "")
+                            .ifBlank { "CITY_${System.currentTimeMillis()}" }
+                    } else {
+                        initialCity.id
+                    }
+
+                    val saved = initialCity.copy(
+                        id = cityId,
+                        nameEs = nameEsText.trim(),
+                        nameEn = nameEnText.trim().ifBlank { nameEsText.trim() },
+                        latitude = lat,
+                        longitude = lon
+                    )
+                    onSave(saved)
+                },
+                secondaryText = if (isNew) {
+                    if (isEs) "Cancelar" else "Cancel"
+                } else {
+                    if (isEs) "🗑️ Eliminar" else "🗑️ Delete"
+                },
+                secondaryEnabled = isNew || existingCount > 1,
+                onSecondaryClick = {
+                    if (isNew) onDismiss() else onDelete(initialCity.id)
+                }
+            )
+            Spacer(Modifier.height(16.dp))
         }
     }
 }

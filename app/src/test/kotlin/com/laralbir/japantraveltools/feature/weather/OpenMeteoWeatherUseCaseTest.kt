@@ -96,4 +96,49 @@ class OpenMeteoWeatherUseCaseTest {
         val day2Stops = weatherOptimizedPlan.itineraryStops.filter { it.dayNumber == 2 }
         assertTrue(day2Stops.any { it.notes.contains("Open-Meteo", ignoreCase = true) || it.notes.contains("☔") })
     }
+
+    @Test
+    fun `WeatherCityCatalog contains popular Japan destinations with valid coordinates`() {
+        val presets = WeatherCityCatalog.destinationPresets()
+        assertTrue(presets.any { it.nameEs == "Nara" && it.latitude > 30.0 })
+        assertTrue(presets.any { it.nameEs == "Hiroshima" && it.longitude > 130.0 })
+        assertTrue(presets.any { it.nameEs.contains("Sapporo") || it.nameEn.contains("Sapporo") })
+        assertTrue(presets.any { it.nameEs.contains("Kamakura") })
+    }
+
+    @Test
+    fun `SharedWeatherForecastStore supports adding editing and deleting custom cities`() {
+        val testCity = WeatherCityItem(
+            id = "KAMAKURA",
+            nameEs = "Kamakura",
+            nameEn = "Kamakura",
+            latitude = 35.3192,
+            longitude = 139.5467
+        )
+
+        SharedWeatherForecastStore.addCity(testCity)
+        assertTrue(SharedWeatherForecastStore.citiesState.value.any { it.id == "KAMAKURA" })
+        assertTrue(SharedWeatherForecastStore.forecastsState.value.any { it.cityKey == "KAMAKURA" })
+
+        val updatedCity = testCity.copy(nameEs = "Gran Buda de Kamakura")
+        SharedWeatherForecastStore.updateCity(updatedCity)
+        assertEquals("Gran Buda de Kamakura", SharedWeatherForecastStore.citiesState.value.first { it.id == "KAMAKURA" }.nameEs)
+
+        SharedWeatherForecastStore.deleteCity("KAMAKURA")
+        assertTrue(SharedWeatherForecastStore.citiesState.value.none { it.id == "KAMAKURA" })
+        assertTrue(SharedWeatherForecastStore.forecastsState.value.none { it.cityKey == "KAMAKURA" })
+    }
+
+    @Test
+    fun `WeatherCityJsonCodec serializes and deserializes weather cities without data loss`() {
+        val originalList = listOf(
+            WeatherCityItem("TOKYO", "Tokio", "Tokyo", 35.6762, 139.6503, isDefault = true),
+            WeatherCityItem("NARA", "Nara", "Nara", 34.6851, 135.8048, isDefault = false)
+        )
+        val json = WeatherCityJsonCodec.exportCitiesJson(originalList)
+        val deserialized = WeatherCityJsonCodec.importCitiesJson(json)
+        assertEquals(2, deserialized.size)
+        assertEquals("TOKYO", deserialized[0].id)
+        assertEquals(34.6851, deserialized[1].latitude, 0.001)
+    }
 }
