@@ -81,6 +81,20 @@ Proporcionar una herramienta de **Previsión Meteorológica y Planificación Cli
 4. **Persistencia Local Automática Offline (`Context.filesDir/saved_weather_cities.json`)**:
    - Todas las ciudades añadidas, modificadas o eliminadas persisten indefinidamente en el almacenamiento interno privado del dispositivo sin perderse al reiniciar la app o apagar el teléfono.
 
+### RF-07.5: Obtención y Sincronización Dinámica de Ciudades desde Transportes e Itinerarios de Viaje
+1. **Extracción Automática de Destinos**:
+   - El sistema analiza de manera continua o bajo demanda los destinos y orígenes presentes en el plan de viaje activo:
+     - **Tramos de Transporte (`TransportSegmentItem`)**: extrae las ciudades y aeropuertos de origen (`departureName`, `departureCode`) y destino (`arrivalName`, `arrivalCode`).
+     - **Paradas del Itinerario (`ItineraryStopItem`)**: extrae las ciudades y regiones a partir del título (`title`), nombre en japonés (`placeNameJapanese`), notas y coordenadas geográficas (`latitude`, `longitude`).
+2. **Resolución Inteligente de Coordenadas y Presets**:
+   - Las ubicaciones extraídas se resuelven contra el catálogo geográfico de Japón y destinos internacionales frecuentes (Tokio, Kioto, Osaka, Hakone/Fuji, Nara, Hiroshima, Miyajima, Kamakura, Nikko, Takayama, Kanazawa, Sapporo, Fukuoka, Nagoya, Yokohama, Kobe, Okinawa, Sendai, Madrid, Doha, etc.).
+   - Si una parada del itinerario tiene coordenadas específicas no coincidentes con los presets, se incorpora dinámicamente como ubicación personalizada con sus coordenadas reales.
+3. **Convivencia con Acciones Manuales de CRUD**:
+   - La lista sincronizada respeta las acciones manuales del usuario:
+     - **Añadir manualmente (`➕ Ciudad`)**: el usuario puede seguir añadiendo cualquier ciudad adicional.
+     - **Editar (`✏️ Editar`)**: el usuario puede personalizar el nombre y coordenadas de cualquier ciudad activa.
+     - **Eliminar (`🗑️ Eliminar`)**: el usuario puede suprimir cualquier ciudad (con modal de confirmación de seguridad). Las ciudades expresamente eliminadas por el usuario no se reincorporan automáticamente de forma indeseada a menos que el usuario pulse explícitamente el botón de sincronización total (`🔄 Sincronizar Itinerario`).
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin)
@@ -100,3 +114,9 @@ Proporcionar una herramienta de **Previsión Meteorológica y Planificación Cli
 - **Dado** un plan de viaje activo y una previsión meteorológica de Open-Meteo con lluvia en uno de los días del itinerario
 - **Cuando** el usuario solicita a la IA optimizar el plan teniendo en cuenta el tiempo (`optimizePlanWithWeather`)
 - **Entonces** `AiPlanBuilderEngine` enriquece las paradas afectadas con alternativas cubiertas y consejos climáticos para esa fecha, dejando constancia en `aiOptimizationSummary`.
+
+### Escenario 6: Detección y sincronización automática de ciudades desde el itinerario y transportes
+- **Dado** que el plan de viaje del usuario contiene vuelos desde Madrid/Doha a Tokio, Shinkansen de Tokio a Kioto y paradas en Nara, Osaka, Hakone y Miyajima
+- **Cuando** el usuario entra en la pestaña de Tiempo
+- **Entonces** la lista de ciudades del tiempo incluye automáticamente todas las ciudades de su ruta (Tokio, Kioto, Osaka, Hakone, Nara, Miyajima, Madrid, Doha) con sus previsiones meteorológicas calculadas
+- **Y** el usuario puede editar sus nombres/coordenadas o eliminar cualquiera de ellas con confirmación de seguridad sin que se reincorporen indeseadamente.

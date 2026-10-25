@@ -106,6 +106,7 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 - [x] **TASK-752 (TDD)**: Implementar semillas offline (`SeedJapanWeatherCatalog`) para Tokio, Kioto, Osaka y Hakone/Monte Fuji y cliente HTTP con fallback 100% offline.
 - [x] **TASK-753 (TDD)**: Integrar la previsión meteorológica de Open-Meteo en `AiPlanBuilderEngine.optimizePlanWithWeather` y `GeminiAssistantEngine` para que la IA adapte el itinerario según lluvia/sol.
 - [x] **TASK-754 (TDD)**: Integrar tarjetas y controles interactivos de **Tiempo Open-Meteo** tanto en el Dashboard como en el Planificador de Viaje por días y en el Optimizador IA de `MainScreen.kt`.
+- [x] **TASK-755 (TDD)**: Extracción y Sincronización Automática de Ciudades del Tiempo desde Transportes y Planes de Viaje (`SPEC-07 RF-07.5`): Implementar `PlanWeatherCityExtractor` para resolver destinos de `TransportSegmentItem` y `ItineraryStopItem`, integrar `syncCitiesFromPlan` en `SharedWeatherForecastStore` con memoria de exclusión de eliminaciones manuales, botón de sincronización y persistencia offline.
 
 ---
 

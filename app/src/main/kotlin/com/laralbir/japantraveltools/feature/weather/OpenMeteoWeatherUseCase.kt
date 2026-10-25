@@ -1,6 +1,8 @@
 package com.laralbir.japantraveltools.feature.weather
 
 import android.content.Context
+import com.laralbir.japantraveltools.feature.planner.ItineraryStopItem
+import com.laralbir.japantraveltools.feature.transport.TransportSegmentItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -73,7 +75,7 @@ object WeatherCityCatalog {
 }
 
 object WeatherCityJsonCodec {
-    fun exportCitiesJson(cities: List<WeatherCityItem>): String {
+    fun exportCitiesJson(cities: List<WeatherCityItem>, deletedIds: Set<String> = emptySet()): String {
         val sb = StringBuilder()
         sb.appendLine("{")
         sb.appendLine("  \"cities\": [")
@@ -88,7 +90,10 @@ object WeatherCityJsonCodec {
             sb.appendLine("      \"isDefault\": ${c.isDefault}")
             sb.appendLine("    }$comma")
         }
-        sb.appendLine("  ]")
+        sb.appendLine("  ],")
+        sb.append("  \"deletedIds\": [")
+        sb.append(deletedIds.joinToString(",") { "\"${escape(it)}\"" })
+        sb.appendLine("]")
         sb.append("}")
         return sb.toString()
     }
@@ -106,6 +111,13 @@ object WeatherCityJsonCodec {
             val isDef = extractJsonBoolean(obj, "isDefault") ?: false
             WeatherCityItem(id, nameEs, nameEn, lat, lon, isDef)
         }
+    }
+
+    fun importDeletedIds(json: String): Set<String> {
+        val block = extractArrayBlock(json, "deletedIds")
+        if (block.isBlank()) return emptySet()
+        val regex = "\"([^\"]+)\"".toRegex()
+        return regex.findAll(block).map { it.groupValues[1] }.toSet()
     }
 
     private fun escape(text: String): String =
@@ -236,6 +248,8 @@ object SharedWeatherForecastStore {
     private val _forecastsState = MutableStateFlow(OpenMeteoWeatherUseCase.defaultSeedForecasts())
     val forecastsState: StateFlow<List<WeatherDayForecast>> = _forecastsState.asStateFlow()
 
+    private val _deletedCityIds = mutableSetOf<String>()
+
     fun init(context: Context) {
         if (appContext == null) {
             appContext = context.applicationContext
@@ -247,7 +261,7 @@ object SharedWeatherForecastStore {
         val ctx = appContext ?: return
         try {
             val file = File(ctx.filesDir, CITIES_FILE_NAME)
-            file.writeText(WeatherCityJsonCodec.exportCitiesJson(_citiesState.value))
+            file.writeText(WeatherCityJsonCodec.exportCitiesJson(_citiesState.value, _deletedCityIds))
         } catch (_: Exception) {}
     }
 
@@ -256,15 +270,54 @@ object SharedWeatherForecastStore {
         try {
             val file = File(ctx.filesDir, CITIES_FILE_NAME)
             if (file.exists() && file.length() > 0) {
-                val loaded = WeatherCityJsonCodec.importCitiesJson(file.readText())
+                val json = file.readText()
+                val loaded = WeatherCityJsonCodec.importCitiesJson(json)
                 if (loaded.isNotEmpty()) {
                     _citiesState.value = loaded
                 }
+                val deleted = WeatherCityJsonCodec.importDeletedIds(json)
+                _deletedCityIds.clear()
+                _deletedCityIds.addAll(deleted)
             }
         } catch (_: Exception) {}
     }
 
+    fun syncCitiesFromPlan(
+        stops: List<ItineraryStopItem>,
+        segments: List<TransportSegmentItem>,
+        forceResetDeleted: Boolean = false
+    ) {
+        if (forceResetDeleted) {
+            _deletedCityIds.clear()
+        }
+        val extracted = PlanWeatherCityExtractor.extractCitiesFromPlan(stops, segments)
+        val current = _citiesState.value.toMutableList()
+        var changed = false
+
+        for (city in extracted) {
+            if (!forceResetDeleted && _deletedCityIds.contains(city.id)) {
+                continue
+            }
+            val existingIdx = current.indexOfFirst { it.id == city.id }
+            if (existingIdx < 0) {
+                current.add(city)
+                changed = true
+                val existingForecasts = _forecastsState.value.filter { it.cityKey == city.id }
+                if (existingForecasts.isEmpty()) {
+                    val seed = OpenMeteoWeatherUseCase.generateSeedForCity(city.id)
+                    _forecastsState.value = _forecastsState.value + seed
+                }
+            }
+        }
+
+        if (changed) {
+            _citiesState.value = current
+            saveToDisk()
+        }
+    }
+
     fun addCity(city: WeatherCityItem) {
+        _deletedCityIds.remove(city.id)
         val current = _citiesState.value.toMutableList()
         val idx = current.indexOfFirst { it.id == city.id }
         if (idx >= 0) {
@@ -289,6 +342,7 @@ object SharedWeatherForecastStore {
 
     fun deleteCity(cityId: String) {
         if (_citiesState.value.size <= 1) return // Keep at least one city
+        _deletedCityIds.add(cityId)
         _citiesState.value = _citiesState.value.filterNot { it.id == cityId }
         _forecastsState.value = _forecastsState.value.filterNot { it.cityKey == cityId }
         saveToDisk()

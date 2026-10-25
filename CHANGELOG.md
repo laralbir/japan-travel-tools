@@ -7,6 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.18] - 2026-10-25
+
+### Added
+- **Sincronización Automática de Ciudades del Tiempo desde Transportes e Itinerarios (`SPEC-07 RF-07.5`)**:
+  - **Extractor Inteligente `PlanWeatherCityExtractor`**: Detección automática y resolución de destinos y escalas a partir de los orígenes y llegadas de vuelos/trenes/metro (`TransportSegmentItem`) y de las paradas, visitas y actividades de la agenda (`ItineraryStopItem`).
+  - **Resolución Robusta de Códigos y Destinos**: Mapeo contra aeropuertos y ciudades japonesas e internacionales (Tokio, Kioto, Osaka, Hakone/Fuji, Nara, Hiroshima, Miyajima, Kamakura, Nikko, Takayama, Kanazawa, Sapporo, Fukuoka, Nagoya, Yokohama, Kobe, Okinawa, Sendai, Madrid, Doha, etc.) con aislamiento estricto de códigos IATA (`\b$code\b`) para evitar falsos positivos.
+  - **Convivencia Total con Edición y Eliminación Manual**: El usuario puede seguir añadiendo ciudades manualmente (`➕ Ciudad`), modificando nombres y coordenadas (`✏️ Editar`), o suprimiendo ciudades (`🗑️ Eliminar`), con memoria de exclusión de eliminaciones (`_deletedCityIds`) y botón de sincronización manual (`🔄 Plan`).
+  - **Tests Unitarios TDD**: Batería completa en `PlanWeatherCityExtractorTest` y serialización de exclusiones en `WeatherCityJsonCodec`.
+
 ## [0.0.1-beta.17] - 2026-10-25
 
 ### Added
