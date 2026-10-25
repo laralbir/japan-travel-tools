@@ -49,7 +49,10 @@ Este documento recoge la fase de **Análisis** del flujo SDD para traducir las e
 - **Red (Con Caché Offline)**:
   - **Ktor Client** o **Retrofit + OkHttp + Kotlinx Serialization** contra `https://api.frankfurter.dev/v1/`.
 - **Inteligencia Artificial (Google Gemini) y Traducción Simultánea Offline**:
-  - **Google GenAI / Gemini SDK (`com.google.ai.client.generativeai` / Gemini REST + AICore On-Device)**: Soporte dual para **Gemini Cloud** (texto y visión multimodal para cartas de restaurantes, carteles y planificación) y **Gemini Nano On-Device** en **Google Pixel 10 Pro XL / Pixel 9 Pro XL**, persistiendo todo el historial de respuestas en Room para lectura offline.
+  - **Google GenAI / Gemini REST API (`gemini-2.0-flash` / `gemini-1.5-flash`) + Motor Experto On-Device Offline (`GeminiAssistantEngine`)**:
+    - **Soporte Híbrido**: Consultas a la API de Gemini Cloud cuando hay conexión y API Key configurada (guardada de forma segura en `UserPreferencesRepository`), con fallback transparente e instantáneo al motor experto on-device offline.
+    - **Retroalimentación Reactiva de UI**: Gestión de estado asíncrono con corrutinas (`isLoading`, `CircularProgressIndicator`, bloqueo de doble toque) e insignia de procedencia (`Gemini Cloud` vs `Experto Offline`) y hora de respuesta.
+    - **Acciones Rápidas**: Copiado al portapapeles con confirmación visual, exportación directa a la Bóveda de Guías (`SharedDocumentsAndGuidesStore.createGuide`) e inyección al itinerario (`AiPlanBuilderEngine`).
   - **Google ML Kit On-Device Translation (`com.google.mlkit:translate`) + Text Recognition Japanese (`com.google.mlkit:text-recognition-japanese`)**: Traducción simultánea 100% offline `ES/EN <-> JA` y OCR de caracteres japoneses (`Kanji/Kana`), combinados con `SpeechRecognizer` y `TextToSpeech` de Android para conversación en vivo cara a cara.
 - **Seguridad, Licencias Open Source e Internacionalización**:
   - **AndroidX Biometric (`BiometricPrompt`)** para protección de Pasaporte/DNI.

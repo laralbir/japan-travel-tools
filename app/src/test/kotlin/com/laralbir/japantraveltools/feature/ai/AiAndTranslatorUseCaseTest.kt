@@ -202,5 +202,44 @@ class AiAndTranslatorUseCaseTest {
         val priceQuery = GeminiAssistantEngine.generateSmartTravelAnswer("¿Cuánto son 3200 yenes en euros?", 160.0)
         assertTrue(priceQuery.contains("20.00 EUR") || priceQuery.contains("20,00 EUR"))
     }
+
+    @Test
+    fun `GeminiAssistantEngine answers diverse everyday travel queries with rich offline domain knowledge`() {
+        val taxFree = GeminiAssistantEngine.generateSmartTravelAnswer("¿Cómo funciona el tax free en Don Quijote?", 160.0)
+        assertTrue(taxFree.contains("Tax-Free", ignoreCase = true))
+        assertTrue(taxFree.contains("pasaporte", ignoreCase = true))
+
+        val internet = GeminiAssistantEngine.generateSmartTravelAnswer("¿Cómo tener internet con eSIM o Pocket Wifi en Japón?", 160.0)
+        assertTrue(internet.contains("eSIM", ignoreCase = true))
+        assertTrue(internet.contains("Pocket Wi-Fi", ignoreCase = true) || internet.contains("wifi", ignoreCase = true))
+
+        val tipping = GeminiAssistantEngine.generateSmartTravelAnswer("¿Hay que dejar propina en restaurantes de Japón?", 160.0)
+        assertTrue(tipping.contains("propina", ignoreCase = true))
+
+        val onsen = GeminiAssistantEngine.generateSmartTravelAnswer("¿Puedo entrar a un onsen si tengo tatuajes?", 160.0)
+        assertTrue(onsen.contains("onsen", ignoreCase = true))
+        assertTrue(onsen.contains("tatuaje", ignoreCase = true))
+
+        val jrPass = GeminiAssistantEngine.generateSmartTravelAnswer("¿Merece la pena el JR Pass?", 160.0)
+        assertTrue(jrPass.contains("JR Pass", ignoreCase = true))
+
+        val plugs = GeminiAssistantEngine.generateSmartTravelAnswer("¿Qué enchufes y voltaje se usan en Japón?", 160.0)
+        assertTrue(plugs.contains("100V", ignoreCase = true) || plugs.contains("tipo A", ignoreCase = true))
+
+        val airport = GeminiAssistantEngine.generateSmartTravelAnswer("¿Cómo ir del aeropuerto de Narita a Tokio centro?", 160.0)
+        assertTrue(airport.contains("Narita Express", ignoreCase = true) || airport.contains("Skyliner", ignoreCase = true))
+    }
+
+    @Test
+    fun `queryAssistant returns AiTravelAssistantResult with OFFLINE_EXPERT when no api key is configured`() = kotlinx.coroutines.test.runTest {
+        val result = GeminiAssistantEngine.queryAssistant(
+            prompt = "¿Cómo funciona la tarjeta Suica?",
+            apiKey = null,
+            eurToJpyRate = 160.0
+        )
+        assertEquals(AssistantSource.OFFLINE_EXPERT, result.source)
+        assertTrue(result.answer.contains("Suica", ignoreCase = true))
+        assertTrue(result.timestampFormatted.isNotBlank())
+    }
 }
 
