@@ -330,9 +330,11 @@ data class UserPreferences(
   - Si la llamada a Gemini Cloud falla teniendo el usuario una API Key configurada, no se produce un fallback silencioso.
   - La respuesta registra `source = OFFLINE_EXPERT` y añade `cloudErrorDetail: String` explicando la causa (ej. `HTTP 403: Permiso Denegado / Clave no válida`).
   - La UI muestra una tarjeta de advertencia visible para que el viajero comprenda exactamente por qué se recurrió al motor offline.
-- **Catálogo y Selector de Modelos (`GeminiModelCatalog`)**:
-  - Opciones: `gemini-2.0-flash` (por defecto), `gemini-2.0-flash-lite`, `gemini-1.5-pro`, `gemini-1.5-flash`, `gemini-2.5-flash` y modelo personalizado.
-  - Persistido en `UserPreferencesRepository` (`pref_gemini_model_id`).
+- **Catálogo y Selector de Modelos (`GeminiModelCatalog` & Selector Rápido PRO/Flash)**:
+  - Modelos soportados: `gemini-2.0-flash` (por defecto/recomendado), `gemini-1.5-pro` (PRO principal), `gemini-2.5-pro` (PRO avanzado), `gemini-2.0-flash-lite`, `gemini-2.5-flash`, `gemini-1.5-flash` y modelos personalizados.
+  - Métodos de conveniencia: `GeminiApiKeyHelper.isProModel(modelId)`, `PRO_DEFAULT_MODEL_ID = "gemini-1.5-pro"` y `FLASH_DEFAULT_MODEL_ID = "gemini-2.0-flash"`.
+  - Componente de conmutación rápida `[ ⚡ Flash ]` vs `[ 🧠 PRO ]` en `AiAssistantScreen` para alternar modelos directamente con un toque sin ir a Ajustes.
+  - Persistido reactivamente en `UserPreferencesRepository` (`pref_gemini_model_id`).
   - Parseo seguro de respuesta JSON usando `org.json.JSONObject` para extraer `candidates[0].content.parts[0].text`.
 
 ---

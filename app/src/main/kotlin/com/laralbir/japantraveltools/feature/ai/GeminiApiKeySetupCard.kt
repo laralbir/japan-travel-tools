@@ -305,14 +305,25 @@ fun GeminiApiKeySetupCard(
                                 testConnectionResult = null
                             },
                             label = {
+                                val isPro = GeminiApiKeyHelper.isProModel(model.id)
+                                val prefix = if (model.isRecommended) "⭐ " else if (isPro) "🧠 " else "⚡ "
                                 Text(
-                                    text = if (model.isRecommended) "⭐ ${model.displayName}" else model.displayName,
-                                    fontSize = 12.sp
+                                    text = "$prefix${model.displayName}",
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isPro || model.isRecommended) FontWeight.Bold else FontWeight.Normal
                                 )
                             },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                selectedContainerColor = if (GeminiApiKeyHelper.isProModel(model.id)) {
+                                    MaterialTheme.colorScheme.tertiaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                },
+                                selectedLabelColor = if (GeminiApiKeyHelper.isProModel(model.id)) {
+                                    MaterialTheme.colorScheme.onTertiaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                }
                             )
                         )
                     }

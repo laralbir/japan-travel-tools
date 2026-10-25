@@ -15,6 +15,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,6 +45,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -4197,6 +4200,105 @@ private fun AiAssistantScreen(
                             text = if (isEs) "⚙️ Configurar en Ajustes" else "⚙️ Configure in Settings",
                             fontSize = 13.sp
                         )
+                    }
+                }
+
+                // Direct Model Tier Switcher: Flash vs PRO
+                val currentIsPro = com.laralbir.japantraveltools.feature.ai.GeminiApiKeyHelper.isProModel(prefs.geminiModelId)
+                Spacer(Modifier.height(8.dp))
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (isEs) "Nivel de Inteligencia:" else "Intelligence Tier:",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (currentIsPro) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Text(
+                                text = if (currentIsPro) {
+                                    if (isEs) "🧠 PRO ACTIVO" else "🧠 PRO ACTIVE"
+                                } else {
+                                    if (isEs) "⚡ FLASH ACTIVO" else "⚡ FLASH ACTIVE"
+                                },
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (currentIsPro) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterChip(
+                            selected = !currentIsPro,
+                            onClick = {
+                                prefsRepository.setGeminiModelId(com.laralbir.japantraveltools.feature.ai.GeminiApiKeyHelper.FLASH_DEFAULT_MODEL_ID)
+                            },
+                            leadingIcon = { Text("⚡", fontSize = 13.sp) },
+                            label = {
+                                Text(
+                                    text = if (isEs) "Flash (Rápido)" else "Flash (Fast)",
+                                    fontSize = 12.sp,
+                                    fontWeight = if (!currentIsPro) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                        FilterChip(
+                            selected = currentIsPro,
+                            onClick = {
+                                prefsRepository.setGeminiModelId(com.laralbir.japantraveltools.feature.ai.GeminiApiKeyHelper.PRO_DEFAULT_MODEL_ID)
+                            },
+                            leadingIcon = { Text("🧠", fontSize = 13.sp) },
+                            label = {
+                                Text(
+                                    text = if (isEs) "PRO (Razonamiento)" else "PRO (Reasoning)",
+                                    fontSize = 12.sp,
+                                    fontWeight = if (currentIsPro) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                selectedLabelColor = MaterialTheme.colorScheme.onTertiaryContainer
+                            ),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    if (currentIsPro) {
+                        Spacer(Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            com.laralbir.japantraveltools.feature.ai.GeminiApiKeyHelper.getProModels().forEach { proOpt ->
+                                val isSelected = prefs.geminiModelId == proOpt.id
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = { prefsRepository.setGeminiModelId(proOpt.id) },
+                                    label = { Text(proOpt.displayName, fontSize = 11.sp) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f),
+                                        selectedLabelColor = MaterialTheme.colorScheme.onSurface
+                                    )
+                                )
+                            }
+                        }
                     }
                 }
 
