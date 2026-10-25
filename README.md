@@ -2,7 +2,7 @@
 
 Aplicación Android **offline-first** con herramientas esenciales para viajar a Japón, desarrollada en **Kotlin** y **Jetpack Compose** siguiendo metodologías **SDD (Spec-Driven Development)** y **TDD (Test-Driven Development)** para agentes de Inteligencia Artificial.
 
-> **Estado actual del proyecto**: `v0.0.1-beta.12` (Suite funcional offline-first con persistencia local permanente en disco `Context.filesDir` para planes, transportes, documentos, guías y reservas; gestión multi-plan con creación, edición, alternancia y borrado de planes completos; adjuntos PDF y fotos en reservas con `FileProvider`; traducción por cámara con Google ML Kit y por voz concisa sin palabras inventadas).
+> **Estado actual del proyecto**: `v0.0.1-beta.13` (Suite funcional offline-first con Asistente IA de Viaje interactivo con estado de carga reactivo `isLoading`, arquitectura híbrida Gemini 2.0 Flash Cloud + Motor Experto 100% offline con más de 20 temáticas de Japón, guardado directo a Guías de Viaje, persistencia local en `Context.filesDir`, CRUD multi-plan y adjuntos en reservas con `FileProvider`).
 
 ---
 

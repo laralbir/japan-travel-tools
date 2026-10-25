@@ -825,7 +825,96 @@ object OfflineTranslatorEngine {
     }
 }
 
+enum class AssistantSource {
+    GEMINI_CLOUD,
+    OFFLINE_EXPERT
+}
+
+data class AiTravelAssistantResult(
+    val answer: String,
+    val source: AssistantSource,
+    val timestampFormatted: String
+)
+
 object GeminiAssistantEngine {
+
+    /**
+     * Executes an AI query via Gemini Cloud API if an API key is available and connectivity exists,
+     * otherwise falls back seamlessly to the comprehensive offline expert engine.
+     */
+    suspend fun queryAssistant(
+        prompt: String,
+        apiKey: String?,
+        eurToJpyRate: Double,
+        currentPlan: PortableTravelPlanBundle? = null
+    ): AiTravelAssistantResult = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val cleanPrompt = prompt.trim()
+        val nowFormatted = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+
+        if (!apiKey.isNullOrBlank()) {
+            val cloudAnswer = queryGeminiCloudApi(cleanPrompt, apiKey, eurToJpyRate, currentPlan)
+            if (cloudAnswer != null && cloudAnswer.isNotBlank()) {
+                return@withContext AiTravelAssistantResult(
+                    answer = cloudAnswer,
+                    source = AssistantSource.GEMINI_CLOUD,
+                    timestampFormatted = nowFormatted
+                )
+            }
+        }
+
+        val offlineAnswer = generateSmartTravelAnswer(cleanPrompt, eurToJpyRate, currentPlan)
+        AiTravelAssistantResult(
+            answer = offlineAnswer,
+            source = AssistantSource.OFFLINE_EXPERT,
+            timestampFormatted = nowFormatted
+        )
+    }
+
+    private fun queryGeminiCloudApi(
+        prompt: String,
+        apiKey: String,
+        eurToJpyRate: Double,
+        currentPlan: PortableTravelPlanBundle?
+    ): String? {
+        return try {
+            val url = java.net.URL("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey")
+            val connection = (url.openConnection() as java.net.HttpURLConnection).apply {
+                requestMethod = "POST"
+                setRequestProperty("Content-Type", "application/json; charset=UTF-8")
+                setRequestProperty("Accept", "application/json")
+                connectTimeout = 8000
+                readTimeout = 12000
+                doOutput = true
+            }
+
+            val safeRate = if (eurToJpyRate > 0.0) eurToJpyRate else 164.80
+            val stopsCount = currentPlan?.itineraryStops?.size ?: 0
+            val systemContext = "Eres el Asistente IA de Viaje para Japón en la aplicación Japan Travel Tools. Responde con tono amable, experto y muy estructurado con viñetas y emojis. Incluye caracteres japoneses (Kanji/Kana) y fonética Romaji cuando menciones lugares, trenes o platos. Convierte precios aproximados en JPY a EUR según la tasa 1 EUR = ${String.format(Locale.US, "%.2f", safeRate)} JPY. El usuario tiene un plan de viaje con $stopsCount paradas. Responde en español."
+
+            val escapedPrompt = prompt.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "")
+            val escapedSystem = systemContext.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "")
+
+            val jsonPayload = """{"system_instruction":{"parts":[{"text":"$escapedSystem"}]},"contents":[{"parts":[{"text":"$escapedPrompt"}]}],"generationConfig":{"temperature":0.4,"maxOutputTokens":1024}}"""
+
+            connection.outputStream.use { os ->
+                os.write(jsonPayload.toByteArray(Charsets.UTF_8))
+                os.flush()
+            }
+
+            val responseCode = connection.responseCode
+            if (responseCode == 200) {
+                val responseText = connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                val textPattern = """"text"\s*:\s*"((?:[^"\\]|\\.)*)"""".toRegex()
+                val match = textPattern.find(responseText)
+                val rawText = match?.groupValues?.get(1)
+                rawText?.replace("\\n", "\n")?.replace("\\\"", "\"")?.replace("\\\\", "\\")
+            } else {
+                null
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
 
     /**
      * Finds prices in Yen (e.g. ¥1,200, 1200円, 1200 yenes, 1200 yen, 1200 JPY)
@@ -889,6 +978,82 @@ object GeminiAssistantEngine {
                 enrichMenuWithConvertedPrices(sampleMenu, safeRate)
             }
 
+            lower.contains("tax") || lower.contains("tax-free") || lower.contains("don quijote") || lower.contains("impuesto") || lower.contains("devolución") -> {
+                val minTaxEur = String.format(Locale.US, "%.2f EUR", 5000.0 / safeRate)
+                """
+                    🛍️ Compras Tax-Free en Japón (Don Quijote, Bic Camera, Uniqlo):
+                    • Requisito de compra: Gasto superior a ¥5,000 (~$minTaxEur) antes de impuestos en un mismo día y establecimiento.
+                    • Pasaporte Físico Obligatorio: Es imprescindible presentar el pasaporte original en la caja con el sello de turista (no sirven fotos ni fotocopias).
+                    • Productos consumibles (cosmética, snacks, medicinas): Se entregan en una bolsa precintada que NO se debe abrir hasta salir de Japón.
+                    • Ahorro directo: Te descuentan el 10% del IVA japonés en el momento de pagar, sin esperas ni sellos en aduanas.
+                """.trimIndent()
+            }
+
+            lower.contains("narita") || lower.contains("haneda") || lower.contains("aeropuerto") || lower.contains("kix") || lower.contains("skyliner") || lower.contains("haruka") -> {
+                val nexEur = String.format(Locale.US, "%.2f EUR", 3070.0 / safeRate)
+                val skyEur = String.format(Locale.US, "%.2f EUR", 2570.0 / safeRate)
+                """
+                    ✈️ Traslados desde los Aeropuertos:
+                    • Aeropuerto de Narita (NRT) ➔ Tokio:
+                      1. JR Narita Express (N'EX): 55 min directo a Tokyo Station / Shinjuku (~¥3,070 / ~$nexEur).
+                      2. Keisei Skyliner: 36 min directo a Ueno / Nippori (~¥2,570 / ~$skyEur).
+                    • Aeropuerto de Haneda (HND) ➔ Tokio:
+                      1. Tokyo Monorail: 13 min a Hamamatsucho Station (conecta con JR Yamanote Line).
+                      2. Línea Keikyu Airport: 11 min a Shinagawa Station.
+                    • Aeropuerto de Kansai (KIX) ➔ Kioto / Osaka:
+                      1. Tren JR Haruka: 75 min directo a Kioto Station / 45 min a Shin-Osaka.
+                      2. Nankai Rapi:t: 34 min directo a Namba (Osaka).
+                """.trimIndent()
+            }
+
+            lower.contains("esim") || lower.contains("sim") || lower.contains("internet") || lower.contains("wifi") || lower.contains("wi-fi") || lower.contains("datos") -> {
+                """
+                    📶 Conexión a Internet en Japón (eSIM vs Pocket Wi-Fi):
+                    • eSIM (Opción más recomendada): Muy cómoda para móviles compatibles (Pixel, iPhone, Galaxy). Se instala antes del vuelo mediante código QR (proveedores como Airalo, Ubigi o Holafly). Mantienes tu WhatsApp habitual.
+                    • Pocket Wi-Fi (Router portátil): Ideal si viajas en pareja o familia para conectar varios dispositivos a la vez. Se recoge en el mostrador del aeropuerto (Narita/Haneda/KIX) y se devuelve en un buzón postal con el sobre prepagado incluido.
+                    • Tarjeta SIM física: Si tu teléfono no soporta eSIM, puedes comprar una SIM de datos en las máquinas automáticas o mostradores de llegada del aeropuerto.
+                """.trimIndent()
+            }
+
+            lower.contains("propina") || lower.contains("tip") || lower.contains("modales") || lower.contains("educación") || lower.contains("normas") || lower.contains("costumbre") -> {
+                """
+                    🚫 Propinas y Modales en Japón:
+                    • Cero Propinas: En Japón NUNCA se deja propina. Dejar dinero extra en la mesa o barra es considerado de mala educación o una confusión; el camarero correrá detrás de ti para devolverte el cambio.
+                    • No comer caminando: Se come o bebe de pie junto a la tienda o máquina expendedora donde compraste, no andando por la calle.
+                    • Silencio en transporte público: Pon el teléfono en modo silencio ("Manner Mode"). Está mal visto hablar por teléfono o con voz alta en trenes y metros.
+                    • Pago en caja: Deposita el dinero o la tarjeta en la pequeña bandeja (Torii) del mostrador, no directamente en la mano del cajero.
+                """.trimIndent()
+            }
+
+            lower.contains("onsen") || lower.contains("tatuaje") || lower.contains("baño termal") || lower.contains("termas") || lower.contains("kashikiri") -> {
+                """
+                    ♨️ Normas en los Onsen (Baños Termales) y Tatuajes:
+                    • Desnudez total: Se entra completamente desnudo, sin bañador. Hombres y mujeres se bañan en zonas separadas.
+                    • Ducha previa obligatoria: Hay que lavarse y enjabonarse a conciencia en las banquetas individuales con ducha antes de meterse al agua termal.
+                    • Toalla pequeña: No debe tocar nunca el agua de la poza termal; déjala doblada sobre tu cabeza o en el borde.
+                    • Política de Tatuajes: Muchos onsen tradicionales prohíben la entrada a personas con tatuajes. Busca baños etiquetados como "Tattoo-friendly", cúbrelos con parches adhesivos color piel o reserva un baño privado familiar (Kashikiri Onsen).
+                """.trimIndent()
+            }
+
+            lower.contains("jr pass") || lower.contains("japan rail pass") || lower.contains("merece la pena") || lower.contains("rentable") -> {
+                """
+                    🚅 ¿Merece la pena el JR Pass?:
+                    • Tras la subida de precios de octubre de 2023 (+65%), el JR Pass nacional general casi NUNCA es rentable para un itinerario estándar (Tokio - Kioto - Osaka).
+                    • Alternativa económica: Es mucho más barato comprar los billetes sueltos de Shinkansen (Tokio ➔ Kioto son unos ¥14,170 en SmartEX o taquilla) y usar la tarjeta Suica/Pasmo para los metros y trenes urbanos.
+                    • Pases Regionales: Si vas a moverte mucho por Kansai, Hiroshima o los Alpes japoneses, pases como el JR Kansai-Hiroshima Area Pass sí siguen saliendo muy a cuenta.
+                """.trimIndent()
+            }
+
+            lower.contains("enchufe") || lower.contains("voltaje") || lower.contains("clavija") || lower.contains("adaptador") || lower.contains("electricidad") -> {
+                """
+                    🔌 Enchufes y Electricidad en Japón:
+                    • Tipo de Clavija: Clavijas de tipo A (dos patillas planas paralelas, idéntico al estándar de EE.UU.). Necesitarás un adaptador universal sencillo.
+                    • Voltaje: En Japón el voltaje es de 100 V a 50/60 Hz.
+                    • Compatibilidad: Los cargadores de móviles, portátiles, tablets y cámaras son bivoltaje (100-240 V) y funcionan perfectamente solo con el adaptador físico.
+                    • Precaución: Aparatos de alta potencia sin bivoltaje (secadores o planchas de pelo europeos de 220-240 V) no calentarán adecuadamente; es mejor usar los del hotel.
+                """.trimIndent()
+            }
+
             lower.contains("suica") || lower.contains("pasmo") || lower.contains("icoca") || lower.contains("metro") || lower.contains("tarjeta ic") -> {
                 val depositEur = String.format(Locale.US, "%.2f EUR", 500.0 / safeRate)
                 val loadEur = String.format(Locale.US, "%.2f EUR", 3000.0 / safeRate)
@@ -922,7 +1087,7 @@ object GeminiAssistantEngine {
                 """.trimIndent()
             }
 
-            lower.contains("hakone") || lower.contains("fuji") || lower.contains("onsen") || lower.contains("kawaguchiko") -> {
+            lower.contains("hakone") || lower.contains("fuji") || lower.contains("kawaguchiko") -> {
                 """
                     🗻 Excursión a Hakone y Vistas al Monte Fuji:
                     1. 08:30 · Salida desde Shinjuku (Odakyu Romancecar) o desde Tokio en Shinkansen Kodama hasta Odawara.
@@ -988,6 +1153,121 @@ object GeminiAssistantEngine {
                     🧳 Envío de Maletas entre Hoteles (Takkyubin / Yamato Transport):
                     • Para no cargar con maletas grandes en el Shinkansen o escaleras de metro, pide en la recepción de tu hotel el servicio "Takkyubin" (icono del gato negro de Yamato).
                     • Coste aproximado por maleta grande (Tokio ➔ Kioto): ~¥2,500 (~$bagEur), entrega al día siguiente directamente en tu próximo hotel.
+                    • Maletas en Shinkansen: Si la suma de alto+ancho+profundidad supera los 160 cm, es obligatorio reservar asiento especial en la última fila con espacio para maleta sin recargo.
+                """.trimIndent()
+            }
+
+            lower.contains("tax") || lower.contains("tax-free") || lower.contains("don quijote") || lower.contains("impuesto") || lower.contains("devolución") -> {
+                val minTaxEur = String.format(Locale.US, "%.2f EUR", 5000.0 / safeRate)
+                """
+                    🛍️ Compras Tax-Free en Japón (Don Quijote, Bic Camera, Uniqlo):
+                    • Requisito de compra: Gasto superior a ¥5,000 (~$minTaxEur) antes de impuestos en un mismo día y establecimiento.
+                    • Pasaporte Físico Obligatorio: Es imprescindible presentar el pasaporte original en la caja con el sello de turista (no sirven fotos ni fotocopias).
+                    • Productos consumibles (cosmética, snacks, medicinas): Se entregan en una bolsa precintada que NO se debe abrir hasta salir de Japón.
+                    • Ahorro directo: Te descuentan el 10% del IVA japonés en el momento de pagar, sin esperas ni sellos en aduanas.
+                """.trimIndent()
+            }
+
+            lower.contains("esim") || lower.contains("sim") || lower.contains("internet") || lower.contains("wifi") || lower.contains("wi-fi") || lower.contains("datos") -> {
+                """
+                    📶 Conexión a Internet en Japón (eSIM vs Pocket Wi-Fi):
+                    • eSIM (Opción más recomendada): Muy cómoda para móviles compatibles (Pixel, iPhone, Galaxy). Se instala antes del vuelo mediante código QR (proveedores como Airalo, Ubigi o Holafly). Mantienes tu WhatsApp habitual.
+                    • Pocket Wi-Fi (Router portátil): Ideal si viajas en pareja o familia para conectar varios dispositivos a la vez. Se recoge en el mostrador del aeropuerto (Narita/Haneda/KIX) y se devuelve en un buzón postal con el sobre prepagado incluido.
+                    • Tarjeta SIM física: Si tu teléfono no soporta eSIM, puedes comprar una SIM de datos en las máquinas automáticas o mostradores de llegada del aeropuerto.
+                """.trimIndent()
+            }
+
+            lower.contains("propina") || lower.contains("tip") || lower.contains("modales") || lower.contains("educación") || lower.contains("normas") || lower.contains("costumbre") -> {
+                """
+                    🚫 Propinas y Modales en Japón:
+                    • Cero Propinas: En Japón NUNCA se deja propina. Dejar dinero extra en la mesa o barra es considerado de mala educación o una confusión; el camarero correrá detrás de ti para devolverte el cambio.
+                    • No comer caminando: Se come o bebe de pie junto a la tienda o máquina expendedora donde compraste, no andando por la calle.
+                    • Silencio en transporte público: Pon el teléfono en modo silencio ("Manner Mode"). Está mal visto hablar por teléfono o con voz alta en trenes y metros.
+                    • Pago en caja: Deposita el dinero o la tarjeta en la pequeña bandeja (Torii) del mostrador, no directamente en la mano del cajero.
+                """.trimIndent()
+            }
+
+            lower.contains("onsen") || lower.contains("tatuaje") || lower.contains("baño termal") || lower.contains("termas") || lower.contains("kashikiri") -> {
+                """
+                    ♨️ Normas en los Onsen (Baños Termales) y Tatuajes:
+                    • Desnudez total: Se entra completamente desnudo, sin bañador. Hombres y mujeres se bañan en zonas separadas.
+                    • Ducha previa obligatoria: Hay que lavarse y enjabonarse a conciencia en las banquetas individuales con ducha antes de meterse al agua termal.
+                    • Toalla pequeña: No debe tocar nunca el agua de la poza termal; déjala doblada sobre tu cabeza o en el borde.
+                    • Política de Tatuajes: Muchos onsen tradicionales prohíben la entrada a personas con tatuajes. Busca baños etiquetados como "Tattoo-friendly", cúbrelos con parches adhesivos color piel o reserva un baño privado familiar (Kashikiri Onsen).
+                """.trimIndent()
+            }
+
+            lower.contains("jr pass") || lower.contains("japan rail pass") || lower.contains("merece la pena") || lower.contains("rentable") -> {
+                """
+                    🚅 ¿Merece la pena el JR Pass?:
+                    • Tras la subida de precios de octubre de 2023 (+65%), el JR Pass nacional general casi NUNCA es rentable para un itinerario estándar (Tokio - Kioto - Osaka).
+                    • Alternativa económica: Es mucho más barato comprar los billetes sueltos de Shinkansen (Tokio ➔ Kioto son unos ¥14,170 en SmartEX o taquilla) y usar la tarjeta Suica/Pasmo para los metros y trenes urbanos.
+                    • Pases Regionales: Si vas a moverte mucho por Kansai, Hiroshima o los Alpes japoneses, pases como el JR Kansai-Hiroshima Area Pass sí siguen saliendo muy a cuenta.
+                """.trimIndent()
+            }
+
+            lower.contains("enchufe") || lower.contains("voltaje") || lower.contains("clavija") || lower.contains("adaptador") || lower.contains("electricidad") -> {
+                """
+                    🔌 Enchufes y Electricidad en Japón:
+                    • Tipo de Clavija: Clavijas de tipo A (dos patillas planas paralelas, idéntico al estándar de EE.UU.). Necesitarás un adaptador universal sencillo.
+                    • Voltaje: En Japón el voltaje es de 100 V a 50/60 Hz.
+                    • Compatibilidad: Los cargadores de móviles, portátiles, tablets y cámaras son bivoltaje (100-240 V) y funcionan perfectamente solo con el adaptador físico.
+                    • Precaución: Aparatos de alta potencia sin bivoltaje (secadores o planchas de pelo europeos de 220-240 V) no calentarán adecuadamente; es mejor usar los del hotel.
+                """.trimIndent()
+            }
+
+            lower.contains("narita") || lower.contains("haneda") || lower.contains("aeropuerto") || lower.contains("kix") || lower.contains("skyliner") || lower.contains("haruka") -> {
+                val nexEur = String.format(Locale.US, "%.2f EUR", 3070.0 / safeRate)
+                val skyEur = String.format(Locale.US, "%.2f EUR", 2570.0 / safeRate)
+                """
+                    ✈️ Traslados desde los Aeropuertos:
+                    • Aeropuerto de Narita (NRT) ➔ Tokio:
+                      1. JR Narita Express (N'EX): 55 min directo a Tokyo Station / Shinjuku (~¥3,070 / ~$nexEur).
+                      2. Keisei Skyliner: 36 min directo a Ueno / Nippori (~¥2,570 / ~$skyEur).
+                    • Aeropuerto de Haneda (HND) ➔ Tokio:
+                      1. Tokyo Monorail: 13 min a Hamamatsucho Station (conecta con JR Yamanote Line).
+                      2. Línea Keikyu Airport: 11 min a Shinagawa Station.
+                    • Aeropuerto de Kansai (KIX) ➔ Kioto / Osaka:
+                      1. Tren JR Haruka: 75 min directo a Kioto Station / 45 min a Shin-Osaka.
+                      2. Nankai Rapi:t: 34 min directo a Namba (Osaka).
+                """.trimIndent()
+            }
+
+            lower.contains("tarjeta") || lower.contains("crédito") || lower.contains("débito") || lower.contains("revolut") || lower.contains("pagar") -> {
+                """
+                    💳 Tarjetas y Pagos en Japón:
+                    • Tarjetas internacionales: Visa y Mastercard (como Revolut, N26 o tarjetas bancarias con chip) se aceptan en hoteles, grandes almacenes, tiendas konbini (7-Eleven, Lawson) y cadenas de restaurantes.
+                    • Necesidad de efectivo: Templos, santuarios, puestos callejeros de comida, máquinas de recarga de Suica y pequeños bares ramen solo aceptan dinero en metálico (efectivo en yenes).
+                    • Recomendación: Lleva siempre entre ¥10,000 y ¥20,000 en la cartera y saca yenes en los cajeros Seven Bank (7-Eleven) eligiendo cobro en JPY.
+                """.trimIndent()
+            }
+
+            lower.contains("ropa") || lower.contains("tiempo") || lower.contains("clima") || lower.contains("otoño") || lower.contains("primavera") || lower.contains("frío") -> {
+                """
+                    🧥 Qué Ropa Llevar y Clima por Estación:
+                    • Otoño (Octubre - Noviembre): Clima templado y agradable (14°C a 20°C). Viste por capas: camisetas o camisas de manga larga, jersey fino y una chaqueta para la noche. Perfecto para ver el follaje otoñal (Momiji).
+                    • Primavera (Marzo - Mayo): Fresco por la mañana (10°C) y suave al mediodía (18°C a 22°C). Lleva cazadora ligera y calzado muy cómodo para caminar por los templos y cerezos en flor (Sakura).
+                    • Calzado: Imprescindible calzado fácil de poner y quitar (slip-on o sin cordones complicados), ya que te descalzarás a menudo en templos, ryokans y restaurantes tradicionales.
+                """.trimIndent()
+            }
+
+            lower.contains("akihabara") || lower.contains("anime") || lower.contains("manga") || lower.contains("figura") || lower.contains("souvenir") -> {
+                """
+                    🎮 Akihabara, Anime y Souvenirs en Tokio:
+                    • Figuras y Coleccionismo: Tiendas clave como Radio Kaikan (justo en la salida Electric Town), Mandarake Complex (8 plantas de vintage), AmiAmi y Kotobukiya.
+                    • Gashapon y Recreativas: Gashapon Department Store en Ikebukuro o Akihabara con miles de máquinas de cápsulas, y salones de recreativas Taito Station y GiGO.
+                    • Electrónica y Gadgets: Yodobashi Camera Multimedia Akiba (9 plantas de tecnología, fotografía y relojes con Tax-Free).
+                    • Manga y Merchandising: Animate Ikebukuro (la tienda de anime más grande del mundo) o Nakano Broadway para coleccionismo retro.
+                """.trimIndent()
+            }
+
+            lower.contains("emergencia") || lower.contains("terremoto") || lower.contains("hospital") || lower.contains("110") || lower.contains("119") || lower.contains("seguro") -> {
+                """
+                    🆘 Teléfonos de Emergencia y Terremotos:
+                    • 110: Policía (asistencia de seguridad o pérdida de objetos).
+                    • 119: Ambulancia y Bomberos (urgencias médicas).
+                    • Línea de Asistencia al Turista JNTO (24/7 en español/inglés): 050-3816-2720.
+                    • Terremotos: Japón cuenta con la arquitectura antisísmica más avanzada del mundo. Si suena la alarma J-Alert en tu teléfono, mantén la calma, protégete la cabeza bajo una mesa firme, aléjate de cristales y espera las indicaciones del personal.
                 """.trimIndent()
             }
 
@@ -996,14 +1276,15 @@ object GeminiAssistantEngine {
                 val daysCount = currentPlan?.itineraryStops?.map { it.dayNumber }?.distinct()?.size ?: 0
                 val segmentsCount = currentPlan?.transportSegments?.size ?: 0
                 buildString {
-                    appendLine("✨ Resumen Inteligente para tu consulta («$cleanPrompt»):")
+                    appendLine("✨ Consulta de Viaje: «$cleanPrompt»")
+                    appendLine("• Consejos destacados para tu duda:")
+                    appendLine("  - Para transportes urbanos, recuerda recargar tu tarjeta IC (Suica/Pasmo) en efectivo.")
+                    appendLine("  - En compras superiores a ¥5,000 en tiendas con distintivo, solicita la exención Tax-Free con tu pasaporte original.")
+                    appendLine("  - Conversión de referencia: 1 EUR = ${String.format(Locale.US, "%.2f", safeRate)} JPY (¥1,000 ≈ ${String.format(Locale.US, "%.2f EUR", 1000.0 / safeRate)}).")
                     if (stopsCount > 0 || segmentsCount > 0) {
-                        appendLine("• Estado de tu ruta actual: Tienes $stopsCount paradas distribuidas en $daysCount día(s) y $segmentsCount tramo(s) de transporte.")
-                    } else {
-                        appendLine("• Tu planificador está actualmente vacío y listo para crear nuevas jornadas.")
+                        appendLine("• Tu itinerario actual tiene $stopsCount paradas organizadas en $daysCount jornada(s).")
                     }
-                    appendLine("• Cambio actual aplicado: 1 EUR = ${String.format(Locale.US, "%.2f", safeRate)} JPY (¥1,000 ≈ ${String.format(Locale.US, "%.2f EUR", 1000.0 / safeRate)}).")
-                    append("• Puedes pedirme rutas por ciudad (Tokio, Kioto, Osaka, Nara, Hakone, Hiroshima), dudas de Suica/Shinkansen/cajeros/maletas o pegar precios en ¥ para convertirlos.")
+                    append("• Pregúntame sobre cualquier ciudad (Tokio, Kioto, Osaka, Nara), transportes (Shinkansen, metro), comida, etiqueta o normas Onsen.")
                 }
             }
         }

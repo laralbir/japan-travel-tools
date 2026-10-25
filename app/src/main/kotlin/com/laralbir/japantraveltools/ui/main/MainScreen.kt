@@ -1,6 +1,9 @@
 package com.laralbir.japantraveltools.ui.main
 
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.CalendarContract
@@ -25,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -36,9 +40,11 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalDrawerSheet
@@ -53,6 +59,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -92,6 +99,7 @@ import com.laralbir.japantraveltools.core.preferences.DefaultUserPreferencesRepo
 import com.laralbir.japantraveltools.core.preferences.SharedPrefsKeyValueStore
 import com.laralbir.japantraveltools.core.preferences.UserPreferences
 import com.laralbir.japantraveltools.data.DefaultDataRepository
+import com.laralbir.japantraveltools.feature.ai.AssistantSource
 import com.laralbir.japantraveltools.feature.ai.GeminiAssistantEngine
 import com.laralbir.japantraveltools.feature.ai.OfflineTranslatorEngine
 import com.laralbir.japantraveltools.feature.clock.CalculateClockComparisonUseCase
@@ -788,6 +796,8 @@ private fun ActiveToolContent(
         JapanDrawerDestination.VOICE_TRANSLATOR -> VoiceTranslatorScreen(isEs = isEs)
         JapanDrawerDestination.AI_ASSISTANT -> AiAssistantScreen(
             isEs = isEs,
+            prefs = prefs,
+            prefsRepository = prefsRepository,
             onNavigateToPlanner = { onNavigateToDestination(JapanDrawerDestination.PLANNER) }
         )
         JapanDrawerDestination.PASSPORT_CUSTOMS -> PassportAndCustomsScreen(isEs = isEs, prefs = prefs, prefsRepository = prefsRepository)
@@ -3005,29 +3015,55 @@ private fun VoiceTranslatorScreen(isEs: Boolean) {
 @Composable
 private fun AiAssistantScreen(
     isEs: Boolean,
+    prefs: UserPreferences,
+    prefsRepository: DefaultUserPreferencesRepository,
     onNavigateToPlanner: () -> Unit
 ) {
     val portablePlan by SharedTravelPlanStore.planState.collectAsState()
-    var geminiPrompt by rememberSaveable { mutableStateOf("¿Cómo funciona la Suica y el metro?") }
-    var geminiResponse by rememberSaveable {
-        mutableStateOf(
-            GeminiAssistantEngine.generateSmartTravelAnswer(
-                prompt = "¿Cómo funciona la Suica y el metro?",
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    var geminiPrompt by rememberSaveable { mutableStateOf("") }
+    var assistantAnswer by rememberSaveable { mutableStateOf<String?>(null) }
+    var assistantSource by rememberSaveable { mutableStateOf<String?>(null) }
+    var assistantTime by rememberSaveable { mutableStateOf<String?>(null) }
+    var isLoading by rememberSaveable { mutableStateOf(false) }
+    var actionStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var showApiKeyConfig by rememberSaveable { mutableStateOf(false) }
+    var apiKeyInput by rememberSaveable { mutableStateOf(prefs.geminiApiKey ?: "") }
+
+    fun performQuery(promptToQuery: String) {
+        val clean = promptToQuery.trim()
+        if (clean.isBlank() || isLoading) return
+        isLoading = true
+        actionStatusMessage = null
+        coroutineScope.launch {
+            val result = GeminiAssistantEngine.queryAssistant(
+                prompt = clean,
+                apiKey = prefs.geminiApiKey,
                 eurToJpyRate = 164.80,
-                currentPlan = null
+                currentPlan = portablePlan
             )
-        )
+            assistantAnswer = result.answer
+            assistantSource = result.source.name
+            assistantTime = result.timestampFormatted
+            isLoading = false
+        }
     }
 
     val quickTopics = listOf(
         "💳 Tarjeta Suica" to "¿Cómo funciona la Suica y el metro?",
-        "🚄 Shinkansen" to "Consejos de Shinkansen y maletas",
+        "🚄 Shinkansen" to "¿Cómo reservar Shinkansen y maletas grandes?",
         "🍜 Carta Ramen ¥" to "Traducir carta de Ramen con precios en ¥",
+        "🛍️ Tax-Free" to "¿Cómo funciona el Tax-Free en Don Quijote y pasaporte?",
+        "📶 eSIM / Wi-Fi" to "¿Cómo tener internet en Japón con eSIM o Pocket Wi-Fi?",
+        "🚫 Propinas y Modales" to "¿Hay que dejar propina en restaurantes de Japón?",
+        "♨️ Normas Onsen" to "¿Puedo entrar a un onsen si tengo tatuajes?",
+        "🚅 JR Pass" to "¿Merece la pena comprar el JR Pass nacional?",
+        "🔌 Enchufes y Voltaje" to "¿Qué enchufes y voltaje se usan en Japón?",
         "🦌 Ruta Nara" to "Añadir excursión a Nara y ciervos",
         "🗻 Ruta Hakone" to "Añadir excursión a Hakone y Monte Fuji",
-        "🐙 Ruta Osaka" to "Añadir día en Osaka y Dotonbori",
-        "🏧 Cajeros 7-Eleven" to "¿Dónde sacar efectivo en cajeros 7-Eleven?",
-        "🧳 Envío Maletas" to "¿Cómo enviar maletas con Takkyubin Yamato?"
+        "🐙 Ruta Osaka" to "Añadir día en Osaka y Dotonbori"
     )
 
     LazyColumn(
@@ -3045,15 +3081,113 @@ private fun AiAssistantScreen(
                 Spacer(Modifier.height(6.dp))
                 Text(
                     text = if (isEs) {
-                        "Selecciona un tema rápido, escribe importes en yenes o añade nuevas excursiones directamente a tu Planificador."
+                        "Haz cualquier pregunta sobre transportes, etiqueta, compras o excursiones. Funciona con Google Gemini en la nube o con el motor experto 100% offline."
                     } else {
-                        "Pick a quick topic, type Yen amounts, or add new day trips directly to your Planner."
+                        "Ask anything about transport, etiquette, shopping, or day trips. Works with cloud Gemini or 100% offline expert engine."
                     },
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
+                Spacer(Modifier.height(12.dp))
+
+                // Engine mode & API Key banner
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val hasKey = !prefs.geminiApiKey.isNullOrBlank()
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (hasKey) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer
+                    ) {
+                        Text(
+                            text = if (hasKey) {
+                                if (isEs) "✨ Gemini 2.0 Flash (Cloud)" else "✨ Gemini 2.0 Flash (Cloud)"
+                            } else {
+                                if (isEs) "⚡ Motor Experto (100% Offline)" else "⚡ Expert Engine (Offline)"
+                            },
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (hasKey) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+
+                    TextButton(onClick = { showApiKeyConfig = !showApiKeyConfig }) {
+                        Text(
+                            text = if (showApiKeyConfig) {
+                                if (isEs) "Ocultar Ajustes" else "Hide Key"
+                            } else {
+                                if (isEs) "⚙️ Gemini API Key" else "⚙️ Gemini API Key"
+                            },
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+
+                if (showApiKeyConfig) {
+                    Spacer(Modifier.height(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = if (isEs) "Clave de API de Google Gemini (Opcional):" else "Google Gemini API Key (Optional):",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            OutlinedTextField(
+                                value = apiKeyInput,
+                                onValueChange = { apiKeyInput = it },
+                                placeholder = { Text("AIzaSy...", fontSize = 13.sp) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(
+                                    onClick = {
+                                        prefsRepository.setGeminiApiKey(apiKeyInput.trim())
+                                        showApiKeyConfig = false
+                                        actionStatusMessage = if (isEs) "✅ Clave Gemini guardada" else "✅ Gemini key saved"
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(if (isEs) "Guardar Clave" else "Save Key", fontSize = 13.sp)
+                                }
+                                if (!prefs.geminiApiKey.isNullOrBlank()) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            apiKeyInput = ""
+                                            prefsRepository.setGeminiApiKey(null)
+                                            actionStatusMessage = if (isEs) "🗑️ Clave eliminada (Modo offline activo)" else "🗑️ Key removed (Offline mode active)"
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text(if (isEs) "Borrar" else "Clear", fontSize = 13.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 Spacer(Modifier.height(14.dp))
+
+                Text(
+                    text = if (isEs) "Temas Rápidos Populares:" else "Popular Quick Topics:",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(8.dp))
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     quickTopics.chunked(2).forEach { pair ->
@@ -3067,11 +3201,7 @@ private fun AiAssistantScreen(
                                     selected = geminiPrompt == fullQuery,
                                     onClick = {
                                         geminiPrompt = fullQuery
-                                        geminiResponse = GeminiAssistantEngine.generateSmartTravelAnswer(
-                                            prompt = fullQuery,
-                                            eurToJpyRate = 164.80,
-                                            currentPlan = portablePlan
-                                        )
+                                        performQuery(fullQuery)
                                     },
                                     modifier = Modifier.weight(1f)
                                 )
@@ -3087,9 +3217,16 @@ private fun AiAssistantScreen(
                     onValueChange = { geminiPrompt = it },
                     label = {
                         Text(
-                            text = if (isEs) "Escribe tu consulta o ciudad a añadir..." else "Type your question or city to add...",
+                            text = if (isEs) "Escribe tu consulta o tema de viaje..." else "Type your travel question...",
                             fontSize = 15.sp
                         )
+                    },
+                    trailingIcon = {
+                        if (geminiPrompt.isNotBlank()) {
+                            IconButton(onClick = { geminiPrompt = "" }) {
+                                Text("✕", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
                     },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -3097,41 +3234,215 @@ private fun AiAssistantScreen(
 
                 Spacer(Modifier.height(14.dp))
 
-                AppButtonRow(
-                    primaryText = if (isEs) "✨ Consultar IA" else "✨ Ask AI",
-                    onPrimaryClick = {
-                        geminiResponse = GeminiAssistantEngine.generateSmartTravelAnswer(
-                            prompt = geminiPrompt,
-                            eurToJpyRate = 164.80,
-                            currentPlan = portablePlan
-                        )
-                    },
-                    secondaryText = if (isEs) "🗓️ Aplicar en Ruta" else "🗓️ Apply to Route",
-                    onSecondaryClick = {
-                        val updated = AiPlanBuilderEngine.improveAndExpandPlan(
-                            currentPlan = portablePlan,
-                            userInstruction = geminiPrompt
-                        )
-                        SharedTravelPlanStore.updatePlan(updated)
-                        geminiResponse = updated.aiOptimizationSummary
-                    }
-                )
-
-                Spacer(Modifier.height(14.dp))
-
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.fillMaxWidth()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    Button(
+                        onClick = { performQuery(geminiPrompt) },
+                        enabled = !isLoading && geminiPrompt.isNotBlank(),
+                        modifier = Modifier.weight(1.3f)
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (isEs) "Consultando..." else "Consulting...", fontSize = 14.sp)
+                        } else {
+                            Text(if (isEs) "✨ Consultar IA" else "✨ Ask AI", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            if (geminiPrompt.isNotBlank()) {
+                                val updated = AiPlanBuilderEngine.improveAndExpandPlan(
+                                    currentPlan = portablePlan,
+                                    userInstruction = geminiPrompt
+                                )
+                                SharedTravelPlanStore.updatePlan(updated)
+                                assistantAnswer = updated.aiOptimizationSummary
+                                assistantSource = AssistantSource.OFFLINE_EXPERT.name
+                                assistantTime = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+                                actionStatusMessage = if (isEs) "🗓️ Itinerario actualizado con paradas" else "🗓️ Route updated with stops"
+                            }
+                        },
+                        enabled = !isLoading && geminiPrompt.isNotBlank(),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(if (isEs) "🗓️ Aplicar" else "🗓️ Apply", fontSize = 14.sp)
+                    }
+                }
+
+                if (actionStatusMessage != null) {
+                    Spacer(Modifier.height(10.dp))
                     Text(
-                        text = geminiResponse,
-                        fontSize = 15.sp,
-                        modifier = Modifier.padding(16.dp)
+                        text = actionStatusMessage ?: "",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
 
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(14.dp))
+
+                // Answer / Loading / Greeting display
+                if (isLoading) {
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.5.dp)
+                            Column {
+                                Text(
+                                    text = if (isEs) "Consultando al Asistente IA..." else "Consulting AI Assistant...",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                )
+                                Text(
+                                    text = if (prefs.geminiApiKey.isNullOrBlank()) {
+                                        if (isEs) "Consultando motor experto de viaje a Japón (100% offline)..." else "Querying offline Japan expert engine..."
+                                    } else {
+                                        if (isEs) "Conectando con Google Gemini Cloud..." else "Connecting to Google Gemini Cloud..."
+                                    },
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                } else if (assistantAnswer != null) {
+                    val currentAnswer = assistantAnswer ?: ""
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = if (assistantSource == AssistantSource.GEMINI_CLOUD.name) {
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    } else {
+                                        MaterialTheme.colorScheme.secondaryContainer
+                                    }
+                                ) {
+                                    Text(
+                                        text = if (assistantSource == AssistantSource.GEMINI_CLOUD.name) {
+                                            "✨ Gemini Cloud"
+                                        } else {
+                                            "⚡ Experto Japón Offline"
+                                        },
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (assistantSource == AssistantSource.GEMINI_CLOUD.name) {
+                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        } else {
+                                            MaterialTheme.colorScheme.onSecondaryContainer
+                                        },
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+
+                                if (assistantTime != null) {
+                                    Text(
+                                        text = "🕐 $assistantTime",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            Spacer(Modifier.height(10.dp))
+
+                            Text(
+                                text = currentAnswer,
+                                fontSize = 15.sp,
+                                lineHeight = 22.sp
+                            )
+
+                            Spacer(Modifier.height(14.dp))
+                            HorizontalDivider()
+                            Spacer(Modifier.height(10.dp))
+
+                            // Action buttons: Copy, Save to Guides, Apply to Planner
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = {
+                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        clipboard.setPrimaryClip(ClipData.newPlainText("IA Japón", currentAnswer))
+                                        actionStatusMessage = if (isEs) "📋 Respuesta copiada al portapapeles" else "📋 Copied to clipboard"
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(if (isEs) "📋 Copiar" else "📋 Copy", fontSize = 12.sp)
+                                }
+
+                                OutlinedButton(
+                                    onClick = {
+                                        val guideTitle = geminiPrompt.take(40).ifBlank { "Consejo IA Japón" }
+                                        val guide = TravelGuideArticle(
+                                            id = "guide-ai-${System.currentTimeMillis()}",
+                                            title = guideTitle,
+                                            cityRegion = "Japón",
+                                            tags = listOf("IA", "Consejos", "Offline"),
+                                            markdownSummary = currentAnswer,
+                                            isPinned = true
+                                        )
+                                        SharedDocumentsAndGuidesStore.upsertGuide(guide)
+                                        actionStatusMessage = if (isEs) "📖 ¡Guardado en Bóveda de Guías!" else "📖 Saved to Travel Guides!"
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(if (isEs) "📖 Guardar Guía" else "📖 Save Guide", fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "🇯🇵 ¡Hola! Soy tu Asistente IA de Viaje a Japón.",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                text = if (isEs) {
+                                    "Toca cualquiera de los temas rápidos arriba o escribe tu duda en el campo de texto (transporte, tarjetas Suica, Shinkansen, tax-free, qué ropa llevar, propinas, normas Onsen o precios en yenes)."
+                                } else {
+                                    "Tap any quick topic above or type your question (transport, Suica, Shinkansen, tax-free, clothing, tipping, onsen rules, or yen prices)."
+                                },
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(14.dp))
                 AppSecondaryButton(
                     text = if (isEs) "🗓️ Abrir Planificador de Viaje" else "🗓️ Open Trip Planner",
                     onClick = onNavigateToPlanner,
@@ -4128,6 +4439,58 @@ private fun SettingsPreferencesScreen(
                     },
                     modifier = Modifier.fillMaxWidth()
                 )
+            }
+        }
+
+        item {
+            KotlinConfCard {
+                Text(
+                    text = if (isEs) "Asistente IA (Google Gemini API Key)" else "AI Assistant (Google Gemini API Key)",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = if (isEs) {
+                        "Opcional: Si configuras tu API Key de Google AI Studio, las consultas complejas usarán Gemini 2.0 Flash cuando tengas conexión. Si no configuras ninguna clave, la app utilizará siempre el motor experto local 100% offline."
+                    } else {
+                        "Optional: Enter your Google AI Studio API key to enable Gemini 2.0 Flash cloud answers when online. Without a key, the app relies on the offline expert engine."
+                    },
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(12.dp))
+                var settingsGeminiKey by rememberSaveable { mutableStateOf(prefs.geminiApiKey ?: "") }
+                OutlinedTextField(
+                    value = settingsGeminiKey,
+                    onValueChange = { settingsGeminiKey = it },
+                    label = { Text("Gemini API Key (AIzaSy...)", fontSize = 15.sp) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(14.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { prefsRepository.setGeminiApiKey(settingsGeminiKey.trim()) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(if (isEs) "💾 Guardar Clave" else "💾 Save Key", fontSize = 14.sp)
+                    }
+                    if (!prefs.geminiApiKey.isNullOrBlank()) {
+                        OutlinedButton(
+                            onClick = {
+                                settingsGeminiKey = ""
+                                prefsRepository.setGeminiApiKey(null)
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(if (isEs) "🗑️ Borrar Clave" else "🗑️ Clear Key", fontSize = 14.sp)
+                        }
+                    }
+                }
             }
         }
     }
