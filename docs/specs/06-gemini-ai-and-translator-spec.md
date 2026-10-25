@@ -21,8 +21,11 @@ Dotar a **Japan Travel Tools** de capacidades de Inteligencia Artificial mediant
    - Interfaz dividida pensada para sostener el móvil o apoyar la tablet **TCL NXTPAPER 11 Plus** en una mesa:
      - **Mitad inferior (Idioma del viajero: Español o Inglés)**: Micrófono y texto en el idioma configurado en la app.
      - **Mitad superior (Japonés `日本語`, con opción de girar 180°)**: Muestra la traducción en caracteres japoneses grandes (`Kanji/Kana`), lectura fonética (**Romaji** para que el viajero pueda pronunciarlo) y reproducción de voz clara en japonés (`TTS`).
-   - **Escucha y Traducción Simultánea Bidireccional**:
-     - Reconocimiento de voz continuo (`SpeechRecognizer`) que transcribe y traduce en tiempo real lo que dice el usuario al japonés y lo que responde el interlocutor japonés al español/inglés.
+   - **Escucha y Traducción Simultánea Bidireccional por Voz y Audio (`Audio-First`: STT + Auto-TTS)**:
+     - Dado que el viajero **no sabe leer japonés**, la traducción simultánea es **100% guiada por voz y audio hablado en ambos sentidos**:
+       1. **Habla el Viajero (`🎙️ Hablar en ES/EN ➔ 🔊 Suena en Japonés`)**: El usuario habla por el micrófono en Español o Inglés (`RecognizerIntent` `es-ES` / `en-US`), la app traduce la frase y **la locuta automáticamente en voz alta en Japonés (`TextToSpeech` `Locale.JAPAN`)** para que la escuche el interlocutor japonés.
+       2. **Habla el Interlocutor Japonés (`🎙️ Escuchar Japonés ➔ 🔊 Suena en ES/EN`)**: El camarero, recepcionista o empleado de estación habla en Japonés (`RecognizerIntent` `ja-JP`), la app captura la voz japonesa, la traduce a Español/Inglés y **la locuta automáticamente en voz alta en Español/Inglés (`TextToSpeech` `es-ES` / `en-US`)** para que el viajero escuche la respuesta sin tener que leer japonés.
+       3. **Controles de Reproducción de Voz Directa (`🔊 Escuchar en Japonés` / `🔊 Escuchar en Español`) y Auto-Locución**: Cualquier frase seleccionada o traducida puede reproducirse por altavoz con un toque (y cuenta con interruptor de locución automática activado por defecto).
 3. **Traducción Visual con Cámara (Menús, Carteles y Ingredientes — OCR Offline)**:
    - Permite apuntar con la cámara o elegir una foto para extraer texto japonés (**Kanji / Hiragana / Katakana**) mediante **Google ML Kit Text Recognition v2 (Japanese)** offline y traducirlo al instante (con análisis multimodal enriquecido con **Gemini** cuando hay conexión).
 4. **Lanzador Directo a Google Translate / Intérprete Nativo de Pixel**:

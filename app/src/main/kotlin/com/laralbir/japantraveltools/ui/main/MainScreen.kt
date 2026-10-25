@@ -1,8 +1,13 @@
 package com.laralbir.japantraveltools.ui.main
 
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.provider.CalendarContract
+import android.speech.RecognizerIntent
+import android.speech.tts.TextToSpeech
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -50,6 +55,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -109,6 +115,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
+import java.util.Locale
 import java.util.TimeZone
 
 enum class JapanToolTab(
@@ -381,14 +388,14 @@ private fun KotlinConfStyleHeaderBar(
                     )
                 }
 
-                // Direct Quick Action for Simultaneous Translation (SPEC-06)
+                // Direct Quick Action for Simultaneous Voice & Audio Translation (SPEC-06)
                 Surface(
                     shape = RoundedCornerShape(50),
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.clickable { onQuickLiveTranslateClick() }
                 ) {
                     Text(
-                        text = if (isEs) "🎙️ Traducción 180°" else "🎙️ Live Translate",
+                        text = if (isEs) "🎙️🔊 Voz ⇄ 日本語" else "🎙️🔊 Voice ⇄ JP",
                         color = MaterialTheme.colorScheme.onPrimary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
@@ -1941,8 +1948,19 @@ private fun GeminiAndTranslatorScreen(
     isEs: Boolean,
     isTabletWide: Boolean
 ) {
+    val context = LocalContext.current
     val portablePlan by SharedTravelPlanStore.planState.collectAsState()
     var phraseInput by rememberSaveable { mutableStateOf("¿Dónde está el andén del Shinkansen?") }
+    var japaneseHeardInput by rememberSaveable {
+        mutableStateOf("いらっしゃいませ。何名様ですか？禁煙席でよろしいですか？")
+    }
+    var autoSpeakEnabled by rememberSaveable { mutableStateOf(true) }
+    var voiceStatusBanner by rememberSaveable {
+        mutableStateOf(
+            if (isEs) "🔊 Motor de Voz Activo: Pulsa 🎙️ Hablar o 🔊 Escuchar para traducir con audio real."
+            else "🔊 Voice Engine Ready: Tap 🎙️ Speak or 🔊 Listen for real audio translation."
+        )
+    }
     var rotateJapaneseCard180 by rememberSaveable { mutableStateOf(false) }
     var geminiPrompt by rememberSaveable { mutableStateOf("Traducir carta de Ramen y convertir precios ¥ a EUR") }
     var geminiResponse by rememberSaveable {
@@ -1954,6 +1972,33 @@ private fun GeminiAndTranslatorScreen(
     var aiPlanStatusBanner by rememberSaveable { mutableStateOf("") }
     var showJsonSheet by rememberSaveable { mutableStateOf(false) }
 
+    // Android Native TextToSpeech Engine (Japanese ja-JP + Traveler ES/EN)
+    var ttsEngine by remember { mutableStateOf<TextToSpeech?>(null) }
+    DisposableEffect(context) {
+        var instance: TextToSpeech? = null
+        instance = TextToSpeech(context) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                ttsEngine = instance
+            }
+        }
+        onDispose {
+            instance?.stop()
+            instance?.shutdown()
+        }
+    }
+
+    fun speakOutLoud(text: String, locale: Locale, label: String) {
+        val engine = ttsEngine
+        if (engine != null) {
+            engine.language = locale
+            engine.setSpeechRate(0.95f)
+            engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "utt_${System.currentTimeMillis()}")
+            voiceStatusBanner = "🔊 Reproduciendo por altavoz ($label): $text"
+        } else {
+            voiceStatusBanner = if (isEs) "⏳ Inicializando motor de voz TTS del Pixel..." else "⏳ Initializing Pixel TTS engine..."
+        }
+    }
+
     if (showJsonSheet) {
         JsonPortabilityModalSheet(
             isEs = isEs,
@@ -1964,6 +2009,45 @@ private fun GeminiAndTranslatorScreen(
     val translation = remember(phraseInput) {
         OfflineTranslatorEngine.translateToJapanese(phraseInput)
     }
+    val japaneseReplyTranslation = remember(japaneseHeardInput) {
+        OfflineTranslatorEngine.translateFromJapaneseSpeech(japaneseHeardInput)
+    }
+
+    // Speech-to-Text Launcher 1: Traveler speaks ES/EN -> Translates & Speaks Japanese out loud
+    val travelerSpeechLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val matches = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            val spokenText = matches?.firstOrNull()
+            if (!spokenText.isNullOrBlank()) {
+                phraseInput = spokenText
+                val translated = OfflineTranslatorEngine.translateToJapanese(spokenText)
+                if (autoSpeakEnabled) {
+                    speakOutLoud(translated.japaneseText, Locale.JAPAN, "日本語 🇯🇵")
+                }
+            }
+        }
+    }
+
+    // Speech-to-Text Launcher 2: Japanese person speaks ja-JP -> Translates & Speaks ES/EN out loud to Traveler!
+    val japaneseSpeechLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val matches = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            val heardJa = matches?.firstOrNull()
+            if (!heardJa.isNullOrBlank()) {
+                japaneseHeardInput = heardJa
+                val reply = OfflineTranslatorEngine.translateFromJapaneseSpeech(heardJa)
+                val targetSpeech = if (isEs) reply.spanishSpokenText else reply.englishSpokenText
+                val targetLocale = if (isEs) Locale("es", "ES") else Locale.US
+                if (autoSpeakEnabled) {
+                    speakOutLoud(targetSpeech, targetLocale, if (isEs) "Español 🇪🇸" else "English 🇬🇧")
+                }
+            }
+        }
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -1971,7 +2055,7 @@ private fun GeminiAndTranslatorScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            // Simultaneous Face-to-Face Translator Card (180° Flippable)
+            // Simultaneous Bidirectional Voice & Audio Translator Card (STT + Auto-TTS)
             KotlinConfCard(accentBorderColor = MaterialTheme.colorScheme.primary) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1979,18 +2063,87 @@ private fun GeminiAndTranslatorScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (isEs) "🎙️ Traducción Simultánea ES/EN ⇄ 日本語 (Offline)" else "🎙️ Simultaneous Live Translate (Offline)",
+                        text = if (isEs) "🎙️🔊 Traducción Simultánea por Voz y Audio" else "🎙️🔊 Simultaneous Voice & Audio Translator",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    OutlinedButton(onClick = { rotateJapaneseCard180 = !rotateJapaneseCard180 }) {
-                        Text(if (rotateJapaneseCard180) "🔄 Normal" else "🔄 Girar 180° Mesa", fontSize = 11.sp)
+                    OutlinedButton(
+                        onClick = { rotateJapaneseCard180 = !rotateJapaneseCard180 },
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(if (rotateJapaneseCard180) "🔄 Normal" else "🔄 180°", fontSize = 11.sp)
+                    }
+                }
+
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = voiceStatusBanner,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.tertiary,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Spacer(Modifier.height(10.dp))
+
+                // BIG TWO-WAY VOICE MICROPHONE BUTTONS (Hands-free audio for someone who doesn't read Japanese)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            runCatching {
+                                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, if (isEs) "es-ES" else "en-US")
+                                    putExtra(
+                                        RecognizerIntent.EXTRA_PROMPT,
+                                        if (isEs) "🎙️ Habla en Español (sonará en Japonés)..." else "🎙️ Speak in English (will speak Japanese)..."
+                                    )
+                                }
+                                travelerSpeechLauncher.launch(intent)
+                            }.onFailure {
+                                speakOutLoud(translation.japaneseText, Locale.JAPAN, "日本語 🇯🇵")
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text(
+                            text = if (isEs) "🎙️ Hablar Yo (ES)\n➔ 🔊 Suena Japonés" else "🎙️ Speak (EN)\n➔ 🔊 Plays Japanese",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            runCatching {
+                                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ja-JP")
+                                    putExtra(RecognizerIntent.EXTRA_PROMPT, "🎙️ 日本語で話してください (Habla el Japonés)...")
+                                }
+                                japaneseSpeechLauncher.launch(intent)
+                            }.onFailure {
+                                val spoken = if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText
+                                speakOutLoud(spoken, if (isEs) Locale("es", "ES") else Locale.US, if (isEs) "Español 🇪🇸" else "English 🇬🇧")
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                    ) {
+                        Text(
+                            text = if (isEs) "🎙️ Escuchar Japonés\n➔ 🔊 Me habla en ES" else "🎙️ Listen Japanese\n➔ 🔊 Speaks to me in EN",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
 
                 Spacer(Modifier.height(10.dp))
 
-                // Japanese Counterpart Display (rotatable 180 degrees to show across a counter/table)
+                // DIRECTION 1: What the Traveler says -> Spoken in Japanese out loud
                 Surface(
                     shape = RoundedCornerShape(14.dp),
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
@@ -1999,32 +2152,47 @@ private fun GeminiAndTranslatorScreen(
                         .fillMaxWidth()
                         .rotate(if (rotateJapaneseCard180) 180f else 0f)
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = translation.japaneseText,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.ExtraBold
-                        )
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (isEs) "🇯🇵 Lo que suena en Japonés para él/ella:" else "🇯🇵 Spoken in Japanese for them:",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Button(
+                                onClick = {
+                                    speakOutLoud(translation.japaneseText, Locale.JAPAN, "日本語 🇯🇵")
+                                },
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                            ) {
+                                Text(if (isEs) "🔊 Sonar en Japonés" else "🔊 Speak Japanese", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "🗣️ Romaji: ${translation.romaji}",
-                            fontSize = 13.sp,
+                            text = translation.japaneseText,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Text(
+                            text = "🗣️ Cómo se pronuncia: ${translation.romaji}",
+                            fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.secondary,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
 
-                Spacer(Modifier.height(10.dp))
-
-                OutlinedTextField(
-                    value = phraseInput,
-                    onValueChange = { phraseInput = it },
-                    label = { Text(if (isEs) "Habla o escribe en Español / Inglés" else "Speak or type in English / Spanish") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
                 Spacer(Modifier.height(8.dp))
+                Text(
+                    text = if (isEs) "Toca una frase para que el móvil la hable en Japonés:" else "Tap a phrase to speak it out loud in Japanese:",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2034,8 +2202,101 @@ private fun GeminiAndTranslatorScreen(
                     OfflineTranslatorEngine.essentialPhrases.forEach { preset ->
                         FilterChip(
                             selected = phraseInput == preset.sourceText,
-                            onClick = { phraseInput = preset.sourceText },
-                            label = { Text(preset.categoryBadge, fontSize = 11.sp) }
+                            onClick = {
+                                phraseInput = preset.sourceText
+                                speakOutLoud(preset.japaneseText, Locale.JAPAN, "日本語 🇯🇵")
+                            },
+                            label = { Text("🔊 ${preset.categoryBadge}", fontSize = 11.sp) }
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = phraseInput,
+                    onValueChange = { phraseInput = it },
+                    label = { Text(if (isEs) "Tu frase en Español / Inglés" else "Your phrase in English / Spanish") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(10.dp))
+
+                // DIRECTION 2: What the Japanese person replies -> Spoken in Spanish/English for the Traveler!
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (isEs) "🇪🇸 Lo que te responde el Japonés (en tu idioma):" else "🇬🇧 What the Japanese speaker replied (in English):",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Button(
+                                onClick = {
+                                    val spoken = if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText
+                                    speakOutLoud(
+                                        spoken,
+                                        if (isEs) Locale("es", "ES") else Locale.US,
+                                        if (isEs) "Español 🇪🇸" else "English 🇬🇧"
+                                    )
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                            ) {
+                                Text(if (isEs) "🔊 Escuchar en Español" else "🔊 Listen in English", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "🇯🇵 Voz captada: ${japaneseReplyTranslation.japaneseHeardText}",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = if (isEs) "Respuestas habituales en Japón (toca para escucharlas en Español):" else "Common replies in Japan (tap to hear in English):",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OfflineTranslatorEngine.incomingJapaneseSamples.forEach { sample ->
+                        FilterChip(
+                            selected = japaneseHeardInput == sample.japaneseHeardText,
+                            onClick = {
+                                japaneseHeardInput = sample.japaneseHeardText
+                                val spoken = if (isEs) sample.spanishSpokenText else sample.englishSpokenText
+                                speakOutLoud(
+                                    spoken,
+                                    if (isEs) Locale("es", "ES") else Locale.US,
+                                    if (isEs) "Español 🇪🇸" else "English 🇬🇧"
+                                )
+                            },
+                            label = { Text("🔊 ${sample.contextLabel}", fontSize = 11.sp) }
                         )
                     }
                 }
