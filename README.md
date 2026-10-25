@@ -38,6 +38,10 @@ Aplicación Android **offline-first** con herramientas esenciales para viajar a 
    - Galería de fotos offline asociada a cada parada o actividad del itinerario.
    - **Integración dual con Google Maps**: Mapa interactivo embebido (`Maps Compose`) con marcadores numerados de la ruta del día + almacenamiento offline de coordenadas/direcciones en japonés y lanzamiento directo de rutas en la app de Google Maps.
    - Sincronización/exportación opcional al Calendario del sistema / Google Calendar y vinculación directa con PDFs de reservas y guías de viaje.
+6. **Planificador de Vuelos: Facturación, Embarque, Salida, Escalas y Llegada [En Especificación - Beta]**
+   - Gestión de trayectos aéreos multi-tramo (ida, vuelta y vuelos domésticos en Japón) 100% offline.
+   - Línea temporal detallada por vuelo: apertura de check-in online, hora de facturación en mostrador y cierre de equipaje, hora de embarque, puerta, asiento, salida, llegada (`+1`/`+2` días) y cálculo automático de duración real entre zonas horarias.
+   - **Calculador de Escalas (`Layovers`)**: Tiempo total de conexión, tiempo real disponible hasta el siguiente embarque, cambio de terminal y alerta de escala ajustada, con acceso directo a la tarjeta de embarque (`SPEC-03`).
 
 ---
 
@@ -69,6 +73,7 @@ Toda la documentación técnica y funcional se encuentra en español dentro del 
   - [02 - Herramienta: Conversor de Divisa Offline-First (EUR <-> JPY)](docs/specs/02-currency-converter-spec.md)
   - [03 - Herramienta: Pasaporte/DNI, Repositorio de Documentos y Guías de Viaje](docs/specs/03-documents-and-id-vault-spec.md)
   - [04 - Herramienta: Planificador de Viaje (Fotos, Google Maps, Calendario y Horarios)](docs/specs/04-trip-planner-spec.md)
+  - [05 - Herramienta: Planificador de Vuelos (Facturación, Embarque, Salida, Escalas y Llegada)](docs/specs/05-flight-planner-spec.md)
 - **Análisis Técnico**:
   - [Arquitectura, Stack Tecnológico y Estrategia TDD](docs/analysis/architecture-and-tech-stack.md)
 - **Planificación de Tareas**:

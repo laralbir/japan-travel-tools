@@ -130,3 +130,29 @@ Organiza tu itinerario día por día y hora por hora en un solo lugar conectado 
 ### 5.4. Sincronización con tu Calendario y Vínculo con Reservas
 - **Vincular Documentos y Guías**: Enlaza directamente el PDF de tu reserva de hotel, entrada de museo o guía de barrio a la actividad correspondiente del horario para abrirlo con un toque.
 - **Exportar a Google Calendar / Calendario del Sistema**: Pulsa **"Añadir al Calendario"** para exportar una actividad o todo tu itinerario al calendario de tu teléfono con la zona horaria de Japón (`Asia/Tokyo`) configurada automáticamente.
+
+---
+
+## 6. Herramienta: Planificador de Vuelos (Facturación, Embarque, Salida, Escalas y Llegada)
+
+Los viajes a Japón suelen incluir vuelos largos y escalas internacionales atravesando múltiples zonas horarias. Esta herramienta te permite tener todo el cronograma aéreo bajo control y 100% offline.
+
+### 6.1. Qué puedes configurar en cada vuelo y tramo
+Puedes crear un trayecto completo (por ejemplo, *"Ida a Japón"* o *"Vuelta a Casa"*) compuesto por uno o varios vuelos conectados:
+1. **Datos del Vuelo**: Aerolínea, número de vuelo (`IB6801`, `QR806`, `NH211`), código de reserva (`PNR` copiable), Terminal, Mostrador de facturación, Puerta de embarque (`Gate`), Asiento (`Seat`) y Cinta de equipaje.
+2. **Cronograma paso a paso por tramo**:
+   - 🕒 **Apertura de Check-in Online** y **Hora de Facturación en mostrador / Límite de maletas (`Bag Drop`)**.
+   - 🛂 **Hora de Embarque (`Boarding`)** y cierre de puerta.
+   - 🛫 **Hora de Salida (`Departure`)** en la hora local del aeropuerto de origen.
+   - 🛬 **Hora de Llegada (`Arrival`)** en la hora local del aeropuerto de destino (indicando automáticamente si llegas `+1 día` o `+2 días` después).
+   - ⏱️ **Duración real del vuelo**: Calculada automáticamente teniendo en cuenta la diferencia de husos horarios entre origen, escala y Japón.
+
+### 6.2. Control de Escalas (`Layovers`)
+- Si tu vuelo tiene una o más escalas (por ejemplo, en *Doha*, *Dubái*, *Estambul*, *Fráncfort* o *París*), la app muestra automáticamente entre ambos vuelos una **Tarjeta de Escala** con:
+  - El **tiempo total de escala** (desde que aterrizas hasta que despega el siguiente avión).
+  - El **tiempo real disponible hasta el siguiente Embarque** (para que sepas cuánto margen tienes para cambiar de terminal o pasar controles).
+  - Cambio de terminal (ej. `Terminal 1 ➔ Terminal 3`) y **alerta visual en rojo (`Akabeni`)** si la escala es ajustada.
+
+### 6.3. Tarjetas de Embarque a un toque y Alarmas Offline
+- Enlaza el PDF o captura QR de tu **Tarjeta de Embarque** a cada tramo para abrirla al instante desde la propia tarjeta del vuelo sin buscarla.
+- Activa recordatorios locales para que el teléfono te avise cuando abra el Check-in online, cuando toque facturar o cuando empiece el embarque.

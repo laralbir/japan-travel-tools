@@ -1,6 +1,6 @@
 # Análisis Técnico: Arquitectura Android, Stack Tecnológico y Estrategia TDD
 
-Este documento recoge la fase de **Análisis** del flujo SDD para traducir las especificaciones [`SPEC-00`](../specs/00-core-configuration-spec.md), [`SPEC-01`](../specs/01-world-clock-spec.md), [`SPEC-02`](../specs/02-currency-converter-spec.md), [`SPEC-03`](../specs/03-documents-and-id-vault-spec.md) y [`SPEC-04`](../specs/04-trip-planner-spec.md) en una arquitectura sólida, desacoplada y 100% verificable mediante TDD.
+Este documento recoge la fase de **Análisis** del flujo SDD para traducir las especificaciones [`SPEC-00`](../specs/00-core-configuration-spec.md), [`SPEC-01`](../specs/01-world-clock-spec.md), [`SPEC-02`](../specs/02-currency-converter-spec.md), [`SPEC-03`](../specs/03-documents-and-id-vault-spec.md), [`SPEC-04`](../specs/04-trip-planner-spec.md) y [`SPEC-05`](../specs/05-flight-planner-spec.md) en una arquitectura sólida, desacoplada y 100% verificable mediante TDD.
 
 ---
 
@@ -84,6 +84,10 @@ flowchart TD
   - `domain/`: `CreateTripUseCase`, `ScheduleItineraryItemUseCase`, `DetectScheduleConflictsUseCase`, `ParseGoogleMapsUrlUseCase`, `ExportToSystemCalendarUseCase`, `TripPlannerRepository`.
   - `data/`: `TripPlannerDao`, `SystemCalendarExporter`, `GoogleMapsIntentLauncher`.
   - `ui/`: `TripPlannerScreen`, `DayTimelineView`, `DayEmbeddedMapView`, `ItineraryItemEditorSheet`, `TripPlannerViewModel`.
+- `feature/flights/`:
+  - `domain/`: `CalculateFlightTimelineUseCase`, `CalculateLayoverInfoUseCase`, `FlightPlannerRepository`, modelos `FlightJourney`, `FlightSegment`, `LayoverDetails`.
+  - `data/`: `FlightPlannerDao`, `AirportTimeZoneCatalog` (catálogo offline de aeropuertos principales como `MAD`, `BCN`, `DOH`, `DXB`, `IST`, `FRA`, `CDG`, `HND`, `NRT`, `KIX`, `FUK`, `CTS` con sus `ZoneId` y coordenadas).
+  - `ui/`: `FlightPlannerScreen`, `FlightSegmentTimelineCard`, `LayoverConnectorCard`, `FlightEditorSheet`, `FlightPlannerViewModel`.
 
 ---
 
@@ -163,6 +167,39 @@ data class UserPreferences(
   - `linkedGuideId: String?` (FK opcional a guía en `travel_guides`)
   - `syncedCalendarEventId: Long?` (ID en `CalendarContract` si fue exportado)
 
+### 3.5. Planificador de Vuelos y Escalas (`FlightJourneyEntity` & `FlightSegmentEntity`)
+- **Tabla Room `flight_journeys`** (Agrupador de trayecto, ej. *Ida a Japón* / *Vuelta a Casa* / *Vuelo doméstico*):
+  - `id: String` (UUID)
+  - `tripId: String?` (FK opcional a `trips`)
+  - `title: String` (ej. `"Vuelo de Ida: Madrid ➔ Tokio Haneda"`)
+  - `bookingReferencePnr: String?`
+- **Tabla Room `flight_segments`** (Cada vuelo individual dentro del trayecto):
+  - `id: String` (UUID)
+  - `journeyId: String` (FK a `flight_journeys`)
+  - `segmentOrder: Int` (`0`, `1`, `2`...)
+  - `airline: String`
+  - `flightNumber: String` (ej. `"QR806"`)
+  - `departureAirportIata: String` (ej. `"MAD"`, `"DOH"`)
+  - `departureCity: String`
+  - `departureZoneId: String` (ej. `"Europe/Madrid"`, `"Asia/Qatar"`)
+  - `departureTerminal: String?`
+  - `checkInCounter: String?`
+  - `boardingGate: String?`
+  - `seatNumber: String?`
+  - `onlineCheckInOpensIso: String?`
+  - `counterCheckInTimeIso: String?` (Hora de facturación en aeropuerto)
+  - `bagDropDeadlineIso: String?` (Cierre de facturación de maletas)
+  - `boardingTimeIso: String?` (Hora de embarque)
+  - `departureTimeIso: String` (Hora de salida local en `departureZoneId`)
+  - `arrivalAirportIata: String` (ej. `"DOH"`, `"HND"`, `"NRT"`, `"KIX"`)
+  - `arrivalCity: String`
+  - `arrivalZoneId: String` (ej. `"Asia/Tokyo"`)
+  - `arrivalTerminal: String?`
+  - `baggageClaimBelt: String?`
+  - `arrivalTimeIso: String` (Hora de llegada local en `arrivalZoneId`)
+  - `boardingPassDocumentId: String?` (FK opcional a la tarjeta de embarque en `travel_documents`)
+  - `notes: String?`
+
 ---
 
 ## 4. Estrategia de Testing (TDD)
@@ -177,6 +214,7 @@ Cada funcionalidad sigue el ciclo **Red -> Green -> Refactor**:
      - Conversión bidireccional `EUR <-> JPY`, aplicación de tasas semilla cuando no hay red, actualización de caché con Frankfurter API simulada (`MockEngine` / Fake API) y supervivencia de datos en modo offline.
      - Filtrado, categorización, alta y borrado de documentos de viaje, guías personalizadas/importadas y fotos de Pasaporte/DNI usando un `FakeFileStorageManager`.
      - Lógica del **Planificador de Viaje**: generación de días entre fechas, ordenación cronológica de horarios, detección de solapamientos (`DetectScheduleConflictsUseCase`), extracción de coordenadas desde enlaces de Google Maps (`ParseGoogleMapsUrlUseCase`) y conversión de horarios a `Asia/Tokyo` para exportación a calendario.
+     - Lógica del **Planificador de Vuelos (`SPEC-05`)**: cálculo exacto de duración real de cada tramo aéreo entre distintas zonas horarias (`CalculateFlightTimelineUseCase`), cálculo de tiempo total y tiempo útil de escala hasta el siguiente embarque (`CalculateLayoverInfoUseCase`), detección de alertas de escala corta (`< 60/90 min`) y cálculo de diferencia de días (`+1 día` / `+2 días`).
 2. **Tests de UI / Instrumentados (`src/androidTest/java`)**:
    - **Compose UI Test (`createComposeRule`) + Room In-Memory Database**.
    - Verificación de navegación, cambio de tema Claro/Oscuro, interacción con el conversor, selector de zona horaria de origen, creación/lectura de guías de viaje y línea temporal/mapa del planificador.

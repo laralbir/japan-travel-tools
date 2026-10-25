@@ -70,8 +70,16 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 
 ---
 
-## Hito 7: Cierre de Beta, Aprobación y Release Estable `v0.0.1`
+## Hito 7: Herramienta 5 — Planificador de Vuelos: Facturación, Embarque, Salida, Escalas y Llegada (`SPEC-05`)
 
-- [ ] **TASK-601**: Ejecutar batería completa de tests unitarios e instrumentados y validar uso 100% en Modo Avión.
-- [ ] **TASK-602**: Revisión y aprobación del usuario de cada herramienta para retirar la etiqueta `BETA`.
-- [ ] **TASK-603**: Merge a `main` vía Gitflow (`release/0.0.1`), generación de tag `v0.0.1`, compilación de APK final y publicación en **GitHub Releases**.
+- [ ] **TASK-601 (TDD)**: Escribir tests unitarios para `CalculateFlightTimelineUseCase` y `CalculateLayoverInfoUseCase` (cálculo exacto de duración de vuelo entre zonas horarias distintas p. ej. `Europe/Madrid` -> `Asia/Qatar` -> `Asia/Tokyo`, tiempos de facturación, embarque, tiempo total de escala vs. tiempo hasta siguiente embarque, alertas de escala corta y cambio de día `+1`/`+2`).
+- [ ] **TASK-602 (TDD)**: Implementar `FlightPlannerDao` (Room), `FlightPlannerRepository` y catálogo offline `AirportTimeZoneCatalog` (aeropuertos internacionales y de Japón `HND`, `NRT`, `KIX`, `ITM`, `FUK`, `CTS` con su zona horaria y coordenadas).
+- [ ] **TASK-603 (TDD)**: Implementar `FlightPlannerViewModel` y pantallas Compose (`FlightPlannerScreen`, `FlightSegmentTimelineCard`, `LayoverConnectorCard`) con estilo `KotlinConf` + colores de Japón, vinculación directa con tarjetas de embarque del repositorio (`SPEC-03`), recordatorios offline y vista adaptativa para Pixel 9/10 Pro XL y TCL NXTPAPER 11 Plus.
+
+---
+
+## Hito 8: Cierre de Beta, Aprobación y Release Estable `v0.0.1`
+
+- [ ] **TASK-701**: Ejecutar batería completa de tests unitarios e instrumentados y validar uso 100% en Modo Avión.
+- [ ] **TASK-702**: Revisión y aprobación del usuario de cada herramienta para retirar la etiqueta `BETA`.
+- [ ] **TASK-703**: Merge a `main` vía Gitflow (`release/0.0.1`), generación de tag `v0.0.1`, compilación de APK final y publicación en **GitHub Releases**.
