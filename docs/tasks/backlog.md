@@ -23,7 +23,8 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 - [ ] **TASK-102 (TDD)**: Implementar `UserPreferencesRepository` con Jetpack DataStore y sus tests de persistencia (tema Claro/Oscuro/Sistema, idioma, preferencias de herramientas).
 - [ ] **TASK-103 (TDD)**: Implementar recursos de cadenas `res/values/strings.xml` (EN por defecto) y `res/values-es/strings.xml` (ES), junto con `SettingsViewModel` y `SettingsScreen`.
 - [ ] **TASK-104 (TDD)**: Implementar apartado **"Acerca de y Licencias Open Source"** (`AboutScreen` y `OpenSourceLicensesScreen` con plugin `AboutLibraries`), mostrando la versión exacta de la app (`0.0.1-beta.X` / `0.0.1`), créditos de datos abiertos (Frankfurter API) y todas las librerías de terceros usadas con sus licencias offline.
-- [ ] **TASK-105 (TDD)**: Implementar navegación adaptativa (`NavigationSuiteScaffold` + `WindowSizeClass`) con indicador visual `BETA`:
+- [ ] **TASK-105 (TDD)**: Diseñar y generar el **Icono Oficial de la App (`Adaptive Icon` con capas `foreground`, `background` y `monochrome` para Pixel Launcher)**, configurar la **Splash Screen nativa (`androidx.core:core-splashscreen`)** en modo Claro (*Washi*) y Oscuro (*Sumi*), e integrar el set de **iconos vectoriales modernos** en el Design System.
+- [ ] **TASK-106 (TDD)**: Implementar navegación adaptativa (`NavigationSuiteScaffold` + `WindowSizeClass`) con indicador visual `BETA`:
   - `NavigationBar` inferior ergonómica y Edge-to-Edge en **Pixel 10 Pro XL / Pixel 9 Pro XL**.
   - `NavigationRail` lateral y layouts multi-panel (`ListDetailPaneScaffold` / `SupportingPaneScaffold`) + alto contraste NXTPAPER en la tablet **TCL NXTPAPER 11 Plus**.
 

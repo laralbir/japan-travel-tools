@@ -95,6 +95,21 @@ La interfaz de usuario, el rendimiento y la ergonomía táctil deberán estar es
    - **Modo de Alto Contraste / Tinta para Pantalla NXTPAPER**:
      - Paleta y tipografía con contraste reforzado y bordes definidos (`OutlinedCard` / trazos nítidos sin depender de sombras difusas tenues), optimizada tanto para el modo a color mate como para los modos de lectura **Ink Paper (Blanco y Negro)** y **Color Paper** propios de la tecnología TCL NXTPAPER.
 
+### RF-00.8: Iconografía Moderna, Generación de Icono de App (Adaptive Icon) y Splash Screen Nativa
+1. **Iconografía Moderna en toda la Interfaz**:
+   - Se prohíbe el uso de iconos heredados antiguos o emojis planos como sustitutos de iconos de navegación/acción.
+   - Se utilizará un sistema de **iconos vectoriales modernos (`VectorDrawable` / `ImageVector`)** de trazo limpio y redondeado (`2.dp` stroke, estilo **Lucide Icons / Phosphor Icons / Material Symbols Rounded** en línea con **[JetBrains KotlinConf App](https://jetbrains.github.io/kotlinconf-app/)**), con estados `Outlined` (inactivo) y `Filled/Duotone` (activo).
+   - Iconos temáticos personalizados para el contexto de viaje a Japón (Torii / Templo, Yen `¥`, Shinkansen / Tren bala, Avión / Escala, Pasaporte Biométrico, Reloj Dual, Mapa de Ruta).
+2. **Generación de Icono de la Aplicación (`Adaptive Launcher Icon` + `Monochrome`)**:
+   - Se diseñará y generará el icono oficial de **Japan Travel Tools** cumpliendo el estándar **Android Adaptive Icons** (`res/mipmap-anydpi-v26/ic_launcher.xml` y `ic_launcher_round.xml`):
+     - **Background Layer**: Fondo en textura/tono cálido *Washi* (`#FAF7F2`) o Índigo profundo *Ai-iro* (`#165E83`) con geometría sutil japonesa (*Seigaiha* / ondas).
+     - **Foreground Layer**: Emblema minimalista y moderno que combina el **Sol Naciente (`Akabeni` `#C9171E`)**, la silueta de un **Torii / Monte Fuji** y un **avión/brújula de viaje** en trazos vectoriales limpios.
+     - **Monochrome Layer (Android 13+ Themed Icons)**: Capa monocromática vectorial pura para que en los **Google Pixel 10 Pro XL y Pixel 9 Pro XL** el icono se adapte automáticamente a los iconos temáticos de *Material You* del escritorio de Pixel Launcher.
+3. **Generación de Splash Screen Nativa (`androidx.core:core-splashscreen`)**:
+   - Implementación mediante la API oficial **AndroidX SplashScreen** (Android 12+ y compatible hacia atrás):
+     - Fondo adaptado automáticamente al tema del sistema (*Washi* `#FAF7F2` en modo claro / *Sumi* `#0F1115` en modo oscuro para evitar fogonazos blancos en pantallas OLED por la noche).
+     - **Icono central animado (`windowSplashScreenAnimatedIcon`)** con transición fluida hacia la pantalla principal una vez cargadas las preferencias de `DataStore` (sin pantallas de carga artificiales ni bloqueos).
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin / BDD)
@@ -126,3 +141,8 @@ La interfaz de usuario, el rendimiento y la ergonomía táctil deberán estar es
 - **Entonces** la navegación se muestra mediante `NavigationBar` inferior ergonómica con diseño Edge-to-Edge y vistas de un solo panel.
 - **Y cuando** abre la misma aplicación en una tablet **TCL NXTPAPER 11 Plus** (`WindowWidthSizeClass.Medium` / `Expanded`, pantalla 11.5" 3:2)
 - **Entonces** la navegación cambia automáticamente a `NavigationRail` lateral, el Planificador muestra el horario y el mapa de Google Maps lado a lado en doble panel, y las Guías/Documentos se abren en vista Maestro-Detalle con contraste nítido optimizado para pantalla NXTPAPER.
+
+### Escenario 6: Visualización de Adaptive Icon (con soporte Material You en Pixel) y Splash Screen
+- **Dado** que el usuario instala la app en un **Pixel 10 Pro XL / Pixel 9 Pro XL** con "Iconos temáticos" activados o desactivados
+- **Cuando** visualiza el icono en el launcher y abre la app
+- **Entonces** el icono muestra el diseño vectorial japonés (o su variante monocromática adaptada al color del Pixel), y al abrirse presenta la **Splash Screen** nativa con el color de fondo acorde al modo Claro/Oscuro antes de entrar sin parpadeos a la pantalla principal.
