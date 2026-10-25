@@ -86,3 +86,19 @@ Cada vez que se realiza un merge a `main` (ya sea una versión `-beta.X` o una v
      --prerelease
    ```
    *(El flag `--prerelease` se utiliza para todas las versiones `-beta.X` y se omite cuando la versión es 100% final y aprobada).*
+
+---
+
+## 5. Gestión y Respuesta de Issues en GitHub
+
+Durante el desarrollo es obligatorio revisar los issues abiertos en GitHub mediante GitHub CLI (`gh issue list` y `gh issue view <id>`):
+
+1. **Analizar si procede reparar o no el issue**:
+   - Verificar reproducibilidad, coherencia con las especificaciones SDD y principios del proyecto (como el modo 100% offline).
+2. **Responder siempre al issue (`gh issue comment <id>`)**:
+   - **Cuando procede repararlo**:
+     - Publicar comentario con el análisis técnico y la tarea asignada.
+     - Seguir el ciclo SDD + TDD (añadir primero un test unitario o de UI que falle reproduciendo el issue).
+     - Referenciar el número de issue en los commits (`fix(scope): description (#123)`) y cerrarlo comentando la solución aplicada.
+   - **Cuando NO procede repararlo**:
+     - Publicar comentario explicando de forma clara y justificada por qué no aplica (duplicado, comportamiento esperado según spec o fuera de alcance) antes de cerrarlo.

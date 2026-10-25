@@ -3,6 +3,8 @@
 Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas están ordenadas secuencialmente para implementarse aplicando **TDD (Red -> Green -> Refactor)** y **Gitflow**.
 
 > **Regla de versión Beta**: Mientras exista cualquier tarea pendiente o sin aprobación final del usuario en una herramienta, las versiones publicadas llevarán sufijo `-beta.X` (comenzando por `0.0.1-beta.1`) y las herramientas mostrarán su estado `BETA`.
+>
+> **Tarea Continua Transversal (`TASK-ISSUES`)**: En cada iteración de desarrollo y antes de cada release, revisar los **Issues de GitHub** (`gh issue list`), analizar si procede o no reparar cada issue reportado, **responder en el hilo del issue** con el resultado del análisis y, si procede, aplicar el ciclo SDD + TDD hasta su resolución y cierre.
 
 ---
 

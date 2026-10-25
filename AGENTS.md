@@ -90,3 +90,21 @@ Todos los mensajes de commit deben seguir el estándar [Conventional Commits v1.
   - [`README.md`](README.md)
   - [`CHANGELOG.md`](CHANGELOG.md)
   - Documentación técnica y guía de usuario en [`/docs/`](docs/)
+
+---
+
+## 6. Gestión, Triaje y Respuesta de GitHub Issues
+
+Durante todo el ciclo de desarrollo (al inicio de cada sesión, antes de planificar una nueva iteración y antes de preparar una release), el agente **debe revisar activamente el apartado de Issues de GitHub** (`gh issue list --state open` / `gh issue view <id>`):
+
+1. **Revisión y Análisis de Procedencia (Triaje)**:
+   - Analizar cada issue abierto contrastándolo con las especificaciones en `/docs/specs/`, la arquitectura offline-first y el estado actual del código.
+   - Determinar **si procede o no** reparar/implementar lo indicado en el issue:
+     - **Si procede (Bug válido o Mejora alineada)**:
+       1. Responder en el issue (`gh issue comment <id>`) confirmando la recepción, explicando la causa raíz o el plan de acción SDD/TDD y la rama donde se abordará.
+       2. Si añade o cambia comportamiento, actualizar primero Especificación -> Análisis -> Tareas.
+       3. Crear la rama correspondiente (`fix/issue-<id>-<descripcion>` o `feature/issue-<id>-<descripcion>`), escribir el test que reproduce el fallo (`RED`), repararlo (`GREEN`), refactorizar (`REFACTOR`) y referenciar el issue en el commit (`fix(<scope>): ... (#<id>)` / `Closes #<id>`).
+       4. Al fusionar la solución, responder en el issue indicando el commit/versión que lo resuelve y cerrar el issue (`gh issue close <id>`).
+     - **Si NO procede (Duplicado, no reproducible, por diseño o fuera de alcance)**:
+       1. Responder educada y detalladamente en el issue (`gh issue comment <id>`) justificando técnicamente por qué no procede o pidiendo información adicional si no es reproducible.
+       2. Etiquetar/cerrar el issue según corresponda (`wontfix`, `invalid`, `duplicate`) tras dejar constancia escrita de la respuesta.

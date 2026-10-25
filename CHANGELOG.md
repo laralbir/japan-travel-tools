@@ -19,4 +19,4 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
   - `05-flight-planner-spec.md`: Especificación del **Planificador de Vuelos** multi-tramo con horas de facturación, embarque, salida, llegada, cálculo automático de duración entre husos horarios, asistente de escalas (`Layovers`) y vínculo directo con tarjetas de embarque offline.
 - Documentación de **Fase 2: Análisis Técnico** en `/docs/analysis/architecture-and-tech-stack.md`.
 - Documentación de **Fase 3: Plan de Tareas (TDD)** en `/docs/tasks/backlog.md`, incluyendo en el TODO la búsqueda y selección de un template moderno y útil para la app antes del scaffolding.
-- Guía de usuario en español (`docs/user-guide.md`) y guía de flujo de trabajo Gitflow/Releases (`docs/development-workflow.md`).
+- Guía de usuario en español (`docs/user-guide.md`) y guía de flujo de trabajo Gitflow/Releases/Issues (`docs/development-workflow.md`), incluyendo el protocolo obligatorio de revisión, análisis de procedencia y respuesta a **GitHub Issues**.

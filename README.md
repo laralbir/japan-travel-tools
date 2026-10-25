@@ -61,6 +61,8 @@ Este proyecto se rige por las directrices definidas en [`AGENTS.md`](AGENTS.md):
    - Comenzamos en la versión `0.0.1`.
    - Toda herramienta no implementada al 100%, probada y aprobada mantiene la versión en estado **Beta** (`-beta.X`).
    - Cada publicación en `main` genera su tag y una **GitHub Release** con el archivo `.apk` funcional adjunto.
+5. **Revisión y Respuesta Activa a GitHub Issues**:
+   - Durante el desarrollo se revisan periódicamente los **Issues de GitHub**, analizando técnicamente si procede o no su reparación, respondiendo siempre en el propio issue y aplicando el ciclo SDD + TDD para los issues aceptados.
 
 ---
 
