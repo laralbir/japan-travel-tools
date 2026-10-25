@@ -7,6 +7,31 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.15] - 2026-10-25
+
+### Added
+- **Sistema de Advertencias Visuales y Notificaciones de Facturación, Embarque y Salida (`SPEC-05 RF-05.5`)**:
+  - **Evaluador de Dominio 100% Offline (`TransportAlertEvaluator`)**:
+    - Detección precisa de eventos según los umbrales temporales del vuelo o transporte en su huso horario local:
+      - `CHECK_IN_APPROACHING` (cuando faltan $\le 120$ min para abrir el mostrador de facturación).
+      - `CHECK_IN_OPEN` (mostrador de entrega de equipaje abierto).
+      - `BOARDING_APPROACHING` (cuando faltan $\le 45$ min para la hora de embarque).
+      - `BOARDING_NOW` (urgente: embarque en curso o $\le 15$ min para inicio de embarque con puerta y asiento).
+      - `DEPARTURE_IMMINENT` (urgente: $\le 20$ min para la salida programada / cierre de puertas).
+    - Adaptado tanto a vuelos como a trenes Shinkansen (avisos de llegada al andén y coche).
+  - **Advertencias Visuales en Tiempo Real (`TransportAlertBanner` y Tarjetas de Tramo)**:
+    - Banner interactivo destacado en la cabecera de la pantalla de transporte con colores de alerta (`Akabeni` rojo Torii para urgentes y ámbar para preventivas), cuenta atrás en minutos, información de puerta/mostrador y botón de descarte.
+    - Resaltado perimetral con borde de color de alerta e insignia en la tarjeta del tramo correspondiente.
+    - Visualización clara de `🧳 Facturación` y `🚪 Embarque` en cada tramo.
+  - **Notificaciones del Sistema Android (Canal `transport_alerts`)**:
+    - Creación automática de canal de notificación con prioridad alta (`IMPORTANCE_HIGH`), sonido y vibración.
+    - Soporte completo para Android 13+ (solicitud en tiempo de ejecución del permiso `POST_NOTIFICATIONS`).
+    - Despacho de notificaciones enriquecidas (`NotificationCompat.Builder`) con apertura directa de la app al pulsar.
+  - **Controles de Prueba y Simulación Interactiva (1-Touch Testing)**:
+    - Botones de prueba rápida en la cabecera (`🚨 Embarque`, `🧳 Facturación`, `🚄 Tren Salida`) para validar tanto el banner visual como la notificación del sistema en el dispositivo físico en cualquier momento.
+  - **Edición Personalizada de Facturación y Embarque**:
+    - Nuevos campos `Facturación (HH:mm)` y `Embarque (HH:mm)` en la hoja modal `TransportSegmentEditorModalSheet`.
+
 ## [0.0.1-beta.14] - 2026-10-25
 
 ### Added

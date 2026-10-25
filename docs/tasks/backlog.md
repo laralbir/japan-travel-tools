@@ -82,6 +82,7 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 - [x] **TASK-602 (TDD)**: Implementar modelo multimodal (`FLIGHT`, `TRAIN_SHINKANSEN`, `SUBWAY_METRO`, `BUS`) con terminales, andenes, vagón, asiento, salida de estación (`Exit`) y dársena de autobús.
 - [x] **TASK-603 (TDD)**: Implementar `TransportMultiModalScreen` con tarjetas de tramo y tarjetas automáticas de escala/transbordo.
 - [x] **TASK-604 (TDD)**: Integrar los planes de vuelos, Shinkansen, metro y autobús en el paquete JSON exportable/importable (`PortableTravelPlanBundle`) y en el almacén reactivo `SharedTravelPlanStore`.
+- [x] **TASK-605 (TDD)**: Sistema de Advertencias Visuales y Notificaciones de Facturación, Embarque y Salida (`SPEC-05 RF-05.5`): Evaluador de dominio `TransportAlertEvaluator` con umbrales temporales precisos (`CHECK_IN_APPROACHING`, `CHECK_IN_OPEN`, `BOARDING_APPROACHING`, `BOARDING_NOW`, `DEPARTURE_IMMINENT`), `SharedTransportAlertStore`, canal de notificaciones y despachador Android `TransportAlertNotificationHelper`, banner visual `TransportAlertBanner`, campos de facturación/embarque en editor y botón de prueba/simulación interactiva.
 
 ---
 
