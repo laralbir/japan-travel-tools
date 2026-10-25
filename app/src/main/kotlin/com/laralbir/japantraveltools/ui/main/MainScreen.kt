@@ -99,14 +99,25 @@ import com.laralbir.japantraveltools.feature.clock.OfflineTimeZoneResolver
 import com.laralbir.japantraveltools.feature.currency.ConvertCurrencyUseCase
 import com.laralbir.japantraveltools.feature.currency.FrankfurterJsonParser
 import com.laralbir.japantraveltools.feature.currency.SeedExchangeRates
-import com.laralbir.japantraveltools.feature.documents.DefaultTravelGuidesCatalog
+import android.graphics.BitmapFactory
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
+import com.laralbir.japantraveltools.feature.documents.SharedDocumentsAndGuidesStore
+import com.laralbir.japantraveltools.feature.documents.TravelDocumentItem
+import com.laralbir.japantraveltools.feature.documents.TravelGuideArticle
 import com.laralbir.japantraveltools.feature.documents.DocumentCategory
 import com.laralbir.japantraveltools.feature.documents.DocumentsFilterUseCase
 import com.laralbir.japantraveltools.feature.planner.ItineraryStopItem
+import com.laralbir.japantraveltools.feature.planner.StopCategory
 import com.laralbir.japantraveltools.feature.planner.TripPlannerUseCase
 import com.laralbir.japantraveltools.feature.settings.OpenSourceLibrariesCatalog
 import com.laralbir.japantraveltools.feature.transport.TransportMode
 import com.laralbir.japantraveltools.feature.transport.TransportPlannerUseCase
+import com.laralbir.japantraveltools.feature.transport.TransportSegmentItem
 import com.laralbir.japantraveltools.feature.weather.JapanWeatherCity
 import com.laralbir.japantraveltools.feature.weather.OpenMeteoWeatherUseCase
 import com.laralbir.japantraveltools.feature.weather.SharedWeatherForecastStore
@@ -1235,7 +1246,7 @@ private fun WeatherToolScreen(isEs: Boolean) {
 }
 
 // ============================================================================
-// 4. TRIP PLANNER SCREEN
+// 4. TRIP PLANNER SCREEN (WITH FULL CREATE, EDIT & DELETE FOR STOPS AND DAYS)
 // ============================================================================
 @Composable
 private fun TripPlannerTabScreen(
@@ -1254,6 +1265,9 @@ private fun TripPlannerTabScreen(
         selectedDay = availableDays.first()
     }
 
+    var editingStop by remember { mutableStateOf<ItineraryStopItem?>(null) }
+    var isCreatingStop by remember { mutableStateOf(false) }
+
     val dayStops = remember(allStops, selectedDay) {
         TripPlannerUseCase.sortAndDetectConflicts(
             allStops.filter { it.dayNumber == selectedDay }
@@ -1263,69 +1277,148 @@ private fun TripPlannerTabScreen(
         SharedWeatherForecastStore.forecastForDayNumber(selectedDay)
     }
 
+    if (isCreatingStop || editingStop != null) {
+        val initialStop = editingStop ?: ItineraryStopItem(
+            id = "stop-${System.currentTimeMillis()}",
+            dayNumber = selectedDay,
+            dateIso = String.format(Locale.US, "2026-11-%02d", (10 + selectedDay).coerceAtMost(30)),
+            startTime = "10:00",
+            endTime = "11:30",
+            title = "",
+            category = StopCategory.SIGHTSEEING,
+            placeNameJapanese = "",
+            latitude = 35.6762,
+            longitude = 139.6503,
+            notes = ""
+        )
+        ItineraryStopEditorModalSheet(
+            isEs = isEs,
+            initialStop = initialStop,
+            isNew = isCreatingStop,
+            onDismiss = {
+                isCreatingStop = false
+                editingStop = null
+            },
+            onSave = { saved ->
+                SharedTravelPlanStore.upsertStop(saved)
+                selectedDay = saved.dayNumber
+                isCreatingStop = false
+                editingStop = null
+            },
+            onDelete = { idToDelete ->
+                SharedTravelPlanStore.deleteStop(idToDelete)
+                isCreatingStop = false
+                editingStop = null
+            }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
+        // Day selector row + Add Day button
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                availableDays.forEach { dayNum ->
-                    AppOptionButton(
-                        text = if (isEs) "Día $dayNum" else "Day $dayNum",
-                        selected = selectedDay == dayNum,
-                        onClick = { selectedDay = dayNum },
-                        modifier = Modifier.width(96.dp)
-                    )
-                }
+            availableDays.forEach { dayNum ->
+                AppOptionButton(
+                    text = if (isEs) "Día $dayNum" else "Day $dayNum",
+                    selected = selectedDay == dayNum,
+                    onClick = { selectedDay = dayNum },
+                    modifier = Modifier.width(92.dp)
+                )
             }
-
-            AppSecondaryButton(
-                text = if (isEs) "⚙️ Opciones Plan" else "⚙️ Plan Options",
-                onClick = onOpenJsonPortability
+            AppOptionButton(
+                text = if (isEs) "➕ Día" else "➕ Day",
+                selected = false,
+                onClick = {
+                    val nextDay = (availableDays.maxOrNull() ?: 0) + 1
+                    selectedDay = nextDay
+                    editingStop = ItineraryStopItem(
+                        id = "stop-${System.currentTimeMillis()}",
+                        dayNumber = nextDay,
+                        dateIso = String.format(Locale.US, "2026-11-%02d", (10 + nextDay).coerceAtMost(30)),
+                        startTime = "09:30",
+                        endTime = "11:00",
+                        title = "",
+                        category = StopCategory.SIGHTSEEING,
+                        placeNameJapanese = "",
+                        latitude = 35.6762,
+                        longitude = 139.6503,
+                        notes = ""
+                    )
+                    isCreatingStop = true
+                },
+                modifier = Modifier.width(92.dp)
             )
         }
 
-        if (dayWeather != null) {
-            Spacer(Modifier.height(10.dp))
-            InfoTagPill(
-                text = "${dayWeather.condition.emoji} ${dayWeather.tempMinC.toInt()}°/${dayWeather.tempMaxC.toInt()}°C · ☔ ${dayWeather.precipitationProbabilityMax}% · 🗻 Fuji ${dayWeather.fujiVisibilityPercent}%"
-            )
+        Spacer(Modifier.height(10.dp))
+
+        // Standardized 2-button toolbar: Add Stop + Plan Options / Clear
+        AppButtonRow(
+            primaryText = if (isEs) "➕ Añadir Parada" else "➕ Add Stop",
+            onPrimaryClick = {
+                editingStop = null
+                isCreatingStop = true
+            },
+            secondaryText = if (isEs) "⚙️ JSON / Vaciar" else "⚙️ JSON / Clear",
+            onSecondaryClick = onOpenJsonPortability
+        )
+
+        if (dayStops.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                InfoTagPill(
+                    text = "${dayWeather.condition.emoji} ${dayWeather.tempMinC.toInt()}°/${dayWeather.tempMaxC.toInt()}°C · ☔ ${dayWeather.precipitationProbabilityMax}%"
+                )
+                AppOptionButton(
+                    text = if (isEs) "🗑️ Borrar Día $selectedDay" else "🗑️ Delete Day $selectedDay",
+                    selected = false,
+                    onClick = { SharedTravelPlanStore.deleteDay(selectedDay) },
+                    modifier = Modifier.width(150.dp)
+                )
+            }
         }
 
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(12.dp))
 
         if (dayStops.isEmpty()) {
             KotlinConfCard {
                 Text(
-                    text = if (isEs) "Tu planificador está vacío" else "Your planner is empty",
+                    text = if (isEs) "No hay paradas en este día" else "No stops on this day",
                     fontSize = 19.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = if (isEs) {
-                        "Pulsa «⚙️ Opciones Plan» para importar tu JSON, añadir rutas con IA o restaurar el itinerario de demostración."
+                        "Pulsa «➕ Añadir Parada» para crear tu propio itinerario paso a paso, o «⚙️ JSON / Vaciar» para importar un plan o cargar la demo."
                     } else {
-                        "Tap «⚙️ Plan Options» to import JSON, generate a route with AI, or restore the demo itinerary."
+                        "Tap «➕ Add Stop» to create your own itinerary, or «⚙️ JSON / Clear» to import a plan or load demo data."
                     },
                     fontSize = 15.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.height(14.dp))
-                AppPrimaryButton(
-                    text = if (isEs) "⚙️ Abrir Opciones del Plan" else "⚙️ Open Plan Options",
-                    onClick = onOpenJsonPortability,
-                    modifier = Modifier.fillMaxWidth()
+                AppButtonRow(
+                    primaryText = if (isEs) "➕ Crear Parada" else "➕ Create Stop",
+                    onPrimaryClick = {
+                        editingStop = null
+                        isCreatingStop = true
+                    },
+                    secondaryText = if (isEs) "🔄 Cargar Demo" else "🔄 Load Demo",
+                    onSecondaryClick = { SharedTravelPlanStore.resetToDefaults() }
                 )
             }
         } else {
@@ -1338,9 +1431,16 @@ private fun TripPlannerTabScreen(
                         stop = evaluated.item,
                         hasConflict = evaluated.hasTimeConflict,
                         isEs = isEs,
+                        onEditStop = { stopToEdit ->
+                            isCreatingStop = false
+                            editingStop = stopToEdit
+                        },
+                        onDeleteStop = { stopToDelete ->
+                            SharedTravelPlanStore.deleteStop(stopToDelete.id)
+                        },
                         onOpenGoogleMaps = { stop ->
                             val geoUri = Uri.parse(
-                                "geo:${stop.latitude},${stop.longitude}?q=${Uri.encode(stop.placeNameJapanese)}"
+                                "geo:${stop.latitude},${stop.longitude}?q=${Uri.encode(stop.placeNameJapanese.ifBlank { stop.title })}"
                             )
                             runCatching {
                                 context.startActivity(Intent(Intent.ACTION_VIEW, geoUri))
@@ -1367,6 +1467,8 @@ private fun ItineraryStopCard(
     stop: ItineraryStopItem,
     hasConflict: Boolean,
     isEs: Boolean,
+    onEditStop: (ItineraryStopItem) -> Unit,
+    onDeleteStop: (ItineraryStopItem) -> Unit,
     onOpenGoogleMaps: (ItineraryStopItem) -> Unit,
     onExportCalendar: (ItineraryStopItem) -> Unit
 ) {
@@ -1388,6 +1490,8 @@ private fun ItineraryStopCard(
                     containerColor = MaterialTheme.colorScheme.errorContainer,
                     contentColor = MaterialTheme.colorScheme.onErrorContainer
                 )
+            } else {
+                InfoTagPill(text = if (isEs) stop.category.labelEs else stop.category.labelEn)
             }
         }
 
@@ -1397,12 +1501,14 @@ private fun ItineraryStopCard(
             fontSize = 19.sp,
             fontWeight = FontWeight.Bold
         )
-        Text(
-            text = stop.placeNameJapanese,
-            fontSize = 15.sp,
-            color = MaterialTheme.colorScheme.secondary,
-            fontWeight = FontWeight.SemiBold
-        )
+        if (stop.placeNameJapanese.isNotBlank()) {
+            Text(
+                text = stop.placeNameJapanese,
+                fontSize = 15.sp,
+                color = MaterialTheme.colorScheme.secondary,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
 
         if (stop.notes.isNotBlank()) {
             Spacer(Modifier.height(8.dp))
@@ -1415,6 +1521,14 @@ private fun ItineraryStopCard(
 
         Spacer(Modifier.height(14.dp))
         AppButtonRow(
+            primaryText = if (isEs) "✏️ Editar" else "✏️ Edit",
+            onPrimaryClick = { onEditStop(stop) },
+            secondaryText = if (isEs) "🗑️ Eliminar" else "🗑️ Delete",
+            onSecondaryClick = { onDeleteStop(stop) }
+        )
+
+        Spacer(Modifier.height(10.dp))
+        AppButtonRow(
             primaryText = if (isEs) "🗺️ Abrir Mapa" else "🗺️ Open Map",
             onPrimaryClick = { onOpenGoogleMaps(stop) },
             secondaryText = if (isEs) "📅 Al Calendario" else "📅 To Calendar",
@@ -1423,8 +1537,148 @@ private fun ItineraryStopCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ItineraryStopEditorModalSheet(
+    isEs: Boolean,
+    initialStop: ItineraryStopItem,
+    isNew: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (ItineraryStopItem) -> Unit,
+    onDelete: (String) -> Unit
+) {
+    var dayText by rememberSaveable { mutableStateOf(initialStop.dayNumber.toString()) }
+    var startTimeText by rememberSaveable { mutableStateOf(initialStop.startTime) }
+    var endTimeText by rememberSaveable { mutableStateOf(initialStop.endTime) }
+    var titleText by rememberSaveable { mutableStateOf(initialStop.title) }
+    var japaneseNameText by rememberSaveable { mutableStateOf(initialStop.placeNameJapanese) }
+    var notesText by rememberSaveable { mutableStateOf(initialStop.notes) }
+    var selectedCategory by rememberSaveable { mutableStateOf(initialStop.category) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 18.dp, vertical = 10.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = if (isNew) {
+                    if (isEs) "➕ Añadir Parada al Plan" else "➕ Add Stop to Plan"
+                } else {
+                    if (isEs) "✏️ Editar Parada" else "✏️ Edit Stop"
+                },
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(
+                    value = dayText,
+                    onValueChange = { dayText = it.filter { ch -> ch.isDigit() } },
+                    label = { Text(if (isEs) "Día" else "Day", fontSize = 14.sp) },
+                    singleLine = true,
+                    modifier = Modifier.weight(0.8f)
+                )
+                OutlinedTextField(
+                    value = startTimeText,
+                    onValueChange = { startTimeText = it },
+                    label = { Text(if (isEs) "Inicio (HH:mm)" else "Start (HH:mm)", fontSize = 14.sp) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1.1f)
+                )
+                OutlinedTextField(
+                    value = endTimeText,
+                    onValueChange = { endTimeText = it },
+                    label = { Text(if (isEs) "Fin (HH:mm)" else "End (HH:mm)", fontSize = 14.sp) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1.1f)
+                )
+            }
+
+            OutlinedTextField(
+                value = titleText,
+                onValueChange = { titleText = it },
+                label = { Text(if (isEs) "Nombre del lugar o actividad" else "Place or activity title", fontSize = 15.sp) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = japaneseNameText,
+                onValueChange = { japaneseNameText = it },
+                label = { Text(if (isEs) "Nombre en japonés (opcional)" else "Japanese name (optional)", fontSize = 15.sp) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = notesText,
+                onValueChange = { notesText = it },
+                label = { Text(if (isEs) "Notas, línea de metro o reserva" else "Notes, subway line or booking", fontSize = 15.sp) },
+                minLines = 2,
+                maxLines = 4,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                StopCategory.entries.chunked(2).forEach { pair ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        pair.forEach { cat ->
+                            AppOptionButton(
+                                text = if (isEs) cat.labelEs else cat.labelEn,
+                                selected = selectedCategory == cat,
+                                onClick = { selectedCategory = cat },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
+
+            AppButtonRow(
+                primaryText = if (isEs) "💾 Guardar Parada" else "💾 Save Stop",
+                onPrimaryClick = {
+                    val safeDay = dayText.toIntOrNull()?.coerceAtLeast(1) ?: 1
+                    val updated = initialStop.copy(
+                        dayNumber = safeDay,
+                        dateIso = String.format(Locale.US, "2026-11-%02d", (10 + safeDay).coerceAtMost(30)),
+                        startTime = startTimeText.ifBlank { "10:00" },
+                        endTime = endTimeText.ifBlank { "11:30" },
+                        title = titleText.ifBlank { if (isEs) "Nueva Parada" else "New Stop" },
+                        placeNameJapanese = japaneseNameText,
+                        notes = notesText,
+                        category = selectedCategory
+                    )
+                    onSave(updated)
+                },
+                secondaryText = if (isNew) {
+                    if (isEs) "Cancelar" else "Cancel"
+                } else {
+                    if (isEs) "🗑️ Eliminar Parada" else "🗑️ Delete Stop"
+                },
+                onSecondaryClick = {
+                    if (isNew) onDismiss() else onDelete(initialStop.id)
+                }
+            )
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
 // ============================================================================
-// 5. TRANSPORT & TRAINS SCREEN
+// 5. TRANSPORT & TRAINS SCREEN (WITH FULL CREATE, EDIT & DELETE)
 // ============================================================================
 @Composable
 private fun TransportTabScreen(
@@ -1436,6 +1690,53 @@ private fun TransportTabScreen(
     var selectedFilter by rememberSaveable { mutableStateOf<TransportMode?>(null) }
     val filteredSegments = remember(segments, selectedFilter) {
         if (selectedFilter == null) segments else segments.filter { it.type == selectedFilter }
+    }
+
+    var editingSegment by remember { mutableStateOf<TransportSegmentItem?>(null) }
+    var isCreatingSegment by remember { mutableStateOf(false) }
+
+    if (isCreatingSegment || editingSegment != null) {
+        val initialSeg = editingSegment ?: TransportSegmentItem(
+            id = "seg-${System.currentTimeMillis()}",
+            order = segments.size + 1,
+            type = TransportMode.TRAIN_SHINKANSEN,
+            operatorName = "JR Shinkansen",
+            lineOrNumber = "Nozomi #21",
+            departureCode = "TYO",
+            departureName = "Tokyo Station",
+            departureZoneId = "Asia/Tokyo",
+            departureTerminalOrPlatform = "Andén 16",
+            checkInTime = null,
+            boardingTime = "2026-11-12T08:45",
+            departureTimeIso = "2026-11-12T09:00",
+            arrivalCode = "KYO",
+            arrivalName = "Kyoto Station",
+            arrivalZoneId = "Asia/Tokyo",
+            arrivalTerminalOrPlatform = "Andén 13",
+            arrivalTimeIso = "2026-11-12T11:15",
+            seatOrCarInfo = "Vagón 7 · Asiento 12E",
+            stationExitOrBelt = "Salida Central",
+            passOrPaymentBadge = "JR Pass / IC"
+        )
+        TransportSegmentEditorModalSheet(
+            isEs = isEs,
+            initialSegment = initialSeg,
+            isNew = isCreatingSegment,
+            onDismiss = {
+                isCreatingSegment = false
+                editingSegment = null
+            },
+            onSave = { saved ->
+                SharedTravelPlanStore.upsertTransportSegment(saved)
+                isCreatingSegment = false
+                editingSegment = null
+            },
+            onDelete = { idToDelete ->
+                SharedTravelPlanStore.deleteTransportSegment(idToDelete)
+                isCreatingSegment = false
+                editingSegment = null
+            }
+        )
     }
 
     LazyColumn(
@@ -1469,53 +1770,261 @@ private fun TransportTabScreen(
                     )
                 }
 
-                AppSecondaryButton(
-                    text = if (isEs) "⚙️ Importar / Exportar JSON o Demo" else "⚙️ Import / Export JSON or Demo",
-                    onClick = onOpenJsonPortability,
-                    modifier = Modifier.fillMaxWidth()
+                AppButtonRow(
+                    primaryText = if (isEs) "➕ Añadir Transporte" else "➕ Add Transport",
+                    onPrimaryClick = {
+                        editingSegment = null
+                        isCreatingSegment = true
+                    },
+                    secondaryText = if (isEs) "⚙️ JSON / Vaciar" else "⚙️ JSON / Clear",
+                    onSecondaryClick = onOpenJsonPortability
                 )
             }
         }
 
-        items(filteredSegments.indices.toList()) { idx ->
-            val seg = filteredSegments[idx]
-            val durationMins = TransportPlannerUseCase.calculateSegmentDurationMinutes(seg)
-            KotlinConfCard {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+        if (filteredSegments.isEmpty()) {
+            item {
+                KotlinConfCard {
                     Text(
-                        text = "${seg.operatorName} · ${seg.lineOrNumber}",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
+                        text = if (isEs) "No hay tramos de transporte" else "No transport segments",
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = if (isEs) {
+                            "Pulsa «➕ Añadir Transporte» para registrar tus vuelos, trenes Shinkansen, metros o autobuses."
+                        } else {
+                            "Tap «➕ Add Transport» to log your flights, Shinkansen trains, subways or buses."
+                        },
+                        fontSize = 15.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        } else {
+            items(filteredSegments, key = { it.id }) { seg ->
+                val durationMins = TransportPlannerUseCase.calculateSegmentDurationMinutes(seg)
+                KotlinConfCard {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${seg.operatorName} · ${seg.lineOrNumber}",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f)
+                        )
+                        InfoTagPill(text = seg.passOrPaymentBadge)
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = "${seg.departureCode} (${seg.departureName}) ➔ ${seg.arrivalCode} (${seg.arrivalName})",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = "🕒 ${seg.departureTimeIso.substringAfter('T')} ➔ ${seg.arrivalTimeIso.substringAfter('T')} (${TransportPlannerUseCase.formatDurationHoursMinutes(durationMins)})",
+                        fontSize = 15.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "📍 ${seg.departureTerminalOrPlatform} · 💺 ${seg.seatOrCarInfo}",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+                    AppButtonRow(
+                        primaryText = if (isEs) "✏️ Editar" else "✏️ Edit",
+                        onPrimaryClick = {
+                            isCreatingSegment = false
+                            editingSegment = seg
+                        },
+                        secondaryText = if (isEs) "🗑️ Eliminar" else "🗑️ Delete",
+                        onSecondaryClick = {
+                            SharedTravelPlanStore.deleteTransportSegment(seg.id)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TransportSegmentEditorModalSheet(
+    isEs: Boolean,
+    initialSegment: TransportSegmentItem,
+    isNew: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (TransportSegmentItem) -> Unit,
+    onDelete: (String) -> Unit
+) {
+    var selectedType by rememberSaveable { mutableStateOf(initialSegment.type) }
+    var operatorText by rememberSaveable { mutableStateOf(initialSegment.operatorName) }
+    var lineNumberText by rememberSaveable { mutableStateOf(initialSegment.lineOrNumber) }
+    var depNameText by rememberSaveable { mutableStateOf(initialSegment.departureName) }
+    var arrNameText by rememberSaveable { mutableStateOf(initialSegment.arrivalName) }
+    var depTimeText by rememberSaveable { mutableStateOf(initialSegment.departureTimeIso.substringAfter('T')) }
+    var arrTimeText by rememberSaveable { mutableStateOf(initialSegment.arrivalTimeIso.substringAfter('T')) }
+    var platformText by rememberSaveable { mutableStateOf(initialSegment.departureTerminalOrPlatform) }
+    var seatText by rememberSaveable { mutableStateOf(initialSegment.seatOrCarInfo) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 18.dp, vertical = 10.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = if (isNew) {
+                    if (isEs) "➕ Añadir Tren o Vuelo" else "➕ Add Train or Flight"
+                } else {
+                    if (isEs) "✏️ Editar Transporte" else "✏️ Edit Transport"
+                },
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(TransportMode.TRAIN_SHINKANSEN, TransportMode.FLIGHT, TransportMode.SUBWAY_METRO).forEach { mode ->
+                    AppOptionButton(
+                        text = if (isEs) mode.labelEs else mode.labelEn,
+                        selected = selectedType == mode,
+                        onClick = { selectedType = mode },
                         modifier = Modifier.weight(1f)
                     )
-                    InfoTagPill(text = seg.passOrPaymentBadge)
                 }
+            }
 
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    text = "${seg.departureCode} (${seg.departureName}) ➔ ${seg.arrivalCode} (${seg.arrivalName})",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(
+                    value = operatorText,
+                    onValueChange = { operatorText = it },
+                    label = { Text(if (isEs) "Compañía (ej. JR)" else "Operator", fontSize = 14.sp) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
                 )
-
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = "🕒 ${seg.departureTimeIso.substringAfter('T')} ➔ ${seg.arrivalTimeIso.substringAfter('T')} (${TransportPlannerUseCase.formatDurationHoursMinutes(durationMins)})",
-                    fontSize = 15.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "📍 ${seg.departureTerminalOrPlatform} · 💺 ${seg.seatOrCarInfo}",
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                OutlinedTextField(
+                    value = lineNumberText,
+                    onValueChange = { lineNumberText = it },
+                    label = { Text(if (isEs) "Tren/Vuelo (ej. Nozomi)" else "Line/Flight #", fontSize = 14.sp) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
                 )
             }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(
+                    value = depNameText,
+                    onValueChange = { depNameText = it },
+                    label = { Text(if (isEs) "Origen" else "From", fontSize = 14.sp) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+                OutlinedTextField(
+                    value = arrNameText,
+                    onValueChange = { arrNameText = it },
+                    label = { Text(if (isEs) "Destino" else "To", fontSize = 14.sp) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(
+                    value = depTimeText,
+                    onValueChange = { depTimeText = it },
+                    label = { Text(if (isEs) "Salida (HH:mm)" else "Dep (HH:mm)", fontSize = 14.sp) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+                OutlinedTextField(
+                    value = arrTimeText,
+                    onValueChange = { arrTimeText = it },
+                    label = { Text(if (isEs) "Llegada (HH:mm)" else "Arr (HH:mm)", fontSize = 14.sp) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(
+                    value = platformText,
+                    onValueChange = { platformText = it },
+                    label = { Text(if (isEs) "Andén / Terminal" else "Platform / Terminal", fontSize = 14.sp) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+                OutlinedTextField(
+                    value = seatText,
+                    onValueChange = { seatText = it },
+                    label = { Text(if (isEs) "Vagón / Asiento" else "Car / Seat", fontSize = 14.sp) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            AppButtonRow(
+                primaryText = if (isEs) "💾 Guardar Transporte" else "💾 Save Transport",
+                onPrimaryClick = {
+                    val depCode = depNameText.take(3).uppercase(Locale.ROOT).ifBlank { "TYO" }
+                    val arrCode = arrNameText.take(3).uppercase(Locale.ROOT).ifBlank { "KYO" }
+                    val updated = initialSegment.copy(
+                        type = selectedType,
+                        operatorName = operatorText.ifBlank { "JR" },
+                        lineOrNumber = lineNumberText,
+                        departureCode = depCode,
+                        departureName = depNameText.ifBlank { "Tokyo" },
+                        departureTimeIso = "2026-11-12T${depTimeText.ifBlank { "09:00" }}",
+                        arrivalCode = arrCode,
+                        arrivalName = arrNameText.ifBlank { "Kyoto" },
+                        arrivalTimeIso = "2026-11-12T${arrTimeText.ifBlank { "11:15" }}",
+                        departureTerminalOrPlatform = platformText,
+                        seatOrCarInfo = seatText
+                    )
+                    onSave(updated)
+                },
+                secondaryText = if (isNew) {
+                    if (isEs) "Cancelar" else "Cancel"
+                } else {
+                    if (isEs) "🗑️ Eliminar" else "🗑️ Delete"
+                },
+                onSecondaryClick = {
+                    if (isNew) onDismiss() else onDelete(initialSegment.id)
+                }
+            )
+            Spacer(Modifier.height(16.dp))
         }
     }
 }
@@ -1534,15 +2043,15 @@ private fun VoiceTranslatorScreen(isEs: Boolean) {
 
     var ttsEngine by remember { mutableStateOf<TextToSpeech?>(null) }
     DisposableEffect(context) {
-        var instance: TextToSpeech? = null
+        lateinit var instance: TextToSpeech
         instance = TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
                 ttsEngine = instance
             }
         }
         onDispose {
-            instance?.stop()
-            instance?.shutdown()
+            instance.stop()
+            instance.shutdown()
         }
     }
 
@@ -1927,7 +2436,7 @@ private fun AiAssistantScreen(
 }
 
 // ============================================================================
-// 8. PASSPORT & CUSTOMS SCREEN
+// 8. PASSPORT & CUSTOMS SCREEN (REAL BIOMETRIC PROMPT + REAL PHOTO VAULT)
 // ============================================================================
 @Composable
 private fun PassportAndCustomsScreen(
@@ -1935,7 +2444,65 @@ private fun PassportAndCustomsScreen(
     prefs: UserPreferences,
     prefsRepository: DefaultUserPreferencesRepository
 ) {
-    var vaultUnlocked by rememberSaveable { mutableStateOf(!prefs.biometricLockEnabled) }
+    val context = LocalContext.current
+    val activity = context as? FragmentActivity
+
+    val biometricAvailable = remember(context) {
+        val bm = BiometricManager.from(context)
+        val canAuth = bm.canAuthenticate(
+            BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        )
+        canAuth == BiometricManager.BIOMETRIC_SUCCESS
+    }
+
+    // Vault is unlocked if biometric lock is turned off by user or device doesn't support lock
+    var vaultUnlocked by rememberSaveable {
+        mutableStateOf(!prefs.biometricLockEnabled && !biometricAvailable)
+    }
+    var authErrorText by remember { mutableStateOf<String?>(null) }
+    var refreshPhotoCounter by remember { mutableIntStateOf(0) }
+
+    fun launchRealBiometricPrompt() {
+        if (activity == null) {
+            vaultUnlocked = true
+            return
+        }
+        val executor = ContextCompat.getMainExecutor(context)
+        val prompt = BiometricPrompt(
+            activity,
+            executor,
+            object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    super.onAuthenticationSucceeded(result)
+                    vaultUnlocked = true
+                    authErrorText = null
+                }
+
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                    super.onAuthenticationError(errorCode, errString)
+                    authErrorText = errString.toString()
+                }
+            }
+        )
+        val promptInfo = BiometricPrompt.PromptInfo.Builder()
+            .setTitle(if (isEs) "Bóveda de Pasaporte y DNI" else "Passport & ID Vault")
+            .setSubtitle(
+                if (isEs) "Autentícate con tu huella, rostro o PIN del dispositivo"
+                else "Authenticate with fingerprint, face or device PIN"
+            )
+            .setAllowedAuthenticators(
+                BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL
+            )
+            .build()
+
+        prompt.authenticate(promptInfo)
+    }
+
+    LaunchedEffect(biometricAvailable, prefs.biometricLockEnabled) {
+        if (biometricAvailable && !vaultUnlocked) {
+            launchRealBiometricPrompt()
+        }
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -1950,94 +2517,236 @@ private fun PassportAndCustomsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (isEs) "Pasaporte, DNI y QR Aduanas" else "Passport, ID & Customs QR",
+                        text = if (isEs) "Pasaporte, DNI y Documentos" else "Passport, ID & Documents",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f)
                     )
-                    Switch(
-                        checked = prefs.biometricLockEnabled,
-                        onCheckedChange = { enabled ->
-                            prefsRepository.setBiometricLockEnabled(enabled)
-                            if (!enabled) vaultUnlocked = true
-                        }
+                    if (biometricAvailable) {
+                        Switch(
+                            checked = prefs.biometricLockEnabled,
+                            onCheckedChange = { enabled ->
+                                prefsRepository.setBiometricLockEnabled(enabled)
+                                if (enabled) {
+                                    vaultUnlocked = false
+                                    launchRealBiometricPrompt()
+                                } else {
+                                    vaultUnlocked = true
+                                }
+                            }
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                if (biometricAvailable) {
+                    Text(
+                        text = if (isEs) {
+                            "🔒 Protegido con Huella / Rostro / PIN del Pixel"
+                        } else {
+                            "🔒 Protected with Pixel Fingerprint / Face / PIN"
+                        },
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.secondary,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
 
-                Spacer(Modifier.height(12.dp))
-
-                if (prefs.biometricLockEnabled && !vaultUnlocked) {
-                    AppPrimaryButton(
-                        text = if (isEs) "🔓 Desbloquear Documentación" else "🔓 Unlock ID Vault",
-                        onClick = { vaultUnlocked = true },
+                if (!vaultUnlocked && biometricAvailable) {
+                    Spacer(Modifier.height(14.dp))
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier.fillMaxWidth()
-                    )
+                    ) {
+                        Column(modifier = Modifier.padding(18.dp)) {
+                            Text(
+                                text = if (isEs) "🔒 Identificación Bloqueada" else "🔒 ID Vault Locked",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                text = if (isEs) {
+                                    "Por seguridad, tus fotos de Pasaporte y DNI están encriptadas offline. Autentícate para verlas."
+                                } else {
+                                    "Your Passport and ID photos are encrypted offline. Authenticate to view."
+                                },
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (authErrorText != null) {
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    text = "⚠️ $authErrorText",
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                            Spacer(Modifier.height(14.dp))
+                            AppPrimaryButton(
+                                text = if (isEs) "🔓 Desbloquear con Biometría / PIN" else "🔓 Unlock with Biometrics / PIN",
+                                onClick = { launchRealBiometricPrompt() },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
                 } else {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = "🛂 PASAPORTE + QR VISIT JAPAN WEB",
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                text = if (isEs) {
-                                    "Guardado en almacenamiento privado offline para mostrar en hoteles y tiendas Tax-Free."
-                                } else {
-                                    "Stored offline in private storage for hotels & Tax-Free."
-                                },
-                                fontSize = 15.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+                    Spacer(Modifier.height(14.dp))
 
-                    Spacer(Modifier.height(12.dp))
+                    // 1. PASSPORT SECTION
+                    IdDocumentPhotoSection(
+                        isEs = isEs,
+                        title = if (isEs) "🛂 Pasaporte (Página de Datos)" else "🛂 Passport (Data Page)",
+                        subtitle = if (isEs) "Foto lista para mostrar en hoteles y compras Tax-Free" else "Ready for hotels and Tax-Free shops",
+                        fileName = "passport_data_page.jpg",
+                        refreshTrigger = refreshPhotoCounter,
+                        onPhotoChanged = { refreshPhotoCounter++ }
+                    )
 
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = "🪪 DNI / DOCUMENTO DE IDENTIDAD",
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                text = if (isEs) {
-                                    "Anverso y reverso disponibles 100% sin conexión (Context.filesDir)."
-                                } else {
-                                    "Front and back available 100% offline (Context.filesDir)."
-                                },
-                                fontSize = 15.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+                    Spacer(Modifier.height(14.dp))
+
+                    // 2. DNI FRONT SECTION
+                    IdDocumentPhotoSection(
+                        isEs = isEs,
+                        title = if (isEs) "🪪 DNI / ID (Anverso)" else "🪪 National ID (Front)",
+                        subtitle = if (isEs) "Copia frontal de tu documento nacional" else "Front copy of your national identity card",
+                        fileName = "dni_front.jpg",
+                        refreshTrigger = refreshPhotoCounter,
+                        onPhotoChanged = { refreshPhotoCounter++ }
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    // 3. DNI BACK SECTION
+                    IdDocumentPhotoSection(
+                        isEs = isEs,
+                        title = if (isEs) "🪪 DNI / ID (Reverso)" else "🪪 National ID (Back)",
+                        subtitle = if (isEs) "Reverso con dirección y datos de expedición" else "Back side with address and expiration",
+                        fileName = "dni_back.jpg",
+                        refreshTrigger = refreshPhotoCounter,
+                        onPhotoChanged = { refreshPhotoCounter++ }
+                    )
                 }
             }
         }
     }
 }
 
+@Composable
+private fun IdDocumentPhotoSection(
+    isEs: Boolean,
+    title: String,
+    subtitle: String,
+    fileName: String,
+    refreshTrigger: Int,
+    onPhotoChanged: () -> Unit
+) {
+    val context = LocalContext.current
+    val photoFile = remember(fileName, refreshTrigger) {
+        SharedDocumentsAndGuidesStore.getIdPhotoFile(context, fileName)
+    }
+    val photoBitmap = remember(photoFile) {
+        photoFile?.let { runCatching { BitmapFactory.decodeFile(it.absolutePath)?.asImageBitmap() }.getOrNull() }
+    }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            SharedDocumentsAndGuidesStore.saveIdPhoto(context, uri, fileName)
+            onPhotoChanged()
+        }
+    }
+
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(text = title, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            Text(text = subtitle, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(12.dp))
+
+            if (photoBitmap != null) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                ) {
+                    Image(
+                        bitmap = photoBitmap,
+                        contentDescription = title,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                AppButtonRow(
+                    primaryText = if (isEs) "🔄 Cambiar Foto" else "🔄 Change Photo",
+                    onPrimaryClick = { photoPickerLauncher.launch("image/*") },
+                    secondaryText = if (isEs) "🗑️ Quitar Foto" else "🗑️ Delete Photo",
+                    onSecondaryClick = {
+                        SharedDocumentsAndGuidesStore.deleteIdPhoto(context, fileName)
+                        onPhotoChanged()
+                    }
+                )
+            } else {
+                AppPrimaryButton(
+                    text = if (isEs) "📷 Seleccionar Foto (Galería / Drive)" else "📷 Select Photo (Gallery / Drive)",
+                    onClick = { photoPickerLauncher.launch("image/*") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    }
+}
+
 // ============================================================================
-// 9. BOOKINGS VAULT SCREEN
+// 9. BOOKINGS & TICKETS SCREEN (WITH TICKETS CATEGORY & FULL CRUD)
 // ============================================================================
 @Composable
 private fun BookingsVaultScreen(isEs: Boolean) {
-    val allDocuments = remember { DefaultTravelGuidesCatalog.initialDocuments() }
+    val allDocuments by SharedDocumentsAndGuidesStore.documentsState.collectAsState()
     var selectedCategory by rememberSaveable { mutableStateOf<DocumentCategory?>(null) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     val filteredDocs = remember(allDocuments, selectedCategory, searchQuery) {
         DocumentsFilterUseCase.filterDocuments(allDocuments, selectedCategory, searchQuery)
+    }
+
+    var editingDoc by remember { mutableStateOf<TravelDocumentItem?>(null) }
+    var isCreatingDoc by remember { mutableStateOf(false) }
+
+    if (isCreatingDoc || editingDoc != null) {
+        val initialDoc = editingDoc ?: TravelDocumentItem(
+            id = "doc-${System.currentTimeMillis()}",
+            title = "",
+            category = selectedCategory ?: DocumentCategory.TICKET,
+            referenceOrNotes = ""
+        )
+        DocumentEditorModalSheet(
+            isEs = isEs,
+            initialDoc = initialDoc,
+            isNew = isCreatingDoc,
+            onDismiss = {
+                isCreatingDoc = false
+                editingDoc = null
+            },
+            onSave = { saved ->
+                SharedDocumentsAndGuidesStore.upsertDocument(saved)
+                isCreatingDoc = false
+                editingDoc = null
+            },
+            onDelete = { idToDelete ->
+                SharedDocumentsAndGuidesStore.deleteDocument(idToDelete)
+                isCreatingDoc = false
+                editingDoc = null
+            }
+        )
     }
 
     LazyColumn(
@@ -2047,100 +2756,456 @@ private fun BookingsVaultScreen(isEs: Boolean) {
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Category Filter Chips
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     AppOptionButton(
                         text = if (isEs) "Todos" else "All",
                         selected = selectedCategory == null,
                         onClick = { selectedCategory = null },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.width(90.dp)
+                    )
+                    AppOptionButton(
+                        text = if (isEs) "🎟️ Entradas (USJ/Ghibli)" else "🎟️ Tickets (USJ/Ghibli)",
+                        selected = selectedCategory == DocumentCategory.TICKET,
+                        onClick = { selectedCategory = DocumentCategory.TICKET },
+                        modifier = Modifier.width(180.dp)
                     )
                     AppOptionButton(
                         text = if (isEs) "✈️ Vuelos" else "✈️ Flights",
                         selected = selectedCategory == DocumentCategory.FLIGHT,
                         onClick = { selectedCategory = DocumentCategory.FLIGHT },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.width(110.dp)
                     )
                     AppOptionButton(
                         text = if (isEs) "🏨 Hoteles" else "🏨 Hotels",
                         selected = selectedCategory == DocumentCategory.HOTEL,
                         onClick = { selectedCategory = DocumentCategory.HOTEL },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.width(110.dp)
+                    )
+                    AppOptionButton(
+                        text = if (isEs) "🚄 Pases JR" else "🚄 JR Passes",
+                        selected = selectedCategory == DocumentCategory.TRANSPORT,
+                        onClick = { selectedCategory = DocumentCategory.TRANSPORT },
+                        modifier = Modifier.width(110.dp)
                     )
                 }
+
+                // Add button & Search
+                AppPrimaryButton(
+                    text = if (isEs) "➕ Añadir Entrada o Reserva" else "➕ Add Ticket or Booking",
+                    onClick = {
+                        editingDoc = null
+                        isCreatingDoc = true
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
 
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    label = { Text(if (isEs) "🔍 Buscar vuelos, hoteles, JR Pass..." else "🔍 Search bookings...", fontSize = 15.sp) },
+                    label = { Text(if (isEs) "🔍 Buscar entradas, vuelos, hoteles, QR..." else "🔍 Search tickets, flights, hotels...", fontSize = 15.sp) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
         }
 
-        items(filteredDocs, key = { it.id }) { doc ->
-            KotlinConfCard {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+        if (filteredDocs.isEmpty()) {
+            item {
+                KotlinConfCard {
                     Text(
-                        text = if (doc.isPinned) "📌 ${doc.title}" else doc.title,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f)
+                        text = if (isEs) "No hay documentos en esta sección" else "No documents found",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
                     )
-                    InfoTagPill(text = doc.category.badgeCode)
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = if (isEs) {
+                            "Pulsa «➕ Añadir Entrada o Reserva» para guardar tus billetes, entradas de parques o museos."
+                        } else {
+                            "Tap «➕ Add Ticket or Booking» to store your tickets or reservations."
+                        },
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = doc.referenceOrNotes,
-                    fontSize = 15.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            }
+        } else {
+            items(filteredDocs, key = { it.id }) { doc ->
+                KotlinConfCard {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (doc.isPinned) "📌 ${doc.title}" else doc.title,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f)
+                        )
+                        InfoTagPill(text = doc.category.badgeCode)
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = doc.referenceOrNotes,
+                        fontSize = 15.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(Modifier.height(12.dp))
+                    AppButtonRow(
+                        primaryText = if (isEs) "✏️ Editar" else "✏️ Edit",
+                        onPrimaryClick = {
+                            isCreatingDoc = false
+                            editingDoc = doc
+                        },
+                        secondaryText = if (isEs) "🗑️ Eliminar" else "🗑️ Delete",
+                        onSecondaryClick = {
+                            SharedDocumentsAndGuidesStore.deleteDocument(doc.id)
+                        }
+                    )
+                }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DocumentEditorModalSheet(
+    isEs: Boolean,
+    initialDoc: TravelDocumentItem,
+    isNew: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (TravelDocumentItem) -> Unit,
+    onDelete: (String) -> Unit
+) {
+    var titleText by rememberSaveable { mutableStateOf(initialDoc.title) }
+    var notesText by rememberSaveable { mutableStateOf(initialDoc.referenceOrNotes) }
+    var selectedCategory by rememberSaveable { mutableStateOf(initialDoc.category) }
+    var isPinned by rememberSaveable { mutableStateOf(initialDoc.isPinned) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 18.dp, vertical = 10.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = if (isNew) {
+                    if (isEs) "➕ Nueva Entrada o Reserva" else "➕ New Ticket or Booking"
+                } else {
+                    if (isEs) "✏️ Editar Documento / Entrada" else "✏️ Edit Document / Ticket"
+                },
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            OutlinedTextField(
+                value = titleText,
+                onValueChange = { titleText = it },
+                label = { Text(if (isEs) "Título (ej. Entrada teamLab / Hotel)" else "Title", fontSize = 15.sp) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Text(
+                text = if (isEs) "Categoría:" else "Category:",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(
+                    DocumentCategory.TICKET,
+                    DocumentCategory.FLIGHT,
+                    DocumentCategory.HOTEL,
+                    DocumentCategory.TRANSPORT,
+                    DocumentCategory.INSURANCE,
+                    DocumentCategory.GUIDE
+                ).chunked(2).forEach { pair ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        pair.forEach { cat ->
+                            AppOptionButton(
+                                text = if (isEs) cat.labelEs else cat.labelEn,
+                                selected = selectedCategory == cat,
+                                onClick = { selectedCategory = cat },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
+
+            OutlinedTextField(
+                value = notesText,
+                onValueChange = { notesText = it },
+                label = { Text(if (isEs) "Localizador, hora de entrada o notas" else "Booking ref, entry time, notes", fontSize = 15.sp) },
+                minLines = 2,
+                maxLines = 4,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (isEs) "📌 Fijar en la parte superior" else "📌 Pin to top",
+                    fontSize = 15.sp
+                )
+                Switch(checked = isPinned, onCheckedChange = { isPinned = it })
+            }
+
+            AppButtonRow(
+                primaryText = if (isEs) "💾 Guardar" else "💾 Save",
+                onPrimaryClick = {
+                    val updated = initialDoc.copy(
+                        title = titleText.ifBlank { if (isEs) "Documento" else "Document" },
+                        referenceOrNotes = notesText,
+                        category = selectedCategory,
+                        isPinned = isPinned
+                    )
+                    onSave(updated)
+                },
+                secondaryText = if (isNew) {
+                    if (isEs) "Cancelar" else "Cancel"
+                } else {
+                    if (isEs) "🗑️ Eliminar" else "🗑️ Delete"
+                },
+                onSecondaryClick = {
+                    if (isNew) onDismiss() else onDelete(initialDoc.id)
+                }
+            )
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
 // ============================================================================
-// 10. TRAVEL GUIDES SCREEN
+// 10. TRAVEL GUIDES SCREEN (WITH FULL CRUD)
 // ============================================================================
 @Composable
 private fun TravelGuidesScreen(isEs: Boolean) {
-    val guides = remember { DefaultTravelGuidesCatalog.initialGuides() }
+    val guides by SharedDocumentsAndGuidesStore.guidesState.collectAsState()
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    val filteredGuides = remember(guides, searchQuery) {
+        DocumentsFilterUseCase.filterGuides(guides, null, searchQuery)
+    }
+
+    var editingGuide by remember { mutableStateOf<TravelGuideArticle?>(null) }
+    var isCreatingGuide by remember { mutableStateOf(false) }
+
+    if (isCreatingGuide || editingGuide != null) {
+        val initialGuide = editingGuide ?: TravelGuideArticle(
+            id = "guide-${System.currentTimeMillis()}",
+            title = "",
+            cityRegion = "Tokyo",
+            tags = listOf("Recomendaciones"),
+            markdownSummary = ""
+        )
+        GuideEditorModalSheet(
+            isEs = isEs,
+            initialGuide = initialGuide,
+            isNew = isCreatingGuide,
+            onDismiss = {
+                isCreatingGuide = false
+                editingGuide = null
+            },
+            onSave = { saved ->
+                SharedDocumentsAndGuidesStore.upsertGuide(saved)
+                isCreatingGuide = false
+                editingGuide = null
+            },
+            onDelete = { idToDelete ->
+                SharedDocumentsAndGuidesStore.deleteGuide(idToDelete)
+                isCreatingGuide = false
+                editingGuide = null
+            }
+        )
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        items(guides, key = { it.id }) { guide ->
-            KotlinConfCard {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = guide.title,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f)
-                    )
-                    InfoTagPill(text = guide.cityRegion)
-                }
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = guide.markdownSummary,
-                    fontSize = 15.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                AppPrimaryButton(
+                    text = if (isEs) "➕ Crear Nueva Guía" else "➕ Create New Guide",
+                    onClick = {
+                        editingGuide = null
+                        isCreatingGuide = true
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    label = { Text(if (isEs) "🔍 Buscar consejos y guías..." else "🔍 Search guides & tips...", fontSize = 15.sp) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
+        }
+
+        if (filteredGuides.isEmpty()) {
+            item {
+                KotlinConfCard {
+                    Text(
+                        text = if (isEs) "No hay guías disponibles" else "No guides found",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = if (isEs) "Pulsa «➕ Crear Nueva Guía» para redactar tus propios apuntes offline de Japón."
+                        else "Tap «➕ Create New Guide» to write your own offline Japan travel notes.",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        } else {
+            items(filteredGuides, key = { it.id }) { guide ->
+                KotlinConfCard {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = guide.title,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f)
+                        )
+                        InfoTagPill(text = guide.cityRegion)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = guide.markdownSummary,
+                        fontSize = 15.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(Modifier.height(12.dp))
+                    AppButtonRow(
+                        primaryText = if (isEs) "✏️ Editar" else "✏️ Edit",
+                        onPrimaryClick = {
+                            isCreatingGuide = false
+                            editingGuide = guide
+                        },
+                        secondaryText = if (isEs) "🗑️ Eliminar" else "🗑️ Delete",
+                        onSecondaryClick = {
+                            SharedDocumentsAndGuidesStore.deleteGuide(guide.id)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GuideEditorModalSheet(
+    isEs: Boolean,
+    initialGuide: TravelGuideArticle,
+    isNew: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (TravelGuideArticle) -> Unit,
+    onDelete: (String) -> Unit
+) {
+    var titleText by rememberSaveable { mutableStateOf(initialGuide.title) }
+    var cityText by rememberSaveable { mutableStateOf(initialGuide.cityRegion) }
+    var contentText by rememberSaveable { mutableStateOf(initialGuide.markdownSummary) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 18.dp, vertical = 10.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = if (isNew) {
+                    if (isEs) "➕ Crear Guía de Viaje" else "➕ Create Travel Guide"
+                } else {
+                    if (isEs) "✏️ Editar Guía de Viaje" else "✏️ Edit Travel Guide"
+                },
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            OutlinedTextField(
+                value = titleText,
+                onValueChange = { titleText = it },
+                label = { Text(if (isEs) "Título de la guía" else "Guide title", fontSize = 15.sp) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = cityText,
+                onValueChange = { cityText = it },
+                label = { Text(if (isEs) "Ciudad o región (Tokio, Kioto, Osaka...)" else "City or region", fontSize = 15.sp) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = contentText,
+                onValueChange = { contentText = it },
+                label = { Text(if (isEs) "Consejos, recomendaciones y apuntes" else "Tips & notes", fontSize = 15.sp) },
+                minLines = 4,
+                maxLines = 8,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            AppButtonRow(
+                primaryText = if (isEs) "💾 Guardar Guía" else "💾 Save Guide",
+                onPrimaryClick = {
+                    val updated = initialGuide.copy(
+                        title = titleText.ifBlank { if (isEs) "Guía de Japón" else "Japan Guide" },
+                        cityRegion = cityText.ifBlank { "Japón" },
+                        markdownSummary = contentText
+                    )
+                    onSave(updated)
+                },
+                secondaryText = if (isNew) {
+                    if (isEs) "Cancelar" else "Cancel"
+                } else {
+                    if (isEs) "🗑️ Eliminar" else "🗑️ Delete"
+                },
+                onSecondaryClick = {
+                    if (isNew) onDismiss() else onDelete(initialGuide.id)
+                }
+            )
+            Spacer(Modifier.height(16.dp))
         }
     }
 }

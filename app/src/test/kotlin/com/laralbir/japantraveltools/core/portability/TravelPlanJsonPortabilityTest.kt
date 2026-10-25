@@ -174,4 +174,42 @@ class TravelPlanJsonPortabilityTest {
         // And Nara stops must be added
         assertTrue(withNara.itineraryStops.any { it.title.contains("Nara", ignoreCase = true) || it.title.contains("Todai-ji", ignoreCase = true) })
     }
+
+    @Test
+    fun `SharedTravelPlanStore supports creating editing and deleting stops days and transport segments`() {
+        SharedTravelPlanStore.clearAll()
+        assertTrue(SharedTravelPlanStore.planState.value.itineraryStops.isEmpty())
+        assertTrue(SharedTravelPlanStore.planState.value.transportSegments.isEmpty())
+
+        val newStop = ItineraryStopItem(
+            id = "custom-stop-1",
+            dayNumber = 1,
+            dateIso = "2026-11-11",
+            startTime = "10:00",
+            endTime = "11:30",
+            title = "Shibuya Sky",
+            category = StopCategory.SIGHTSEEING,
+            placeNameJapanese = "渋谷スカイ",
+            latitude = 35.6580,
+            longitude = 139.7016,
+            notes = "Reserva 10:00"
+        )
+        SharedTravelPlanStore.upsertStop(newStop)
+        assertEquals(1, SharedTravelPlanStore.planState.value.itineraryStops.size)
+        assertEquals("Shibuya Sky", SharedTravelPlanStore.planState.value.itineraryStops.first().title)
+
+        // Edit existing stop
+        val editedStop = newStop.copy(title = "Shibuya Sky Sunset", startTime = "16:30", endTime = "18:00")
+        SharedTravelPlanStore.upsertStop(editedStop)
+        assertEquals(1, SharedTravelPlanStore.planState.value.itineraryStops.size)
+        assertEquals("Shibuya Sky Sunset", SharedTravelPlanStore.planState.value.itineraryStops.first().title)
+        assertEquals("16:30", SharedTravelPlanStore.planState.value.itineraryStops.first().startTime)
+
+        // Delete stop
+        SharedTravelPlanStore.deleteStop("custom-stop-1")
+        assertTrue(SharedTravelPlanStore.planState.value.itineraryStops.isEmpty())
+
+        // Restore defaults for other tests
+        SharedTravelPlanStore.resetToDefaults()
+    }
 }

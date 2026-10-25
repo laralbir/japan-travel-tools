@@ -30,6 +30,11 @@ Proporcionar una herramienta integral y **100% funcional offline** para planific
    - Dentro de cada día, las actividades se ordenan cronológicamente por **Hora de inicio (`startTime`)** y **Hora de fin (`endTime`)** en huso horario de Japón (`Asia/Tokyo`, JST).
    - Detección automática de **solapamientos horarios** (aviso visual si dos eventos se pisan) y cálculo de tiempos libres entre paradas.
    - Categorías de parada: ⛩️ *Lugar/Templo*, 🍜 *Restaurante/Comida*, 🚄 *Transporte/Tren*, 🏨 *Check-in/Hotel*, 🛍️ *Compras*, 🎟️ *Actividad/Ocio*.
+4. **Creación, Edición y Eliminación Directa de Planes y Paradas (CRUD Completo)**:
+   - **Añadir Parada (`➕ Nueva Parada`)**: Formulario modal para añadir una nueva parada en cualquier día indicando Día, Hora inicio, Hora fin, Título, Nombre en japonés y Notas.
+   - **Editar Parada (`✏️ Editar`)**: Botón directo en cada tarjeta del itinerario (y en cada tramo de transporte) que abre el editor con los datos actuales para modificar horario, título, notas o día.
+   - **Eliminar Parada (`🗑️ Eliminar`)**: Botón directo en cada tarjeta para borrar esa parada o tramo de transporte al instante.
+   - **Eliminar Día Completo o Vaciar Plan (`🗑️ Eliminar Día` / `🗑️ Vaciar Plan`)**: Acción directa para borrar todas las paradas de un día concreto o vaciar por completo el plan de viaje.
 
 ### RF-04.2: Integración con Fotos por Actividad y Día
 1. En cada actividad o parada del itinerario, el usuario puede adjuntar **múltiples fotografías** (desde cámara o selector de galería):

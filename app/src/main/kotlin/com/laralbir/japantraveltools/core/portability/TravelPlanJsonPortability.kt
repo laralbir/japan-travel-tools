@@ -44,6 +44,60 @@ object SharedTravelPlanStore {
         _planState.value = defaultSeedBundle()
     }
 
+    fun clearAll() {
+        _planState.value = PortableTravelPlanBundle(
+            schemaVersion = 1,
+            tripTitle = "Mi Viaje a Japón",
+            itineraryStops = emptyList(),
+            transportSegments = emptyList()
+        )
+    }
+
+    fun upsertStop(stop: ItineraryStopItem) {
+        val current = _planState.value
+        val existingIndex = current.itineraryStops.indexOfFirst { it.id == stop.id }
+        val updatedStops = current.itineraryStops.toMutableList()
+        if (existingIndex >= 0) {
+            updatedStops[existingIndex] = stop
+        } else {
+            updatedStops.add(stop)
+        }
+        _planState.value = current.copy(itineraryStops = updatedStops)
+    }
+
+    fun deleteStop(stopId: String) {
+        val current = _planState.value
+        _planState.value = current.copy(
+            itineraryStops = current.itineraryStops.filterNot { it.id == stopId }
+        )
+    }
+
+    fun deleteDay(dayNumber: Int) {
+        val current = _planState.value
+        _planState.value = current.copy(
+            itineraryStops = current.itineraryStops.filterNot { it.dayNumber == dayNumber }
+        )
+    }
+
+    fun upsertTransportSegment(segment: TransportSegmentItem) {
+        val current = _planState.value
+        val existingIndex = current.transportSegments.indexOfFirst { it.id == segment.id }
+        val updatedSegments = current.transportSegments.toMutableList()
+        if (existingIndex >= 0) {
+            updatedSegments[existingIndex] = segment
+        } else {
+            updatedSegments.add(segment)
+        }
+        _planState.value = current.copy(transportSegments = updatedSegments)
+    }
+
+    fun deleteTransportSegment(segmentId: String) {
+        val current = _planState.value
+        _planState.value = current.copy(
+            transportSegments = current.transportSegments.filterNot { it.id == segmentId }
+        )
+    }
+
     fun exportCurrentJson(): String = TravelPlanJsonCodec.exportToPrettyJson(_planState.value)
 
     fun importJson(json: String, mergeWithExisting: Boolean = false): Result<PortableTravelPlanBundle> {
