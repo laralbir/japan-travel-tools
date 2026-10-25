@@ -8,11 +8,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.fragment.app.FragmentActivity
+import com.laralbir.japantraveltools.core.portability.SharedTravelPlanStore
+import com.laralbir.japantraveltools.feature.documents.SharedDocumentsAndGuidesStore
 import com.laralbir.japantraveltools.ui.theme.JapanTravelToolsTheme
 
 class MainActivity : FragmentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+
+    SharedTravelPlanStore.init(this)
+    SharedDocumentsAndGuidesStore.init(this)
 
     enableEdgeToEdge()
     setContent {

@@ -7,6 +7,24 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.12] - 2026-10-25
+
+### Added
+- **Gestión Completa de Múltiples Planes de Viaje (`SPEC-04 RF-04.1`)**:
+  - **Tarjeta de Plan Activo**: Ubicada en la cabecera del Planificador de Viaje, mostrando el título del viaje, fecha de inicio, duración en días y conteo total de paradas.
+  - **Crear Nuevo Plan de Viaje (`PlanEditorModalSheet`)**: Botón `➕ Nuevo Plan` que permite crear itinerarios independientes (ej. *Primavera Kioto 2027*, *Ruta Tokio-Osaka*), seleccionando nombre, fecha de inicio y número de días.
+  - **Editar y Renombrar Plan**: Botón `✏️ Editar Plan` para modificar el título del plan, fecha de inicio o ajustar la duración en cualquier momento.
+  - **Selector y Conmutador de Planes (`PlanSwitcherModalSheet`)**: Botón `📑 Cambiar Plan` para alternar al instante entre los diferentes viajes guardados.
+  - **Eliminación Segura de Planes**: Botón `🗑️ Borrar Plan` para suprimir el plan activo de forma limpia y cambiar automáticamente al siguiente plan disponible.
+- **Persistencia Local Automática Offline-First en Almacenamiento Interno (`Context.filesDir`)**:
+  - `SharedTravelPlanStore`: Serialización automática en `context.filesDir/saved_travel_plans.json` de todos los planes, paradas, días y tramos de transporte multimodales.
+  - `SharedDocumentsAndGuidesStore`: Serialización automática en `context.filesDir/saved_documents.json` y `saved_guides.json`.
+  - Cero pérdida de datos: Todas las creaciones, ediciones o borrados de planes, paradas, transportes, documentos, guías y reservas persisten de forma indefinida tras reiniciar la app o apagar el dispositivo.
+- **Adjuntos de Archivos, PDFs y Fotos a Entradas y Reservas (`SPEC-03 RF-03.2`)**:
+  - Selector nativo de archivos en `DocumentEditorModalSheet` para adjuntar billetes en PDF, capturas de pantalla de reservas o códigos QR (`*/*`).
+  - Copia y almacenamiento seguro en `context.filesDir/documents/`.
+  - Previsualización de imágenes y botón directo `📄 Abrir Documento / PDF` con `androidx.core.content.FileProvider` para abrir billetes y reservas con el visor del sistema.
+
 ## [0.0.1-beta.11] - 2026-10-25
 
 ### Added
