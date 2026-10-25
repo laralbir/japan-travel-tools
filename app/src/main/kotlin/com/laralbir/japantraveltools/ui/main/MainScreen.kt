@@ -151,6 +151,8 @@ import com.laralbir.japantraveltools.feature.weather.PlanningSuitability
 import com.laralbir.japantraveltools.feature.weather.SharedWeatherForecastStore
 import com.laralbir.japantraveltools.feature.weather.WeatherCityCatalog
 import com.laralbir.japantraveltools.feature.weather.WeatherCityItem
+import com.laralbir.japantraveltools.feature.weather.CityGeocodingHelper
+import com.laralbir.japantraveltools.feature.weather.GeocodedCity
 import com.laralbir.japantraveltools.ui.theme.JapanTravelToolsTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -1511,9 +1513,47 @@ private fun CityWeatherEditorModalSheet(
     var latText by rememberSaveable { mutableStateOf(initialCity.latitude.toString()) }
     var lonText by rememberSaveable { mutableStateOf(initialCity.longitude.toString()) }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var geocodeNotice by rememberSaveable { mutableStateOf<String?>(null) }
+    var isGeocoding by remember { mutableStateOf(false) }
 
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val presets = remember { WeatherCityCatalog.destinationPresets() }
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
+
+    var predictions by remember { mutableStateOf<List<GeocodedCity>>(emptyList()) }
+
+    fun applyGeocodedCity(city: GeocodedCity) {
+        nameEsText = city.nameEs
+        nameEnText = city.nameEn
+        latText = city.latitude.toString()
+        lonText = city.longitude.toString()
+        errorMessage = null
+        geocodeNotice = if (isEs) {
+            "📍 Coordenadas de Google Maps obtenidas (${city.source}): ${city.latitude}, ${city.longitude}"
+        } else {
+            "📍 Coordinates obtained from Google Maps (${city.source}): ${city.latitude}, ${city.longitude}"
+        }
+        predictions = emptyList()
+    }
+
+    fun updatePredictions(query: String) {
+        val trimmed = query.trim()
+        if (trimmed.length < 2) {
+            predictions = emptyList()
+            return
+        }
+        val localMatches = CityGeocodingHelper.searchPredictions(trimmed, maxResults = 5)
+        predictions = localMatches
+        if (localMatches.isEmpty() && trimmed.length >= 3) {
+            coroutineScope.launch {
+                val onlineMatches = CityGeocodingHelper.searchOnlinePredictions(trimmed, maxResults = 4)
+                if (onlineMatches.isNotEmpty()) {
+                    predictions = onlineMatches
+                }
+            }
+        }
+    }
 
     AppConfirmationDialog(
         state = confirmationDialogState,
@@ -1564,6 +1604,12 @@ private fun CityWeatherEditorModalSheet(
                                     latText = preset.latitude.toString()
                                     lonText = preset.longitude.toString()
                                     errorMessage = null
+                                    geocodeNotice = if (isEs) {
+                                        "📍 Coordenadas de destino popular aplicadas: ${preset.latitude}, ${preset.longitude}"
+                                    } else {
+                                        "📍 Destination coordinates applied: ${preset.latitude}, ${preset.longitude}"
+                                    }
+                                    predictions = emptyList()
                                 },
                                 modifier = Modifier.weight(1f),
                                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
@@ -1579,11 +1625,72 @@ private fun CityWeatherEditorModalSheet(
 
             OutlinedTextField(
                 value = nameEsText,
-                onValueChange = { nameEsText = it; errorMessage = null },
+                onValueChange = {
+                    nameEsText = it
+                    errorMessage = null
+                    geocodeNotice = null
+                    updatePredictions(it)
+                },
                 label = { Text(if (isEs) "Nombre de la ciudad (Español)" else "City name (Spanish)", fontSize = 15.sp) },
+                placeholder = { Text(if (isEs) "Ej. Tokio, Kioto, Nara, Kobe, Madrid..." else "E.g. Tokyo, Kyoto, Nara, Kobe...") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
+
+            // Predictive Suggestion Cards
+            if (predictions.isNotEmpty()) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
+                ) {
+                    Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = if (isEs) "🔍 Destinos coincidentes (toca para autocompletar):" else "🔍 Matching destinations (tap to auto-fill):",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        predictions.forEach { pred ->
+                            Surface(
+                                onClick = { applyGeocodedCity(pred) },
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surface,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text("📍", fontSize = 16.sp)
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "${pred.nameEs} / ${pred.nameEn}" + if (pred.country.isNotBlank()) " · ${pred.country}" else "",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Text(
+                                            text = "Lat: ${pred.latitude} · Lon: ${pred.longitude} (${pred.source})",
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Text(
+                                        text = if (isEs) "Elegir" else "Pick",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
             OutlinedTextField(
                 value = nameEnText,
@@ -1592,6 +1699,57 @@ private fun CityWeatherEditorModalSheet(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
+
+            // Google Maps Geocoding Button
+            OutlinedButton(
+                onClick = {
+                    if (nameEsText.isBlank() && nameEnText.isBlank()) {
+                        errorMessage = if (isEs) "Escribe el nombre de la ciudad primero" else "Enter city name first"
+                        return@OutlinedButton
+                    }
+                    val query = nameEsText.ifBlank { nameEnText }
+                    isGeocoding = true
+                    errorMessage = null
+                    geocodeNotice = null
+                    predictions = emptyList()
+                    coroutineScope.launch {
+                        val resolved = CityGeocodingHelper.geocodeCity(context, query)
+                        isGeocoding = false
+                        if (resolved != null) {
+                            applyGeocodedCity(resolved)
+                        } else {
+                            errorMessage = if (isEs) {
+                                "⚠️ No se encontraron coordenadas automáticas para '$query'. Introduce latitud y longitud manualmente."
+                            } else {
+                                "⚠️ Coordinates not found automatically for '$query'. Please enter manually."
+                            }
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isGeocoding
+            ) {
+                if (isGeocoding) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (isEs) "Buscando en Google Maps..." else "Searching Google Maps...", fontSize = 13.sp)
+                } else {
+                    Text(
+                        if (isEs) "📍 Obtener coordenadas de Google Maps" else "📍 Get Google Maps Coordinates",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            if (geocodeNotice != null) {
+                Text(
+                    text = geocodeNotice!!,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
