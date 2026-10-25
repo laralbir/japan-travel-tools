@@ -1,6 +1,6 @@
 # Análisis Técnico: Arquitectura Android, Stack Tecnológico y Estrategia TDD
 
-Este documento recoge la fase de **Análisis** del flujo SDD para traducir las especificaciones [`SPEC-00`](../specs/00-core-configuration-spec.md), [`SPEC-01`](../specs/01-world-clock-spec.md), [`SPEC-02`](../specs/02-currency-converter-spec.md) y [`SPEC-03`](../specs/03-documents-and-id-vault-spec.md) en una arquitectura sólida, desacoplada y 100% verificable mediante TDD.
+Este documento recoge la fase de **Análisis** del flujo SDD para traducir las especificaciones [`SPEC-00`](../specs/00-core-configuration-spec.md), [`SPEC-01`](../specs/01-world-clock-spec.md), [`SPEC-02`](../specs/02-currency-converter-spec.md), [`SPEC-03`](../specs/03-documents-and-id-vault-spec.md) y [`SPEC-04`](../specs/04-trip-planner-spec.md) en una arquitectura sólida, desacoplada y 100% verificable mediante TDD.
 
 ---
 
@@ -11,15 +11,24 @@ Este documento recoge la fase de **Análisis** del flujo SDD para traducir las e
   - `minSdk`: 26 (Android 8.0, soporte nativo completo de `java.time` y `PdfRenderer`).
   - `targetSdk` / `compileSdk`: 35 (Android 15).
 - **UI**: Jetpack Compose + Material Design 3 + Navigation Compose (Type-Safe Navigation).
+- **Mapas y Ubicación**:
+  - **Google Maps SDK for Android + Maps Compose (`com.google.maps.android:maps-compose`)** para el mapa interactivo embebido en el planificador con marcadores numerados y polilíneas de ruta diaria.
+  - **Google Maps Intents / Geo URIs** para lanzar navegación paso a paso y abrir fichas en la app nativa de Google Maps (compatible con mapas offline descargados en Google Maps).
+  - **LocationManager / FusedLocationProvider** + resolutor offline de huso horario por coordenadas.
+- **Calendario y Notificaciones**:
+  - Calendario y línea temporal nativos en Compose + integración opcional con **`Android CalendarContract`** / Intents con zona horaria forzada a `Asia/Tokyo` y recordatorios vía `WorkManager` / `AlarmManager`.
 - **Inyección de Dependencias**: Hilt (Dagger) o Koin / Manual DI modular (fácilmente reemplazable en tests unitarios con Fakes).
 - **Persistencia Local (Offline-First)**:
   - **Jetpack DataStore (Preferences)**: Idioma, tema visual, configuración de reloj de origen, divisas por defecto, flag de bloqueo biométrico.
-  - **Jetpack Room (SQLite)**: Caché persistente de tipos de cambio de divisas (`CurrencyRateEntity`) y metadatos del repositorio de documentos e identificación (`TravelDocumentEntity`, `IdentityCardEntity`).
-  - **Almacenamiento Interno (`Context.filesDir`)**: Archivos físicos `.jpg`, `.png`, `.pdf` del pasaporte, DNI y reservas de viaje.
+  - **Jetpack Room (SQLite)**:
+    - Caché persistente de tipos de cambio de divisas (`CurrencyRateEntity`).
+    - Metadatos del repositorio de documentos e identificación (`TravelDocumentEntity`).
+    - Guías de viaje importadas y creadas en la app (`TravelGuideEntity`, `GuidePhotoEntity`).
+    - Planificador de viaje, días, horarios/paradas, ubicaciones y galería de fotos por parada (`TripEntity`, `TripDayEntity`, `ItineraryItemEntity`, `ItineraryPhotoEntity`).
+  - **Almacenamiento Interno (`Context.filesDir`)**: Archivos físicos `.jpg`, `.png`, `.pdf`, `.md` del pasaporte, DNI, reservas, guías y fotos del planificador.
 - **Red (Con Caché Offline)**:
   - **Ktor Client** o **Retrofit + OkHttp + Kotlinx Serialization** contra `https://api.frankfurter.dev/v1/`.
-- **Ubicación y Seguridad**:
-  - **LocationManager / FusedLocationProvider** + resolutor offline de huso horario por coordenadas.
+- **Seguridad e Internacionalización**:
   - **AndroidX Biometric (`BiometricPrompt`)** para protección de Pasaporte/DNI.
   - **AndroidX AppCompat (`AppCompatDelegate.setApplicationLocales`)** para soporte nativo multiidioma por aplicación (`es`, `en`).
 
@@ -56,9 +65,13 @@ flowchart TD
   - `data/`: `FrankfurterApiService`, `CurrencyRateDao`, `SeedExchangeRates`.
   - `ui/`: `CurrencyConverterScreen`, `CurrencyConverterViewModel`.
 - `feature/documents/`:
-  - `domain/`: `SaveIdentityImageUseCase`, `ImportTravelDocumentUseCase`, `GetTravelDocumentsUseCase`, `DocumentRepository`.
-  - `data/`: `TravelDocumentDao`, `InternalFileStorageManager`, `BiometricAuthManager`.
-  - `ui/`: `DocumentsVaultScreen`, `PassportDniViewerScreen`, `PdfViewerScreen`, `DocumentsViewModel`.
+  - `domain/`: `SaveIdentityImageUseCase`, `ImportTravelDocumentUseCase`, `GetTravelDocumentsUseCase`, `ManageTravelGuidesUseCase`, `DocumentRepository`, `TravelGuideRepository`.
+  - `data/`: `TravelDocumentDao`, `TravelGuideDao`, `InternalFileStorageManager`, `BiometricAuthManager`.
+  - `ui/`: `DocumentsVaultScreen`, `PassportDniViewerScreen`, `PdfViewerScreen`, `TravelGuidesScreen`, `GuideEditorScreen`, `DocumentsViewModel`.
+- `feature/planner/`:
+  - `domain/`: `CreateTripUseCase`, `ScheduleItineraryItemUseCase`, `DetectScheduleConflictsUseCase`, `ParseGoogleMapsUrlUseCase`, `ExportToSystemCalendarUseCase`, `TripPlannerRepository`.
+  - `data/`: `TripPlannerDao`, `SystemCalendarExporter`, `GoogleMapsIntentLauncher`.
+  - `ui/`: `TripPlannerScreen`, `DayTimelineView`, `DayEmbeddedMapView`, `ItineraryItemEditorSheet`, `TripPlannerViewModel`.
 
 ---
 
@@ -90,17 +103,53 @@ data class UserPreferences(
   - `lastSyncedEpochMillis: Long`
   - `isSeedData: Boolean` (indica si es la tasa semilla preinstalada o ya actualizada de red)
 
-### 3.3. Documentos e Identificación (`TravelDocumentEntity`)
+### 3.3. Documentos, Identificación y Guías de Viaje (`TravelDocumentEntity` & `TravelGuideEntity`)
 - **Tabla Room `travel_documents`**:
   - `id: String` (UUID)
   - `title: String`
-  - `category: DocumentCategory` (`PASSPORT`, `NATIONAL_ID_FRONT`, `NATIONAL_ID_BACK`, `FLIGHT`, `HOTEL`, `TRANSPORT`, `INSURANCE`, `TICKET`, `OTHER`)
+  - `category: DocumentCategory` (`PASSPORT`, `NATIONAL_ID_FRONT`, `NATIONAL_ID_BACK`, `FLIGHT`, `HOTEL`, `TRANSPORT`, `INSURANCE`, `TICKET`, `GUIDE`, `OTHER`)
   - `internalFilePath: String` (ruta relativa dentro de `filesDir`)
-  - `mimeType: String` (`image/jpeg`, `application/pdf`, etc.)
+  - `mimeType: String` (`image/jpeg`, `application/pdf`, `text/markdown`, etc.)
   - `documentNumberOrNotes: String?`
+  - `lastReadPage: Int` (para recordar la página en guías PDF)
   - `eventDateMillis: Long?`
   - `isPinned: Boolean`
   - `createdAtMillis: Long`
+- **Tabla Room `travel_guides` (Guías nativas e importadas)**:
+  - `id: String` (UUID)
+  - `title: String`
+  - `regionCity: String` (ej. `"Tokyo"`, `"Kyoto"`, `"Osaka"`, `"General"`)
+  - `tagsCsv: String` (ej. `"Ramen,Shinjuku,Compras"`)
+  - `markdownContent: String` (contenido enriquecido editable offline)
+  - `attachedDocumentId: String?` (FK opcional a `travel_documents` si es un PDF/mapa importado)
+  - `photoPathsJson: String` (lista de rutas internas en `filesDir/guides/`)
+  - `isPinned: Boolean`
+  - `updatedAtMillis: Long`
+
+### 3.4. Planificador de Viaje, Horarios, Fotos y Ubicación (`TripEntity` & `ItineraryItemEntity`)
+- **Tabla Room `trips`**:
+  - `id: String` (UUID)
+  - `name: String` (ej. `"Japón Otoño 2026"`)
+  - `startDateIso: String` (`"2026-11-10"`)
+  - `endDateIso: String` (`"2026-11-24"`)
+- **Tabla Room `itinerary_items` (Actividades / Paradas por Día y Horario)**:
+  - `id: String` (UUID)
+  - `tripId: String` (FK a `trips`)
+  - `dateIso: String` (`"2026-11-10"`)
+  - `startTimeIso: String` (`"09:00"`, interpretado siempre en `Asia/Tokyo`)
+  - `endTimeIso: String?` (`"11:00"`)
+  - `title: String` (ej. `"Visitar Templo Senso-ji"`)
+  - `category: StopCategory` (`SIGHTSEEING`, `FOOD`, `TRANSPORT`, `HOTEL`, `SHOPPING`, `ACTIVITY`)
+  - `notes: String?`
+  - `placeNameJapanese: String?` (ej. `"浅草寺"` para mostrar offline o buscar)
+  - `address: String?`
+  - `latitude: Double?`
+  - `longitude: Double?`
+  - `googleMapsUrl: String?`
+  - `photoPathsJson: String` (lista de fotos en `filesDir/planner_photos/`)
+  - `linkedDocumentId: String?` (FK opcional a reserva/entrada en `travel_documents`)
+  - `linkedGuideId: String?` (FK opcional a guía en `travel_guides`)
+  - `syncedCalendarEventId: Long?` (ID en `CalendarContract` si fue exportado)
 
 ---
 
@@ -114,7 +163,8 @@ Cada funcionalidad sigue el ciclo **Red -> Green -> Refactor**:
      - Resolución de idioma con fallback a `ENGLISH` cuando el locale del sistema no es `es` ni `en`.
      - Cálculo de diferencia horaria entre `Asia/Tokyo`, ubicación GPS simulada y `Europe/Madrid` (incluyendo cambios de horario de verano/invierno DST).
      - Conversión bidireccional `EUR <-> JPY`, aplicación de tasas semilla cuando no hay red, actualización de caché con Frankfurter API simulada (`MockEngine` / Fake API) y supervivencia de datos en modo offline.
-     - Filtrado, categorización, alta y borrado de documentos de viaje y fotos de Pasaporte/DNI usando un `FakeFileStorageManager`.
+     - Filtrado, categorización, alta y borrado de documentos de viaje, guías personalizadas/importadas y fotos de Pasaporte/DNI usando un `FakeFileStorageManager`.
+     - Lógica del **Planificador de Viaje**: generación de días entre fechas, ordenación cronológica de horarios, detección de solapamientos (`DetectScheduleConflictsUseCase`), extracción de coordenadas desde enlaces de Google Maps (`ParseGoogleMapsUrlUseCase`) y conversión de horarios a `Asia/Tokyo` para exportación a calendario.
 2. **Tests de UI / Instrumentados (`src/androidTest/java`)**:
    - **Compose UI Test (`createComposeRule`) + Room In-Memory Database**.
-   - Verificación de navegación, cambio de tema Claro/Oscuro, interacción con el conversor, selector de zona horaria de origen y visualización de documentos.
+   - Verificación de navegación, cambio de tema Claro/Oscuro, interacción con el conversor, selector de zona horaria de origen, creación/lectura de guías de viaje y línea temporal/mapa del planificador.
