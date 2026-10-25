@@ -23,8 +23,12 @@ Permitir al viajero llevar siempre a mano y **100% offline**:
    - **DNI / Documento de Identidad** (Anverso y Reverso).
 2. Captura e importación:
    - Permite tomar una foto directamente con la cámara o importar una imagen desde el selector del sistema (`Photo Picker`).
-3. Visor a pantalla completa:
-   - Soporte de zoom pellizcando (`pinch-to-zoom`), rotación y ajuste de brillo máximo temporal para facilitar la lectura de códigos o datos ante el personal de hoteles/tiendas.
+3. Visor a Pantalla Completa con Zoom Táctil (`FullScreenZoomableImageViewerDialog`):
+   - Al tocar la fotografía de Pasaporte o DNI, se abre un visor inmersivo a pantalla completa sobre fondo negro de alto contraste.
+   - **Gesto de pellizco para zoom (`pinch-to-zoom`)**: amplía suavemente la imagen desde 1.0x hasta 5.0x, permitiendo inspeccionar con total nitidez detalles cruciales como el número de pasaporte, fecha de caducidad, códigos MRZ o números de identidad.
+   - **Desplazamiento panorámico (`pan / drag`)**: permite arrastrar y mover la foto ampliada para recorrer los bordes y zonas de interés manteniéndola delimitada en pantalla.
+   - **Doble toque rápido (`double-tap`)**: alternador rápido entre zoom ampliado (2.5x) y zoom normal (1.0x).
+   - **Indicador y control de restablecimiento**: visualización en vivo del porcentaje de zoom (ej. `🔍 100%`, `🔍 250%`) y botón para restablecer inmediatamente la imagen a su escala original.
 4. Notas rápidas asociadas (opcional):
    - Campos opcionales para anotar el número de pasaporte, fecha de caducidad y número de DNI para copiar al portapapeles con un toque al rellenar formularios.
 
