@@ -45,6 +45,9 @@ Aplicación Android **offline-first** con herramientas esenciales para viajar a 
    - **Vuelos**: Apertura de check-in online, hora de facturación en mostrador y cierre de equipaje, hora de embarque, puerta, asiento, salida, llegada (`+1`/`+2` días) y cálculo automático de duración real entre zonas horarias.
    - **Trenes, Metros y Autobuses**: Línea y color oficial, códigos de estación (`G19` ➔ `G01`), nombres en japonés para paneles, andén (`Platform`), número de coche/vagón recomendado, asiento, reserva de maletas grandes en Shinkansen, cobertura **JR Pass / Suica**, **número exacto de salida de estación (`Exit`)** y dársena de autobús (`Bus Bay`).
    - **Calculador de Escalas y Transbordos (`Layovers & Transfers`)**: Tiempo total de conexión, margen hasta el siguiente embarque o cambio de andén/terminal, alerta de conexión ajustada y acceso directo a tarjetas de embarque o billetes QR (`SPEC-03`).
+7. **Asistente IA con Google Gemini y Acceso Directo a Traducción Simultánea [En Especificación - Beta]**
+   - **Acceso Directo Global a Traducción Simultánea (`ES/EN <-> Japonés`)**: Modo conversación cara a cara por voz y texto (con pantalla dividida reversible 180°, pronunciación en *Romaji*, OCR de cámara para menús/carteles con ML Kit Offline y salto rápido a *Google Translate / Pixel Live Translate*).
+   - **Asistente de Viaje con Gemini (`Gemini API` + `Gemini Nano On-Device` en Pixel 9/10 Pro XL)**: Análisis visual de cartas de restaurantes japoneses (con conversión automática de precios a `EUR`), recomendaciones contextuales y persistencia offline de todas las respuestas para exportarlas a Guías o al Planificador.
 
 ---
 
@@ -79,6 +82,7 @@ Toda la documentación técnica y funcional se encuentra en español dentro del 
   - [03 - Herramienta: Pasaporte/DNI, Repositorio de Documentos y Guías de Viaje](docs/specs/03-documents-and-id-vault-spec.md)
   - [04 - Herramienta: Planificador de Viaje (Fotos, Google Maps, Calendario y Horarios)](docs/specs/04-trip-planner-spec.md)
   - [05 - Herramienta: Planificador de Transporte (Vuelos, Trenes/Shinkansen, Metros y Autobuses)](docs/specs/05-flight-planner-spec.md)
+  - [06 - Herramienta: Asistente IA con Gemini y Acceso Directo a Traducción Simultánea](docs/specs/06-gemini-ai-and-translator-spec.md)
 - **Análisis Técnico**:
   - [Arquitectura, Stack Tecnológico y Estrategia TDD](docs/analysis/architecture-and-tech-stack.md)
 - **Planificación de Tareas**:
