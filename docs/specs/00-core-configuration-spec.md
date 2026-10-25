@@ -170,6 +170,14 @@ Dado que el usuario utilizará la aplicación simultáneamente en varios disposi
 2. **Confirmación en Acciones de Edición y Guardado de Cambios**:
    - Al modificar o sobrescribir datos críticos existentes en los editores modales, la interfaz debe solicitar confirmación o verificar la intención del viajero antes de persistir la sobrescritura, evitando cambios involuntarios al interactuar con el dispositivo en movimiento.
 
+### RF-00.14: Componente Universal de Selector de Fechas Interactivo (`AppDatePickerField`)
+1. **Sustitución de Cajas de Texto de Fecha por Selectores Interactivos**:
+   - Queda prohibido obligar al usuario a teclear fechas manualmente como cadenas de texto (`YYYY-MM-DD`).
+   - Todos los campos de fecha de la aplicación (fecha de inicio del plan de viaje, fecha de paradas del itinerario y fecha de tramos de vuelos/trenes) deben utilizar un selector interactivo nativo (`AppDatePickerField` con `DatePickerDialog` de Material 3).
+2. **Ergonomía y Visualización Clara**:
+   - El campo muestra un icono de calendario (`📅`), la fecha en formato localizado legible (ej. *"11 nov 2026"*) y el formato ISO estándar (`YYYY-MM-DD`).
+   - Al tocar el campo o su icono, se abre el diálogo de calendario (`DatePickerDialog`) permitiendo elegir año, mes y día de forma táctil y cómoda sin teclado virtual.
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin / BDD)
@@ -225,3 +233,9 @@ Dado que el usuario utilizará la aplicación simultáneamente en varios disposi
 - **Entonces** si pulsa *"Cancelar"*, la acción se aborta de inmediato y el elemento se mantiene inalterado.
 - **Y cuando** pulsa *"Eliminar"*, se ejecuta el borrado seguro con confirmación visual.
 - **Y de igual forma**, si modifica un elemento existente y pulsa *"Guardar"*, se solicita confirmación de actualización para evitar sobrescrituras accidentales.
+
+### Escenario 10: Selección de fechas mediante selector interactivo de calendario
+- **Dado** que el usuario abre un formulario que requiere fecha (ej. «Crear o Editar Plan de Viaje», «Añadir o Editar Transporte», o «Editar Parada de Itinerario»)
+- **Cuando** pulsa sobre el campo de fecha o el icono del calendario `📅`
+- **Entonces** se despliega el selector de fecha nativo de Material 3 (`DatePickerDialog`) permitiendo elegir año, mes y día con toques táctiles
+- **Y cuando** pulsa *"Aceptar"*, el campo se actualiza con la fecha seleccionada sin requerir tecleo manual de texto.

@@ -31,6 +31,7 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 - [x] **TASK-107 (TDD)**: Implementar `ConnectivityStatusHelper` y el componente **`ConnectivityStatusPill` + `QuickConnectivitySwitcherContent`** en el Home/Cabecera (detección en tiempo real de `Wi-Fi`, `Pocket Wi-Fi`, `SIM física`, `eSIM`, `Roaming` u `Offline`, y botones rápidos para abrir el panel nativo de Internet de Android y el selector de SIM/eSIM).
 - [x] **TASK-108 (TDD)**: Implementar configuración de **Sincronización Multi-Dispositivo con Cuenta de Google** entre móvil (**Pixel 10/9 Pro XL**) y tablet (**TCL NXTPAPER 11 Plus**) con disponibilidad offline.
 - [x] **TASK-109 (TDD)**: Modales de confirmación de seguridad para acciones de edición y eliminación (`SPEC-00 RF-00.13`): Componente `AppConfirmationDialog`, prevención de borrados y sobrescrituras accidentales en transportes, planes, paradas, ciudades, documentos y guías con confirmaciones destructivas (`isDestructive`) y reversibles.
+- [x] **TASK-110 (TDD)**: Selectores interactivos de fechas (`SPEC-00 RF-00.14 & SPEC-04 RF-04.7`): Implementar `DateSelectorHelper` y componente `@Composable AppDatePickerField` con `DatePickerDialog` de Material 3, sustituyendo campos de texto manuales `YYYY-MM-DD` en la creación y edición de planes de viaje, transportes e itinerarios.
 
 ---
 
