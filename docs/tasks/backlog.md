@@ -98,6 +98,7 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 - [x] **TASK-705 (TDD)**: Ampliar `OfflineTranslatorEngine` con diccionario exhaustivo bidireccional, enrutamiento inteligente de idioma (`isJapaneseText`) y regla estricta de no-fuga de caracteres japoneses a la locución TTS en español/inglés.
 - [x] **TASK-706 (TDD)**: Refactorizar `translateToJapanese` en `OfflineTranslatorEngine` garantizando traducciones directas, fieles y concisas sin palabras adicionales inventadas (cero boilerplate).
 - [x] **TASK-707 (TDD)**: Implementar la Traducción Visual con Cámara (OCR con ML Kit Japanese Text Recognition + Procesamiento en `OfflineTranslatorEngine.translateOcrJapaneseText` + Interfaz de Cámara/Galería en `VoiceTranslatorScreen`).
+- [x] **TASK-708 (TDD)**: Traducción Fiel de Voz Bidireccional (`SPEC-06 RF-06.1.2.6`): Refactorizar `translateFromJapaneseSpeech` y `translateToJapanese` para realizar traducción literal y fiel (sin respuestas inventadas de dependiente ni mensajes meta de chatbot), integrar traductor híbrido en tiempo real (Google Translate / Gemini online + diccionario exhaustivo offline) y actualizar la interfaz para mostrar el texto japonés capturado, Romaji y traducción en español antes de locutar.
 
 ---
 

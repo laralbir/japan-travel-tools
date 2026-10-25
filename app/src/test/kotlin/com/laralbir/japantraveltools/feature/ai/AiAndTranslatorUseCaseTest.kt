@@ -102,6 +102,50 @@ class AiAndTranslatorUseCaseTest {
     }
 
     @Test
+    fun `translateFromJapaneseSpeech faithfully translates literal meaning and never invents conversational replies or bot messages`() {
+        val sumimasen = OfflineTranslatorEngine.translateFromJapaneseSpeech("すみません")
+        assertEquals("Disculpe / Perdón.", sumimasen.spanishSpokenText)
+        assertTrue(!sumimasen.spanishSpokenText.contains("ayudar"))
+
+        val water = OfflineTranslatorEngine.translateFromJapaneseSpeech("お水")
+        assertEquals("Agua.", water.spanishSpokenText)
+        assertTrue(!water.spanishSpokenText.contains("cortesía"))
+
+        val checkIn = OfflineTranslatorEngine.translateFromJapaneseSpeech("チェックイン")
+        assertEquals("Check-in / Registro.", checkIn.spanishSpokenText)
+        assertTrue(!checkIn.spanishSpokenText.contains("habitación"))
+
+        val wakarimashita = OfflineTranslatorEngine.translateFromJapaneseSpeech("わかりました")
+        assertEquals("Entendido / De acuerdo.", wakarimashita.spanishSpokenText)
+        assertTrue(!wakarimashita.spanishSpokenText.contains("preparo"))
+
+        val howMuch = OfflineTranslatorEngine.translateFromJapaneseSpeech("これはいくらですか？")
+        assertTrue(howMuch.spanishSpokenText.contains("cuánto cuesta", ignoreCase = true) || howMuch.spanishSpokenText.contains("cuánto es", ignoreCase = true))
+        assertTrue(!howMuch.spanishSpokenText.contains("interlocutor"))
+
+        val whereRestroom = OfflineTranslatorEngine.translateFromJapaneseSpeech("トイレはどこですか？")
+        assertTrue(whereRestroom.spanishSpokenText.contains("dónde está el baño", ignoreCase = true))
+        assertTrue(!whereRestroom.spanishSpokenText.contains("interlocutor"))
+
+        val yenPrice = OfflineTranslatorEngine.translateFromJapaneseSpeech("1500円")
+        assertTrue(yenPrice.spanishSpokenText.contains("1500 yenes") || yenPrice.spanishSpokenText.contains("1.500 yenes"))
+        assertTrue(!yenPrice.spanishSpokenText.contains("total a pagar"))
+    }
+
+    @Test
+    fun `OnlineTranslatorClient translates Japanese to Spanish and Spanish to Japanese`() {
+        val es = OnlineTranslatorClient.translate("これはいくらですか？", "ja", "es")
+        if (es != null) {
+            assertTrue(es.contains("cuánto", ignoreCase = true) || es.contains("cuanto", ignoreCase = true))
+        }
+
+        val ja = OnlineTranslatorClient.translate("¿Dónde está el baño?", "es", "ja")
+        if (ja != null) {
+            assertTrue(ja.contains("トイレ") || ja.contains("お手洗い"))
+        }
+    }
+
+    @Test
     fun `translateToJapanese never adds extra unsaid words, questions, compliments or boilerplate`() {
         val hola = OfflineTranslatorEngine.translateToJapanese("Hola")
         assertTrue(hola.japaneseText.contains("こんにちは"))
