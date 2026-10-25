@@ -1,11 +1,12 @@
-#!/usr/bin/env zsh
-set -euo pipefail
+#!/usr/bin/env sh
+set -eu
 
 # ==============================================================================
 # deploy-authorized-devices.sh
 # Compila el APK de Debug, valida la lista local de dispositivos autorizados
 # (authorized-devices.local.conf, ignorado por Git) e instala/lanza la app
 # únicamente en los dispositivos conectados que estén explícitamente autorizados.
+# Compatible con POSIX sh, bash 3.2+ (macOS) y zsh.
 # ==============================================================================
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -14,17 +15,21 @@ EXAMPLE_FILE="${PROJECT_ROOT}/authorized-devices.example.conf"
 APP_ID="com.laralbir.japantraveltools"
 MAIN_ACTIVITY="${APP_ID}/.MainActivity"
 
+# Evitar crash de mDNS auto-connect en platform-tools 37.0.0 en macOS arm64
+export ADB_MDNS=0
+export ADB_MDNS_AUTO_CONNECT=0
+
 # Localizar binario adb
 if command -v adb >/dev/null 2>&1; then
   ADB_BIN="$(command -v adb)"
-elif [[ -x "${HOME}/Library/Android/sdk/platform-tools/adb" ]]; then
+elif [ -x "${HOME}/Library/Android/sdk/platform-tools/adb" ]; then
   ADB_BIN="${HOME}/Library/Android/sdk/platform-tools/adb"
 else
   echo "❌ Error: No se encontró 'adb' en el PATH ni en ~/Library/Android/sdk/platform-tools/adb" >&2
   exit 1
 fi
 
-if [[ ! -f "${CONFIG_FILE}" ]]; then
+if [ ! -f "${CONFIG_FILE}" ]; then
   echo "⚠️  No existe el archivo local de dispositivos autorizados: ${CONFIG_FILE}"
   echo "👉 Créalo a partir de la plantilla (este archivo está en .gitignore y nunca se sube al repo):"
   echo "   cp ${EXAMPLE_FILE} ${CONFIG_FILE}"
@@ -34,21 +39,34 @@ if [[ ! -f "${CONFIG_FILE}" ]]; then
   exit 1
 fi
 
-# Leer seriales autorizados (ignorando comentarios y líneas vacías)
-typeset -A AUTHORIZED_DEVICES
-while IFS= read -r line || [[ -n "$line" ]]; do
-  trimmed="${line#"${line%%[![:space:]]*}"}"
-  [[ -z "$trimmed" || "$trimmed" == \#* ]] && continue
-  serial="${trimmed%%|*}"
-  serial="${serial%"${serial##*[![:space:]]}"}"
-  alias_name="${trimmed#*|}"
-  alias_name="${alias_name#"${alias_name%%[![:space:]]*}"}"
-  if [[ -n "$serial" ]]; then
-    AUTHORIZED_DEVICES["$serial"]="${alias_name:-$serial}"
+# Función auxiliar para limpiar espacios al principio y al final
+trim_string() {
+  echo "$1" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
+}
+
+# Verificar que exista al menos un serial válido en CONFIG_FILE y conectar entradas Wi-Fi (IP:puerto)
+AUTH_COUNT=0
+while IFS= read -r line || [ -n "$line" ]; do
+  trimmed="$(trim_string "$line")"
+  case "$trimmed" in
+    ""|\#*) continue ;;
+  esac
+  raw_serial="${trimmed%%|*}"
+  serial="$(trim_string "$raw_serial")"
+  raw_alias="${trimmed#*|}"
+  alias_name="$(trim_string "$raw_alias")"
+  if [ -n "$serial" ]; then
+    AUTH_COUNT=$((AUTH_COUNT + 1))
+    case "$serial" in
+      *:*)
+        echo "📡 Conectando por ADB Wi-Fi a ${alias_name:-$serial} (${serial})..."
+        "${ADB_BIN}" connect "${serial}" >/dev/null 2>&1 || true
+        ;;
+    esac
   fi
 done < "${CONFIG_FILE}"
 
-if [[ ${#AUTHORIZED_DEVICES[@]} -eq 0 ]]; then
+if [ "${AUTH_COUNT}" -eq 0 ]; then
   echo "⚠️  El archivo ${CONFIG_FILE} no tiene ningún serial configurado."
   echo "📱 Dispositivos conectados actualmente:"
   "${ADB_BIN}" devices -l
@@ -59,31 +77,48 @@ echo "🔨 Compilando APK Debug (assembleDebug)..."
 (cd "${PROJECT_ROOT}" && ./gradlew assembleDebug)
 
 APK_PATH="${PROJECT_ROOT}/app/build/outputs/apk/debug/app-debug.apk"
-if [[ ! -f "${APK_PATH}" ]]; then
+if [ ! -f "${APK_PATH}" ]; then
   echo "❌ No se encontró el APK compilado en ${APK_PATH}" >&2
   exit 1
 fi
 
-# Intentar reconectar automáticamente entradas Wi-Fi Debugging (IP:puerto)
-for auth_serial in "${(@k)AUTHORIZED_DEVICES}"; do
-  if [[ "$auth_serial" == *:* ]]; then
-    echo "📡 Conectando por ADB Wi-Fi a ${AUTHORIZED_DEVICES[$auth_serial]} (${auth_serial})..."
-    "${ADB_BIN}" connect "${auth_serial}" || true
-  fi
-done
+# Mostrar estado de dispositivos ADB (incluyendo 'unauthorized' si falta aceptar en la pantalla del móvil)
+UNAUTHORIZED_SERIALS="$("${ADB_BIN}" devices | awk 'NR>1 && $2=="unauthorized" {print $1}')"
+if [ -n "${UNAUTHORIZED_SERIALS}" ]; then
+  echo "⚠️  Dispositivo(s) pendiente(s) de aceptar '¿Permitir depuración por USB?' en la pantalla del móvil:"
+  echo "${UNAUTHORIZED_SERIALS}"
+fi
 
-# Obtener dispositivos conectados en estado 'device'
-CONNECTED_SERIALS=($("${ADB_BIN}" devices | awk 'NR>1 && $2=="device" {print $1}'))
-
-if [[ ${#CONNECTED_SERIALS[@]} -eq 0 ]]; then
-  echo "⚠️  No hay ningún dispositivo Android conectado por ADB en este momento."
+CONNECTED_SERIALS="$("${ADB_BIN}" devices | awk 'NR>1 && $2=="device" {print $1}')"
+if [ -z "${CONNECTED_SERIALS}" ]; then
+  echo "⚠️  No hay ningún dispositivo Android conectado en estado 'device' por ADB en este momento."
+  echo "👉 Asegúrate de tener activada la 'Depuración por USB' en Opciones para desarrolladores y aceptar el diálogo RSA en el teléfono."
   exit 1
 fi
 
+# Función para buscar si un serial está autorizado en CONFIG_FILE y devolver su alias
+find_authorized_alias() {
+  target_serial="$1"
+  while IFS= read -r line || [ -n "$line" ]; do
+    trimmed="$(trim_string "$line")"
+    case "$trimmed" in
+      ""|\#*) continue ;;
+    esac
+    raw_serial="${trimmed%%|*}"
+    serial="$(trim_string "$raw_serial")"
+    raw_alias="${trimmed#*|}"
+    alias_name="$(trim_string "$raw_alias")"
+    if [ "$serial" = "$target_serial" ]; then
+      echo "${alias_name:-$serial}"
+      return 0
+    fi
+  done < "${CONFIG_FILE}"
+  return 1
+}
+
 INSTALLED_COUNT=0
-for serial in "${CONNECTED_SERIALS[@]}"; do
-  if [[ -n "${AUTHORIZED_DEVICES[$serial]+x}" ]]; then
-    device_label="${AUTHORIZED_DEVICES[$serial]}"
+for serial in ${CONNECTED_SERIALS}; do
+  if device_label="$(find_authorized_alias "$serial")"; then
     echo "📲 Instalando y lanzando en dispositivo autorizado: ${device_label} (${serial})..."
     if command -v android >/dev/null 2>&1; then
       android install --device="${serial}" --apks="${APK_PATH}" || "${ADB_BIN}" -s "${serial}" install -r -t "${APK_PATH}"
@@ -91,16 +126,15 @@ for serial in "${CONNECTED_SERIALS[@]}"; do
       "${ADB_BIN}" -s "${serial}" install -r -t "${APK_PATH}"
     fi
     "${ADB_BIN}" -s "${serial}" shell am start -n "${MAIN_ACTIVITY}"
-    ((INSTALLED_COUNT++))
+    INSTALLED_COUNT=$((INSTALLED_COUNT + 1))
   else
     echo "🔒 Ignorando dispositivo conectado NO incluido en authorized-devices.local.conf: ${serial}"
   fi
 done
 
-if [[ ${INSTALLED_COUNT} -eq 0 ]]; then
+if [ "${INSTALLED_COUNT}" -eq 0 ]; then
   echo "⚠️  Ninguno de los dispositivos conectados está en tu lista autorizada (${CONFIG_FILE})."
   exit 1
 fi
 
 echo "✅ Despliegue Debug completado en ${INSTALLED_COUNT} dispositivo(s) autorizado(s)."
-
