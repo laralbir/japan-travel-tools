@@ -7,6 +7,36 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.24] - 2026-10-25
+
+### Added
+- **Clarificación de la Tarjeta de Seguridad y Desacoplamiento del Interruptor de Bloqueo Biométrico (`SPEC-03 RF-03.3`)**:
+  - **Eliminación de la ambigüedad**: Se reestructura la cabecera de la sección de Identificación, eliminando el interruptor flotante que aparecía pegado al título principal *"Pasaporte, DNI y Documentos"* y que provocaba confusión respecto a si apagaba o encendía la sección.
+  - **Tarjeta dedicada de seguridad**: Se integra una tarjeta de configuración visualmente independiente: `🔒 Bloqueo Biométrico / PIN` con título destacado e información explicativa explícita: *"Exigir huella, rostro o PIN para acceder a las fotos de pasaporte y documentos"*, clarificando de inmediato que protege el acceso a los datos de identidad.
+- **Bóveda de Documentos de Identidad Personalizados (`CustomIdDocumentItem` — `SPEC-03 RF-03.2`)**:
+  - **Soporte ilimitado de documentos sensibles con foto**: Permite al viajero guardar de forma privada y 100% offline cualquier documento oficial con fotografía:
+    - 💉 **Certificados de Vacunación** (fiebre amarilla, Covid, etc.).
+    - 💊 **Recetas Médicas para Aduanas** (indispensables ante la estricta normativa de aduanas de Japón para medicamentos prescritos y permisos *Yakkan Shoumei* / confirmación de importación).
+    - 🚗 **Carnet de Conducir Internacional** (IDP según la Convención de Ginebra de 1949).
+    - 🏥 **Pólizas de Seguro Médico Internacional** con números de asistencia 24h.
+    - 🛂 **Visados, sellos consulares y códigos QR de entrada**.
+    - 📄 **Cualquier documento oficial o privado personalizado**.
+  - **Editor Modal con Sugerencias Rápidas (`CustomIdDocumentEditorModalSheet`)**:
+    - Chips horizontales interactivos con presets habituales que rellenan el título con un solo toque.
+    - Campos de texto para nombre del documento y notas/referencia/caducidad (ej. *"Hospital Carlos III · Válido hasta 2028"*).
+    - Selector integrado de fotos desde galería o archivos con previsualización de estado.
+  - **Visor Inmersivo con Zoom Táctil (`pinch-to-zoom`)**:
+    - Cada documento personalizado cuenta con acceso inmediato al visor a pantalla completa sobre fondo negro (`FullScreenZoomableImageViewerDialog`) con zoom de `1.0x` a `5.0x`, arrastre panorámico, alternador por doble toque y restablecimiento.
+  - **Gestión Completa y Borrado Seguro con Double Check**:
+    - Botones dedicados de cambio de foto (`🔄 Cambiar Foto`), edición de textos (`✏️ Editar`) y eliminación protegida (`🗑️ Quitar Foto` / `🗑️ Eliminar Documento`).
+    - Integración obligatoria con `ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation` que exige activar el interruptor de doble confirmación antes de eliminar permanentemente cualquier documento o fotografía.
+  - **Persistencia Offline-First Segura**:
+    - Metadatos guardados en `Context.filesDir/id_vault/custom_id_docs.json`.
+    - Fotografías almacenadas en el directorio privado `Context.filesDir/id_vault/custom_doc_<timestamp>.jpg`, aisladas de la galería pública y accesibles sin internet.
+- **Batería de Tests Unitarios TDD (`DocumentsAndGuidesUseCaseTest`)**:
+  - Verificación de serialización y deserialización JSON sin dependencias externas (`DocumentsAndGuidesJsonCodec.exportCustomIdDocsJson` / `importCustomIdDocsJson`).
+  - Verificación de operaciones reactivas de inserción, actualización de datos y borrado en `SharedDocumentsAndGuidesStore`.
+
 ## [0.0.1-beta.23] - 2026-10-25
 
 ### Added
