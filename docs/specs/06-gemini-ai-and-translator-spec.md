@@ -103,12 +103,18 @@ Dotar a **Japan Travel Tools** de capacidades de Inteligencia Artificial mediant
 9. **Selector de Modelos de Gemini (`pref_gemini_model_id`)**:
    - Selector en Ajustes para alternar entre modelos oficiales:
      - `Gemini 2.0 Flash` (`gemini-2.0-flash`, recomendado por defecto).
+     - `Gemini 1.5 Pro` (`gemini-1.5-pro`, razonamiento profundo para itinerarios complejos).
+     - `Gemini 2.5 Pro` (`gemini-2.5-pro`, última generación Pro con razonamiento avanzado).
      - `Gemini 2.0 Flash Lite` (`gemini-2.0-flash-lite`, ultrarrápido de baja latencia).
-     - `Gemini 1.5 Pro` (`gemini-1.5-pro`, razonamiento profundo para itinerarios).
-     - `Gemini 1.5 Flash` (`gemini-1.5-flash`).
      - `Gemini 2.5 Flash` (`gemini-2.5-flash`).
+     - `Gemini 1.5 Flash` (`gemini-1.5-flash`).
      - Opción de modelo personalizado libre.
    - Parseo de respuesta con `org.json.JSONObject` nativo de Android extrayendo de forma segura `candidates[0].content.parts[0].text`.
+10. **Selector Rápido de Modelo PRO vs FLASH en el Asistente IA**:
+   - Selector directo y conmutador táctil integrado en la cabecera del Asistente IA (`AiAssistantScreen`):
+     - `⚡ Flash (Rápido)`: Conmuta en 1 toque a `gemini-2.0-flash` para respuestas instantáneas de consultas habituales.
+     - `🧠 PRO (Razonamiento)`: Conmuta en 1 toque al modelo Pro (`gemini-1.5-pro` / `gemini-2.5-pro`) para análisis profundos, optimización de itinerarios y resolución de conflictos de agenda.
+   - Sincronización bidireccional reactiva con la persistencia en `UserPreferencesRepository`.
 
 ---
 

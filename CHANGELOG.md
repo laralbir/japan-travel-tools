@@ -7,6 +7,20 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.30] - 2026-10-25
+
+### Added
+- **Selector Directo de Modelo PRO vs Flash en el Asistente IA (`AiAssistantScreen`) (`SPEC-06 RF-06.3`)**:
+  - **Conmutador Rápido de 1 Toque en Pantalla Principal**: Componente visual integrado directamente en la cabecera del Asistente IA que permite alternar instantáneamente entre `[ ⚡ Flash (Rápido) ]` y `[ 🧠 PRO (Razonamiento) ]`, eliminando la necesidad de ir a Ajustes para cambiar de modelo.
+  - **Insignia de Modo Reactiva**: Badge dinámico `🧠 PRO ACTIVO` vs `⚡ FLASH ACTIVO` con colores semánticos Material Design 3.
+  - **Sub-selector de Variantes PRO**: Al seleccionar PRO, se despliega una barra horizontal con chips para elegir con un toque entre **Gemini 1.5 Pro** (estándar probado para itinerarios y consultas complejas) y **Gemini 2.5 Pro** (última generación de Google con razonamiento profundo avanzado).
+- **Catálogo Oficial Ampliado con `Gemini 2.5 Pro` (`GeminiApiKeyHelper`)**:
+  - Incorporación de `gemini-2.5-pro` junto con `gemini-1.5-pro`.
+  - Helpers de dominio `isProModel(modelId)`, `getProModels()`, `getFlashModels()`, `PRO_DEFAULT_MODEL_ID` (`gemini-1.5-pro`) y `FLASH_DEFAULT_MODEL_ID` (`gemini-2.0-flash`).
+  - Distinción visual en Ajustes (`GeminiApiKeySetupCard`) con prefijos `🧠 PRO`, `⚡ Flash` y contenedores semánticos diferenciados.
+- **Batería de Tests Unitarios TDD (`GeminiApiKeyHelperTest`)**:
+  - Tests unitarios que verifican la detección inequívoca de modelos Pro, constantes canónicas de defaults y presencia de variantes en el catálogo.
+
 ## [0.0.1-beta.29] - 2026-10-25
 
 ### Added

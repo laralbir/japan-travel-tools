@@ -121,6 +121,27 @@ class GeminiApiKeyHelperTest {
     }
 
     @Test
+    fun `isProModel correctly detects pro models and rejects flash and lite models`() {
+        assertTrue(GeminiApiKeyHelper.isProModel("gemini-1.5-pro"))
+        assertTrue(GeminiApiKeyHelper.isProModel("gemini-2.5-pro"))
+        assertTrue(GeminiApiKeyHelper.isProModel("gemini-2.0-pro-exp"))
+        assertFalse(GeminiApiKeyHelper.isProModel("gemini-2.0-flash"))
+        assertFalse(GeminiApiKeyHelper.isProModel("gemini-2.0-flash-lite"))
+        assertFalse(GeminiApiKeyHelper.isProModel("gemini-1.5-flash"))
+        assertFalse(GeminiApiKeyHelper.isProModel(null))
+        assertFalse(GeminiApiKeyHelper.isProModel(""))
+    }
+
+    @Test
+    fun `getProModels and pro constants are properly defined`() {
+        assertEquals("gemini-1.5-pro", GeminiApiKeyHelper.PRO_DEFAULT_MODEL_ID)
+        assertEquals("gemini-2.0-flash", GeminiApiKeyHelper.FLASH_DEFAULT_MODEL_ID)
+        val proModels = GeminiApiKeyHelper.getProModels()
+        assertTrue(proModels.any { it.id == "gemini-1.5-pro" })
+        assertTrue(proModels.any { it.id == "gemini-2.5-pro" })
+    }
+
+    @Test
     fun `testApiKeyConnection handles success and error status codes deterministically`() {
         // Mock successful 200 response
         val successResult = GeminiApiKeyHelper.testApiKeyConnection(
