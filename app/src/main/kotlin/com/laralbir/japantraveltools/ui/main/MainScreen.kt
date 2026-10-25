@@ -132,6 +132,7 @@ import com.laralbir.japantraveltools.feature.documents.TravelDocumentItem
 import com.laralbir.japantraveltools.feature.documents.TravelGuideArticle
 import com.laralbir.japantraveltools.feature.documents.DocumentCategory
 import com.laralbir.japantraveltools.feature.documents.DocumentsFilterUseCase
+import com.laralbir.japantraveltools.feature.documents.FullScreenZoomableImageViewerDialog
 import com.laralbir.japantraveltools.feature.planner.ItineraryStopItem
 import com.laralbir.japantraveltools.feature.planner.StopCategory
 import com.laralbir.japantraveltools.feature.planner.TripPlannerUseCase
@@ -4731,11 +4732,21 @@ private fun IdDocumentPhotoSection(
     }
 
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
+    var isViewingFullScreen by remember { mutableStateOf(false) }
 
     AppConfirmationDialog(
         state = confirmationDialogState,
         onDismiss = { confirmationDialogState = null }
     )
+
+    if (photoBitmap != null && isViewingFullScreen) {
+        FullScreenZoomableImageViewerDialog(
+            title = title,
+            bitmap = photoBitmap,
+            isEs = isEs,
+            onDismiss = { isViewingFullScreen = false }
+        )
+    }
 
     Surface(
         shape = RoundedCornerShape(14.dp),
@@ -4753,13 +4764,39 @@ private fun IdDocumentPhotoSection(
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(200.dp)
+                        .height(210.dp)
+                        .clickable { isViewingFullScreen = true }
                 ) {
-                    Image(
-                        bitmap = photoBitmap,
-                        contentDescription = title,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        Image(
+                            bitmap = photoBitmap,
+                            contentDescription = title,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+                            shadowElevation = 2.dp,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text("🔍", fontSize = 13.sp)
+                                Text(
+                                    text = if (isEs) "Toca para pantalla completa y zoom" else "Tap for full screen & zoom",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
                 }
                 Spacer(Modifier.height(12.dp))
                 AppButtonRow(

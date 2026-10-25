@@ -7,6 +7,21 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.23] - 2026-10-25
+
+### Added
+- **Visor a Pantalla Completa y Zoom Táctil para Pasaporte y DNI (`SPEC-03 RF-03.1.3`)**:
+  - **Apertura Táctil Inmersiva**:
+    - Al pulsar sobre la fotografía de Pasaporte o DNI (anverso o reverso) en la Bóveda de Identificación (`IdDocumentPhotoSection`), la imagen se abre a pantalla completa con fondo negro de alto contraste para máxima legibilidad.
+    - Se añade indicador visual *"🔍 Toca para pantalla completa y zoom"* en la miniatura de cada documento.
+  - **Zoom Pellizcando y Desplazamiento Panorámico (`ZoomPanState`)**:
+    - **Pinch-to-zoom fluido**: Permite ampliar de `1.0x` a `5.0x` para inspeccionar con máxima nitidez detalles como número de pasaporte, fecha de caducidad, códigos MRZ o números de identidad.
+    - **Pan / Drag delimitado**: Permite desplazar la imagen ampliada manteniendo los márgenes dentro del contenedor de la pantalla.
+    - **Alternador por doble toque**: Alterna de forma instantánea entre zoom ampliado (`2.5x`) y escala original (`1.0x`).
+    - **Controles flotantes**: Indicador del porcentaje de zoom en tiempo real (ej. `🔍 100%`, `🔍 250%`), botón *"Restablecer"* y botón de cierre *"✕"*.
+  - **Batería de Tests Unitarios TDD (`ZoomPanStateTest`)**:
+    - 7 tests unitarios que verifican la escala inicial, acotación entre 1x y 5x, traslación panorámica dentro de límites, alternancia por doble toque y restablecimiento a estado inicial.
+
 ## [0.0.1-beta.22] - 2026-10-25
 
 ### Added
