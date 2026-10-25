@@ -69,3 +69,8 @@ Dotar a **Japan Travel Tools** de capacidades de Inteligencia Artificial mediant
 - **Cuando** pulsa *"Crear / Mejorar Plan con Gemini IA"*
 - **Entonces** Gemini analiza el plan actual de la app, corrige los solapamientos horarios, añade las paradas óptimas con sus coordenadas/nombres en japonés y sus tramos de tren/metro, y actualiza el Planificador de Viaje (`SPEC-04`) y de Transporte (`SPEC-05`) dejándolo persistido 100% offline.
 
+### Escenario 4: Optimización de planes por la IA según el tiempo de Open-Meteo (`SPEC-07`)
+- **Dado** que la previsión meteorológica de Open-Meteo (`SPEC-07`) indica alta probabilidad de lluvia o mal tiempo en una fecha del itinerario
+- **Cuando** el usuario solicita a la IA optimizar el plan con información meteorológica
+- **Entonces** la IA adapta las paradas de ese día añadiendo alternativas cubiertas (mercados techados, museos, galerías *Shotengai*) y consejos de equipamiento (paraguas, calzado impermeable, visibilidad del Monte Fuji).
+

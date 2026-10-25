@@ -97,3 +97,8 @@ Proporcionar una herramienta integral y **100% funcional offline** para planific
 - **Dado** que el usuario prepara un archivo `japan-trip-plan.json` en una herramienta externa con días, horarios, coordenadas y tramos de vuelo/Shinkansen
 - **Cuando** importa el JSON en la aplicación
 - **Entonces** el Planificador de Viaje y el Planificador de Transporte cargan y persisten automáticamente todas las paradas y trayectos para su uso 100% offline.
+
+### Escenario 5: Integración de la previsión meteorológica de Open-Meteo (`SPEC-07`) en cada día del itinerario
+- **Dado** que existe previsión meteorológica de Open-Meteo para la fecha y ciudad del día seleccionado
+- **Cuando** el usuario visualiza el día en el Planificador de Viaje
+- **Entonces** ve la tarjeta climática del día (temperatura máx/mín, probabilidad de lluvia, recomendación de paraguas e idoneidad Exterior vs. Interior) y puede optimizar las paradas con IA según el clima.
