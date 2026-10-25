@@ -7,6 +7,21 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.11] - 2026-10-25
+
+### Added
+- **Traducción Visual con Cámara de Texto Japonés y Carteles 100% Offline (`SPEC-06 RF-06.1`)**:
+  - **Reconocimiento Óptico de Caracteres (OCR)**: Integrado `com.google.mlkit:text-recognition-japanese:16.0.1` para lectura on-device de Kanji, Hiragana y Katakana sin requerir conexión a internet ni cuenta en la nube.
+  - **Selector de Modo en Traductor**: Pestañas en cabecera `[🎙️ Voz Simultánea]` y `[📷 Cámara / Carteles]` dentro de `VoiceTranslatorScreen`.
+  - **Captura y Selección de Imágenes**: Soporte directo para tomar fotos con la cámara del dispositivo (`ActivityResultContracts.TakePicturePreview`) o cargar fotos de la galería (`ActivityResultContracts.GetContent`).
+  - **Traducción Automática de Carteles y Menús (`translateOcrJapaneseText`)**:
+    - Detección e interpretación fiel de platos típicos de Japón (Ramen, Gyoza, Cerveza, Udon, Soba, Sushi, Curry), reglas de locales (Zona de no fumadores, Fumadores, Local completo, Salida de emergencia, Aseos) y andenes/tipos de vagón de Shinkansen (asientos libres vs reservados).
+    - Extracción de precios en Yenes (`([0-9]+)\s*円`) con conversión contextual.
+    - Generación de pronunciación en Romaji y traducción en español e inglés.
+  - **Sintetizador de Voz (TTS)**: Botones para escuchar la traducción completa locutada en español o escuchar el texto japonés original.
+  - **Carteles de Demostración Rápida**: Chips de prueba con un solo toque (*🍜 Menú Ramen*, *🚅 Shinkansen*, *🚭 Cartel Local*, *🚻 Aseos y Salida*) para verificar el funcionamiento inmediato sin necesidad de apuntar a un cartel físico.
+  - **Acceso Directo a Cámara de Google Traductor / Lens**: Botón de fallback para realidad aumentada con superposición en vivo (`googletranslate://camera`).
+
 ## [0.0.1-beta.10] - 2026-10-25
 
 ### Fixed

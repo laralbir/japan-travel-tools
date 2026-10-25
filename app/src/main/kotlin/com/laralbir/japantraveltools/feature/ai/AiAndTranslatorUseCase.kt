@@ -18,6 +18,24 @@ data class JapaneseToTravelerVoiceResult(
     val contextLabel: String
 )
 
+data class CameraOcrLine(
+    val japaneseText: String,
+    val romaji: String,
+    val translatedText: String
+)
+
+data class CameraOcrResult(
+    val rawText: String,
+    val lines: List<CameraOcrLine>,
+    val fullTranslation: String,
+    val hasJapanese: Boolean
+)
+
+data class CameraSignSample(
+    val label: String,
+    val sampleJapaneseOcr: String
+)
+
 object OfflineTranslatorEngine {
 
     fun isJapaneseText(text: String): Boolean {
@@ -68,6 +86,110 @@ object OfflineTranslatorEngine {
             contextLabel = "PAGO / CAJA"
         )
     )
+
+    val sampleJapaneseSigns = listOf(
+        CameraSignSample(
+            label = "🍜 Menú Ramen",
+            sampleJapaneseOcr = "特製ラーメン 1000円\n焼き餃子 450円\n生ビール 550円"
+        ),
+        CameraSignSample(
+            label = "🚅 Shinkansen",
+            sampleJapaneseOcr = "新幹線 16番線\n自由席 1号車〜3号車"
+        ),
+        CameraSignSample(
+            label = "🚭 Cartel Local",
+            sampleJapaneseOcr = "禁煙席\n本日満席\nお会計 現金のみ"
+        ),
+        CameraSignSample(
+            label = "🚻 Aseos y Salida",
+            sampleJapaneseOcr = "お手洗い\n非常口 Exit"
+        )
+    )
+
+    fun translateOcrJapaneseText(rawOcrText: String, isEs: Boolean = true): CameraOcrResult {
+        val clean = rawOcrText.trim()
+        val rawLines = clean.lines().map { it.trim() }.filter { it.isNotBlank() }
+        val hasJp = rawLines.any { isJapaneseText(it) }
+
+        if (!hasJp || rawLines.isEmpty()) {
+            return CameraOcrResult(
+                rawText = rawOcrText,
+                lines = emptyList(),
+                fullTranslation = if (isEs) {
+                    "No se detectó texto en japonés en la imagen. Intenta enfocar más cerca del cartel o menú."
+                } else {
+                    "No clear Japanese text detected in image. Please focus closer to the sign or menu."
+                },
+                hasJapanese = false
+            )
+        }
+
+        val lines = rawLines.map { line ->
+            translateSingleOcrLine(line, isEs)
+        }
+
+        val summary = lines.joinToString(separator = "\n") { it.translatedText }
+        return CameraOcrResult(
+            rawText = rawOcrText,
+            lines = lines,
+            fullTranslation = summary,
+            hasJapanese = true
+        )
+    }
+
+    private fun translateSingleOcrLine(line: String, isEs: Boolean): CameraOcrLine {
+        val yenRegex = """([0-9]{1,3}(?:,[0-9]{3})*|[0-9]+)\s*円""".toRegex()
+        val yenMatch = yenRegex.find(line)
+        val yenAmount = yenMatch?.groupValues?.get(1)
+
+        val (translatedText, romaji) = when {
+            line.contains("ラーメン") -> {
+                val priceInfo = if (yenAmount != null) " (~$yenAmount yenes)" else ""
+                val dish = if (line.contains("特製")) "Ramen especial" else "Ramen"
+                Pair("$dish$priceInfo", "Tokusei rāmen")
+            }
+            line.contains("餃子") -> {
+                val priceInfo = if (yenAmount != null) " (~$yenAmount yenes)" else ""
+                Pair("Empanadillas Gyoza$priceInfo", "Yaki-gyōza")
+            }
+            line.contains("ビール") -> {
+                val priceInfo = if (yenAmount != null) " (~$yenAmount yenes)" else ""
+                Pair("Cerveza de barril$priceInfo", "Nama bīru")
+            }
+            line.contains("新幹線") -> {
+                val track = """([0-9]+)\s*番""".toRegex().find(line)?.groupValues?.get(1)
+                val trackText = if (track != null) " andén $track" else ""
+                Pair("Tren Shinkansen$trackText", "Shinkansen")
+            }
+            line.contains("禁煙") -> Pair("Zona de no fumadores (prohibido fumar)", "Kin'en-seki")
+            line.contains("喫煙") -> Pair("Área de fumadores", "Kitsuen-jo")
+            line.contains("満席") || line.contains("本日満席") -> Pair("Local completo (sin mesas disponibles)", "Honjitsu manseki")
+            line.contains("お手洗い") || line.contains("トイレ") || line.contains("化粧室") -> Pair("Aseos / Baño", "O-tearai / Toire")
+            line.contains("非常口") || line.contains("避難所") -> Pair("Salida de emergencia", "Hijōguchi")
+            line.contains("出口") -> Pair("Salida", "Deguchi")
+            line.contains("現金のみ") || line.contains("現金だけ") -> Pair("Solo pago en efectivo", "Genkin nomi")
+            line.contains("免税") -> Pair("Trámite Tax-Free libre de impuestos", "Menzei")
+            line.contains("自由席") -> Pair("Vagones de asientos libres (no reservados)", "Jiyū-seki")
+            line.contains("指定席") -> Pair("Vagones de asientos reservados", "Shitei-seki")
+            line.contains("うどん") -> Pair("Fideos Udon" + (if (yenAmount != null) " (~$yenAmount yenes)" else ""), "Udon")
+            line.contains("そば") -> Pair("Fideos Soba" + (if (yenAmount != null) " (~$yenAmount yenes)" else ""), "Soba")
+            line.contains("寿司") || line.contains("すし") -> Pair("Sushi" + (if (yenAmount != null) " (~$yenAmount yenes)" else ""), "Sushi")
+            line.contains("カレー") -> Pair("Curry japonés" + (if (yenAmount != null) " (~$yenAmount yenes)" else ""), "Karē")
+            line.contains("水") -> Pair("Agua fresca", "O-mizu")
+            line.contains("お茶") -> Pair("Té verde", "O-cha")
+            yenAmount != null -> Pair("Importe: $yenAmount yenes", "$yenAmount-en")
+            else -> {
+                val speechResult = translateFromJapaneseSpeech(line)
+                Pair(speechResult.spanishSpokenText, speechResult.romaji)
+            }
+        }
+
+        return CameraOcrLine(
+            japaneseText = line,
+            romaji = romaji,
+            translatedText = translatedText
+        )
+    }
 
     fun translateFromJapaneseSpeech(japaneseInput: String): JapaneseToTravelerVoiceResult {
         val clean = japaneseInput.trim()

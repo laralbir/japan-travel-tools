@@ -2,7 +2,7 @@
 
 Aplicación Android **offline-first** con herramientas esenciales para viajar a Japón, desarrollada en **Kotlin** y **Jetpack Compose** siguiendo metodologías **SDD (Spec-Driven Development)** y **TDD (Test-Driven Development)** para agentes de Inteligencia Artificial.
 
-> **Estado actual del proyecto**: `v0.0.1-beta.10` (Suite funcional offline-first con traducción por voz bidireccional concisa y fiel sin palabras inventadas; CRUD completo en paradas, transportes y documentos; Bóveda ID con fotos reales y biometría nativa obligatoria `BiometricPrompt`; previsión Open-Meteo por ciudad seleccionada; portabilidad JSON y guía de esquema para IAs).
+> **Estado actual del proyecto**: `v0.0.1-beta.11` (Suite funcional offline-first con traducción por cámara y OCR on-device para menús y carteles en japonés con Google ML Kit; traducción por voz bidireccional concisa y fiel sin palabras inventadas; CRUD completo en paradas, transportes y documentos; Bóveda ID con fotos reales y biometría nativa obligatoria `BiometricPrompt`; previsión Open-Meteo por ciudad seleccionada; portabilidad JSON y guía de esquema para IAs).
 
 ---
 
