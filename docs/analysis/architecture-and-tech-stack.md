@@ -1,6 +1,6 @@
 # Análisis Técnico: Arquitectura Android, Stack Tecnológico y Estrategia TDD
 
-Este documento recoge la fase de **Análisis** del flujo SDD para traducir las especificaciones [`SPEC-00`](../specs/00-core-configuration-spec.md), [`SPEC-01`](../specs/01-world-clock-spec.md), [`SPEC-02`](../specs/02-currency-converter-spec.md), [`SPEC-03`](../specs/03-documents-and-id-vault-spec.md), [`SPEC-04`](../specs/04-trip-planner-spec.md) y [`SPEC-05`](../specs/05-flight-planner-spec.md) en una arquitectura sólida, desacoplada y 100% verificable mediante TDD.
+Este documento recoge la fase de **Análisis** del flujo SDD para traducir las especificaciones [`SPEC-00`](../specs/00-core-configuration-spec.md), [`SPEC-01`](../specs/01-world-clock-spec.md), [`SPEC-02`](../specs/02-currency-converter-spec.md), [`SPEC-03`](../specs/03-documents-and-id-vault-spec.md), [`SPEC-04`](../specs/04-trip-planner-spec.md), [`SPEC-05`](../specs/05-flight-planner-spec.md) y [`SPEC-06`](../specs/06-gemini-ai-and-translator-spec.md) en una arquitectura sólida, desacoplada y 100% verificable mediante TDD.
 
 ---
 
@@ -43,6 +43,9 @@ Este documento recoge la fase de **Análisis** del flujo SDD para traducir las e
   - **Almacenamiento Interno (`Context.filesDir`)**: Archivos físicos `.jpg`, `.png`, `.pdf`, `.md` del pasaporte, DNI, reservas, guías y fotos del planificador.
 - **Red (Con Caché Offline)**:
   - **Ktor Client** o **Retrofit + OkHttp + Kotlinx Serialization** contra `https://api.frankfurter.dev/v1/`.
+- **Inteligencia Artificial (Google Gemini) y Traducción Simultánea Offline**:
+  - **Google GenAI / Gemini SDK (`com.google.ai.client.generativeai` / Gemini REST + AICore On-Device)**: Soporte dual para **Gemini Cloud** (texto y visión multimodal para cartas de restaurantes, carteles y planificación) y **Gemini Nano On-Device** en **Google Pixel 10 Pro XL / Pixel 9 Pro XL**, persistiendo todo el historial de respuestas en Room para lectura offline.
+  - **Google ML Kit On-Device Translation (`com.google.mlkit:translate`) + Text Recognition Japanese (`com.google.mlkit:text-recognition-japanese`)**: Traducción simultánea 100% offline `ES/EN <-> JA` y OCR de caracteres japoneses (`Kanji/Kana`), combinados con `SpeechRecognizer` y `TextToSpeech` de Android para conversación en vivo cara a cara.
 - **Seguridad, Licencias Open Source e Internacionalización**:
   - **AndroidX Biometric (`BiometricPrompt`)** para protección de Pasaporte/DNI.
   - **AndroidX AppCompat (`AppCompatDelegate.setApplicationLocales`)** para soporte nativo multiidioma por aplicación (`es`, `en`).
@@ -92,6 +95,10 @@ flowchart TD
   - `domain/`: `CalculateTransportTimelineUseCase`, `CalculateLayoverAndTransferUseCase`, `TransportPlannerRepository`, modelos `TransportJourney`, `TransportSegment`, `TransportType` (`FLIGHT`, `TRAIN_SHINKANSEN`, `TRAIN_EXPRESS`, `TRAIN_LOCAL`, `SUBWAY_METRO`, `BUS_HIGHWAY`, `BUS_LOCAL`, `BUS_AIRPORT`), `ConnectionDetails`.
   - `data/`: `TransportPlannerDao`, `AirportAndStationCatalog` (catálogo offline de aeropuertos internacionales/japoneses `MAD`, `BCN`, `DOH`, `HND`, `NRT`, `KIX` y principales estaciones de Japón como `Tokyo`, `Shinjuku`, `Shibuya`, `Kyoto`, `Shin-Osaka`, `Kanazawa`, `Hiroshima` con sus `ZoneId`, nombres en japonés y coordenadas).
   - `ui/`: `TransportPlannerScreen`, `FlightSegmentTimelineCard`, `TrainMetroBusSegmentCard`, `LayoverTransferConnectorCard`, `TransportEditorSheet`, `TransportPlannerViewModel`.
+- `feature/ai_translator/` (Asistente IA Gemini y Acceso Directo a Traducción Simultánea):
+  - `domain/`: `AskGeminiAssistantUseCase`, `AnalyzeJapaneseImageWithGeminiUseCase`, `SimultaneousTranslateUseCase`, `TransliterateToRomajiUseCase`, `AiAssistantRepository`, `OfflineTranslatorRepository`.
+  - `data/`: `GeminiClientAdapter`, `MlKitOfflineTranslator`, `JapaneseOcrProcessor`, `AiConversationDao`.
+  - `ui/`: `SimultaneousTranslatorScreen` (modo conversación cara a cara 180° + cámara OCR + acceso directo global), `GeminiAssistantScreen`, `AiTranslatorViewModel`.
 
 ---
 
@@ -209,6 +216,22 @@ data class UserPreferences(
   - `arrivalTimeIso: String` (Hora de llegada local en `arrivalZoneId`)
   - `ticketDocumentId: String?` (FK opcional a tarjeta de embarque o billete QR en `travel_documents`)
   - `notes: String?`
+
+### 3.6. Asistente IA Gemini y Caché de Traducciones (`AiMessageEntity` & `SavedTranslationEntity`)
+- **Tabla Room `ai_messages`** (Historial persistente offline de consultas y análisis de imágenes con Gemini):
+  - `id: String` (UUID)
+  - `sessionId: String`
+  - `role: String` (`"USER"` o `"MODEL"`)
+  - `promptOrResponseMarkdown: String`
+  - `attachedImagePath: String?` (ruta en `filesDir/ai_photos/` p. ej. foto de menú japonés)
+  - `createdAtMillis: Long`
+- **Tabla Room `saved_translations`** (Frases frecuentes, alergias e historial de traducción simultánea offline):
+  - `id: String` (UUID)
+  - `sourceLanguage: String` (`"es"`, `"en"`)
+  - `sourceText: String`
+  - `japaneseText: String` (`Kanji/Kana`)
+  - `romajiText: String` (pronunciación fonética)
+  - `isPinnedPhrase: Boolean`
 
 ---
 

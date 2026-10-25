@@ -82,8 +82,16 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 
 ---
 
-## Hito 8: Cierre de Beta, Aprobación y Release Estable `v0.0.1`
+## Hito 8: Herramienta 6 — Asistente IA con Gemini y Acceso Directo a Traducción Simultánea (`SPEC-06`)
 
-- [ ] **TASK-701**: Ejecutar batería completa de tests unitarios e instrumentados y validar uso 100% en Modo Avión.
-- [ ] **TASK-702**: Revisión y aprobación del usuario de cada herramienta para retirar la etiqueta `BETA`.
-- [ ] **TASK-703**: Merge a `main` vía Gitflow (`release/0.0.1`), generación de tag `v0.0.1`, compilación de APK final y publicación en **GitHub Releases**.
+- [ ] **TASK-701 (TDD)**: Escribir tests unitarios e implementar el motor de **Traducción Simultánea Offline (`SimultaneousTranslateUseCase` + `MlKitOfflineTranslator` + `TransliterateToRomajiUseCase`)** para traducir voz, texto e imágenes (`OCR Japonés`) entre `ES/EN <-> Japonés` con pronunciación en Romaji y tarjetas de emergencia/alergias offline.
+- [ ] **TASK-702 (TDD)**: Escribir tests unitarios e implementar el **Asistente de IA con Gemini (`AskGeminiAssistantUseCase`, `AnalyzeJapaneseImageWithGeminiUseCase`)** soportando Gemini API + Gemini Nano On-Device (en Pixel 10/9 Pro XL), conversión automática de precios de cartas de restaurantes a `EUR`, persistencia offline de respuestas en Room y exportación directa a Guías (`SPEC-03`) o al Planificador (`SPEC-04`).
+- [ ] **TASK-703 (TDD)**: Implementar el **Acceso Directo Global a Traducción Simultánea** en la cabecera/Home y las pantallas `SimultaneousTranslatorScreen` (modo conversación cara a cara reversible 180° en Pixel y doble panel en TCL NXTPAPER 11 Plus) y `GeminiAssistantScreen`.
+
+---
+
+## Hito 9: Cierre de Beta, Aprobación y Release Estable `v0.0.1`
+
+- [ ] **TASK-801**: Ejecutar batería completa de tests unitarios e instrumentados y validar uso 100% en Modo Avión.
+- [ ] **TASK-802**: Revisión y aprobación del usuario de cada herramienta para retirar la etiqueta `BETA`.
+- [ ] **TASK-803**: Merge a `main` vía Gitflow (`release/0.0.1`), generación de tag `v0.0.1`, compilación de APK final y publicación en **GitHub Releases**.

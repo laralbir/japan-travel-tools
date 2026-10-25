@@ -173,3 +173,25 @@ Dentro del mismo trayecto o en trayectos diarios por Japón puedes añadir tramo
 
 ### 6.4. Tarjetas de Embarque y Billetes QR a un toque
 - Enlaza el PDF o captura QR de tu **Tarjeta de Embarque**, billete de **Shinkansen** o reserva de **Highway Bus** a cada tramo para abrirlo al instante desde la propia tarjeta del trayecto sin conexión a internet.
+
+---
+
+## 7. Herramienta: Asistente IA con Gemini y Acceso Directo a Traducción Simultánea
+
+Comunícate sin barreras en restaurantes, estaciones, hoteles y tiendas, y resuelve cualquier duda sobre tu viaje usando Inteligencia Artificial.
+
+### 7.1. Acceso Directo a Traducción Simultánea (`ES/EN <-> Japonés 日本語`)
+En la pantalla principal (Home) y en la barra superior tienes siempre a mano el botón de **Traducción Simultánea**:
+1. **Modo Conversación Cara a Cara (Voz y Texto 100% Offline)**:
+   - Habla en Español o Inglés y la app traducirá y pronunciará en voz alta la frase en **Japonés (`日本語`)**, mostrando también la pronunciación en **Romaji** para que puedas leerla.
+   - La mitad superior de la pantalla se puede **girar 180°** para apoyar el **Pixel 10/9 Pro XL** o la tablet **TCL NXTPAPER 11 Plus** en el mostrador o mesa y hablar cómodamente con una persona japonesa.
+   - Funciona **sin internet** descargando los modelos locales en el dispositivo, e incluye acceso directo a **Google Translate / Live Translate del Pixel**.
+2. **Traducción de Cámara (Menús, Carteles y Productos)**:
+   - Apunta con la cámara a cualquier cartel en kanji o carta de restaurante para leer su traducción al instante.
+3. **Tarjetas Rápidas de Supervivencia y Alergias**:
+   - Muestra con un toque tarjetas en japonés a gran tamaño (alergias alimentarias, pedir la cuenta, compras *Tax-Free*, direcciones).
+
+### 7.2. Asistente de Viaje con IA (Google Gemini)
+- **Análisis Inteligente de Menús y Fotos**: Haz una foto a la carta de un restaurante japonés y **Gemini** te explicará cada plato, sus ingredientes y te mostrará los precios ya convertidos a Euros (`EUR`).
+- **Planificación y Dudas al Instante**: Pregúntale a Gemini rutas alternativas, etiqueta en templos/*onsen* o combinaciones de trenes.
+- **Guardado Automático Offline**: Todas las respuestas de Gemini se guardan en la memoria del teléfono para leerlas sin internet y puedes convertirlas con un toque en una **Guía de Viaje** o en paradas de tu **Planificador**.

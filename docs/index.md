@@ -14,6 +14,7 @@ Documentos de especificación que definen el **qué** antes de diseñar o escrib
 - [**03 — Especificación: Pasaporte/DNI a Mano, Repositorio de Documentos y Guías de Viaje**](specs/03-documents-and-id-vault-spec.md)
 - [**04 — Especificación: Planificador de Viaje (Fotos, Google Maps, Calendario y Horarios)**](specs/04-trip-planner-spec.md)
 - [**05 — Especificación: Planificador de Transporte (Vuelos, Trenes/Shinkansen, Metros y Autobuses)**](specs/05-flight-planner-spec.md)
+- [**06 — Especificación: Asistente IA con Gemini y Acceso Directo a Traducción Simultánea**](specs/06-gemini-ai-and-translator-spec.md)
 
 ### 2. Análisis Técnico (`/docs/analysis/`)
 Documentos que transforman las especificaciones en decisiones de arquitectura, modelos de datos y contratos verificables:
