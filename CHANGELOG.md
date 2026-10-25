@@ -7,6 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.6] - 2026-10-25
+
+### Changed
+- **Rediseño Ergonómico de Paleta Oscura, Tipografía Grande y Baja Densidad Visual (`SPEC-00 RF-00.2`)**:
+  - **Paleta Oscura Relajante (Soft Slate & Indigo)**: Sustitución de los bordes rojos/azules intensos en modo oscuro por superficies pizarra suaves (`#111318`, `#1A1D24`, `#232730`), bordes neutros discretos (`#2E3440`) y acentos pastel descansados (`#8AB4F8` índigo suave y `#94C9A9` verde salvia).
+  - **Tipografía Ampliada (`15.sp`–`34.sp`)**: Aumento global de tamaños tipográficos (prohibido texto menor de `13.sp`), mayor interlineado y espaciado interno generoso (`18.dp`).
+  - **Sub-vistas Segmentadas (1 herramienta por pantalla)**: División de las pantallas principales mediante selectores limpios (`💴 Conversor` | `🕒 Relojes` | `🌦️ Tiempo` en Inicio; `🛂 Pasaporte` | `📄 Reservas` | `📖 Guías` en Docs; `🎙️ Traductor de Voz` | `✨ Asistente IA` en Voz/IA; `⚙️ Preferencias` | `ℹ️ Acerca de` en Ajustes) para eliminar el exceso de información simultánea.
+  - **Gestión de Datos Demo en el Planificador**: Añadido botón `"🗑️ Vaciar Demo"` / `"🔄 Cargar Demo"` en la hoja de opciones del Planificador para limpiar o restaurar los planes de ejemplo en cualquier momento.
+
 ## [0.0.1-beta.5] - 2026-10-25
 
 ### Added
