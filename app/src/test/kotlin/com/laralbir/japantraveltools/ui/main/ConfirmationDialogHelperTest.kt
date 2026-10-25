@@ -72,5 +72,65 @@ class ConfirmationDialogHelperTest {
         state.onConfirm()
         assertTrue(saved)
     }
+
+    @Test
+    fun `builds sensitive delete confirmation requiring double check in Spanish`() {
+        var deleted = false
+        val state = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
+            itemName = "Mi Viaje a Japón 2026",
+            itemTypeEs = "plan de viaje completo",
+            itemTypeEn = "complete travel plan",
+            isEs = true,
+            onConfirm = { deleted = true }
+        )
+
+        assertTrue(state.title.contains("plan de viaje completo"))
+        assertTrue(state.message.contains("Mi Viaje a Japón 2026"))
+        assertTrue(state.message.contains("doble confirmación"))
+        assertTrue(state.isDestructive)
+        assertTrue(state.requiresDoubleCheck)
+        assertTrue(state.doubleCheckPrompt != null && state.doubleCheckPrompt.contains("DOBLE COMPROBACIÓN"))
+        assertEquals("🗑️ Eliminar Definitivamente", state.confirmButtonText)
+
+        assertFalse(deleted)
+        state.onConfirm()
+        assertTrue(deleted)
+    }
+
+    @Test
+    fun `builds sensitive delete confirmation requiring double check in English`() {
+        var deleted = false
+        val state = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
+            itemName = "Passport Front Page",
+            itemTypeEs = "foto de pasaporte",
+            itemTypeEn = "passport photo",
+            isEs = false,
+            onConfirm = { deleted = true }
+        )
+
+        assertTrue(state.title.contains("passport photo"))
+        assertTrue(state.message.contains("Passport Front Page"))
+        assertTrue(state.message.contains("double check"))
+        assertTrue(state.isDestructive)
+        assertTrue(state.requiresDoubleCheck)
+        assertTrue(state.doubleCheckPrompt != null && state.doubleCheckPrompt.contains("DOUBLE CHECK"))
+        assertEquals("🗑️ Delete Permanently", state.confirmButtonText)
+
+        assertFalse(deleted)
+        state.onConfirm()
+        assertTrue(deleted)
+    }
+
+    @Test
+    fun `standard delete confirmation has requiresDoubleCheck as false`() {
+        val standard = ConfirmationDialogBuilder.buildDeleteConfirmation(
+            itemName = "Día 1",
+            itemTypeEs = "parada",
+            itemTypeEn = "stop",
+            isEs = true,
+            onConfirm = {}
+        )
+        assertFalse(standard.requiresDoubleCheck)
+    }
 }
 

@@ -411,3 +411,4 @@ object CityGeocodingHelper {
         return pattern.find(json)?.groupValues?.get(1)?.toDoubleOrNull()
     }
 }
+
