@@ -10,7 +10,9 @@ Aplicación Android **offline-first** con herramientas esenciales para viajar a 
 
 ### Configuración Global y Base (Core)
 - **Multiidioma**: Español e Inglés. Selecciona automáticamente el idioma del sistema (con **Inglés** como idioma por defecto si el sistema usa otro idioma) y permite cambiarlo manualmente dentro de la app.
-- **Tema Personalizable**: Modo Claro, Modo Oscuro o Automático según el sistema (opción por defecto).
+- **Tema Personalizable e Inspiración Visual (`KotlinConf App` + Colores de Japón)**:
+  - Basado en el moderno sistema de diseño de **[JetBrains KotlinConf App](https://jetbrains.github.io/kotlinconf-app/)** (tarjetas con bordes nítidos de `1.dp`, selectores de agenda por días/horarios, chips de filtrado rápidos y tipografía tabular de alta legibilidad).
+  - **Paleta Tradicional Japonesa (`Nippon Dentōshoku`)**: Modo Claro inspirado en el papel *Washi* (`#FAF7F2`), Modo Oscuro inspirado en la tinta *Sumi* (`#0F1115` OLED) y acentos en rojo bermellón *Akabeni / Torii* (`#C9171E`), índigo japonés *Ai-iro* (`#165E83`), verde *Matcha* y rosa *Sakura*. Soporta Modo Claro, Oscuro o Automático según el sistema (por defecto).
 - **100% Persistente y Offline-First**: Todas las preferencias, cachés de datos externos y documentos del viajero se persisten localmente en el dispositivo para funcionar sin conexión a internet en cualquier momento del viaje.
 - **Optimización para Dispositivos Objetivo (Smartphones Pro XL y Tablet NXTPAPER)**:
   - **Google Pixel 10 Pro XL y Pixel 9 Pro XL (6.8" 20:9 LTPO OLED 120Hz)**: Diseño *Edge-to-Edge*, ergonomía a una mano con controles principales en la zona inferior y modo oscuro OLED de alto rendimiento.
@@ -78,7 +80,8 @@ Toda la documentación técnica y funcional se encuentra en español dentro del 
 ---
 
 ## Próximos Pasos (TODO Inmediato)
-- [ ] **Buscar un template moderno y útil para la app** (`TASK-004` en [`docs/tasks/backlog.md`](docs/tasks/backlog.md)): Evaluar y elegir una plantilla de UI/arquitectura en Jetpack Compose + Material 3 moderna, limpia y orientada a utilidades de viaje antes de iniciar el scaffolding del código Android.
+- [x] **Template moderno seleccionado (`TASK-004`)**: Basado en **[JetBrains KotlinConf App](https://jetbrains.github.io/kotlinconf-app/)** con paleta de colores tradicionales de Japón (*Washi*, *Sumi*, *Akabeni Torii*, *Ai-iro Indigo*, *Matcha*).
+- [ ] **Crear scaffolding del proyecto Android (`TASK-005` y `TASK-006`)**: Inicializar el proyecto Kotlin + Jetpack Compose implementando el tema visual japonés estilo `kotlinconf-app` y verificar la primera compilación `0.0.1-beta.1`.
 
 ---
 

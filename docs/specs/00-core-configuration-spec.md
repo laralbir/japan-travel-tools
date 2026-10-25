@@ -29,12 +29,28 @@ Establecer los cimientos funcionales y de experiencia de usuario de **Japan Trav
      - `English`
    - El cambio debe aplicarse de inmediato sin perder el estado de navegación y persistirse para futuros reinicios.
 
-### RF-00.2: Tema Visual (Claro / Oscuro / Sistema)
-1. La aplicación implementará **Material Design 3** con soporte para tres modos de tema:
+### RF-00.2: Tema Visual, Estética inspirada en `kotlinconf-app` y Paleta de Colores de Japón (`Nippon Dentōshoku`)
+1. La aplicación soportará tres modos de tema persistidos reactivamente en `DataStore`:
    - `Sistema (Por defecto)`: Sigue la configuración de modo oscuro del sistema Android.
-   - `Claro (Light)`: Fuerza paleta clara.
-   - `Oscuro (Dark)`: Fuerza paleta oscura.
-2. La preferencia del usuario se persistirá localmente en `DataStore` y se aplicará de forma reactiva en toda la interfaz sin parpadeos al iniciar.
+   - `Claro (Light — Washi Paper)`: Fuerza la paleta clara inspirada en el papel tradicional japonés *Washi*.
+   - `Oscuro (Dark — Sumi Ink)`: Fuerza la paleta oscura de alto contraste inspirada en la tinta *Sumi* y la noche de Tokio.
+2. **Template Visual y Sistema de Componentes (`JetBrains/kotlinconf-app` Blueprint)**:
+   - La estructura visual, jerarquía tipográfica y componentes seguirán el diseño moderno de **[JetBrains KotlinConf App](https://jetbrains.github.io/kotlinconf-app/)**:
+     - **Tarjetas limpias con borde sutil (`1.dp`) y radio redondeado consistente (`16.dp` - `20.dp`)** sin abuso de sombras difusas, lo que además proporciona nitidez máxima en la tablet **TCL NXTPAPER 11 Plus** y elegancia moderna en **Pixel 10 Pro XL / Pixel 9 Pro XL**.
+     - **Cabeceras de fecha y filtros estilo *Agenda/Schedule* (`Pill Chips`)** con scroll horizontal suave para alternar días del itinerario, ciudades (*Tokio*, *Kioto*, *Osaka*) o categorías de documentos.
+     - **Tipografía con jerarquía editorial y números tabulares (`tnum`)** para que los relojes duales, horarios del planificador y cifras del conversor de yenes estén siempre perfectamente alineados.
+     - **Barra de navegación flotante/estilizada** en smartphones (`NavigationBar`) y barra lateral limpia (`NavigationRail`) en tablet.
+3. **Paleta de Colores Tradicionales de Japón (`日本の伝統色` — Nippon Colors)**:
+   - **Acento Principal (`Akabeni` / `Torii Vermilion`)**:
+     - Modo Claro: `#C9171E` (Carmesí profundo del Sol Naciente / Santuarios Torii).
+     - Modo Oscuro: `#FF5A5F` (Coral/Bermellón luminoso de alta legibilidad sobre fondo oscuro).
+   - **Acento Secundario (`Ai-iro` — Índigo Japonés)**:
+     - Modo Claro: `#165E83` | Modo Oscuro: `#64B5F6`.
+   - **Acento Terciario (`Matcha` / `Sakura`)**:
+     - Verde Matcha (`#5B8930` / `#81C784`) para estados sincronizados/offline OK y Rosa Sakura (`#F4A7B9`) para destacados/favoritos (`Pinned`).
+   - **Fondos y Superficies**:
+     - Modo Claro (*Washi*): Fondo principal `#FAF7F2` (blanco cálido papel Washi), tarjetas `#FFFFFF` con borde `#E6E0D6`, texto principal `#1C1B1F` (*Sumi* carbón).
+     - Modo Oscuro (*Sumi / OLED*): Fondo principal `#0F1115` (negro carbón profundo para los paneles OLED de Pixel 9/10 Pro XL), tarjetas `#181B22` con borde `#2A2F3A`, texto principal `#F4F1EA`.
 
 ### RF-00.3: Persistencia de Configuración
 1. Toda configuración modificada por el usuario en la app o en cualquiera de sus herramientas (idioma, tema, país de origen en relojes, divisas seleccionadas, bloqueo biométrico, etc.) se guardará automáticamente en almacenamiento local persistente.
