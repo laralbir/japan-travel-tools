@@ -79,6 +79,32 @@ Permite además **encadenar tramos multimodales** en un mismo trayecto (por ejem
    - Alarmas offline configurables (apertura de check-in, hora de facturación, embarque, o aviso de bajada en la próxima estación de tren/autobús).
    - Exportación al Calendario del sistema / Google Calendar respetando la zona horaria de cada tramo.
 
+### RF-05.5: Sistema de Advertencias Visuales y Notificaciones de Facturación, Embarque y Salida
+1. **Umbrales Temporales de Detección de Eventos**:
+   - **Facturación / Check-in**:
+     - *Aproximándose (`CHECK_IN_APPROACHING`)*: cuando faltan $\le 120$ minutos para la hora de facturación (`checkInTime`).
+     - *Abierta / En curso (`CHECK_IN_OPEN`)*: desde la hora de facturación hasta el inicio del embarque.
+   - **Embarque / Boarding**:
+     - *Aproximándose (`BOARDING_APPROACHING`)*: cuando faltan $\le 45$ minutos para la hora de embarque (`boardingTime`).
+     - *¡Embarque en curso! (`BOARDING_NOW`)*: cuando faltan $\le 15$ minutos para el embarque o durante el periodo previo a la salida.
+   - **Salida Inminente / Cierre de Puertas (`DEPARTURE_IMMINENT`)**:
+     - Cuando faltan $\le 20$ minutos para la hora de salida programada (`departureTimeIso`).
+2. **Advertencias Visuales en la Interfaz (UI)**:
+   - **Banner de Alerta Superior (`TransportAlertBanner`)**:
+     - Presentado de forma prominente en la parte superior de la pantalla de transporte cuando hay alertas activas.
+     - Muestra icono identificativo (`✈️`, `🚄`, `⚠️`, `🚨`), título de la advertencia, minutos restantes, terminal/andén, mostrador/puerta y asiento.
+     - Botón de descarte temporal y enlace rápido para ver detalles o billete.
+   - **Resaltado en la Tarjeta del Tramo**:
+     - Borde de advertencia (`Akabeni` / ámbar) e insignia destacada (`[⚠️ Facturación en 45m]` / `[🚨 ¡Embarque en curso!]`).
+   - **Campos de Facturación y Embarque en el Editor**:
+     - Formulario `TransportSegmentEditorModalSheet` con inputs opcionales para `Hora de Facturación (HH:mm)` y `Hora de Embarque (HH:mm)`.
+   - **Botón de Prueba y Simulación Inmediata**:
+     - Control accesible para disparar alertas de prueba en cualquier momento y validar tanto la advertencia visual como la notificación en el dispositivo físico.
+3. **Notificaciones del Sistema Android (100% Offline)**:
+   - **Canal de Notificaciones**: `id = "transport_alerts"`, `name = "Avisos de Transporte y Vuelos"`, con importancia alta (`IMPORTANCE_HIGH`), sonido y vibración.
+   - **Permisos**: Declaración y solicitud en tiempo de ejecución de `android.permission.POST_NOTIFICATIONS` para Android 13+ (API 33+).
+   - **Notificación Enriquecida**: Con título claro, indicación de puerta/mostrador/andén y apertura directa de la app al pulsar.
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin / BDD)
@@ -101,3 +127,13 @@ Permite además **encadenar tramos multimodales** en un mismo trayecto (por ejem
 - **Dado** que el usuario ha vinculado el PDF/QR de su tarjeta de embarque o billete de Shinkansen/Highway Bus al tramo correspondiente
 - **Cuando** pulsa *"Ver Billete / QR"* desde la tarjeta del tramo en Modo Avión
 - **Entonces** el documento se abre instantáneamente a pantalla completa desde el almacenamiento interno privado.
+
+### Escenario 4: Advertencia visual y notificación del sistema cuando se acerca la hora de facturar
+- **Dado** que el usuario tiene un vuelo registrado con hora de facturación en mostrador a las `12:30`
+- **Cuando** la hora actual entra en los `120 minutos` previos a la facturación (o se abre el mostrador)
+- **Entonces** la app muestra un banner visual superior de advertencia (`CHECK_IN_APPROACHING` / `CHECK_IN_OPEN`), resalta la tarjeta del vuelo y despacha una notificación al sistema Android indicando el mostrador y terminal.
+
+### Escenario 5: Advertencia visual urgente y notificación de aviso al aproximarse el embarque
+- **Dado** que el usuario tiene un vuelo con hora de embarque a las `14:40` en la Puerta `S22`
+- **Cuando** faltan `45 minutos` o menos para el embarque (o se encuentra en curso a falta de $\le 15$ minutos)
+- **Entonces** la app despliega la advertencia visual urgente (`BOARDING_APPROACHING` / `BOARDING_NOW`) en rojo bermellón `Akabeni`, resalta la puerta `S22` y lanza una notificación de alta prioridad con sonido/vibración.

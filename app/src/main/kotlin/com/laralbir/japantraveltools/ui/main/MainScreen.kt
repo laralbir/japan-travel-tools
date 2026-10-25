@@ -132,6 +132,12 @@ import com.laralbir.japantraveltools.feature.planner.ItineraryStopItem
 import com.laralbir.japantraveltools.feature.planner.StopCategory
 import com.laralbir.japantraveltools.feature.planner.TripPlannerUseCase
 import com.laralbir.japantraveltools.feature.settings.OpenSourceLibrariesCatalog
+import com.laralbir.japantraveltools.feature.transport.SharedTransportAlertStore
+import com.laralbir.japantraveltools.feature.transport.TransportAlert
+import com.laralbir.japantraveltools.feature.transport.TransportAlertEvaluator
+import com.laralbir.japantraveltools.feature.transport.TransportAlertNotificationHelper
+import com.laralbir.japantraveltools.feature.transport.TransportAlertSeverity
+import com.laralbir.japantraveltools.feature.transport.TransportAlertType
 import com.laralbir.japantraveltools.feature.transport.TransportMode
 import com.laralbir.japantraveltools.feature.transport.TransportPlannerUseCase
 import com.laralbir.japantraveltools.feature.transport.TransportSegmentItem
@@ -2300,8 +2306,11 @@ private fun TransportTabScreen(
     isEs: Boolean,
     onOpenJsonPortability: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val portablePlan by SharedTravelPlanStore.planState.collectAsState()
     val segments = portablePlan.transportSegments
+    val alerts by SharedTransportAlertStore.alertsState.collectAsState()
+
     var selectedFilter by rememberSaveable { mutableStateOf<TransportMode?>(null) }
     val filteredSegments = remember(segments, selectedFilter) {
         if (selectedFilter == null) segments else segments.filter { it.type == selectedFilter }
@@ -2309,6 +2318,14 @@ private fun TransportTabScreen(
 
     var editingSegment by remember { mutableStateOf<TransportSegmentItem?>(null) }
     var isCreatingSegment by remember { mutableStateOf(false) }
+
+    LaunchedEffect(segments, isEs) {
+        SharedTransportAlertStore.evaluate(segments, context, isEs)
+        while (true) {
+            delay(30_000L)
+            SharedTransportAlertStore.evaluate(segments, context, isEs)
+        }
+    }
 
     if (isCreatingSegment || editingSegment != null) {
         val initialSeg = editingSegment ?: TransportSegmentItem(
@@ -2359,6 +2376,160 @@ private fun TransportTabScreen(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        // 1. ACTIVE TRANSPORT ALERTS BANNER (VISUAL WARNING & SYSTEM NOTIFICATION DISPATCH)
+        if (alerts.isNotEmpty()) {
+            items(alerts, key = { it.uniqueKey }) { alert ->
+                val isUrgent = alert.severity == TransportAlertSeverity.URGENT
+                val borderCol = if (isUrgent) Color(0xFFC9171E) else Color(0xFFE5A100)
+                val bgCol = if (isUrgent) Color(0xFFFFEBEE) else Color(0xFFFFF8E1)
+                val textCol = if (isUrgent) Color(0xFFB71C1C) else Color(0xFF5D4037)
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(2.dp, borderCol),
+                    color = bgCol
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (isEs) alert.titleEs else alert.titleEn,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = textCol,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = borderCol
+                            ) {
+                                Text(
+                                    text = if (alert.minutesUntilEvent <= 0) (if (isEs) "¡AHORA!" else "NOW!") else "⏰ ${alert.minutesUntilEvent} min",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                        Text(
+                            text = if (isEs) alert.messageEs else alert.messageEn,
+                            fontSize = 14.sp,
+                            color = textCol
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "📍 ${alert.targetGateOrCounter}",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = textCol.copy(alpha = 0.85f),
+                                modifier = Modifier.weight(1f)
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                OutlinedButton(
+                                    onClick = {
+                                        TransportAlertNotificationHelper.dispatchAlertNotification(context, alert, isEs)
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                ) {
+                                    Text(if (isEs) "🔔 Notificar" else "🔔 Push", fontSize = 12.sp)
+                                }
+                                OutlinedButton(
+                                    onClick = {
+                                        SharedTransportAlertStore.dismissAlert(alert.uniqueKey)
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                ) {
+                                    Text("✕", fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. ALERT TEST & SIMULATION CONTROL CARD
+        item {
+            KotlinConfCard {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (isEs) "🔔 Avisos de Facturación y Embarque" else "🔔 Flight & Transport Alerts",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    InfoTagPill(text = if (alerts.isNotEmpty()) "${alerts.size} activas" else if (isEs) "Activo" else "Active")
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = if (isEs) {
+                        "La app detecta automáticamente la proximidad de la facturación, el embarque y la salida de tus vuelos y trenes, mostrando advertencias visuales y notificaciones al móvil."
+                    } else {
+                        "The app automatically alerts you when check-in, boarding or departure approaches with visual warnings and push notifications."
+                    },
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = if (isEs) "Probar aviso en este dispositivo:" else "Test alert on this device:",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            SharedTransportAlertStore.triggerSimulation(context, TransportAlertType.BOARDING_NOW, isEs)
+                        },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
+                    ) {
+                        Text(if (isEs) "🚨 Embarque" else "🚨 Boarding", fontSize = 11.sp, maxLines = 1)
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            SharedTransportAlertStore.triggerSimulation(context, TransportAlertType.CHECK_IN_APPROACHING, isEs)
+                        },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
+                    ) {
+                        Text(if (isEs) "🧳 Facturación" else "🧳 Check-in", fontSize = 11.sp, maxLines = 1)
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            SharedTransportAlertStore.triggerSimulation(context, TransportAlertType.DEPARTURE_IMMINENT, isEs)
+                        },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
+                    ) {
+                        Text(if (isEs) "🚄 Tren Salida" else "🚄 Train Dep", fontSize = 11.sp, maxLines = 1)
+                    }
+                }
+            }
+        }
+
+        // 3. TRANSPORT FILTER BUTTONS & ACTIONS
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
@@ -2420,7 +2591,37 @@ private fun TransportTabScreen(
         } else {
             items(filteredSegments, key = { it.id }) { seg ->
                 val durationMins = TransportPlannerUseCase.calculateSegmentDurationMinutes(seg)
-                KotlinConfCard {
+                val segAlert = alerts.firstOrNull { it.segmentId == seg.id }
+                val isUrgentSeg = segAlert?.severity == TransportAlertSeverity.URGENT
+                val cardBorderColor = if (isUrgentSeg) {
+                    Color(0xFFC9171E)
+                } else if (segAlert != null) {
+                    Color(0xFFE5A100)
+                } else {
+                    MaterialTheme.colorScheme.outline
+                }
+
+                KotlinConfCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    accentBorderColor = cardBorderColor
+                ) {
+                    if (segAlert != null) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (isUrgentSeg) Color(0xFFC9171E) else Color(0xFFE5A100),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = if (isEs) segAlert.titleEs else segAlert.titleEn,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -2450,6 +2651,23 @@ private fun TransportTabScreen(
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold
                     )
+
+                    if (seg.checkInTime != null || seg.boardingTime != null) {
+                        Spacer(Modifier.height(4.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            seg.checkInTime?.let {
+                                InfoTagPill(text = "🧳 " + (if (isEs) "Facturación: " else "Check-in: ") + it.substringAfter('T'))
+                            }
+                            seg.boardingTime?.let {
+                                InfoTagPill(text = "🚪 " + (if (isEs) "Embarque: " else "Boarding: ") + it.substringAfter('T'))
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(4.dp))
                     Text(
                         text = "📍 ${seg.departureTerminalOrPlatform} · 💺 ${seg.seatOrCarInfo}",
                         fontSize = 14.sp,
@@ -2491,6 +2709,8 @@ private fun TransportSegmentEditorModalSheet(
     var arrNameText by rememberSaveable { mutableStateOf(initialSegment.arrivalName) }
     var depTimeText by rememberSaveable { mutableStateOf(initialSegment.departureTimeIso.substringAfter('T')) }
     var arrTimeText by rememberSaveable { mutableStateOf(initialSegment.arrivalTimeIso.substringAfter('T')) }
+    var checkInTimeText by rememberSaveable { mutableStateOf(initialSegment.checkInTime?.substringAfter('T') ?: "") }
+    var boardingTimeText by rememberSaveable { mutableStateOf(initialSegment.boardingTime?.substringAfter('T') ?: "") }
     var platformText by rememberSaveable { mutableStateOf(initialSegment.departureTerminalOrPlatform) }
     var seatText by rememberSaveable { mutableStateOf(initialSegment.seatOrCarInfo) }
 
@@ -2595,6 +2815,26 @@ private fun TransportSegmentEditorModalSheet(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 OutlinedTextField(
+                    value = checkInTimeText,
+                    onValueChange = { checkInTimeText = it },
+                    label = { Text(if (isEs) "Facturación (HH:mm, opc)" else "Check-in (HH:mm, opt)", fontSize = 14.sp) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+                OutlinedTextField(
+                    value = boardingTimeText,
+                    onValueChange = { boardingTimeText = it },
+                    label = { Text(if (isEs) "Embarque (HH:mm, opc)" else "Boarding (HH:mm, opt)", fontSize = 14.sp) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(
                     value = platformText,
                     onValueChange = { platformText = it },
                     label = { Text(if (isEs) "Andén / Terminal" else "Platform / Terminal", fontSize = 14.sp) },
@@ -2615,16 +2855,21 @@ private fun TransportSegmentEditorModalSheet(
                 onPrimaryClick = {
                     val depCode = depNameText.take(3).uppercase(Locale.ROOT).ifBlank { "TYO" }
                     val arrCode = arrNameText.take(3).uppercase(Locale.ROOT).ifBlank { "KYO" }
+                    val baseDate = if (initialSegment.departureTimeIso.contains('T')) {
+                        initialSegment.departureTimeIso.substringBefore('T')
+                    } else "2026-11-12"
                     val updated = initialSegment.copy(
                         type = selectedType,
                         operatorName = operatorText.ifBlank { "JR" },
                         lineOrNumber = lineNumberText,
                         departureCode = depCode,
                         departureName = depNameText.ifBlank { "Tokyo" },
-                        departureTimeIso = "2026-11-12T${depTimeText.ifBlank { "09:00" }}",
+                        departureTimeIso = "${baseDate}T${depTimeText.ifBlank { "09:00" }}",
+                        checkInTime = if (checkInTimeText.isNotBlank()) "${baseDate}T${checkInTimeText.trim()}" else null,
+                        boardingTime = if (boardingTimeText.isNotBlank()) "${baseDate}T${boardingTimeText.trim()}" else null,
                         arrivalCode = arrCode,
                         arrivalName = arrNameText.ifBlank { "Kyoto" },
-                        arrivalTimeIso = "2026-11-12T${arrTimeText.ifBlank { "11:15" }}",
+                        arrivalTimeIso = "${baseDate}T${arrTimeText.ifBlank { "11:15" }}",
                         departureTerminalOrPlatform = platformText,
                         seatOrCarInfo = seatText
                     )
