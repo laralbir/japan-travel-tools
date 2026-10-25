@@ -110,6 +110,20 @@ La interfaz de usuario, el rendimiento y la ergonomía táctil deberán estar es
      - Fondo adaptado automáticamente al tema del sistema (*Washi* `#FAF7F2` en modo claro / *Sumi* `#0F1115` en modo oscuro para evitar fogonazos blancos en pantallas OLED por la noche).
      - **Icono central animado (`windowSplashScreenAnimatedIcon`)** con transición fluida hacia la pantalla principal una vez cargadas las preferencias de `DataStore` (sin pantallas de carga artificiales ni bloqueos).
 
+### RF-00.9: Indicador En Vivo de Tipo de Conexión a Internet y Selector Rápido (Wi-Fi / SIM / eSIM / Offline)
+En un viaje a Japón es habitual alternar entre una **eSIM de datos japonesa** (ej. Ubigi, Airalo, Holafly), la **SIM física del país de origen**, **Pocket Wi-Fi / Wi-Fi de hoteles** y el **Modo Offline/Avión**.
+1. **Píldora / Widget de Estado de Conexión en Cabecera / Home (`ConnectivityStatusPill`)**:
+   - Visible de un vistazo en la barra superior / pantalla Home, actualizándose en tiempo real mediante `ConnectivityManager.NetworkCallback`, `TelephonyManager` y `SubscriptionManager`:
+     - **Wi-Fi**: Muestra icono vectorial de Wi-Fi + estado de validación de internet (y si la conexión es medida `Metered`, útil cuando se conecta a un *Pocket Wi-Fi* o punto de acceso móvil).
+     - **Datos Móviles — Distinción SIM Física vs. eSIM**:
+       - Identifica si la línea de datos activa corresponde a una **eSIM (`isEmbedded == true`)** o a una **SIM física**, mostrando el nombre del operador activo (ej. `eSIM · NTT Docomo / SoftBank` o `SIM · Movistar`), tipo de red (`5G` / `LTE`) y un **aviso destacado en rojo `Akabeni` si detecta Roaming activo en la SIM de origen** para evitar cargos accidentales.
+     - **Offline / Sin Conexión**: Muestra insignia clara `Offline Mode (Caché Local Activa)` en tono ámbar/gris para confirmar que la app opera 100% con datos locales.
+2. **Cambio Rápido de Conexión (`Quick Connectivity Switcher Sheet`)**:
+   - Al tocar el indicador de conexión en el Home/Cabecera, se despliega un panel rápido con acciones directas sin tener que buscar en los menús profundos de Android:
+     - **Panel Flotante Nativo de Internet (`Settings.Panel.ACTION_INTERNET_CONNECTIVITY`)**: Abre el panel deslizable nativo de Android (especialmente rápido en **Pixel 10 Pro XL y Pixel 9 Pro XL**) para encender/apagar Wi-Fi, cambiar de red Wi-Fi o conmutar datos móviles al instante sin salir de la app.
+     - **Selector de SIM / eSIM de Datos (`ACTION_NETWORK_OPERATOR_SETTINGS` / `ACTION_MANAGE_ALL_SIM_PROFILES_SETTINGS`)**: Acceso directo de un toque para alternar qué tarjeta (**SIM física vs. eSIM de Japón**) lleva los datos móviles activos o gestionar perfiles eSIM.
+     - **Modo Solo Offline en la App (Opcional)**: Interruptor para forzar a **Japan Travel Tools** a no realizar peticiones de red aunque el teléfono tenga datos activos (modo ahorro extremo de datos de eSIM).
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin / BDD)
@@ -146,3 +160,10 @@ La interfaz de usuario, el rendimiento y la ergonomía táctil deberán estar es
 - **Dado** que el usuario instala la app en un **Pixel 10 Pro XL / Pixel 9 Pro XL** con "Iconos temáticos" activados o desactivados
 - **Cuando** visualiza el icono en el launcher y abre la app
 - **Entonces** el icono muestra el diseño vectorial japonés (o su variante monocromática adaptada al color del Pixel), y al abrirse presenta la **Splash Screen** nativa con el color de fondo acorde al modo Claro/Oscuro antes de entrar sin parpadeos a la pantalla principal.
+
+### Escenario 7: Detección en vivo del tipo de conexión (Wi-Fi / SIM / eSIM / Offline) y cambio rápido
+- **Dado** que el usuario está en la pantalla principal (Home) de la aplicación
+- **Cuando** el dispositivo está conectado mediante datos móviles de una **eSIM** (o mediante **Wi-Fi**, **SIM física** o **Sin conexión**)
+- **Entonces** la píldora de estado en la cabecera muestra en tiempo real el tipo de conexión activo (ej. `eSIM · 5G`, `Wi-Fi` u `Offline`).
+- **Y cuando** el usuario toca sobre dicho indicador de conexión
+- **Entonces** se abre el selector rápido que le permite desplegar el panel nativo de conectividad de Android (`Settings.Panel.ACTION_INTERNET_CONNECTIVITY`) o el gestor de **SIM / eSIM** para cambiar entre Wi-Fi, SIM y eSIM en un toque.

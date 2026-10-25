@@ -27,6 +27,7 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 - [ ] **TASK-106 (TDD)**: Implementar navegación adaptativa (`NavigationSuiteScaffold` + `WindowSizeClass`) con indicador visual `BETA`:
   - `NavigationBar` inferior ergonómica y Edge-to-Edge en **Pixel 10 Pro XL / Pixel 9 Pro XL**.
   - `NavigationRail` lateral y layouts multi-panel (`ListDetailPaneScaffold` / `SupportingPaneScaffold`) + alto contraste NXTPAPER en la tablet **TCL NXTPAPER 11 Plus**.
+- [ ] **TASK-107 (TDD)**: Escribir tests unitarios e implementar `ConnectivityObserver` y el componente **`ConnectivityStatusPill` + `QuickConnectivitySwitcherSheet`** en el Home/Cabecera (detección en tiempo real de `Wi-Fi`, `SIM física`, `eSIM`, `Roaming` u `Offline`, y botones rápidos para abrir el panel nativo de Internet de Android y el selector de SIM/eSIM).
 
 ---
 
