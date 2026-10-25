@@ -95,6 +95,20 @@ Proporcionar una herramienta de **Previsión Meteorológica y Planificación Cli
      - **Editar (`✏️ Editar`)**: el usuario puede personalizar el nombre y coordenadas de cualquier ciudad activa.
      - **Eliminar (`🗑️ Eliminar`)**: el usuario puede suprimir cualquier ciudad (con modal de confirmación de seguridad). Las ciudades expresamente eliminadas por el usuario no se reincorporan automáticamente de forma indeseada a menos que el usuario pulse explícitamente el botón de sincronización total (`🔄 Sincronizar Itinerario`).
 
+### RF-07.6: Búsqueda Predictiva de Ciudades y Geocodificación Automática de Coordenadas de Google Maps
+1. **Sugerencias Predictivas en Tiempo Real al Escribir**:
+   - En el modal de añadir o editar ciudad (`CityWeatherEditorModalSheet`), a medida que el usuario escribe en el campo del nombre de la ciudad (a partir de 2 caracteres), se muestra de forma reactiva un listado predictivo con los destinos coincidentes.
+   - Búsqueda insensible a mayúsculas, minúsculas y acentos sobre un catálogo amplio preinstalado de Japón (más de 50 destinos) y hubs internacionales clave.
+2. **Autocompletado Inmediato de Datos y Coordenadas**:
+   - Al seleccionar cualquier sugerencia del listado predictivo:
+     - Se auto-rellena el nombre en español (`nameEs`) y en inglés (`nameEn`).
+     - Se auto-rellenan instantáneamente la **Latitud** y **Longitud** exactas.
+     - Se oculta la lista desplegable y se muestra confirmación visual de coordenadas obtenidas.
+3. **Geocodificación Automática con Google Maps / Android Geocoder**:
+   - Si el usuario introduce cualquier ciudad personalizada no catalogada, dispone del botón de acción `"📍 Obtener coordenadas de Google Maps"` (y resolución asistida al finalizar la escritura).
+   - El sistema consulta el proveedor geográfico de Google Maps en Android (`android.location.Geocoder`) con fallback a la API de geocodificación de Open-Meteo para resolver la latitud y longitud exactas sin que el usuario tenga que buscarlas ni introducirlas a mano.
+   - En caso de operar en modo offline sin conexión, el catálogo local resuelve de forma inmediata decenas de ciudades japonesas e internacionales sin requerir red.
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin)
@@ -120,3 +134,10 @@ Proporcionar una herramienta de **Previsión Meteorológica y Planificación Cli
 - **Cuando** el usuario entra en la pestaña de Tiempo
 - **Entonces** la lista de ciudades del tiempo incluye automáticamente todas las ciudades de su ruta (Tokio, Kioto, Osaka, Hakone, Nara, Miyajima, Madrid, Doha) con sus previsiones meteorológicas calculadas
 - **Y** el usuario puede editar sus nombres/coordenadas o eliminar cualquiera de ellas con confirmación de seguridad sin que se reincorporen indeseadamente.
+
+### Escenario 7: Sugerencias predictivas y obtención automática de coordenadas de Google Maps
+- **Dado** que el usuario abre el modal para añadir una ciudad en la previsión del tiempo
+- **Cuando** teclea "Kobe" o "Kawa" en el nombre de la ciudad
+- **Entonces** aparece un listado predictivo reactivo con las ciudades y regiones coincidentes
+- **Y** al pulsar sobre una de ellas, se rellenan automáticamente los nombres (ES/EN) y las coordenadas de latitud y longitud
+- **Y** si escribe una ciudad arbitraria y pulsa "Obtener coordenadas de Google Maps", el servicio de geocodificación resuelve y rellena automáticamente su latitud y longitud con éxito.

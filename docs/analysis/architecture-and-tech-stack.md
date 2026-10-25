@@ -264,6 +264,13 @@ data class UserPreferences(
   - Clasifica códigos WMO (`0..99`) en estados accionables (`CLEAR_SUNNY`, `PARTLY_CLOUDY`, `RAIN`, `SNOW`, `HEAVY_RAIN_STORM`).
   - Evalúa cada día en `OUTDOOR_OPTIMAL` (ideal para templos, parques, santuarios al aire libre y vistas del Monte Fuji) o `INDOOR_RECOMMENDED` (recomendado priorizar mercados cubiertos como Nishiki/Kuromon, museos o galerías comerciales *Shotengai*).
   - Incluye semillas climáticas offline (`SeedJapanWeatherCatalog`) para Tokio, Kioto, Osaka, Hakone/Monte Fuji, Nara e Hiroshima, garantizando funcionamiento 100% offline.
+- **Búsqueda Predictiva y Geocodificación Automática de Coordenadas (`CityGeocodingHelper`)**:
+  - Catálogo geográfico ampliado de Japón (>50 ciudades y destinos turísticos) y destinos internacionales de tránsito/origen (Madrid, Barcelona, Valencia, Sevilla, Londres, París, Doha, Dubái, Seúl, etc.) para búsqueda predictiva instantánea y resolución de coordenadas 100% offline.
+  - Geocodificador inteligente híbrido (`CityGeocodingHelper.geocodeWithGoogleMapsOrNetwork`):
+    1. Coincidencia en catálogo local offline (latitud/longitud exactas sin latencia).
+    2. En Android con servicios de Google Play, consulta `android.location.Geocoder` para obtener coordenadas exactas directas de Google Maps.
+    3. Fallback a la API de geocodificación de Open-Meteo (`https://geocoding-api.open-meteo.com/v1/search`) para resolución global de cualquier población.
+  - Componente de sugerencias predictivas reactivas en Compose integrado en `CityWeatherEditorModalSheet`, con autocompletado de campos y botón de obtención de coordenadas.
 - **Integración con la IA (`AiPlanBuilderEngine.optimizePlanWithWeather`)**:
   - Cruza las fechas de cada día del itinerario con las previsiones de Open-Meteo y enriquece automáticamente las paradas del viaje y las respuestas del asistente Gemini con recomendaciones climáticas y alternativas cubiertas en días lluviosos.
 
@@ -288,6 +295,7 @@ Cada funcionalidad sigue el ciclo **Red -> Green -> Refactor**:
      - Extracción y sincronización de ciudades del tiempo (`PlanWeatherCityExtractor` & `SharedWeatherForecastStore.syncCitiesFromPlan`): detección automática de ciudades y aeropuertos a partir de los orígenes y destinos de transporte (`TransportSegmentItem`) y de las paradas de la agenda de viaje (`ItineraryStopItem`), con memoria de exclusión de eliminaciones manuales (`deletedCityIds`) y persistencia offline.
      - Componente universal de seguridad para el usuario (`AppConfirmationDialog`): prevención de pérdidas accidentales de datos en acciones de edición y eliminación (`isDestructive`) para transportes, planes, paradas, documentos, guías y ciudades.
      - Selector universal de fechas (`AppDatePickerField` & `DateSelectorHelper`): componente táctil nativo con `DatePickerDialog` de Material 3 para planes de viaje, transportes e itinerarios, eliminando cajas de texto manuales `YYYY-MM-DD`.
+     - Búsqueda predictiva y geocodificación de ciudades (`CityGeocodingHelper`): pruebas unitarias de búsqueda por prefijo/fuzzy match en catálogo local, resolución de coordenadas para destinos japoneses e internacionales, y parseo de respuestas de geocodificación.
 2. **Tests de UI / Instrumentados (`src/androidTest/java`)**:
    - **Compose UI Test (`createComposeRule`) + Room In-Memory Database**.
    - Verificación de navegación, cambio de tema Claro/Oscuro, interacción con el conversor, selector de zona horaria de origen, creación/lectura de guías de viaje y línea temporal/mapa del planificador.
