@@ -12,7 +12,7 @@ data class OpenSourceLibraryNotice(
 
 object OpenSourceLibrariesCatalog {
     const val APP_VERSION_NAME = "0.0.1"
-    const val APP_VERSION_CODE = 10
+    const val APP_VERSION_CODE = 11
 
     val thirdPartyLibraries: List<OpenSourceLibraryNotice> = listOf(
         OpenSourceLibraryNotice(
@@ -77,6 +77,15 @@ object OpenSourceLibrariesCatalog {
             license = "CC BY 4.0 / GPLv3 (Open Source Weather API)",
             purposeEn = "Open-source weather forecasts for Tokyo, Kyoto, Osaka & Mt. Fuji used for user & Gemini AI itinerary planning.",
             purposeEs = "Previsión meteorológica open-source (JMA Japón) para Tokio, Kioto, Osaka y Monte Fuji usada para planificar por el usuario y la IA."
+        ),
+        OpenSourceLibraryNotice(
+            name = "Google ML Kit Text Recognition Japanese (v2)",
+            artifactId = "com.google.mlkit:text-recognition-japanese",
+            version = "16.0.1",
+            author = "Google LLC",
+            license = "Android Software Development Kit License",
+            purposeEn = "On-device optical character recognition (OCR) of Japanese Kanji, Hiragana and Katakana for camera translation.",
+            purposeEs = "Reconocimiento óptico de caracteres (OCR) offline de Kanji, Hiragana y Katakana para traducir con la cámara."
         ),
         OpenSourceLibraryNotice(
             name = "JUnit 4 & Kotlinx Coroutines Test",

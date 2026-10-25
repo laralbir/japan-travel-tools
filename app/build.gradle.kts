@@ -12,7 +12,7 @@ android {
     applicationId = "com.laralbir.japantraveltools"
     minSdk = 26
     targetSdk = 36
-    versionCode = 10
+    versionCode = 11
     versionName = "0.0.1"
   }
 
@@ -85,6 +85,9 @@ dependencies {
 
   // Real Biometrics & Device Credential Authentication
   implementation(libs.androidx.biometric)
+
+  // ML Kit Japanese Text Recognition (OCR) for Camera Translation
+  implementation(libs.mlkit.text.japanese)
 }
 
 tasks.register<Exec>("installAuthorizedDebug") {

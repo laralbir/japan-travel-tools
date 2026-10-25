@@ -29,10 +29,13 @@ Dotar a **Japan Travel Tools** de capacidades de Inteligencia Artificial mediant
        3. **Regla Estricta de No-Fuga de Texto en Locución**: El texto a locutar al viajero (`spanishSpokenText` / `englishSpokenText`) **NUNCA debe contener caracteres japoneses (Kanji, Hiragana o Katakana)** ni devolver la cadena japonesa en crudo. Todo mensaje reconocido o heurístico se traduce a español/inglés para que el motor TTS pronuncie en perfecto español/inglés.
        4. **Detección Automática de Idioma Bidireccional (`Smart Language Routing`)**: Si se detectan caracteres japoneses en el micrófono del viajero, la app reconoce que se habló en japonés y locuta la traducción en español. A la inversa, si se habla en español o inglés en el micrófono del interlocutor, lo traduce y locuta en japonés.
        5. **Controles de Reproducción de Voz Directa (`🔊 Escuchar en Japonés` / `🔊 Escuchar en Español`) y Auto-Locución**: Cualquier frase seleccionada o traducida puede reproducirse por altavoz con un toque (y cuenta con interruptor de locución automática activado por defecto).
-3. **Traducción Visual con Cámara (Menús, Carteles y Ingredientes — OCR Offline)**:
-   - Permite apuntar con la cámara o elegir una foto para extraer texto japonés (**Kanji / Hiragana / Katakana**) mediante **Google ML Kit Text Recognition v2 (Japanese)** offline y traducirlo al instante (con análisis multimodal enriquecido con **Gemini** cuando hay conexión).
+3. **Traducción Visual con Cámara (Menús, Carteles e Ingredientes — OCR Offline)**:
+   - **Captura directa y selección de fotos**: Botones para tomar foto instantánea con la cámara (`TakePicturePreview`) o importar fotos desde la galería/Drive (`GetContent("image/*")`).
+   - **Reconocimiento de Texto Japonés (Kanji / Kana)**: Procesamiento mediante **Google ML Kit Text Recognition v2 (Japanese)** (`JapaneseTextRecognizerOptions`) sobre la imagen, extrayendo los caracteres japoneses.
+   - **Traducción Inmediata y Pronunciación**: Desglose línea por línea del cartel o menú en español/inglés, con pronunciación fonética en Romaji, detección de precios en yenes (`¥`) y botón para escuchar la locución por voz (`🔊`).
+   - **Carteles de Prueba Rápida**: Muestras representativas de carteles y menús comunes en Japón (*Ramen 1000円*, *Zona de no fumadores*, *Completo/Sold out*, *Andén Shinkansen*, *Aseos*, *Salida*, *Solo efectivo*) para pruebas inmediatas.
 4. **Lanzador Directo a Google Translate / Intérprete Nativo de Pixel**:
-   - Incluye también un botón de salto rápido (`Deep Link / Intent`) hacia el **Modo Conversación / Cámara de Google Translate** o **Live Translate de Pixel** por si el usuario desea abrir la app externa del sistema.
+   - Botón directo (`Deep Link / Intent`) hacia la **Cámara de Google Translate** (`com.google.android.apps.translate`) o selector web como alternativa adicional.
 5. **Tarjetas de Frases Esenciales y Alergias 100% Offline**:
    - Tarjetas pre-cargadas de emergencia/supervivencia (alergias alimentarias, pedir la cuenta, ¿dónde está el baño/andén?, *Tax-Free*) con texto japonés a gran tamaño y audio offline.
 
