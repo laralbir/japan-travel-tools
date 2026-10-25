@@ -6,6 +6,8 @@ import com.laralbir.japantraveltools.feature.planner.TripPlannerUseCase
 import com.laralbir.japantraveltools.feature.transport.TransportMode
 import com.laralbir.japantraveltools.feature.transport.TransportPlannerUseCase
 import com.laralbir.japantraveltools.feature.transport.TransportSegmentItem
+import com.laralbir.japantraveltools.feature.weather.PlanningSuitability
+import com.laralbir.japantraveltools.feature.weather.WeatherDayForecast
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -366,6 +368,39 @@ object AiPlanBuilderEngine {
             itineraryStops = deconflictedStops,
             transportSegments = updatedTransport,
             aiOptimizationSummary = "Gemini IA: Solapamientos horarios corregidos (+30m margen) + Día 3 en Osaka (3 paradas) + tren JR Kioto➔Osaka añadido."
+        )
+    }
+
+    fun optimizePlanWithWeather(
+        currentPlan: PortableTravelPlanBundle,
+        forecasts: List<WeatherDayForecast>
+    ): PortableTravelPlanBundle {
+        val adaptedStops = currentPlan.itineraryStops.map { stop ->
+            val dayForecast = forecasts.firstOrNull { it.dateIso == stop.dateIso }
+                ?: forecasts.getOrNull((stop.dayNumber - 1).coerceAtLeast(0))
+            if (dayForecast != null && dayForecast.suitability == PlanningSuitability.INDOOR_RECOMMENDED) {
+                val weatherNote = "☔ [Open-Meteo ${dayForecast.precipitationProbabilityMax}% lluvia · ${dayForecast.tempMaxC.toInt()}°C]: Priorizar galería cubierta Shotengai / Mercado Nishiki-Kuromon y llevar paraguas."
+                if (stop.notes.contains("Open-Meteo")) {
+                    stop
+                } else {
+                    stop.copy(notes = "${stop.notes} · $weatherNote".trim(' ', '·'))
+                }
+            } else if (dayForecast != null) {
+                val sunnyNote = "☀️ [Open-Meteo Despejado · ${dayForecast.tempMaxC.toInt()}°C · Visibilidad Fuji ${dayForecast.fujiVisibilityPercent}%]: Ideal exterior."
+                if (stop.notes.contains("Open-Meteo")) {
+                    stop
+                } else {
+                    stop.copy(notes = "${stop.notes} · $sunnyNote".trim(' ', '·'))
+                }
+            } else {
+                stop
+            }
+        }
+
+        val rainyCount = forecasts.count { it.suitability == PlanningSuitability.INDOOR_RECOMMENDED }
+        return currentPlan.copy(
+            itineraryStops = adaptedStops,
+            aiOptimizationSummary = "🌦️ Gemini IA + Open-Meteo: Plan adaptado al clima (${forecasts.size} días analizados, $rainyCount día(s) con alerta de lluvia y rutas cubiertas añadidas)."
         )
     }
 
