@@ -32,17 +32,34 @@ Permitir al viajero llevar siempre a mano y **100% offline**:
 4. Notas rápidas asociadas (opcional):
    - Campos opcionales para anotar el número de pasaporte, fecha de caducidad y número de DNI para copiar al portapapeles con un toque al rellenar formularios.
 
-### RF-03.2: Privacidad y Bloqueo Biométrico Obligatorio (Real Android BiometricPrompt)
+### RF-03.2: Documentos de Identidad Personalizados (Custom ID Documents Vault)
+1. El viajero puede añadir, editar, consultar y eliminar cualquier documento sensible adicional con fotografía en la bóveda de identidad:
+   - 💉 **Certificados de Vacunación** (fiebre amarilla, tétanos, Covid, etc.).
+   - 💊 **Recetas Médicas para Aduanas** (indispensables en aduanas de Japón para medicamentos prescritos y permisos *Yakkan Shoumei* / confirmación de importación).
+   - 🚗 **Carnet de Conducir Internacional** (IDP según la Convención de Ginebra de 1949).
+   - 🏥 **Pólizas de Seguro Médico Internacional** con tarjeta de asistencia y teléfonos 24/7.
+   - 🛂 **Visados, sellos consulares y códigos QR de entrada**.
+   - 📄 **Cualquier documento oficial o privado personalizado**.
+2. **Sugerencias Rápidas (Chips de Presets)**:
+   - El editor modal incluye chips rápidos para rellenar de inmediato el título con un solo toque.
+3. **Visor Inmersivo con Zoom Táctil**:
+   - Cada documento personalizado cuenta con acceso al visor a pantalla completa con `pinch-to-zoom` (1.0x-5.0x), arrastre y doble toque.
+4. **Protección y Doble Comprobación de Seguridad**:
+   - La eliminación de cualquier documento o fotografía personalizada requiere confirmación obligatoria con `buildSensitiveDeleteConfirmation` y doble check contra borrados involuntarios.
+
+### RF-03.3: Privacidad y Bloqueo Biométrico Obligatorio (Real Android BiometricPrompt)
 1. **Almacenamiento Interno Privado**:
-   - Todas las imágenes de Pasaporte/DNI, los documentos importados y las guías de viaje se copian al directorio interno privado de la app (`Context.filesDir/id_vault/`, `Context.filesDir/documents/` y `Context.filesDir/guides/`).
+   - Todas las imágenes de Pasaporte, DNI y Documentos Personalizados se copian al directorio interno privado de la app (`Context.filesDir/id_vault/`, `custom_id_docs.json`).
    - **Nunca** se exponen en la galería pública de fotos del teléfono ni son accesibles por otras aplicaciones.
    - Si el usuario borra el archivo original de su galería o descargas, la copia dentro de **Japan Travel Tools** permanece intacta y disponible offline.
-2. **Bloqueo Biométrico / Credencial del Dispositivo Obligatorio (`BiometricPrompt`)**:
-   - Para garantizar la máxima seguridad de la documentación oficial del viajero (Pasaporte y DNI), la aplicación verifica la capacidad biométrica o de credenciales del dispositivo (`BiometricManager.from(context).canAuthenticate(BIOMETRIC_STRONG or DEVICE_CREDENTIAL)`).
-   - Si el dispositivo dispone de huella dactilar, desbloqueo facial o PIN/patrón/contraseña configurado, la sección de Identificación requiere **autenticación real mediante `BiometricPrompt`** para visualizar o editar las fotografías de los documentos.
+2. **Tarjeta de Seguridad Clara y Desacoplada**:
+   - El conmutador de seguridad se presenta en una tarjeta dedicada e identificable: `🔒 Bloqueo Biométrico / PIN` con subtítulo explicativo claro ("Exigir huella, rostro o PIN para acceder a las fotos de pasaporte y documentos"), evitando confusiones sobre si activa o desactiva la sección de documentos.
+3. **Bloqueo Biométrico / Credencial del Dispositivo (`BiometricPrompt`)**:
+   - La aplicación verifica la capacidad biométrica o de credenciales del dispositivo (`BiometricManager.from(context).canAuthenticate(BIOMETRIC_STRONG or DEVICE_CREDENTIAL)`).
+   - Si el dispositivo dispone de huella dactilar, desbloqueo facial o PIN/patrón/contraseña configurado y el bloqueo está activo, la sección de Identificación requiere **autenticación real mediante `BiometricPrompt`** para visualizar o editar las fotografías de los documentos.
    - Si el dispositivo no tiene ningún método de seguridad configurado, se permite el acceso directo mostrando una advertencia de seguridad recomendando configurar un PIN en el sistema.
 
-### RF-03.3: Repositorio de Documentos y Entradas de Viaje (Vuelos, Hoteles, Entradas y Museos)
+### RF-03.4: Repositorio de Documentos y Entradas de Viaje (Vuelos, Hoteles, Entradas y Museos)
 1. El usuario puede añadir, organizar, visualizar, editar y eliminar documentos y entradas de su viaje en formato **PDF** (`application/pdf`) o **Imagen** (`image/jpeg`, `image/png`, `image/webp`).
 2. **Categorías predefinidas**:
    - ✈️ **Vuelos** (billetes, tarjetas de embarque, itinerarios).

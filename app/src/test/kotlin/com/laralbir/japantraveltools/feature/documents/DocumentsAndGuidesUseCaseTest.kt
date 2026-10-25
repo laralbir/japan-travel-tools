@@ -122,5 +122,61 @@ class DocumentsAndGuidesUseCaseTest {
         assertEquals(3, imported[0].tags.size)
         assertTrue(imported[0].markdownSummary.contains("Otagi Nenbutsu-ji"))
     }
+
+    @Test
+    fun `DocumentsAndGuidesJsonCodec correctly serializes and deserializes custom ID documents`() {
+        val customDocs = listOf(
+            CustomIdDocumentItem(
+                id = "custom-1",
+                title = "Certificado de Vacunación Fiebre Amarilla",
+                subtitle = "Válido internacionalmente · Hospital Carlos III",
+                fileName = "custom_doc_1.jpg"
+            ),
+            CustomIdDocumentItem(
+                id = "custom-2",
+                title = "Receta Médica - Antihistamínicos",
+                subtitle = "Prescripción Dr. Gómez 2026",
+                fileName = "custom_doc_2.jpg"
+            )
+        )
+
+        val json = DocumentsAndGuidesJsonCodec.exportCustomIdDocsJson(customDocs)
+        assertTrue(json.contains("Certificado de Vacunación Fiebre Amarilla"))
+        assertTrue(json.contains("custom_doc_1.jpg"))
+        assertTrue(json.contains("Receta Médica"))
+
+        val imported = DocumentsAndGuidesJsonCodec.importCustomIdDocsJson(json)
+        assertEquals(2, imported.size)
+        assertEquals("custom-1", imported[0].id)
+        assertEquals("Certificado de Vacunación Fiebre Amarilla", imported[0].title)
+        assertEquals("Válido internacionalmente · Hospital Carlos III", imported[0].subtitle)
+        assertEquals("custom_doc_1.jpg", imported[0].fileName)
+
+        assertEquals("custom-2", imported[1].id)
+        assertEquals("Receta Médica - Antihistamínicos", imported[1].title)
+    }
+
+    @Test
+    fun `SharedDocumentsAndGuidesStore manages custom ID documents correctly`() {
+        val initialSize = SharedDocumentsAndGuidesStore.customIdDocsState.value.size
+
+        val newDoc = CustomIdDocumentItem(
+            id = "test-doc-${System.currentTimeMillis()}",
+            title = "Carnet de Conducir Internacional",
+            subtitle = "Permiso DGT Ginebra 1949",
+            fileName = "custom_permit.jpg"
+        )
+
+        SharedDocumentsAndGuidesStore.upsertCustomIdDoc(newDoc)
+        assertTrue(SharedDocumentsAndGuidesStore.customIdDocsState.value.any { it.id == newDoc.id })
+
+        val updated = newDoc.copy(subtitle = "Permiso actualizado 2026")
+        SharedDocumentsAndGuidesStore.upsertCustomIdDoc(updated)
+        val found = SharedDocumentsAndGuidesStore.customIdDocsState.value.first { it.id == newDoc.id }
+        assertEquals("Permiso actualizado 2026", found.subtitle)
+
+        SharedDocumentsAndGuidesStore.deleteCustomIdDoc(newDoc.id)
+        assertFalse(SharedDocumentsAndGuidesStore.customIdDocsState.value.any { it.id == newDoc.id })
+    }
 }
 
