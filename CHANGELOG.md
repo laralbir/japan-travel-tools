@@ -17,5 +17,5 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
   - `03-documents-and-id-vault-spec.md`: Especificación de bóveda de Pasaporte/DNI (con bloqueo biométrico opcional), repositorio offline de documentos de viaje (vuelos, hoteles, etc.) y gestor/creador de **Guías de Viaje** (importadas en PDF/Markdown/Imagen y nativas con fotos).
   - `04-trip-planner-spec.md`: Especificación del **Planificador de Viaje** por días y horarios (`Timeline`), integrado con fotos offline por parada, **Google Maps** (mapa interactivo embebido + coordenadas/enlaces/rutas en la app de Google Maps) y sincronización con Calendario.
 - Documentación de **Fase 2: Análisis Técnico** en `/docs/analysis/architecture-and-tech-stack.md`.
-- Documentación de **Fase 3: Plan de Tareas (TDD)** en `/docs/tasks/backlog.md`.
+- Documentación de **Fase 3: Plan de Tareas (TDD)** en `/docs/tasks/backlog.md`, incluyendo en el TODO la búsqueda y selección de un template moderno y útil para la app antes del scaffolding.
 - Guía de usuario en español (`docs/user-guide.md`) y guía de flujo de trabajo Gitflow/Releases (`docs/development-workflow.md`).
