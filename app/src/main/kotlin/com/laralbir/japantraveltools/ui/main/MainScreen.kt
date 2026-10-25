@@ -99,11 +99,18 @@ import com.laralbir.japantraveltools.feature.clock.OfflineTimeZoneResolver
 import com.laralbir.japantraveltools.feature.currency.ConvertCurrencyUseCase
 import com.laralbir.japantraveltools.feature.currency.FrankfurterJsonParser
 import com.laralbir.japantraveltools.feature.currency.SeedExchangeRates
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.Image
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.laralbir.japantraveltools.feature.documents.SharedDocumentsAndGuidesStore
@@ -2030,17 +2037,42 @@ private fun TransportSegmentEditorModalSheet(
 }
 
 // ============================================================================
-// 6. VOICE TRANSLATOR SCREEN (BIDIRECTIONAL STT + AUTO-TTS)
+// 6. VOICE & CAMERA TRANSLATOR SCREEN (BIDIRECTIONAL STT + CAMERA OCR)
 // ============================================================================
 @Composable
 private fun VoiceTranslatorScreen(isEs: Boolean) {
     val context = LocalContext.current
+    var translatorMode by rememberSaveable { mutableIntStateOf(0) } // 0: Voz, 1: Cámara
+
+    // --- MODO 0: VOZ SIMULTÁNEA ---
     var phraseInput by rememberSaveable { mutableStateOf("¿Dónde está el andén del Shinkansen?") }
     var japaneseHeardInput by rememberSaveable {
         mutableStateOf("いらっしゃいませ。何名様ですか？禁煙席でよろしいですか？")
     }
     var rotateJapaneseCard180 by rememberSaveable { mutableStateOf(false) }
 
+    // --- MODO 1: CÁMARA & OCR DE CARTELES ---
+    var capturedBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var isProcessingOcr by remember { mutableStateOf(false) }
+    var ocrRawText by rememberSaveable {
+        mutableStateOf(OfflineTranslatorEngine.sampleJapaneseSigns.first().sampleJapaneseOcr)
+    }
+    var ocrErrorMessage by remember { mutableStateOf<String?>(null) }
+
+    val ocrResult = remember(ocrRawText, isEs) {
+        OfflineTranslatorEngine.translateOcrJapaneseText(ocrRawText, isEs)
+    }
+
+    val ocrRecognizer = remember {
+        TextRecognition.getClient(JapaneseTextRecognizerOptions.Builder().build())
+    }
+    DisposableEffect(ocrRecognizer) {
+        onDispose {
+            ocrRecognizer.close()
+        }
+    }
+
+    // Motor TTS local
     var ttsEngine by remember { mutableStateOf<TextToSpeech?>(null) }
     DisposableEffect(context) {
         lateinit var instance: TextToSpeech
@@ -2067,6 +2099,59 @@ private fun VoiceTranslatorScreen(isEs: Boolean) {
         }
         engine.setSpeechRate(0.95f)
         engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "utt_${System.currentTimeMillis()}")
+    }
+
+    fun processOcrImage(inputImage: InputImage, previewBitmap: Bitmap?) {
+        isProcessingOcr = true
+        ocrErrorMessage = null
+        capturedBitmap = previewBitmap
+        ocrRecognizer.process(inputImage)
+            .addOnSuccessListener { visionText ->
+                isProcessingOcr = false
+                val recognizedText = visionText.text
+                if (recognizedText.isNotBlank()) {
+                    ocrRawText = recognizedText
+                } else {
+                    ocrErrorMessage = if (isEs) {
+                        "No se detectó texto en la imagen. Intenta enfocar más de cerca el cartel o menú."
+                    } else {
+                        "No text detected in the image. Please focus closer to the sign or menu."
+                    }
+                }
+            }
+            .addOnFailureListener { e ->
+                isProcessingOcr = false
+                ocrErrorMessage = if (isEs) {
+                    "Error al analizar la imagen: ${e.localizedMessage}"
+                } else {
+                    "Error analyzing image: ${e.localizedMessage}"
+                }
+            }
+    }
+
+    val takePhotoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap ->
+        if (bitmap != null) {
+            val inputImage = InputImage.fromBitmap(bitmap, 0)
+            processOcrImage(inputImage, bitmap)
+        }
+    }
+
+    val pickImageLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            val decodedBitmap = runCatching {
+                context.contentResolver.openInputStream(uri)?.use { stream ->
+                    BitmapFactory.decodeStream(stream)
+                }
+            }.getOrNull()
+            if (decodedBitmap != null) {
+                val inputImage = InputImage.fromBitmap(decodedBitmap, 0)
+                processOcrImage(inputImage, decodedBitmap)
+            }
+        }
     }
 
     val translation = remember(phraseInput) {
@@ -2121,191 +2206,521 @@ private fun VoiceTranslatorScreen(isEs: Boolean) {
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // SELECTOR DE MODO: VOZ vs CÁMARA
         item {
-            // CARD 1: YOU SPEAK -> PHONE SPEAKS JAPANESE
-            KotlinConfCard {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (isEs) "1. Tú hablas ➔ Suena Japonés" else "1. You speak ➔ Plays Japanese",
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f)
-                    )
-                    AppOptionButton(
-                        text = if (rotateJapaneseCard180) "Normal" else "🔄 180°",
-                        selected = rotateJapaneseCard180,
-                        onClick = { rotateJapaneseCard180 = !rotateJapaneseCard180 },
-                        modifier = Modifier.width(96.dp)
-                    )
-                }
-
-                Spacer(Modifier.height(14.dp))
-
-                AppButtonRow(
-                    primaryText = if (isEs) "🎙️ Hablar por Micro" else "🎙️ Speak Mic",
-                    onPrimaryClick = {
-                        runCatching {
-                            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                                putExtra(RecognizerIntent.EXTRA_LANGUAGE, if (isEs) "es-ES" else "en-US")
-                            }
-                            travelerSpeechLauncher.launch(intent)
-                        }.onFailure {
-                            speakOutLoud(translation.japaneseText, Locale.JAPAN)
-                        }
-                    },
-                    secondaryText = if (isEs) "🔊 Sonar en Japonés" else "🔊 Play Japanese",
-                    onSecondaryClick = { speakOutLoud(translation.japaneseText, Locale.JAPAN) }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                AppOptionButton(
+                    text = if (isEs) "🎙️ Voz Simultánea" else "🎙️ Voice Interpreter",
+                    selected = translatorMode == 0,
+                    onClick = { translatorMode = 0 },
+                    modifier = Modifier.weight(1f)
                 )
+                AppOptionButton(
+                    text = if (isEs) "📷 Cámara / Carteles" else "📷 Camera / Signs",
+                    selected = translatorMode == 1,
+                    onClick = { translatorMode = 1 },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
 
-                Spacer(Modifier.height(14.dp))
-
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .rotate(if (rotateJapaneseCard180) 180f else 0f)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+        if (translatorMode == 0) {
+            // MODO VOZ - CARD 1: YOU SPEAK -> PHONE SPEAKS JAPANESE
+            item {
+                KotlinConfCard {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
-                            text = phraseInput,
-                            fontSize = 15.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = if (isEs) "1. Tú hablas ➔ Suena Japonés" else "1. You speak ➔ Plays Japanese",
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f)
                         )
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            text = translation.japaneseText,
-                            fontSize = 23.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            text = "🗣️ ${translation.romaji}",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold
+                        AppOptionButton(
+                            text = if (rotateJapaneseCard180) "Normal" else "🔄 180°",
+                            selected = rotateJapaneseCard180,
+                            onClick = { rotateJapaneseCard180 = !rotateJapaneseCard180 },
+                            modifier = Modifier.width(96.dp)
                         )
                     }
-                }
 
-                Spacer(Modifier.height(14.dp))
-                Text(
-                    text = if (isEs) "Frases rápidas con audio japonés:" else "Quick Japanese audio phrases:",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(14.dp))
 
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OfflineTranslatorEngine.essentialPhrases.chunked(2).forEach { pair ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            pair.forEach { preset ->
-                                AppOptionButton(
-                                    text = "🔊 ${preset.categoryBadge}",
-                                    selected = phraseInput == preset.sourceText,
-                                    onClick = {
-                                        phraseInput = preset.sourceText
-                                        speakOutLoud(preset.japaneseText, Locale.JAPAN)
-                                    },
-                                    modifier = Modifier.weight(1f)
-                                )
+                    AppButtonRow(
+                        primaryText = if (isEs) "🎙️ Hablar por Micro" else "🎙️ Speak Mic",
+                        onPrimaryClick = {
+                            runCatching {
+                                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, if (isEs) "es-ES" else "en-US")
+                                }
+                                travelerSpeechLauncher.launch(intent)
+                            }.onFailure {
+                                speakOutLoud(translation.japaneseText, Locale.JAPAN)
+                            }
+                        },
+                        secondaryText = if (isEs) "🔊 Sonar en Japonés" else "🔊 Play Japanese",
+                        onSecondaryClick = { speakOutLoud(translation.japaneseText, Locale.JAPAN) }
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .rotate(if (rotateJapaneseCard180) 180f else 0f)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = phraseInput,
+                                fontSize = 15.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                text = translation.japaneseText,
+                                fontSize = 23.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                text = "🗣️ ${translation.romaji}",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+                    Text(
+                        text = if (isEs) "Frases rápidas con audio japonés:" else "Quick Japanese audio phrases:",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OfflineTranslatorEngine.essentialPhrases.chunked(2).forEach { pair ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                pair.forEach { preset ->
+                                    AppOptionButton(
+                                        text = "🔊 ${preset.categoryBadge}",
+                                        selected = phraseInput == preset.sourceText,
+                                        onClick = {
+                                            phraseInput = preset.sourceText
+                                            speakOutLoud(preset.japaneseText, Locale.JAPAN)
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
-        }
 
-        item {
-            // CARD 2: JAPANESE PERSON SPEAKS -> PHONE SPEAKS SPANISH TO YOU
-            KotlinConfCard {
-                Text(
-                    text = if (isEs) "2. Habla el Japonés ➔ Te habla en Español" else "2. Japanese speaks ➔ Speaks English to you",
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.Bold
-                )
+            // MODO VOZ - CARD 2: JAPANESE PERSON SPEAKS -> PHONE SPEAKS SPANISH TO YOU
+            item {
+                KotlinConfCard {
+                    Text(
+                        text = if (isEs) "2. Habla el Japonés ➔ Te habla en Español" else "2. Japanese speaks ➔ Speaks English to you",
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold
+                    )
 
-                Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(14.dp))
 
-                AppButtonRow(
-                    primaryText = if (isEs) "🎙️ Escuchar Japonés" else "🎙️ Listen Japanese",
-                    onPrimaryClick = {
-                        runCatching {
-                            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ja-JP")
+                    AppButtonRow(
+                        primaryText = if (isEs) "🎙️ Escuchar Japonés" else "🎙️ Listen Japanese",
+                        onPrimaryClick = {
+                            runCatching {
+                                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ja-JP")
+                                }
+                                japaneseSpeechLauncher.launch(intent)
+                            }.onFailure {
+                                val spoken = if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText
+                                speakOutLoud(spoken, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
                             }
-                            japaneseSpeechLauncher.launch(intent)
-                        }.onFailure {
+                        },
+                        secondaryText = if (isEs) "🔊 Oír en Español" else "🔊 Hear in English",
+                        onSecondaryClick = {
                             val spoken = if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText
                             speakOutLoud(spoken, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
                         }
-                    },
-                    secondaryText = if (isEs) "🔊 Oír en Español" else "🔊 Hear in English",
-                    onSecondaryClick = {
-                        val spoken = if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText
-                        speakOutLoud(spoken, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText,
+                                fontSize = 19.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
                     }
-                )
 
-                Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(14.dp))
+                    Text(
+                        text = if (isEs) "Simular respuestas habituales en Japón:" else "Simulate common Japanese replies:",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
 
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText,
-                            fontSize = 19.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(14.dp))
-                Text(
-                    text = if (isEs) "Simular respuestas habituales en Japón:" else "Simulate common Japanese replies:",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(8.dp))
-
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OfflineTranslatorEngine.incomingJapaneseSamples.chunked(2).forEach { pair ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            pair.forEach { sample ->
-                                AppOptionButton(
-                                    text = "🔊 ${sample.contextLabel}",
-                                    selected = japaneseHeardInput == sample.japaneseHeardText,
-                                    onClick = {
-                                        japaneseHeardInput = sample.japaneseHeardText
-                                        val spoken = if (isEs) sample.spanishSpokenText else sample.englishSpokenText
-                                        speakOutLoud(spoken, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
-                                    },
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                            if (pair.size == 1) {
-                                Spacer(Modifier.weight(1f))
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OfflineTranslatorEngine.incomingJapaneseSamples.chunked(2).forEach { pair ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                pair.forEach { sample ->
+                                    AppOptionButton(
+                                        text = "🔊 ${sample.contextLabel}",
+                                        selected = japaneseHeardInput == sample.japaneseHeardText,
+                                        onClick = {
+                                            japaneseHeardInput = sample.japaneseHeardText
+                                            val spoken = if (isEs) sample.spanishSpokenText else sample.englishSpokenText
+                                            speakOutLoud(spoken, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                                if (pair.size == 1) {
+                                    Spacer(Modifier.weight(1f))
+                                }
                             }
                         }
                     }
+                }
+            }
+        } else {
+            // MODO CÁMARA & CARTELES - CARD 1: CAPTURA Y FOTO
+            item {
+                KotlinConfCard {
+                    Text(
+                        text = if (isEs) "📷 Traductor de Carteles y Menús" else "📷 Sign & Menu Camera Translator",
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = if (isEs) {
+                            "Reconoce caracteres japoneses (Kanji, Hiragana, Katakana), platos, precios en Yenes y carteles 100% offline."
+                        } else {
+                            "Recognizes Japanese text (Kanji, Hiragana, Katakana), dish names, Yen prices, and station signs 100% offline."
+                        },
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    AppButtonRow(
+                        primaryText = if (isEs) "📷 Tomar Foto" else "📷 Take Photo",
+                        onPrimaryClick = {
+                            runCatching {
+                                takePhotoLauncher.launch(null)
+                            }
+                        },
+                        secondaryText = if (isEs) "🖼️ Elegir Imagen" else "🖼️ Pick Image",
+                        onSecondaryClick = {
+                            runCatching {
+                                pickImageLauncher.launch("image/*")
+                            }
+                        }
+                    )
+
+                    if (capturedBitmap != null) {
+                        Spacer(Modifier.height(14.dp))
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Image(
+                                    bitmap = capturedBitmap!!.asImageBitmap(),
+                                    contentDescription = "Foto capturada",
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(160.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                )
+                                Spacer(Modifier.height(6.dp))
+                                AppOptionButton(
+                                    text = if (isEs) "🗑️ Quitar foto" else "🗑️ Clear photo",
+                                    selected = false,
+                                    onClick = { capturedBitmap = null },
+                                    modifier = Modifier.fillMaxWidth(0.5f)
+                                )
+                            }
+                        }
+                    }
+
+                    if (isProcessingOcr) {
+                        Spacer(Modifier.height(14.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier
+                                    .width(24.dp)
+                                    .height(24.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                text = if (isEs) "Analizando caracteres japoneses..." else "Analyzing Japanese characters...",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    if (ocrErrorMessage != null) {
+                        Spacer(Modifier.height(14.dp))
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = ocrErrorMessage!!,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // MODO CÁMARA & CARTELES - CARD 2: RESULTADO DE LA TRADUCCIÓN
+            item {
+                KotlinConfCard {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (isEs) "🇯🇵 Traducción Detectada" else "🇯🇵 Detected Translation",
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (ocrResult.lines.isNotEmpty()) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer
+                            ) {
+                                Text(
+                                    text = "${ocrResult.lines.size} ${if (isEs) "líneas" else "lines"}",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+
+                    if (ocrResult.lines.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            ocrResult.lines.forEach { line ->
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Text(
+                                            text = line.japaneseText,
+                                            fontSize = 20.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        if (line.romaji.isNotBlank()) {
+                                            Spacer(Modifier.height(3.dp))
+                                            Text(
+                                                text = "🗣️ ${line.romaji}",
+                                                fontSize = 13.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Spacer(Modifier.height(6.dp))
+                                        Text(
+                                            text = "✅ ${line.translatedText}",
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(14.dp))
+
+                        AppButtonRow(
+                            primaryText = if (isEs) "🔊 Oír en Español" else "🔊 Hear in English",
+                            onPrimaryClick = {
+                                speakOutLoud(
+                                    ocrResult.lines.joinToString(". ") { it.translatedText },
+                                    if (isEs) Locale.forLanguageTag("es-ES") else Locale.US
+                                )
+                            },
+                            secondaryText = if (isEs) "🔊 Oír en Japonés" else "🔊 Hear Japanese",
+                            onSecondaryClick = {
+                                speakOutLoud(
+                                    ocrResult.lines.joinToString(" ") { it.japaneseText },
+                                    Locale.JAPAN
+                                )
+                            }
+                        )
+                    } else {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = ocrResult.fullTranslation,
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(14.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // MODO CÁMARA & CARTELES - CARD 3: EJEMPLOS DE CARTELES TÍPICOS
+            item {
+                KotlinConfCard {
+                    Text(
+                        text = if (isEs) "💡 Ejemplos de Carteles Japoneses:" else "💡 Sample Japanese Signs:",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = if (isEs) {
+                            "Pulsa cualquiera para probar al instante la traducción de platos, precios y carteles de estaciones:"
+                        } else {
+                            "Tap any sample to instantly test offline translation for dishes, prices and signs:"
+                        },
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(Modifier.height(10.dp))
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OfflineTranslatorEngine.sampleJapaneseSigns.chunked(2).forEach { pair ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                pair.forEach { sample ->
+                                    AppOptionButton(
+                                        text = sample.label,
+                                        selected = ocrRawText == sample.sampleJapaneseOcr,
+                                        onClick = {
+                                            capturedBitmap = null
+                                            ocrErrorMessage = null
+                                            ocrRawText = sample.sampleJapaneseOcr
+                                            speakOutLoud(
+                                                OfflineTranslatorEngine.translateOcrJapaneseText(sample.sampleJapaneseOcr, isEs)
+                                                    .lines.firstOrNull()?.translatedText ?: "",
+                                                if (isEs) Locale.forLanguageTag("es-ES") else Locale.US
+                                            )
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                                if (pair.size == 1) {
+                                    Spacer(Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // MODO CÁMARA & CARTELES - CARD 4: MODO CÁMARA EN VIVO / GOOGLE LENS
+            item {
+                KotlinConfCard {
+                    Text(
+                        text = if (isEs) "🌐 Cámara en Vivo / Google Lens" else "🌐 Live Camera / Google Lens",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = if (isEs) {
+                            "Para realidad aumentada con superposición en tiempo real, puedes abrir directamente la cámara de Google Traductor o Google Lens:"
+                        } else {
+                            "For live augmented reality overlay translation, you can directly launch Google Translate or Lens:"
+                        },
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(Modifier.height(12.dp))
+
+                    AppPrimaryButton(
+                        text = if (isEs) "🌐 Abrir Cámara Google Traductor" else "🌐 Open Google Translate Camera",
+                        onClick = {
+                            val gTranslateIntent = Intent(Intent.ACTION_VIEW).apply {
+                                setPackage("com.google.android.apps.translate")
+                                data = Uri.parse("googletranslate://camera")
+                            }
+                            runCatching {
+                                context.startActivity(gTranslateIntent)
+                            }.onFailure {
+                                runCatching {
+                                    val webIntent = Intent(
+                                        Intent.ACTION_VIEW,
+                                        Uri.parse("https://translate.google.com/?sl=ja&tl=es&op=images")
+                                    )
+                                    context.startActivity(webIntent)
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         }

@@ -135,6 +135,49 @@ class AiAndTranslatorUseCaseTest {
     }
 
     @Test
+    fun `translateOcrJapaneseText translates multi-line Japanese restaurant menu with prices and dish names`() {
+        val menuOcr = """
+            特製ラーメン 1000円
+            焼き餃子 450円
+            生ビール 550円
+        """.trimIndent()
+
+        val result = OfflineTranslatorEngine.translateOcrJapaneseText(menuOcr, isEs = true)
+        assertTrue(result.hasJapanese)
+        assertEquals(3, result.lines.size)
+        assertTrue(result.lines[0].translatedText.contains("ramen", ignoreCase = true))
+        assertTrue(result.lines[0].translatedText.contains("1000") || result.lines[0].translatedText.contains("1.000"))
+        assertTrue(result.lines[1].translatedText.contains("gyoza", ignoreCase = true) || result.lines[1].translatedText.contains("empanadilla", ignoreCase = true))
+        assertTrue(result.lines[2].translatedText.contains("cerveza", ignoreCase = true))
+    }
+
+    @Test
+    fun `translateOcrJapaneseText translates Japanese signs for station, smoking rules, and restrooms`() {
+        val signOcr = """
+            新幹線 16番線
+            禁煙席
+            本日満席
+            お手洗い
+        """.trimIndent()
+
+        val result = OfflineTranslatorEngine.translateOcrJapaneseText(signOcr, isEs = true)
+        assertTrue(result.hasJapanese)
+        assertEquals(4, result.lines.size)
+        assertTrue(result.lines[0].translatedText.contains("shinkansen", ignoreCase = true) || result.lines[0].translatedText.contains("andén", ignoreCase = true))
+        assertTrue(result.lines[1].translatedText.contains("fumador", ignoreCase = true))
+        assertTrue(result.lines[2].translatedText.contains("completo", ignoreCase = true) || result.lines[2].translatedText.contains("lleno", ignoreCase = true))
+        assertTrue(result.lines[3].translatedText.contains("baño", ignoreCase = true) || result.lines[3].translatedText.contains("aseo", ignoreCase = true))
+    }
+
+    @Test
+    fun `translateOcrJapaneseText handles text with no Japanese gracefully`() {
+        val noJapanese = "Entrance Only Please Keep Left"
+        val result = OfflineTranslatorEngine.translateOcrJapaneseText(noJapanese, isEs = true)
+        assertTrue(!result.hasJapanese)
+        assertTrue(result.fullTranslation.contains("japonés", ignoreCase = true) || result.fullTranslation.contains("detectó", ignoreCase = true))
+    }
+
+    @Test
     fun `OfflineTranslatorEngine translates everyday questions without leaking raw Spanish into Japanese TTS`() {
         val restroom = OfflineTranslatorEngine.translateToJapanese("¿Dónde está el baño por favor?")
         assertTrue(restroom.japaneseText.contains("トイレ"))
