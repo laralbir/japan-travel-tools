@@ -89,6 +89,7 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 - [x] **TASK-703 (TDD)**: Implementar el **Acceso Directo Global a Traducción Simultánea** en la cabecera y la pantalla `GeminiAndTranslatorScreen` con tarjeta japonesa giratoria **180°** para mostrador/mesa.
 - [x] **TASK-704 (TDD)**: Implementar `AiPlanBuilderEngine` para permitir a la IA Gemini crear nuevos planes de viaje y mejorar/optimizar los planes existentes en la app (resolución de conflictos horarios + adición de nuevas jornadas y tramos de Shinkansen/transporte).
 - [x] **TASK-705 (TDD)**: Ampliar `OfflineTranslatorEngine` con diccionario exhaustivo bidireccional, enrutamiento inteligente de idioma (`isJapaneseText`) y regla estricta de no-fuga de caracteres japoneses a la locución TTS en español/inglés.
+- [x] **TASK-706 (TDD)**: Refactorizar `translateToJapanese` en `OfflineTranslatorEngine` garantizando traducciones directas, fieles y concisas sin palabras adicionales inventadas (cero boilerplate).
 
 ---
 

@@ -7,6 +7,14 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.10] - 2026-10-25
+
+### Fixed
+- **Traducción Fiel y Concisa de Español a Japonés sin Palabras Inventadas (`SPEC-06 RF-06.1`)**:
+  - `OfflineTranslatorEngine`: Refactorización integral de `translateToJapanese` para que la locución en japonés reproduzca con máxima fidelidad lo pronunciado por el viajero por voz.
+  - **Eliminación Total de Boilerplate y Elogios Inventados**: Se eliminaron preguntas secundarias innecesarias (ej. no añadir *¿Aceptan tarjeta o Suica?* si solo se pide la cuenta), agradecimientos ficticios sobre comida si solo se dice *Hola* o *Gracias*, cantidades asumidas (no añadir *dos aguas* si solo se dice *agua*) y disculpas automáticas sobre apps de traducción.
+  - **Tests de Fidelidad de Voz**: Incorporados tests unitarios específicos en `AiAndTranslatorUseCaseTest` que verifican que la traducción a japonés nunca añade palabras no expresadas por el usuario.
+
 ## [0.0.1-beta.9] - 2026-10-25
 
 ### Fixed

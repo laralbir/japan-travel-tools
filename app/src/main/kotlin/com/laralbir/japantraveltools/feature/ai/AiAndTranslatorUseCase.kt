@@ -469,42 +469,42 @@ object OfflineTranslatorEngine {
         ),
         SimultaneousTranslationItem(
             sourceText = "¿Dónde está el baño, por favor?",
-            japaneseText = "すみません、お手洗い（トイレ）はどこですか？",
-            romaji = "Sumimasen, o-tearai (toire) wa doko desu ka?",
+            japaneseText = "トイレはどこですか？",
+            romaji = "Toire wa doko desu ka?",
             categoryBadge = "BAÑO / ASEO"
         ),
         SimultaneousTranslationItem(
             sourceText = "¿Cuánto cuesta esto, por favor?",
-            japaneseText = "すみません、これはいくらですか？",
-            romaji = "Sumimasen, kore wa ikura desu ka?",
+            japaneseText = "これはいくらですか？",
+            romaji = "Kore wa ikura desu ka?",
             categoryBadge = "PRECIO / COMPRAS"
         ),
         SimultaneousTranslationItem(
-            sourceText = "No puedo comer marisco ni cacahuetes (alergia)",
-            japaneseText = "甲殻類とピーナッツのアレルギーがあります。食べられません。",
-            romaji = "Kōkakurui to pīnattsu no arerugī ga arimasu. Taberaremasen.",
+            sourceText = "Tengo alergia alimentaria",
+            japaneseText = "アレルギーがあります。",
+            romaji = "Arerugī ga arimasu.",
             categoryBadge = "ALERGIA / SALUD"
         ),
         SimultaneousTranslationItem(
-            sourceText = "¿Tienen menú en inglés o recomendación del chef?",
-            japaneseText = "英語のメニューはありますか？おすすめは何ですか？",
-            romaji = "Eigo no menyū wa arimasu ka? Osusume wa nan desu ka?",
+            sourceText = "¿Tienen menú en inglés?",
+            japaneseText = "英語のメニューはありますか？",
+            romaji = "Eigo no menyū wa arimasu ka?",
             categoryBadge = "RESTAURANTE"
         ),
         SimultaneousTranslationItem(
-            sourceText = "La cuenta, por favor. ¿Aceptan tarjeta o Suica?",
-            japaneseText = "お会計をお願いします。カードかSuicaは使えますか？",
-            romaji = "O-kaikei o onegaishimasu. Kādo ka Suica wa tsukaemasu ka?",
-            categoryBadge = "PAGO / SUICA"
+            sourceText = "La cuenta, por favor",
+            japaneseText = "お会計をお願いします。",
+            romaji = "O-kaikei o onegaishimasu.",
+            categoryBadge = "PAGO / CUENTA"
         ),
         SimultaneousTranslationItem(
             sourceText = "¿Hacen compras libres de impuestos (Tax-Free)?",
-            japaneseText = "免税（タックスフリー）はできますか？パスポートがあります。",
-            romaji = "Menzei (Takkusu Furī) wa dekimasu ka? Pasupōto ga arimasu.",
+            japaneseText = "免税はできますか？",
+            romaji = "Menzei wa dekimasu ka?",
             categoryBadge = "TAX-FREE"
         ),
         SimultaneousTranslationItem(
-            sourceText = "Por favor, lléveme a esta dirección de hotel",
+            sourceText = "A esta dirección de hotel, por favor",
             japaneseText = "このホテルの住所までお願いします。",
             romaji = "Kono hoteru no jūsho made onegaishimasu.",
             categoryBadge = "TAXI / HOTEL"
@@ -512,72 +512,193 @@ object OfflineTranslatorEngine {
     )
 
     fun translateToJapanese(input: String): SimultaneousTranslationItem {
-        val normalized = input.trim().lowercase(Locale.ROOT)
-        return when {
-            normalized.contains("shinkansen") || normalized.contains("andén") || normalized.contains("platform") || normalized.contains("tren") || normalized.contains("estación") || normalized.contains("station") ->
-                essentialPhrases[0].copy(sourceText = input)
-            normalized.contains("baño") || normalized.contains("aseo") || normalized.contains("servicio") || normalized.contains("toilet") || normalized.contains("restroom") || normalized.contains("bathroom") ->
-                essentialPhrases[1].copy(sourceText = input)
-            normalized.contains("cuánto cuesta") || normalized.contains("cuanto cuesta") || normalized.contains("precio") || normalized.contains("how much") || normalized.contains("price") ->
-                essentialPhrases[2].copy(sourceText = input)
-            normalized.contains("alergia") || normalized.contains("marisco") || normalized.contains("shellfish") || normalized.contains("peanut") || normalized.contains("gluten") ->
-                essentialPhrases[3].copy(sourceText = input)
-            normalized.contains("menú") || normalized.contains("menu") || normalized.contains("recomend") || normalized.contains("carta") ->
-                essentialPhrases[4].copy(sourceText = input)
-            normalized.contains("cuenta") || normalized.contains("bill") || normalized.contains("suica") || normalized.contains("pagar") || normalized.contains("tarjeta") || normalized.contains("efectivo") ->
-                essentialPhrases[5].copy(sourceText = input)
-            normalized.contains("tax") || normalized.contains("impuesto") || normalized.contains("pasaporte") || normalized.contains("free") ->
-                essentialPhrases[6].copy(sourceText = input)
-            normalized.contains("taxi") || normalized.contains("hotel") || normalized.contains("dirección") || normalized.contains("address") || normalized.contains("lléveme") ->
-                essentialPhrases[7].copy(sourceText = input)
-            normalized.contains("agua") || normalized.contains("water") || normalized.contains("cerveza") || normalized.contains("té") ->
-                SimultaneousTranslationItem(
-                    sourceText = input,
-                    japaneseText = "すみません、お水を2つお願いします。",
-                    romaji = "Sumimasen, o-mizu o futatsu onegaishimasu.",
-                    categoryBadge = "BEBIDA / AGUA"
-                )
-            normalized.contains("mesa") || normalized.contains("personas") || normalized.contains("dos") || normalized.contains("table") ->
-                SimultaneousTranslationItem(
-                    sourceText = input,
-                    japaneseText = "すみません、2名です。席はありますか？",
-                    romaji = "Sumimasen, ni-mei desu. Seki wa arimasu ka?",
-                    categoryBadge = "MESA / RESERVA"
-                )
-            normalized.contains("vegetariano") || normalized.contains("vegano") || normalized.contains("carne") || normalized.contains("vegetarian") ->
-                SimultaneousTranslationItem(
-                    sourceText = input,
-                    japaneseText = "私はベジタリアンです。肉と魚は食べられません。",
-                    romaji = "Watashi wa bejitarian desu. Niku to sakana wa taberaremasen.",
-                    categoryBadge = "DIETA / SIN CARNE"
-                )
-            normalized.contains("maleta") || normalized.contains("equipaje") || normalized.contains("taquilla") || normalized.contains("luggage") ->
-                SimultaneousTranslationItem(
-                    sourceText = input,
-                    japaneseText = "すみません、荷物を預ける場所やコインロッカーはありますか？",
-                    romaji = "Sumimasen, nimotsu o azukeru basho ya koin-rokkā wa arimasu ka?",
-                    categoryBadge = "EQUIPAJE / CONSIGNA"
-                )
-            normalized.contains("ayuda") || normalized.contains("farmacia") || normalized.contains("médico") || normalized.contains("help") ->
-                SimultaneousTranslationItem(
-                    sourceText = input,
-                    japaneseText = "すみません、助けが必要です。近くに薬局はありますか？",
-                    romaji = "Sumimasen, tasuke ga hitsuyō desu. Chikaku ni yakkyoku wa arimasu ka?",
-                    categoryBadge = "AYUDA / FARMACIA"
-                )
-            normalized.contains("gracias") || normalized.contains("hola") || normalized.contains("disculpe") || normalized.contains("thank") ->
-                SimultaneousTranslationItem(
-                    sourceText = input,
-                    japaneseText = "ありがとうございます。とても美味しかったです。",
-                    romaji = "Arigatō gozaimasu. Totemo oishikatta desu.",
-                    categoryBadge = "CORTESÍA"
-                )
-            else -> SimultaneousTranslationItem(
-                sourceText = input,
-                japaneseText = "すみません、日本語がわかりません。翻訳アプリを使っています。ゆっくり話してください。",
-                romaji = "Sumimasen, Nihongo ga wakarimasen. Hon'yaku apuri o tsukatte imasu. Yukkuri hanashite kudasai.",
-                categoryBadge = "ASISTENCIA EN JAPONÉS"
+        val raw = input.trim()
+        if (raw.isBlank()) {
+            return SimultaneousTranslationItem(
+                sourceText = "",
+                japaneseText = "",
+                romaji = "",
+                categoryBadge = "TEXTO VACÍO"
             )
+        }
+        val normalized = raw.lowercase(Locale.ROOT)
+        val hasDisculpe = normalized.contains("disculpe") || normalized.contains("perdón") || normalized.contains("perdon") || normalized.contains("excuse") || normalized.contains("sorry")
+        val prefix = if (hasDisculpe) "すみません、" else ""
+        val prefixRomaji = if (hasDisculpe) "Sumimasen, " else ""
+
+        return when {
+            // 1. Saludos y cortesía (fieles y exactos, sin añadir elogios inventados)
+            normalized.contains("buenos días") || normalized.contains("buenos dias") || normalized.contains("good morning") ->
+                SimultaneousTranslationItem(raw, "おはようございます。", "Ohayō gozaimasu.", "SALUDO")
+            normalized.contains("buenas noches") || normalized.contains("good evening") || normalized.contains("good night") ->
+                SimultaneousTranslationItem(raw, "こんばんは。", "Konbanwa.", "SALUDO")
+            normalized.contains("hola") || normalized.contains("hello") || normalized == "hi" || normalized.startsWith("hi ") || normalized.contains(" hi ") || normalized.endsWith(" hi") ->
+                SimultaneousTranslationItem(raw, "こんにちは。", "Konnichiwa.", "SALUDO")
+            normalized.contains("adiós") || normalized.contains("adios") || normalized.contains("hasta luego") || normalized.contains("goodbye") || normalized.contains("bye") || normalized.contains("chao") ->
+                SimultaneousTranslationItem(raw, "さようなら。", "Sayōnara.", "DESPEDIDA")
+            normalized.contains("muchas gracias") || normalized.contains("thank you very much") ->
+                SimultaneousTranslationItem(raw, "どうもありがとうございます。", "Dōmo arigatō gozaimasu.", "AGRADECIMIENTO")
+            normalized.contains("gracias") || normalized.contains("thank you") || normalized.contains("thanks") ->
+                SimultaneousTranslationItem(raw, "ありがとうございます。", "Arigatō gozaimasu.", "AGRADECIMIENTO")
+            normalized.contains("de nada") || normalized.contains("welcome") ->
+                SimultaneousTranslationItem(raw, "どういたしまして。", "Dōitashimashite.", "CORTESÍA")
+            normalized.contains("que aproveche") || normalized.contains("buen provecho") || normalized.contains("itadakimasu") ->
+                SimultaneousTranslationItem(raw, "いただきます。", "Itadakimasu.", "COMIDA")
+            normalized.contains("gracias por la comida") ->
+                SimultaneousTranslationItem(raw, "ごちそうさまでした。", "Gochisōsama deshita.", "COMIDA")
+            normalized.contains("está delicioso") || normalized.contains("esta delicioso") || normalized.contains("muy rico") || normalized.contains("delicious") ->
+                SimultaneousTranslationItem(raw, "とても美味しいです。", "Totemo oishii desu.", "ELOGIO COMIDA")
+            normalized.contains("de acuerdo") || normalized.contains("entendido") || normalized.contains("vale") || normalized.contains("understood") ->
+                SimultaneousTranslationItem(raw, "わかりました。", "Wakarimashita.", "CONFIRMACIÓN")
+            normalized.contains("está bien") || normalized.contains("esta bien") || normalized.contains("no hay problema") || normalized.contains("no se preocupe") || normalized.contains("no problem") ->
+                SimultaneousTranslationItem(raw, "大丈夫です。", "Daijōbu desu.", "CONFIRMACIÓN")
+            normalized == "sí" || normalized == "si" || normalized == "yes" ->
+                SimultaneousTranslationItem(raw, "はい。", "Hai.", "RESPUESTA")
+            normalized == "no" ->
+                SimultaneousTranslationItem(raw, "いいえ。", "Iie.", "RESPUESTA")
+
+            // 2. Restaurante, comida y pedidos directos (exactamente lo pedido)
+            normalized.contains("cuenta") || normalized.contains("bill") || normalized.contains("check please") ->
+                SimultaneousTranslationItem(raw, "お会計をお願いします。", "O-kaikei o onegaishimasu.", "PAGO / CUENTA")
+            normalized.contains("tarjeta") || normalized.contains("card") || normalized.contains("credit") ->
+                SimultaneousTranslationItem(raw, "カードは使えますか？", "Kādo wa tsukaemasu ka?", "PAGO / TARJETA")
+            normalized.contains("suica") || normalized.contains("pasmo") ->
+                SimultaneousTranslationItem(raw, "Suicaは使えますか？", "Suica wa tsukaemasu ka?", "PAGO / SUICA")
+            normalized.contains("efectivo") || normalized.contains("cash") ->
+                SimultaneousTranslationItem(raw, "現金は使えますか？", "Genkin wa tsukaemasu ka?", "PAGO / EFECTIVO")
+            normalized.contains("agua") || normalized.contains("water") -> {
+                val qty = when {
+                    normalized.contains("dos") || normalized.contains("2") -> "お水を2つ"
+                    normalized.contains("tres") || normalized.contains("3") -> "お水を3つ"
+                    else -> "お水"
+                }
+                val qtyRomaji = when {
+                    normalized.contains("dos") || normalized.contains("2") -> "O-mizu o futatsu"
+                    normalized.contains("tres") || normalized.contains("3") -> "O-mizu o mittsu"
+                    else -> "O-mizu"
+                }
+                SimultaneousTranslationItem(raw, "${prefix}${qty}をお願いします。", "${prefixRomaji}${qtyRomaji} o onegaishimasu.", "BEBIDA / AGUA")
+            }
+            normalized.contains("cerveza") || normalized.contains("beer") ->
+                SimultaneousTranslationItem(raw, "${prefix}ビールをお願いします。", "${prefixRomaji}Bīru o onegaishimasu.", "BEBIDA")
+            normalized.contains("té") || normalized.contains(" té ") || normalized.startsWith("te ") || normalized.contains(" te ") || normalized.endsWith(" te") || normalized.contains("tea") ->
+                SimultaneousTranslationItem(raw, "${prefix}お茶をお願いします。", "${prefixRomaji}O-cha o onegaishimasu.", "BEBIDA")
+            normalized.contains("menú en inglés") || normalized.contains("menu en ingles") || normalized.contains("carta en inglés") || normalized.contains("english menu") ->
+                SimultaneousTranslationItem(raw, "${prefix}英語のメニューはありますか？", "${prefixRomaji}Eigo no menyū wa arimasu ka?", "RESTAURANTE")
+            normalized.contains("menú") || normalized.contains("menu") || normalized.contains("carta") ->
+                SimultaneousTranslationItem(raw, "${prefix}メニューをお願いします。", "${prefixRomaji}Menyū o onegaishimasu.", "RESTAURANTE")
+            normalized.contains("recomend") || normalized.contains("sugiere") ->
+                SimultaneousTranslationItem(raw, "${prefix}おすすめは何ですか？", "${prefixRomaji}Osusume wa nan desu ka?", "RESTAURANTE")
+            normalized.contains("esto por favor") || normalized.contains("este plato") || normalized.contains("this please") ->
+                SimultaneousTranslationItem(raw, "これをお願いします。", "Kore o onegaishimasu.", "PEDIDO")
+            normalized.contains("dos personas") || normalized.contains("2 personas") || normalized.contains("somos dos") || normalized.contains("para dos") ->
+                SimultaneousTranslationItem(raw, "2名です。", "Ni-mei desu.", "RESERVA / MESA")
+            normalized.contains("una persona") || normalized.contains("1 persona") || normalized.contains("para uno") ->
+                SimultaneousTranslationItem(raw, "1名です。", "Ichi-mei desu.", "RESERVA / MESA")
+            normalized.contains("tres personas") || normalized.contains("3 personas") ->
+                SimultaneousTranslationItem(raw, "3名です。", "San-mei desu.", "RESERVA / MESA")
+            normalized.contains("cuatro personas") || normalized.contains("4 personas") ->
+                SimultaneousTranslationItem(raw, "4名です。", "Yon-mei desu.", "RESERVA / MESA")
+            normalized.contains("reserva") || normalized.contains("reservation") ->
+                SimultaneousTranslationItem(raw, "予約があります。", "Yoyaku ga arimasu.", "RESERVA")
+
+            // 3. Dietas y alergias estrictas (exactamente la dicha, sin asumir marisco ni carne)
+            normalized.contains("vegetariano") || normalized.contains("vegetarian") ->
+                SimultaneousTranslationItem(raw, "ベジタリアンです。", "Bejitarian desu.", "DIETA")
+            normalized.contains("vegano") || normalized.contains("vegan") ->
+                SimultaneousTranslationItem(raw, "ヴィーガンです。", "Vīgan desu.", "DIETA")
+            normalized.contains("sin carne") || normalized.contains("no meat") ->
+                SimultaneousTranslationItem(raw, "肉なしでお願いします。", "Niku nashi de onegaishimasu.", "DIETA")
+            normalized.contains("sin pescado") || normalized.contains("no fish") ->
+                SimultaneousTranslationItem(raw, "魚なしでお願いします。", "Sakana nashi de onegaishimasu.", "DIETA")
+            normalized.contains("sin picante") || normalized.contains("no spicy") ->
+                SimultaneousTranslationItem(raw, "辛くしないでください。", "Karaku shinaide kudasai.", "COMIDA")
+            normalized.contains("marisco") || normalized.contains("shellfish") ->
+                SimultaneousTranslationItem(raw, "甲殻類のアレルギーがあります。", "Kōkakurui no arerugī ga arimasu.", "ALERGIA")
+            normalized.contains("cacahuete") || normalized.contains("frutos secos") || normalized.contains("peanut") || normalized.contains("nuts") ->
+                SimultaneousTranslationItem(raw, "ピーナッツのアレルギーがあります。", "Pīnattsu no arerugī ga arimasu.", "ALERGIA")
+            normalized.contains("gluten") || normalized.contains("celiac") || normalized.contains("celíac") ->
+                SimultaneousTranslationItem(raw, "グルテンのアレルギーがあります。", "Guruten no arerugī ga arimasu.", "ALERGIA")
+            normalized.contains("leche") || normalized.contains("lácteo") || normalized.contains("lacteo") || normalized.contains("dairy") || normalized.contains("milk") ->
+                SimultaneousTranslationItem(raw, "乳製品のアレルギーがあります。", "Nyūseihin no arerugī ga arimasu.", "ALERGIA")
+            normalized.contains("huevo") || normalized.contains("egg") ->
+                SimultaneousTranslationItem(raw, "卵のアレルギーがあります。", "Tamago no arerugī ga arimasu.", "ALERGIA")
+            normalized.contains("alergia") || normalized.contains("allergy") ->
+                SimultaneousTranslationItem(raw, "アレルギーがあります。", "Arerugī ga arimasu.", "ALERGIA")
+
+            // 4. Preguntas de "¿Dónde está...?" (sintéticas y limpias)
+            normalized.contains("baño") || normalized.contains("aseo") || normalized.contains("servicio") || normalized.contains("toilet") || normalized.contains("restroom") || normalized.contains("bathroom") ->
+                SimultaneousTranslationItem(raw, "${prefix}トイレはどこですか？", "${prefixRomaji}Toire wa doko desu ka?", "BAÑO / ASEO")
+            normalized.contains("shinkansen") ->
+                SimultaneousTranslationItem(raw, "${prefix}新幹線のホームはどこですか？", "${prefixRomaji}Shinkansen no hōmu wa doko desu ka?", "TREN / SHINKANSEN")
+            normalized.contains("andén") || normalized.contains("anden") || normalized.contains("vía") || normalized.contains("via") || normalized.contains("platform") ->
+                SimultaneousTranslationItem(raw, "${prefix}ホームはどこですか？", "${prefixRomaji}Hōmu wa doko desu ka?", "TREN / ANDÉN")
+            normalized.contains("estación") || normalized.contains("estacion") || normalized.contains("station") ->
+                SimultaneousTranslationItem(raw, "${prefix}駅はどこですか？", "${prefixRomaji}Eki wa doko desu ka?", "ESTACIÓN")
+            normalized.contains("metro") || normalized.contains("subway") ->
+                SimultaneousTranslationItem(raw, "${prefix}地下鉄はどこですか？", "${prefixRomaji}Chikatetsu wa doko desu ka?", "METRO")
+            normalized.contains("autobús") || normalized.contains("autobus") || normalized.contains("bus") ->
+                SimultaneousTranslationItem(raw, "${prefix}バス停はどこですか？", "${prefixRomaji}Basutei wa doko desu ka?", "AUTOBÚS")
+            normalized.contains("ascensor") || normalized.contains("elevator") || normalized.contains("lift") ->
+                SimultaneousTranslationItem(raw, "${prefix}エレベーターはどこですか？", "${prefixRomaji}Erebētā wa doko desu ka?", "ASCENSOR")
+            normalized.contains("salida") || normalized.contains("exit") ->
+                SimultaneousTranslationItem(raw, "${prefix}出口はどこですか？", "${prefixRomaji}Deguchi wa doko desu ka?", "SALIDA")
+            normalized.contains("taquilla") || normalized.contains("consigna") || normalized.contains("maleta") || normalized.contains("equipaje") || normalized.contains("locker") || normalized.contains("luggage") ->
+                SimultaneousTranslationItem(raw, "${prefix}コインロッカーはどこですか？", "${prefixRomaji}Koin rokkā wa doko desu ka?", "EQUIPAJE / CONSIGNA")
+            normalized.contains("farmacia") || normalized.contains("pharmacy") ->
+                SimultaneousTranslationItem(raw, "${prefix}薬局はどこですか？", "${prefixRomaji}Yakkyoku wa doko desu ka?", "FARMACIA")
+            normalized.contains("hospital") ->
+                SimultaneousTranslationItem(raw, "${prefix}病院はどこですか？", "${prefixRomaji}Byōin wa doko desu ka?", "HOSPITAL")
+            normalized.contains("policía") || normalized.contains("policia") || normalized.contains("police") || normalized.contains("koban") ->
+                SimultaneousTranslationItem(raw, "${prefix}交番はどこですか？", "${prefixRomaji}Kōban wa doko desu ka?", "POLICÍA")
+            normalized.contains("cajero") || normalized.contains("atm") ->
+                SimultaneousTranslationItem(raw, "${prefix}ATMはどこですか？", "${prefixRomaji}Ē-tī-emu wa doko desu ka?", "CAJERO")
+
+            // 5. Precios y compras
+            normalized.contains("cuánto cuesta") || normalized.contains("cuanto cuesta") || normalized.contains("cuánto es") || normalized.contains("cuanto es") || normalized.contains("precio") || normalized.contains("how much") || normalized.contains("price") ->
+                SimultaneousTranslationItem(raw, "${prefix}いくらですか？", "${prefixRomaji}Ikura desu ka?", "PRECIO / COMPRAS")
+            normalized.contains("tax") || normalized.contains("impuesto") || normalized.contains("free") ->
+                SimultaneousTranslationItem(raw, "免税はできますか？", "Menzei wa dekimasu ka?", "TAX-FREE")
+            normalized.contains("pasaporte") || normalized.contains("passport") ->
+                SimultaneousTranslationItem(raw, "パスポートです。", "Pasupōto desu.", "IDENTIFICACIÓN")
+            normalized.contains("bolsa") || normalized.contains("bag") ->
+                SimultaneousTranslationItem(raw, "レジ袋をお願いします。", "Rejibukuro o onegaishimasu.", "TIENDA")
+            normalized.contains("recibo") || normalized.contains("ticket") || normalized.contains("receipt") ->
+                SimultaneousTranslationItem(raw, "レシートをお願いします。", "Reshīto o onegaishimasu.", "TIENDA")
+            normalized.contains("probar") || normalized.contains("try on") ->
+                SimultaneousTranslationItem(raw, "試着できますか？", "Shichaku dekimasu ka?", "TIENDA")
+
+            // 6. Transporte, taxi y direcciones
+            normalized.contains("taxi") || normalized.contains("hotel") || normalized.contains("dirección") || normalized.contains("direccion") || normalized.contains("address") || normalized.contains("lléveme") || normalized.contains("lleveme") ->
+                SimultaneousTranslationItem(raw, "この住所までお願いします。", "Kono jūsho made onegaishimasu.", "TAXI / HOTEL")
+            normalized.contains("billete") || normalized.contains("ticket de tren") ->
+                SimultaneousTranslationItem(raw, "切符をお願いします。", "Kippu o onegaishimasu.", "BILLETE")
+
+            // 7. Ayuda y emergencias
+            normalized.contains("ayuda") || normalized.contains("help") ->
+                SimultaneousTranslationItem(raw, "助けてください。", "Tasukete kudasai.", "AYUDA")
+            normalized.contains("mal") || normalized.contains("enfermo") || normalized.contains("sick") ->
+                SimultaneousTranslationItem(raw, "気分が悪いです。", "Kibun ga warui desu.", "SALUD")
+            normalized.contains("perdido") || normalized.contains("perdí") || normalized.contains("perdi") || normalized.contains("lost") ->
+                SimultaneousTranslationItem(raw, "無くしました。", "Nakushimashita.", "OBJETO PERDIDO")
+
+            // 8. Interacción y lenguaje
+            normalized.contains("foto") || normalized.contains("photo") ->
+                SimultaneousTranslationItem(raw, "写真を撮ってもいいですか？", "Shashin o totte mo ii desu ka?", "FOTOGRAFÍA")
+            normalized.contains("inglés") || normalized.contains("ingles") || normalized.contains("english") ->
+                SimultaneousTranslationItem(raw, "英語を話せますか？", "Eigo o hanasemasu ka?", "IDIOMA")
+            normalized.contains("despacio") || normalized.contains("slowly") ->
+                SimultaneousTranslationItem(raw, "ゆっくり話してください。", "Yukkuri hanashite kudasai.", "COMUNICACIÓN")
+            normalized.contains("otra vez") || normalized.contains("repetir") || normalized.contains("again") ->
+                SimultaneousTranslationItem(raw, "もう一度お願いします。", "Mō ichido onegaishimasu.", "COMUNICACIÓN")
+
+            // 9. Fallback conciso: NUNCA añadir más palabras ni mensajes sobre apps de traducción
+            normalized.contains("dónde") || normalized.contains("donde") || normalized.contains("where") ->
+                SimultaneousTranslationItem(raw, "${prefix}どこですか？", "${prefixRomaji}Doko desu ka?", "PREGUNTA")
+            normalized.contains("por favor") || normalized.contains("favor") || normalized.contains("please") ->
+                SimultaneousTranslationItem(raw, "お願いします。", "Onegaishimasu.", "PETICIÓN")
+            else ->
+                SimultaneousTranslationItem(raw, "${prefix}お願いします。", "${prefixRomaji}Onegaishimasu.", "PETICIÓN")
         }
     }
 }

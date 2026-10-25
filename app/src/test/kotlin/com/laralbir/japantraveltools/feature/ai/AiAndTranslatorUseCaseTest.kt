@@ -102,6 +102,39 @@ class AiAndTranslatorUseCaseTest {
     }
 
     @Test
+    fun `translateToJapanese never adds extra unsaid words, questions, compliments or boilerplate`() {
+        val hola = OfflineTranslatorEngine.translateToJapanese("Hola")
+        assertTrue(hola.japaneseText.contains("こんにちは"))
+        assertTrue(!hola.japaneseText.contains("美味しかったです"))
+        assertTrue(!hola.japaneseText.contains("ありがとうございます"))
+
+        val gracias = OfflineTranslatorEngine.translateToJapanese("Gracias")
+        assertTrue(gracias.japaneseText.contains("ありがとう"))
+        assertTrue(!gracias.japaneseText.contains("美味しかったです"))
+
+        val bill = OfflineTranslatorEngine.translateToJapanese("La cuenta por favor")
+        assertTrue(bill.japaneseText.contains("お会計") || bill.japaneseText.contains("会計"))
+        assertTrue(!bill.japaneseText.contains("Suica"))
+        assertTrue(!bill.japaneseText.contains("カード"))
+
+        val water = OfflineTranslatorEngine.translateToJapanese("Agua por favor")
+        assertTrue(water.japaneseText.contains("お水") || water.japaneseText.contains("水"))
+        assertTrue(!water.japaneseText.contains("2つ"))
+        assertTrue(!water.japaneseText.contains("二つ"))
+
+        val veg = OfflineTranslatorEngine.translateToJapanese("Soy vegetariano")
+        assertTrue(veg.japaneseText.contains("ベジタリアン"))
+        assertTrue(!veg.japaneseText.contains("肉と魚は食べられません"))
+
+        val taxFree = OfflineTranslatorEngine.translateToJapanese("¿Hacen tax free?")
+        assertTrue(taxFree.japaneseText.contains("免税"))
+        assertTrue(!taxFree.japaneseText.contains("パスポートがあります"))
+
+        val custom = OfflineTranslatorEngine.translateToJapanese("Buenas noches")
+        assertTrue(!custom.japaneseText.contains("翻訳アプリを使っています"))
+    }
+
+    @Test
     fun `OfflineTranslatorEngine translates everyday questions without leaking raw Spanish into Japanese TTS`() {
         val restroom = OfflineTranslatorEngine.translateToJapanese("¿Dónde está el baño por favor?")
         assertTrue(restroom.japaneseText.contains("トイレ"))
