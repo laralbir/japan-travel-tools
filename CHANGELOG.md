@@ -7,6 +7,14 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.26] - 2026-10-25
+
+### Changed
+- **Centralización Exclusiva de la Configuración de Gemini API Key en Ajustes (`SPEC-06 RF-06.3`)**:
+  - **Pantalla del Asistente IA limpia y enfocada**: Se retira el formulario de entrada y el desplegable de configuración de la pantalla `AiAssistantScreen`, evitando sobrecargar la interfaz de chat y consultas de viaje.
+  - **Acceso rápido desde el Asistente**: En la barra de estado de motor (`✨ Gemini Cloud` vs `⚡ Motor Experto Offline`), se incorpora el botón `⚙️ Configurar en Ajustes` (`onNavigateToSettings`), que traslada inmediatamente al usuario a la pantalla de **Ajustes** (`SettingsPreferencesScreen`).
+  - **Ajustes como punto único de configuración**: Toda la gestión y obtención asistida de la API Key (`GeminiApiKeySetupCard` con enlace directo a Google AI Studio, tutorial en 4 pasos, pegado con 1 toque del portapapeles y validación) se gestiona de forma centralizada en la sección de Ajustes y Sincronización.
+
 ## [0.0.1-beta.25] - 2026-10-25
 
 ### Added

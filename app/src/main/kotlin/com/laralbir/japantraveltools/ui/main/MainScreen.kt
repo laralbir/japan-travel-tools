@@ -818,7 +818,8 @@ private fun ActiveToolContent(
             isEs = isEs,
             prefs = prefs,
             prefsRepository = prefsRepository,
-            onNavigateToPlanner = { onNavigateToDestination(JapanDrawerDestination.PLANNER) }
+            onNavigateToPlanner = { onNavigateToDestination(JapanDrawerDestination.PLANNER) },
+            onNavigateToSettings = { onNavigateToDestination(JapanDrawerDestination.SETTINGS) }
         )
         JapanDrawerDestination.PASSPORT_CUSTOMS -> PassportAndCustomsScreen(isEs = isEs, prefs = prefs, prefsRepository = prefsRepository)
         JapanDrawerDestination.BOOKINGS_VAULT -> BookingsVaultScreen(isEs = isEs)
@@ -4072,7 +4073,8 @@ private fun AiAssistantScreen(
     isEs: Boolean,
     prefs: UserPreferences,
     prefsRepository: DefaultUserPreferencesRepository,
-    onNavigateToPlanner: () -> Unit
+    onNavigateToPlanner: () -> Unit,
+    onNavigateToSettings: () -> Unit
 ) {
     val portablePlan by SharedTravelPlanStore.planState.collectAsState()
     val coroutineScope = rememberCoroutineScope()
@@ -4084,8 +4086,6 @@ private fun AiAssistantScreen(
     var assistantTime by rememberSaveable { mutableStateOf<String?>(null) }
     var isLoading by rememberSaveable { mutableStateOf(false) }
     var actionStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
-    var showApiKeyConfig by rememberSaveable { mutableStateOf(false) }
-    var apiKeyInput by rememberSaveable { mutableStateOf(prefs.geminiApiKey ?: "") }
 
     fun performQuery(promptToQuery: String) {
         val clean = promptToQuery.trim()
@@ -4146,7 +4146,7 @@ private fun AiAssistantScreen(
 
                 Spacer(Modifier.height(12.dp))
 
-                // Engine mode & API Key banner
+                // Engine mode & Settings link banner
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -4170,31 +4170,12 @@ private fun AiAssistantScreen(
                         )
                     }
 
-                    TextButton(onClick = { showApiKeyConfig = !showApiKeyConfig }) {
+                    TextButton(onClick = onNavigateToSettings) {
                         Text(
-                            text = if (showApiKeyConfig) {
-                                if (isEs) "▲ Ocultar Ajustes" else "▲ Hide Setup"
-                            } else {
-                                if (isEs) "⚙️ Configurar Gemini Key" else "⚙️ Setup Gemini Key"
-                            },
+                            text = if (isEs) "⚙️ Configurar en Ajustes" else "⚙️ Configure in Settings",
                             fontSize = 13.sp
                         )
                     }
-                }
-
-                if (showApiKeyConfig) {
-                    Spacer(Modifier.height(10.dp))
-                    GeminiApiKeySetupCard(
-                        isEs = isEs,
-                        prefs = prefs,
-                        prefsRepository = prefsRepository,
-                        onKeySaved = {
-                            actionStatusMessage = if (isEs) "✅ Clave Gemini guardada con éxito" else "✅ Gemini key saved successfully"
-                        },
-                        onKeyDeleted = {
-                            actionStatusMessage = if (isEs) "🗑️ Clave eliminada (Modo 100% offline activo)" else "🗑️ Key removed (100% offline active)"
-                        }
-                    )
                 }
 
                 Spacer(Modifier.height(14.dp))

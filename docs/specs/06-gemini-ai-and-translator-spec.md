@@ -88,6 +88,8 @@ Dotar a **Japan Travel Tools** de capacidades de Inteligencia Artificial mediant
    - Verificación en vivo del prefijo estándar `AIzaSy...` con indicación visual (`✅ Formato válido` vs advertencias descriptivas).
 5. **Garantía y Tranquilidad Offline**:
    - Aclaración explícita de que la clave es 100% opcional; la app funciona de manera autónoma sin internet ni registro gracias a su Motor Experto On-Device.
+6. **Configuración Centralizada en Ajustes**:
+   - La configuración completa de la API Key se gestiona de forma centralizada en la pantalla de **Ajustes** (`SettingsPreferencesScreen`), manteniendo la pantalla del **Asistente IA** despejada de formularios de configuración y proporcionando un acceso directo mediante el botón `⚙️ Configurar en Ajustes` que traslada al viajero a la pantalla de Ajustes.
 
 ---
 
