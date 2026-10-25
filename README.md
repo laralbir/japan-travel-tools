@@ -98,8 +98,14 @@ Toda la documentación técnica y funcional se encuentra en español dentro del 
 ## Próximos Pasos (TODO Inmediato)
 - [x] **Template moderno seleccionado (`TASK-004`)**: Basado en **[JetBrains KotlinConf App](https://jetbrains.github.io/kotlinconf-app/)** con paleta de colores tradicionales de Japón (*Washi*, *Sumi*, *Akabeni Torii*, *Ai-iro Indigo*, *Matcha*).
 - [x] **Scaffolding del proyecto Android y compilación `0.0.1-beta.1` (`TASK-005`, `TASK-006`)**: Proyecto Kotlin + Jetpack Compose compilando con éxito y tests unitarios en verde.
-- [x] **Resolución de Idioma TDD (`TASK-101`)**: `LanguageResolver` y `LanguageResolverTest` implementados y pasando al 100%.
-- [ ] **Persistencia de Preferencias con DataStore (`TASK-102`)**: Implementar `UserPreferencesRepository` con sus tests unitarios.
+- [x] **Suite Completa Funcional `v0.0.1-beta.1` Implementada con TDD (`Hitos 2 al 8`)**:
+  - Relojes duales/triples con ubicación offline + Conversor `EUR <-> JPY` con Frankfurter API y semilla offline.
+  - Planificador de viaje con fotos, mapa numerado e integración con Google Maps y Calendar.
+  - Planificador multimodal de Vuelos, Trenes Shinkansen, Metros y Autobuses con calculador de escalas y transbordos.
+  - Bóveda de Pasaporte y DNI + Repositorio de Documentos y Guías de Viaje offline.
+  - Asistente IA con Gemini (con conversor de precios de menús en `¥` a `EUR`) y Traducción Simultánea 180°.
+  - Indicador de conexión en vivo (`Wi-Fi / SIM / eSIM / Offline`) con selector rápido, Ajustes persistentes, Sincronización con Cuenta de Google y apartado Acerca de / Licencias Open Source.
+- [ ] **Probar en Google Pixel 10 Pro XL vía ADB Wireless Debugging (`./gradlew installAuthorizedDebug`)** y validar feedback del usuario (`Hito 9`).
 
 ---
 
