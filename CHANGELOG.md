@@ -7,6 +7,20 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.25] - 2026-10-25
+
+### Added
+- **Método Amigable para Obtener y Configurar la Clave de API de Gemini (`SPEC-06 RF-06.3`)**:
+  - **Botón Directo de 1 Toque a Google AI Studio**: Se incorpora el botón destacado `🌐 Obtener Clave Gratis en Google AI Studio` que abre de forma directa e inmediata la página oficial de gestión de claves de Google (`https://aistudio.google.com/app/apikey`) en el navegador del dispositivo, sin necesidad de buscar o escribir URLs complicadas.
+  - **Tutorial Integrado y Desplegable en 4 Pasos**: Guía clara y accesible para cualquier viajero explicando cómo obtenerla en menos de 1 minuto, recalcando que el acceso personal a Gemini 2.0 Flash es 100% gratuito con cualquier cuenta de Gmail/Google y no requiere tarjeta de crédito.
+  - **Botón de Pegado Rápido con 1 Toque (`📋 Pegar`)**: Permite trasladar la clave copiada en el navegador directamente al campo de texto con un solo toque desde el portapapeles del sistema, erradicando la fricción de mantener pulsado en el móvil.
+  - **Selector de Visibilidad (`👁️ / 🙈`)**: Alterna suavemente entre la máscara de contraseña y texto visible para comprobar que la clave se ha pegado correctamente antes de guardar.
+  - **Validación Reactiva de Formato**: Detección en tiempo real del prefijo estándar de Google (`AIzaSy...`) con insignias visuales de confirmación (`✅ Formato válido`).
+  - **Garantía y Tranquilidad del Modo Offline**: Aclaración visual reconfortante recordando que la clave es 100% opcional; la app funciona plenamente offline mediante su Motor Experto de Viaje on-device integrado.
+  - **Integración Unificada (`GeminiApiKeySetupCard`)**: Sustitución de los campos rudimentarios anteriores en la pantalla del Asistente IA (`GeminiAndTranslatorScreen`) y en la pantalla de Ajustes (`SettingsScreen`) por una experiencia visual moderna, coherente y amigable.
+- **Batería de Tests Unitarios TDD (`GeminiApiKeyHelperTest`)**:
+  - 4 tests unitarios que verifican la validación rigurosa de formato (`isValidApiKeyFormat`), enmascaramiento (`maskApiKey`), pasos del tutorial bilingüe (`getSetupGuideSteps`) y URL canónica de Google AI Studio.
+
 ## [0.0.1-beta.24] - 2026-10-25
 
 ### Added
