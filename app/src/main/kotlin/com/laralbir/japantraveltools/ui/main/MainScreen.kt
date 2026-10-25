@@ -30,27 +30,30 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationDrawerItem
+import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.PermanentDrawerSheet
+import androidx.compose.material3.PermanentNavigationDrawer
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -70,6 +73,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -105,7 +109,6 @@ import com.laralbir.japantraveltools.feature.transport.TransportMode
 import com.laralbir.japantraveltools.feature.transport.TransportPlannerUseCase
 import com.laralbir.japantraveltools.feature.weather.JapanWeatherCity
 import com.laralbir.japantraveltools.feature.weather.OpenMeteoWeatherUseCase
-import com.laralbir.japantraveltools.feature.weather.PlanningSuitability
 import com.laralbir.japantraveltools.feature.weather.SharedWeatherForecastStore
 import com.laralbir.japantraveltools.ui.theme.JapanTravelToolsTheme
 import kotlinx.coroutines.delay
@@ -113,20 +116,228 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 import java.util.Locale
-import java.util.TimeZone
 
-enum class JapanToolTab(
-    val shortTitleEn: String,
-    val shortTitleEs: String,
-    val symbol: String
-) {
-    HOME_CLOCK_CURRENCY("Home", "Inicio", "💴"),
-    PLANNER("Route", "Ruta", "⛩️"),
-    TRANSPORT("Transit", "Tren/Vuelo", "🚅"),
-    VAULT_GUIDES("Docs", "Docs", "🛂"),
-    AI_TRANSLATE("Voice", "Voz / IA", "🎙️"),
-    SETTINGS("Config", "Ajustes", "⚙️")
+enum class DrawerSection(val titleEs: String, val titleEn: String) {
+    QUICK_TOOLS("HERRAMIENTAS RÁPIDAS", "QUICK TOOLS"),
+    PLANNING("PLANIFICACIÓN Y RUTAS", "PLANNING & ROUTES"),
+    VOICE_AI("VOZ E INTELIGENCIA ARTIFICIAL", "VOICE & AI"),
+    DOCS_GUIDES("DOCUMENTOS Y GUÍAS", "DOCUMENTS & GUIDES"),
+    SYSTEM("SISTEMA", "SYSTEM")
 }
+
+enum class JapanDrawerDestination(
+    val section: DrawerSection,
+    val titleEs: String,
+    val titleEn: String,
+    val iconSymbol: String
+) {
+    CURRENCY(DrawerSection.QUICK_TOOLS, "Conversor de Divisas", "Currency Converter", "💴"),
+    CLOCKS(DrawerSection.QUICK_TOOLS, "Relojes y Husos", "Clocks & Timezones", "🕒"),
+    WEATHER(DrawerSection.QUICK_TOOLS, "Tiempo (Open-Meteo)", "Weather (Open-Meteo)", "🌦️"),
+
+    PLANNER(DrawerSection.PLANNING, "Planificador de Viaje", "Trip Planner", "🗓️"),
+    TRANSPORT(DrawerSection.PLANNING, "Transporte y Trenes", "Trains & Flights", "🚄"),
+
+    VOICE_TRANSLATOR(DrawerSection.VOICE_AI, "Traductor por Voz", "Voice Translator", "🎙️"),
+    AI_ASSISTANT(DrawerSection.VOICE_AI, "Asistente IA de Viaje", "AI Travel Assistant", "✨"),
+
+    PASSPORT_CUSTOMS(DrawerSection.DOCS_GUIDES, "Pasaporte y Aduanas", "Passport & Customs", "🛂"),
+    BOOKINGS_VAULT(DrawerSection.DOCS_GUIDES, "Reservas y Billetes", "Bookings & Tickets", "📄"),
+    TRAVEL_GUIDES(DrawerSection.DOCS_GUIDES, "Guías de Japón", "Japan Guides", "📖"),
+
+    SETTINGS(DrawerSection.SYSTEM, "Ajustes y Sincronización", "Settings & Sync", "⚙️"),
+    ABOUT(DrawerSection.SYSTEM, "Acerca de", "About App", "ℹ️")
+}
+
+// ============================================================================
+// STANDARDIZED DESIGN SYSTEM COMPONENTS (FIXED HEIGHT, SHAPE, COLORS, NO WRAP)
+// ============================================================================
+
+@Composable
+private fun AppPrimaryButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary
+        ),
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+        modifier = modifier.height(50.dp)
+    ) {
+        Text(
+            text = text,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun AppSecondaryButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ),
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+        modifier = modifier.height(50.dp)
+    ) {
+        Text(
+            text = text,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun AppButtonRow(
+    primaryText: String,
+    onPrimaryClick: () -> Unit,
+    secondaryText: String,
+    onSecondaryClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    primaryEnabled: Boolean = true,
+    secondaryEnabled: Boolean = true
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AppPrimaryButton(
+            text = primaryText,
+            onClick = onPrimaryClick,
+            enabled = primaryEnabled,
+            modifier = Modifier.weight(1f)
+        )
+        AppSecondaryButton(
+            text = secondaryText,
+            onClick = onSecondaryClick,
+            enabled = secondaryEnabled,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun AppOptionButton(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val containerColor = if (selected) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val borderColor = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outline
+    }
+
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = containerColor,
+        border = BorderStroke(1.dp, borderColor),
+        modifier = modifier
+            .height(44.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp)
+        ) {
+            Text(
+                text = text,
+                fontSize = 14.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                color = contentColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+fun KotlinConfCard(
+    modifier: Modifier = Modifier,
+    accentBorderColor: Color = MaterialTheme.colorScheme.outline,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(1.dp, accentBorderColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            content = content
+        )
+    }
+}
+
+@Composable
+fun InfoTagPill(
+    text: String,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+    contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
+) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = containerColor
+    ) {
+        Text(
+            text = text,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = contentColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+        )
+    }
+}
+
+// ============================================================================
+// MAIN SCREEN ENTRY POINT WITH SIDE NAVIGATION DRAWER
+// ============================================================================
 
 @Composable
 fun MainScreen(
@@ -145,7 +356,7 @@ fun MainScreen(
         AppThemeMode.DARK -> true
     }
 
-    JapanTravelToolsTheme(darkTheme = isDark) {
+    JapanTravelToolsTheme(darkTheme = isDark, dynamicColor = false) {
         JapanTravelToolsAppContent(
             prefs = prefs,
             prefsRepository = prefsRepository,
@@ -182,12 +393,13 @@ fun JapanTravelToolsAppContent(
 ) {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
-    val isTabletWide = configuration.screenWidthDp >= 600
+    val isTabletExpanded = configuration.screenWidthDp >= 720
 
     val effectiveLang = LanguageResolver.resolveEffectiveLanguage(prefs.language)
     val isEs = effectiveLang == EffectiveLanguage.SPANISH
 
-    var selectedTab by rememberSaveable { mutableStateOf(JapanToolTab.HOME_CLOCK_CURRENCY) }
+    var selectedDestination by rememberSaveable { mutableStateOf(JapanDrawerDestination.CURRENCY) }
+    var showJsonPortabilitySheet by rememberSaveable { mutableStateOf(false) }
     var showConnectivitySheet by rememberSaveable { mutableStateOf(false) }
 
     var currentInstant by remember { mutableStateOf(Instant.now()) }
@@ -202,112 +414,14 @@ fun JapanTravelToolsAppContent(
         }
     }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = {
-            CleanMinimalHeaderBar(
-                isEs = isEs,
-                connectivityKind = connectivitySnapshot.kind,
-                onConnectivityClick = { showConnectivitySheet = true },
-                onQuickVoiceClick = { selectedTab = JapanToolTab.AI_TRANSLATE }
-            )
-        },
-        bottomBar = {
-            if (!isTabletWide) {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 0.dp,
-                    modifier = Modifier.navigationBarsPadding()
-                ) {
-                    JapanToolTab.entries.forEach { tab ->
-                        NavigationBarItem(
-                            selected = selectedTab == tab,
-                            onClick = { selectedTab = tab },
-                            icon = {
-                                Text(
-                                    text = tab.symbol,
-                                    fontSize = 18.sp
-                                )
-                            },
-                            label = {
-                                Text(
-                                    text = if (isEs) tab.shortTitleEs else tab.shortTitleEn,
-                                    fontSize = 12.sp,
-                                    fontWeight = if (selectedTab == tab) FontWeight.Bold else FontWeight.Normal,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        )
-                    }
-                }
-            }
-        }
-    ) { innerPadding ->
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            if (isTabletWide) {
-                NavigationRail(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.fillMaxHeight()
-                ) {
-                    Spacer(Modifier.height(12.dp))
-                    JapanToolTab.entries.forEach { tab ->
-                        NavigationRailItem(
-                            selected = selectedTab == tab,
-                            onClick = { selectedTab = tab },
-                            icon = { Text(text = tab.symbol, fontSize = 18.sp) },
-                            label = {
-                                Text(
-                                    text = if (isEs) tab.shortTitleEs else tab.shortTitleEn,
-                                    fontSize = 12.sp
-                                )
-                            }
-                        )
-                    }
-                }
-                HorizontalDivider(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .width(1.dp),
-                    color = MaterialTheme.colorScheme.outline
-                )
-            }
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val coroutineScope = rememberCoroutineScope()
 
-            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                when (selectedTab) {
-                    JapanToolTab.HOME_CLOCK_CURRENCY -> ClocksAndCurrencyDashboardScreen(
-                        isEs = isEs,
-                        currentInstant = currentInstant,
-                        prefs = prefs,
-                        prefsRepository = prefsRepository
-                    )
-                    JapanToolTab.PLANNER -> TripPlannerAdaptiveScreen(
-                        isEs = isEs,
-                        isTabletWide = isTabletWide
-                    )
-                    JapanToolTab.TRANSPORT -> TransportMultiModalScreen(
-                        isEs = isEs
-                    )
-                    JapanToolTab.VAULT_GUIDES -> VaultAndGuidesAdaptiveScreen(
-                        isEs = isEs,
-                        biometricLockEnabled = prefs.biometricLockEnabled,
-                        onToggleBiometric = { prefsRepository.setBiometricLockEnabled(it) }
-                    )
-                    JapanToolTab.AI_TRANSLATE -> GeminiAndTranslatorScreen(
-                        isEs = isEs
-                    )
-                    JapanToolTab.SETTINGS -> SettingsAndAboutScreen(
-                        isEs = isEs,
-                        prefs = prefs,
-                        prefsRepository = prefsRepository
-                    )
-                }
-            }
-        }
+    if (showJsonPortabilitySheet) {
+        JsonPortabilityModalSheet(
+            isEs = isEs,
+            onDismiss = { showJsonPortabilitySheet = false }
+        )
     }
 
     if (showConnectivitySheet) {
@@ -320,127 +434,545 @@ fun JapanTravelToolsAppContent(
                 kind = connectivitySnapshot.kind,
                 forceOffline = prefs.forceOfflineMode,
                 onToggleForceOffline = { prefsRepository.setForceOfflineMode(it) },
-                onOpenInternetPanel = { ConnectivityStatusHelper.openAndroidInternetPanel(context) },
-                onOpenSimSettings = { ConnectivityStatusHelper.openSimAndEsimSettings(context) }
+                onOpenInternetPanel = {
+                    ConnectivityStatusHelper.openAndroidInternetPanel(context)
+                    showConnectivitySheet = false
+                },
+                onOpenSimSettings = {
+                    ConnectivityStatusHelper.openSimAndEsimSettings(context)
+                    showConnectivitySheet = false
+                }
+            )
+        }
+    }
+
+    if (isTabletExpanded) {
+        PermanentNavigationDrawer(
+            drawerContent = {
+                PermanentDrawerSheet(
+                    modifier = Modifier.width(300.dp),
+                    drawerContainerColor = MaterialTheme.colorScheme.surface
+                ) {
+                    SideDrawerMenuContent(
+                        isEs = isEs,
+                        selectedDestination = selectedDestination,
+                        onSelectDestination = { dest -> selectedDestination = dest }
+                    )
+                }
+            }
+        ) {
+            Scaffold(
+                modifier = modifier.fillMaxSize(),
+                containerColor = MaterialTheme.colorScheme.background,
+                topBar = {
+                    TopHeaderBar(
+                        isEs = isEs,
+                        showMenuButton = false,
+                        activeTitle = if (isEs) selectedDestination.titleEs else selectedDestination.titleEn,
+                        activeIcon = selectedDestination.iconSymbol,
+                        connectionKind = connectivitySnapshot.kind,
+                        onOpenDrawer = {},
+                        onOpenConnectionSettings = { showConnectivitySheet = true }
+                    )
+                }
+            ) { innerPadding ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                ) {
+                    ActiveToolContent(
+                        destination = selectedDestination,
+                        isEs = isEs,
+                        currentInstant = currentInstant,
+                        prefs = prefs,
+                        prefsRepository = prefsRepository,
+                        onOpenPlanSheet = { showJsonPortabilitySheet = true },
+                        onNavigateToDestination = { selectedDestination = it }
+                    )
+                }
+            }
+        }
+    } else {
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            drawerContent = {
+                ModalDrawerSheet(
+                    modifier = Modifier.width(305.dp),
+                    drawerContainerColor = MaterialTheme.colorScheme.surface
+                ) {
+                    SideDrawerMenuContent(
+                        isEs = isEs,
+                        selectedDestination = selectedDestination,
+                        onSelectDestination = { dest ->
+                            selectedDestination = dest
+                            coroutineScope.launch { drawerState.close() }
+                        }
+                    )
+                }
+            }
+        ) {
+            Scaffold(
+                modifier = modifier.fillMaxSize(),
+                containerColor = MaterialTheme.colorScheme.background,
+                topBar = {
+                    TopHeaderBar(
+                        isEs = isEs,
+                        showMenuButton = true,
+                        activeTitle = if (isEs) selectedDestination.titleEs else selectedDestination.titleEn,
+                        activeIcon = selectedDestination.iconSymbol,
+                        connectionKind = connectivitySnapshot.kind,
+                        onOpenDrawer = {
+                            coroutineScope.launch { drawerState.open() }
+                        },
+                        onOpenConnectionSettings = { showConnectivitySheet = true }
+                    )
+                }
+            ) { innerPadding ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .navigationBarsPadding()
+                ) {
+                    ActiveToolContent(
+                        destination = selectedDestination,
+                        isEs = isEs,
+                        currentInstant = currentInstant,
+                        prefs = prefs,
+                        prefsRepository = prefsRepository,
+                        onOpenPlanSheet = { showJsonPortabilitySheet = true },
+                        onNavigateToDestination = { selectedDestination = it }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SideDrawerMenuContent(
+    isEs: Boolean,
+    selectedDestination: JapanDrawerDestination,
+    onSelectDestination: (JapanDrawerDestination) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxHeight()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 14.dp, vertical = 16.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+        ) {
+            Text(text = "⛩️", fontSize = 26.sp)
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text(
+                    text = "Japan Travel Tools",
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = if (isEs) "Menú de Herramientas Offline" else "Offline Travel Toolkit",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Spacer(Modifier.height(10.dp))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+        Spacer(Modifier.height(10.dp))
+
+        DrawerSection.entries.forEach { section ->
+            Text(
+                text = if (isEs) section.titleEs else section.titleEn,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+            )
+
+            JapanDrawerDestination.entries
+                .filter { it.section == section }
+                .forEach { item ->
+                    val isSelected = selectedDestination == item
+                    NavigationDrawerItem(
+                        label = {
+                            Text(
+                                text = if (isEs) item.titleEs else item.titleEn,
+                                fontSize = 15.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
+                        icon = {
+                            Text(text = item.iconSymbol, fontSize = 19.sp)
+                        },
+                        selected = isSelected,
+                        onClick = { onSelectDestination(item) },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = NavigationDrawerItemDefaults.colors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            unselectedContainerColor = Color.Transparent,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurface
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .padding(vertical = 2.dp)
+                    )
+                }
+
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+private fun TopHeaderBar(
+    isEs: Boolean,
+    showMenuButton: Boolean,
+    activeTitle: String,
+    activeIcon: String,
+    connectionKind: ActiveConnectionKind,
+    onOpenDrawer: () -> Unit,
+    onOpenConnectionSettings: () -> Unit
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp
+    ) {
+        Column(modifier = Modifier.statusBarsPadding()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (showMenuButton) {
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                            modifier = Modifier
+                                .height(42.dp)
+                                .clickable(onClick = onOpenDrawer)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 12.dp)
+                            ) {
+                                Text(
+                                    text = "☰",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = if (isEs) "Menú" else "Menu",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(12.dp))
+                    }
+
+                    Text(
+                        text = "$activeIcon $activeTitle",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Spacer(Modifier.width(8.dp))
+                ConnectionStatusPill(
+                    isEs = isEs,
+                    kind = connectionKind,
+                    onClick = onOpenConnectionSettings
+                )
+            }
+            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline)
+        }
+    }
+}
+
+@Composable
+private fun ConnectionStatusPill(
+    isEs: Boolean,
+    kind: ActiveConnectionKind,
+    onClick: () -> Unit
+) {
+    val label = "📡 ${if (isEs) kind.badgeEs.substringBefore(" ") else kind.badgeEn.substringBefore(" ")}"
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        modifier = Modifier
+            .height(42.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.padding(horizontal = 12.dp)
+        ) {
+            Text(
+                text = label,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1
             )
         }
     }
 }
 
 @Composable
-private fun CleanMinimalHeaderBar(
+private fun ActiveToolContent(
+    destination: JapanDrawerDestination,
     isEs: Boolean,
-    connectivityKind: ActiveConnectionKind,
-    onConnectivityClick: () -> Unit,
-    onQuickVoiceClick: () -> Unit
+    currentInstant: Instant,
+    prefs: UserPreferences,
+    prefsRepository: DefaultUserPreferencesRepository,
+    onOpenPlanSheet: () -> Unit,
+    onNavigateToDestination: (JapanDrawerDestination) -> Unit
 ) {
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier
-            .fillMaxWidth()
-            .statusBarsPadding()
+    when (destination) {
+        JapanDrawerDestination.CURRENCY -> CurrencyToolScreen(isEs = isEs, prefs = prefs, prefsRepository = prefsRepository)
+        JapanDrawerDestination.CLOCKS -> ClocksToolScreen(isEs = isEs, currentInstant = currentInstant, prefs = prefs, prefsRepository = prefsRepository)
+        JapanDrawerDestination.WEATHER -> WeatherToolScreen(isEs = isEs)
+        JapanDrawerDestination.PLANNER -> TripPlannerTabScreen(isEs = isEs, onOpenJsonPortability = onOpenPlanSheet)
+        JapanDrawerDestination.TRANSPORT -> TransportTabScreen(isEs = isEs, onOpenJsonPortability = onOpenPlanSheet)
+        JapanDrawerDestination.VOICE_TRANSLATOR -> VoiceTranslatorScreen(isEs = isEs)
+        JapanDrawerDestination.AI_ASSISTANT -> AiAssistantScreen(
+            isEs = isEs,
+            onNavigateToPlanner = { onNavigateToDestination(JapanDrawerDestination.PLANNER) }
+        )
+        JapanDrawerDestination.PASSPORT_CUSTOMS -> PassportAndCustomsScreen(isEs = isEs, prefs = prefs, prefsRepository = prefsRepository)
+        JapanDrawerDestination.BOOKINGS_VAULT -> BookingsVaultScreen(isEs = isEs)
+        JapanDrawerDestination.TRAVEL_GUIDES -> TravelGuidesScreen(isEs = isEs)
+        JapanDrawerDestination.SETTINGS -> SettingsPreferencesScreen(isEs = isEs, prefs = prefs, prefsRepository = prefsRepository)
+        JapanDrawerDestination.ABOUT -> AboutAppScreen(isEs = isEs)
+    }
+}
+
+// ============================================================================
+// 1. CURRENCY CONVERTER SCREEN
+// ============================================================================
+@Composable
+private fun CurrencyToolScreen(
+    isEs: Boolean,
+    prefs: UserPreferences,
+    prefsRepository: DefaultUserPreferencesRepository
+) {
+    val coroutineScope = rememberCoroutineScope()
+    var rateSnapshot by remember { mutableStateOf(SeedExchangeRates.defaultSnapshot()) }
+    var isSyncingRates by remember { mutableStateOf(false) }
+    var syncStatusMessage by remember {
+        mutableStateOf(
+            if (isEs) "Fuente: Frankfurter API (BCE) · Offline listo"
+            else "Source: Frankfurter API (ECB) · Offline ready"
+        )
+    }
+
+    var inputAmountText by rememberSaveable { mutableStateOf("1000") }
+    var isJpyToBaseDirection by rememberSaveable { mutableStateOf(true) }
+
+    val numericInput = inputAmountText.toDoubleOrNull() ?: 0.0
+    val fromCurrency = if (isJpyToBaseDirection) prefs.targetCurrency else prefs.baseCurrency
+    val toCurrency = if (isJpyToBaseDirection) prefs.baseCurrency else prefs.targetCurrency
+
+    val convertedValue = remember(numericInput, fromCurrency, toCurrency, rateSnapshot) {
+        ConvertCurrencyUseCase.convert(
+            amount = numericInput,
+            fromCurrency = fromCurrency,
+            toCurrency = toCurrency,
+            snapshot = rateSnapshot
+        )
+    }
+
+    val availableCurrencies = listOf("EUR", "USD", "GBP", "MXN", "ARS", "COP", "CLP", "AUD")
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+        item {
+            KotlinConfCard {
                 Text(
-                    text = "🇯🇵 Japan Travel",
+                    text = if (isEs) "Conversor de Yenes (JPY)" else "Yen Currency Converter (JPY)",
                     fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    fontWeight = FontWeight.Bold
                 )
+                Spacer(Modifier.height(14.dp))
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.clickable { onConnectivityClick() }
-                    ) {
+                    Column(modifier = Modifier.padding(18.dp)) {
                         Text(
-                            text = "📡 ${if (isEs) connectivityKind.badgeEs.substringBefore(" ") else connectivityKind.badgeEn.substringBefore(" ")}",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            text = "$inputAmountText $fromCurrency =",
+                            fontSize = 15.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    }
-
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.clickable { onQuickVoiceClick() }
-                    ) {
+                        Spacer(Modifier.height(6.dp))
                         Text(
-                            text = if (isEs) "🎙️ Voz" else "🎙️ Voice",
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            text = "${ConvertCurrencyUseCase.formatAmount(convertedValue, toCurrency)} $toCurrency",
+                            fontSize = 34.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontFamily = FontFamily.Monospace,
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
+
+                Spacer(Modifier.height(14.dp))
+
+                OutlinedTextField(
+                    value = inputAmountText,
+                    onValueChange = { newValue ->
+                        inputAmountText = newValue.filter { it.isDigit() || it == '.' }
+                    },
+                    label = {
+                        Text(
+                            text = if (isEs) "Importe en $fromCurrency" else "Amount in $fromCurrency",
+                            fontSize = 15.sp
+                        )
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(Modifier.height(14.dp))
+
+                Text(
+                    text = if (isEs) "Billetes y monedas frecuentes en Japón:" else "Common Yen amounts in Japan:",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
+
+                val presets = listOf(100L, 500L, 1000L, 3000L, 5000L, 10000L)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    presets.chunked(3).forEach { rowPresets ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            rowPresets.forEach { yenBill ->
+                                AppOptionButton(
+                                    text = "¥%,d".format(yenBill),
+                                    selected = isJpyToBaseDirection && inputAmountText == yenBill.toString(),
+                                    onClick = {
+                                        isJpyToBaseDirection = true
+                                        inputAmountText = yenBill.toString()
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(14.dp))
+
+                Text(
+                    text = if (isEs) "Moneda de referencia:" else "Home currency:",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    availableCurrencies.chunked(4).forEach { rowCodes ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            rowCodes.forEach { code ->
+                                AppOptionButton(
+                                    text = code,
+                                    selected = prefs.baseCurrency == code,
+                                    onClick = { prefsRepository.setCurrencyPair(base = code, target = "JPY") },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                AppButtonRow(
+                    primaryText = if (isSyncingRates) {
+                        if (isEs) "Sincronizando..." else "Syncing..."
+                    } else {
+                        if (isEs) "🔄 Actualizar BCE" else "🔄 Update ECB"
+                    },
+                    onPrimaryClick = {
+                        isSyncingRates = true
+                        coroutineScope.launch {
+                            FrankfurterJsonParser.fetchFromFrankfurterApi()
+                                .onSuccess { fresh ->
+                                    rateSnapshot = fresh
+                                    val jpyRate = fresh.rates["JPY"] ?: 164.80
+                                    syncStatusMessage = "1 EUR = $jpyRate JPY (${fresh.rateDate})"
+                                }
+                                .onFailure {
+                                    syncStatusMessage = if (isEs) "Modo Offline (${rateSnapshot.rateDate})" else "Offline (${rateSnapshot.rateDate})"
+                                }
+                            isSyncingRates = false
+                        }
+                    },
+                    secondaryText = if (isEs) "⇄ Invertir Divisa" else "⇄ Swap Direction",
+                    onSecondaryClick = { isJpyToBaseDirection = !isJpyToBaseDirection },
+                    primaryEnabled = !isSyncingRates
+                )
+
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = syncStatusMessage,
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
         }
     }
 }
 
-@Composable
-fun InfoTagPill(text: String) {
-    Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant
-    ) {
-        Text(
-            text = text,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-        )
-    }
-}
-
-@Composable
-fun KotlinConfCard(
-    modifier: Modifier = Modifier,
-    accentBorderColor: Color = MaterialTheme.colorScheme.outline,
-    content: @Composable ColumnScope.() -> Unit
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            content = content
-        )
-    }
-}
-
 // ============================================================================
-// TAB 1: CLEAN SEGMENTED HOME (CONVERTER | CLOCKS | WEATHER)
+// 2. CLOCKS & TIMEZONES SCREEN
 // ============================================================================
 @Composable
-private fun ClocksAndCurrencyDashboardScreen(
+private fun ClocksToolScreen(
     isEs: Boolean,
     currentInstant: Instant,
     prefs: UserPreferences,
     prefsRepository: DefaultUserPreferencesRepository
 ) {
-    var activeSection by rememberSaveable { mutableIntStateOf(0) } // 0: Divisa, 1: Relojes, 2: Tiempo
-
     val originZone = remember(prefs.originZoneId) {
         runCatching { ZoneId.of(prefs.originZoneId) }.getOrDefault(ZoneId.of("Europe/Madrid"))
     }
@@ -452,340 +984,135 @@ private fun ClocksAndCurrencyDashboardScreen(
         )
     }
 
-    val coroutineScope = rememberCoroutineScope()
-    var rateSnapshot by remember { mutableStateOf(SeedExchangeRates.defaultSnapshot()) }
-    var isSyncingRates by remember { mutableStateOf(false) }
-    var syncStatusMessage by remember {
-        mutableStateOf(
-            if (isEs) "1 EUR = 164.80 JPY · Offline listo"
-            else "1 EUR = 164.80 JPY · Offline ready"
-        )
-    }
-    var inputAmountText by rememberSaveable { mutableStateOf("1000") }
-    var isJpyToBaseDirection by rememberSaveable { mutableStateOf(true) }
-
-    val numericInput = inputAmountText.toDoubleOrNull() ?: 0.0
-    val fromCurrency = if (isJpyToBaseDirection) prefs.targetCurrency else prefs.baseCurrency
-    val toCurrency = if (isJpyToBaseDirection) prefs.baseCurrency else prefs.targetCurrency
-
-    val convertedValue = ConvertCurrencyUseCase.convert(
-        amount = numericInput,
-        fromCurrency = fromCurrency,
-        toCurrency = toCurrency,
-        snapshot = rateSnapshot,
-        customDirectRate = prefs.customExchangeRate
-    )
-
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            // Sub-view selector: only 1 focused tool on screen at a time
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                FilterChip(
-                    selected = activeSection == 0,
-                    onClick = { activeSection = 0 },
-                    label = {
-                        Text(
-                            text = if (isEs) "💴 Conversor" else "💴 Currency",
-                            fontSize = 15.sp,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        )
-                    }
+            KotlinConfCard {
+                Text(
+                    text = if (isEs) "Hora en Japón y en Casa" else "Japan & Home Time",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
                 )
-                FilterChip(
-                    selected = activeSection == 1,
-                    onClick = { activeSection = 1 },
-                    label = {
-                        Text(
-                            text = if (isEs) "🕒 Relojes" else "🕒 Clocks",
-                            fontSize = 15.sp,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        )
-                    }
-                )
-                FilterChip(
-                    selected = activeSection == 2,
-                    onClick = { activeSection = 2 },
-                    label = {
-                        Text(
-                            text = if (isEs) "🌦️ Tiempo" else "🌦️ Weather",
-                            fontSize = 15.sp,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        )
-                    }
-                )
-            }
-        }
+                Spacer(Modifier.height(14.dp))
 
-        when (activeSection) {
-            0 -> item {
-                // Focused Currency Converter Card + Compact Tokyo Time header
-                KotlinConfCard {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(18.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = if (isEs) "Conversor de Yenes" else "Yen Converter",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        InfoTagPill(text = "🇯🇵 ${clockComparison.japanTimeFormatted}")
-                    }
-
-                    Spacer(Modifier.height(16.dp))
-
-                    // Large Converted Result Display
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(20.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
+                        Column {
                             Text(
-                                text = "$inputAmountText $fromCurrency =",
+                                text = "🇯🇵 Tokio (JST)",
                                 fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = clockComparison.japanDateFormatted,
+                                fontSize = 14.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = "${ConvertCurrencyUseCase.formatAmount(convertedValue, toCurrency)} $toCurrency",
-                                fontSize = 34.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontFamily = FontFamily.Monospace,
-                                color = MaterialTheme.colorScheme.primary
-                            )
                         }
-                    }
-
-                    Spacer(Modifier.height(16.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = inputAmountText,
-                            onValueChange = { newValue ->
-                                inputAmountText = newValue.filter { it.isDigit() || it == '.' }
-                            },
-                            label = { Text(if (isEs) "Cantidad en $fromCurrency" else "Amount in $fromCurrency", fontSize = 14.sp) },
-                            textStyle = MaterialTheme.typography.titleLarge,
-                            singleLine = true,
-                            modifier = Modifier.weight(1f)
+                        Text(
+                            text = clockComparison.japanTimeFormatted,
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontFamily = FontFamily.Monospace,
+                            color = MaterialTheme.colorScheme.primary
                         )
-
-                        Button(
-                            onClick = { isJpyToBaseDirection = !isJpyToBaseDirection },
-                            modifier = Modifier.height(56.dp)
-                        ) {
-                            Text("⇅ $toCurrency", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        }
                     }
+                }
 
-                    Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(12.dp))
 
-                    Text(
-                        text = if (isEs) "Importes rápidos en Japón:" else "Quick amounts in Japan:",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(Modifier.height(8.dp))
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    val sign = if (clockComparison.hoursDifferenceTokyoVsOrigin >= 0) "+" else ""
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        ConvertCurrencyUseCase.japanQuickAmountsJpy.forEach { yenBill ->
-                            FilterChip(
-                                selected = isJpyToBaseDirection && inputAmountText == yenBill.toString(),
-                                onClick = {
-                                    isJpyToBaseDirection = true
-                                    inputAmountText = yenBill.toString()
-                                },
-                                label = {
-                                    Text(
-                                        text = "¥%,d".format(yenBill),
-                                        fontSize = 15.sp,
-                                        fontFamily = FontFamily.Monospace,
-                                        modifier = Modifier.padding(vertical = 4.dp)
-                                    )
-                                }
-                            )
-                        }
-                    }
-
-                    Spacer(Modifier.height(16.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
+                            .padding(18.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Column {
+                            Text(
+                                text = "🏠 ${clockComparison.originZoneId.substringAfterLast('/')}",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "${clockComparison.originDateFormatted} (${sign}${clockComparison.hoursDifferenceTokyoVsOrigin}h)",
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                         Text(
-                            text = syncStatusMessage,
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.weight(1f)
+                            text = clockComparison.originTimeFormatted,
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontFamily = FontFamily.Monospace,
+                            color = MaterialTheme.colorScheme.secondary
                         )
-                        OutlinedButton(
-                            enabled = !isSyncingRates,
-                            onClick = {
-                                isSyncingRates = true
-                                coroutineScope.launch {
-                                    FrankfurterJsonParser.fetchFromFrankfurterApi()
-                                        .onSuccess { fresh ->
-                                            rateSnapshot = fresh
-                                            val jpyRate = fresh.rates["JPY"] ?: 164.80
-                                            syncStatusMessage = "1 EUR = $jpyRate JPY (${fresh.rateDate})"
-                                        }
-                                        .onFailure {
-                                            syncStatusMessage = if (isEs) "Modo Offline (${rateSnapshot.rateDate})" else "Offline (${rateSnapshot.rateDate})"
-                                        }
-                                    isSyncingRates = false
-                                }
-                            }
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = if (isEs) "Selecciona tu país de origen:" else "Select your home country:",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(10.dp))
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OfflineTimeZoneResolver.supportedOrigins.chunked(2).forEach { pair ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text(if (isEs) "🔄 Actualizar" else "🔄 Update", fontSize = 14.sp)
+                            pair.forEach { origin ->
+                                AppOptionButton(
+                                    text = "${origin.flagEmoji} ${if (isEs) origin.nameEs else origin.nameEn}",
+                                    selected = prefs.originZoneId == origin.zoneId,
+                                    onClick = { prefsRepository.setOriginZoneId(origin.zoneId) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            if (pair.size == 1) {
+                                Spacer(Modifier.weight(1f))
+                            }
                         }
                     }
                 }
-            }
-
-            1 -> item {
-                // Focused World Clocks Card
-                KotlinConfCard {
-                    Text(
-                        text = if (isEs) "Hora en Japón y en Casa" else "Japan & Home Time",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(Modifier.height(16.dp))
-
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(20.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = "🇯🇵 Tokio (JST)",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Text(
-                                    text = clockComparison.japanDateFormatted,
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Text(
-                                text = clockComparison.japanTimeFormatted,
-                                fontSize = 34.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontFamily = FontFamily.Monospace,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-
-                    Spacer(Modifier.height(12.dp))
-
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        val sign = if (clockComparison.hoursDifferenceTokyoVsOrigin >= 0) "+" else ""
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(20.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = "🏠 ${clockComparison.originZoneId.substringAfterLast('/')}",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                                Text(
-                                    text = "${clockComparison.originDateFormatted} (${sign}${clockComparison.hoursDifferenceTokyoVsOrigin}h)",
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Text(
-                                text = clockComparison.originTimeFormatted,
-                                fontSize = 34.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
-                    }
-
-                    Spacer(Modifier.height(16.dp))
-                    Text(
-                        text = if (isEs) "Cambiar país de origen:" else "Change home country:",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OfflineTimeZoneResolver.supportedOrigins.forEach { origin ->
-                            FilterChip(
-                                selected = prefs.originZoneId == origin.zoneId,
-                                onClick = { prefsRepository.setOriginZoneId(origin.zoneId) },
-                                label = {
-                                    Text(
-                                        text = "${origin.flagEmoji} ${if (isEs) origin.nameEs else origin.nameEn}",
-                                        fontSize = 14.sp,
-                                        modifier = Modifier.padding(vertical = 4.dp)
-                                    )
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-
-            else -> item {
-                OpenMeteoWeatherPlannerCard(isEs = isEs)
             }
         }
     }
 }
 
+// ============================================================================
+// 3. WEATHER TOOL SCREEN (OPEN-METEO)
+// ============================================================================
 @Composable
-private fun OpenMeteoWeatherPlannerCard(isEs: Boolean) {
+private fun WeatherToolScreen(isEs: Boolean) {
     val coroutineScope = rememberCoroutineScope()
     val allForecasts by SharedWeatherForecastStore.forecastsState.collectAsState()
+    val portablePlan by SharedTravelPlanStore.planState.collectAsState()
     var selectedCity by rememberSaveable { mutableStateOf(JapanWeatherCity.TOKYO) }
     var isSyncingWeather by remember { mutableStateOf(false) }
+    var statusMessage by remember { mutableStateOf<String?>(null) }
 
     val cityDays = remember(allForecasts, selectedCity) {
         allForecasts.filter { it.cityKey == selectedCity.key }.ifEmpty {
@@ -793,88 +1120,113 @@ private fun OpenMeteoWeatherPlannerCard(isEs: Boolean) {
         }
     }
 
-    KotlinConfCard {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = if (isEs) "Tiempo en Japón" else "Japan Weather",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
-            OutlinedButton(
-                enabled = !isSyncingWeather,
-                onClick = {
-                    isSyncingWeather = true
-                    coroutineScope.launch {
-                        OpenMeteoWeatherUseCase.fetchCityForecastOnline(selectedCity)
-                            .onSuccess { liveDays ->
-                                SharedWeatherForecastStore.updateCityForecasts(selectedCity.key, liveDays)
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            KotlinConfCard {
+                Text(
+                    text = if (isEs) "Previsión Open-Meteo Japón" else "Open-Meteo Japan Forecast",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(12.dp))
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    JapanWeatherCity.entries.chunked(2).forEach { cityPair ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            cityPair.forEach { city ->
+                                AppOptionButton(
+                                    text = if (isEs) city.nameEs else city.nameEn,
+                                    selected = selectedCity == city,
+                                    onClick = { selectedCity = city },
+                                    modifier = Modifier.weight(1f)
+                                )
                             }
-                        isSyncingWeather = false
+                        }
                     }
                 }
-            ) {
-                Text(if (isEs) "🔄 Actualizar" else "🔄 Update", fontSize = 14.sp)
-            }
-        }
 
-        Spacer(Modifier.height(12.dp))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            JapanWeatherCity.entries.forEach { city ->
-                FilterChip(
-                    selected = selectedCity == city,
-                    onClick = { selectedCity = city },
-                    label = {
-                        Text(
-                            text = if (isEs) city.nameEs else city.nameEn,
-                            fontSize = 15.sp,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        )
-                    }
-                )
-            }
-        }
+                Spacer(Modifier.height(14.dp))
 
-        Spacer(Modifier.height(12.dp))
-        cityDays.take(3).forEach { day ->
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 6.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                cityDays.take(4).forEach { day ->
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 5.dp)
                     ) {
-                        Text(
-                            text = "${day.condition.emoji} ${day.dateIso}",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 17.sp
-                        )
-                        Text(
-                            text = "${day.tempMaxC.toInt()}° / ${day.tempMinC.toInt()}°C · ☔ ${day.precipitationProbabilityMax}%",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 17.sp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "${day.condition.emoji} ${day.dateIso}",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "${day.tempMinC.toInt()}° / ${day.tempMaxC.toInt()}°C · ☔ ${day.precipitationProbabilityMax}%",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                text = if (isEs) day.userPlanningAdviceEs else day.userPlanningAdviceEn,
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
-                    Spacer(Modifier.height(6.dp))
+                }
+
+                Spacer(Modifier.height(14.dp))
+
+                AppButtonRow(
+                    primaryText = if (isSyncingWeather) {
+                        if (isEs) "Actualizando..." else "Updating..."
+                    } else {
+                        if (isEs) "🔄 Actualizar Tiempo" else "🔄 Refresh Weather"
+                    },
+                    onPrimaryClick = {
+                        isSyncingWeather = true
+                        coroutineScope.launch {
+                            OpenMeteoWeatherUseCase.fetchCityForecastOnline(selectedCity)
+                                .onSuccess { liveDays ->
+                                    SharedWeatherForecastStore.updateCityForecasts(selectedCity.key, liveDays)
+                                }
+                            isSyncingWeather = false
+                        }
+                    },
+                    secondaryText = if (isEs) "✨ Aplicar a mi Ruta" else "✨ Apply to Route",
+                    onSecondaryClick = {
+                        val optimized = AiPlanBuilderEngine.optimizePlanWithWeather(
+                            currentPlan = portablePlan,
+                            forecasts = allForecasts
+                        )
+                        SharedTravelPlanStore.updatePlan(optimized)
+                        statusMessage = optimized.aiOptimizationSummary
+                    },
+                    primaryEnabled = !isSyncingWeather
+                )
+
+                if (statusMessage != null) {
+                    Spacer(Modifier.height(10.dp))
                     Text(
-                        text = if (isEs) day.userPlanningAdviceEs else day.userPlanningAdviceEn,
-                        fontSize = 15.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = statusMessage!!,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.secondary
                     )
                 }
             }
@@ -883,165 +1235,141 @@ private fun OpenMeteoWeatherPlannerCard(isEs: Boolean) {
 }
 
 // ============================================================================
-// TAB 2: TRIP PLANNER (CLEAN CARDS, LARGE FONTS, OPTIONS SHEET FOR DEMO/AI/JSON)
+// 4. TRIP PLANNER SCREEN
 // ============================================================================
 @Composable
-private fun TripPlannerAdaptiveScreen(
+private fun TripPlannerTabScreen(
     isEs: Boolean,
-    isTabletWide: Boolean
+    onOpenJsonPortability: () -> Unit
 ) {
     val context = LocalContext.current
     val portablePlan by SharedTravelPlanStore.planState.collectAsState()
     val weatherForecasts by SharedWeatherForecastStore.forecastsState.collectAsState()
-    val stops = portablePlan.itineraryStops
-
+    val allStops = portablePlan.itineraryStops
+    val availableDays = remember(allStops) {
+        allStops.map { it.dayNumber }.distinct().sorted().ifEmpty { listOf(1) }
+    }
     var selectedDay by rememberSaveable { mutableIntStateOf(1) }
-    var showJsonSheet by rememberSaveable { mutableStateOf(false) }
-
-    val availableDays = remember(stops) {
-        stops.map { it.dayNumber }.distinct().sorted().ifEmpty { listOf(1) }
+    if (selectedDay !in availableDays) {
+        selectedDay = availableDays.first()
     }
 
-    val selectedDayWeather = remember(weatherForecasts, selectedDay) {
+    val dayStops = remember(allStops, selectedDay) {
+        TripPlannerUseCase.sortAndDetectConflicts(
+            allStops.filter { it.dayNumber == selectedDay }
+        )
+    }
+    val dayWeather = remember(weatherForecasts, selectedDay) {
         SharedWeatherForecastStore.forecastForDayNumber(selectedDay)
     }
 
-    val dayStops = remember(stops, selectedDay) {
-        TripPlannerUseCase.sortAndDetectConflicts(stops.filter { it.dayNumber == selectedDay })
-    }
-
-    if (showJsonSheet) {
-        JsonPortabilityModalSheet(
-            isEs = isEs,
-            onDismiss = { showJsonSheet = false }
-        )
-    }
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
     ) {
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (isEs) "Itinerario del Viaje" else "Trip Itinerary",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                OutlinedButton(onClick = { showJsonSheet = true }) {
-                    Text(if (isEs) "⚙️ IA / JSON / Demo" else "⚙️ AI / JSON / Demo", fontSize = 14.sp)
-                }
-            }
-
-            Spacer(Modifier.height(10.dp))
-
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .weight(1f)
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 availableDays.forEach { dayNum ->
-                    val dayLabel = when (dayNum) {
-                        1 -> if (isEs) "Día 1 · Tokio" else "Day 1 · Tokyo"
-                        2 -> if (isEs) "Día 2 · Kioto" else "Day 2 · Kyoto"
-                        3 -> if (isEs) "Día 3 · Osaka" else "Day 3 · Osaka"
-                        else -> if (isEs) "Día $dayNum" else "Day $dayNum"
-                    }
-                    FilterChip(
+                    AppOptionButton(
+                        text = if (isEs) "Día $dayNum" else "Day $dayNum",
                         selected = selectedDay == dayNum,
                         onClick = { selectedDay = dayNum },
-                        label = {
-                            Text(
-                                text = dayLabel,
-                                fontSize = 15.sp,
-                                modifier = Modifier.padding(vertical = 4.dp)
+                        modifier = Modifier.width(96.dp)
+                    )
+                }
+            }
+
+            AppSecondaryButton(
+                text = if (isEs) "⚙️ Opciones Plan" else "⚙️ Plan Options",
+                onClick = onOpenJsonPortability
+            )
+        }
+
+        if (dayWeather != null) {
+            Spacer(Modifier.height(10.dp))
+            InfoTagPill(
+                text = "${dayWeather.condition.emoji} ${dayWeather.tempMinC.toInt()}°/${dayWeather.tempMaxC.toInt()}°C · ☔ ${dayWeather.precipitationProbabilityMax}% · 🗻 Fuji ${dayWeather.fujiVisibilityPercent}%"
+            )
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        if (dayStops.isEmpty()) {
+            KotlinConfCard {
+                Text(
+                    text = if (isEs) "Tu planificador está vacío" else "Your planner is empty",
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = if (isEs) {
+                        "Pulsa «⚙️ Opciones Plan» para importar tu JSON, añadir rutas con IA o restaurar el itinerario de demostración."
+                    } else {
+                        "Tap «⚙️ Plan Options» to import JSON, generate a route with AI, or restore the demo itinerary."
+                    },
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(14.dp))
+                AppPrimaryButton(
+                    text = if (isEs) "⚙️ Abrir Opciones del Plan" else "⚙️ Open Plan Options",
+                    onClick = onOpenJsonPortability,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                items(dayStops, key = { it.item.id }) { evaluated ->
+                    ItineraryStopCard(
+                        stop = evaluated.item,
+                        hasConflict = evaluated.hasTimeConflict,
+                        isEs = isEs,
+                        onOpenGoogleMaps = { stop ->
+                            val geoUri = Uri.parse(
+                                "geo:${stop.latitude},${stop.longitude}?q=${Uri.encode(stop.placeNameJapanese)}"
                             )
+                            runCatching {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, geoUri))
+                            }
+                        },
+                        onExportCalendar = { stop ->
+                            val calIntent = Intent(Intent.ACTION_INSERT).apply {
+                                data = CalendarContract.Events.CONTENT_URI
+                                putExtra(CalendarContract.Events.TITLE, "🇯🇵 ${stop.title}")
+                                putExtra(CalendarContract.Events.EVENT_LOCATION, stop.placeNameJapanese)
+                                putExtra(CalendarContract.Events.DESCRIPTION, stop.notes)
+                            }
+                            runCatching { context.startActivity(calIntent) }
                         }
                     )
                 }
-            }
-
-            Spacer(Modifier.height(10.dp))
-
-            // Clean 1-line Weather Summary for the selected day
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "${selectedDayWeather.condition.emoji} ${selectedDayWeather.tempMaxC.toInt()}° / ${selectedDayWeather.tempMinC.toInt()}°C · ☔ ${selectedDayWeather.precipitationProbabilityMax}%",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = if (selectedDayWeather.suitability == PlanningSuitability.INDOOR_RECOMMENDED) {
-                            if (isEs) "☔ Plan Cubierto" else "☔ Indoor Day"
-                        } else {
-                            if (isEs) "☀️ Ideal Exterior" else "☀️ Great Outdoors"
-                        },
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-        }
-
-        if (dayStops.isEmpty()) {
-            item {
-                KotlinConfCard {
-                    Text(
-                        text = if (isEs) "Itinerario vacío" else "Empty itinerary",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = if (isEs) {
-                            "Pulsa en '⚙️ IA / JSON / Demo' para crear tu ruta con IA, importar tu JSON o cargar los datos de ejemplo."
-                        } else {
-                            "Tap '⚙️ AI / JSON / Demo' to create a route with AI, import your JSON, or load sample data."
-                        },
-                        fontSize = 15.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        } else {
-            items(dayStops) { analyzed ->
-                TimelineStopCard(
-                    isEs = isEs,
-                    analyzed = analyzed,
-                    onOpenGoogleMaps = { launchGoogleMapsForStop(context, analyzed.item) },
-                    onExportCalendar = { exportStopToSystemCalendar(context, analyzed.item) }
-                )
             }
         }
     }
 }
 
 @Composable
-private fun TimelineStopCard(
+private fun ItineraryStopCard(
+    stop: ItineraryStopItem,
+    hasConflict: Boolean,
     isEs: Boolean,
-    analyzed: com.laralbir.japantraveltools.feature.planner.AnalyzedItineraryStop,
-    onOpenGoogleMaps: () -> Unit,
-    onExportCalendar: () -> Unit
+    onOpenGoogleMaps: (ItineraryStopItem) -> Unit,
+    onExportCalendar: (ItineraryStopItem) -> Unit
 ) {
-    val stop = analyzed.item
     KotlinConfCard {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1049,31 +1377,35 @@ private fun TimelineStopCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "${stop.startTime} – ${stop.endTime}",
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
+                text = "🕒 ${stop.startTime} – ${stop.endTime}",
                 fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
             )
-            InfoTagPill(text = if (isEs) stop.category.labelEs else stop.category.labelEn)
+            if (hasConflict) {
+                InfoTagPill(
+                    text = if (isEs) "⚠️ Solapamiento" else "⚠️ Overlap",
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                )
+            }
         }
 
         Spacer(Modifier.height(8.dp))
         Text(
             text = stop.title,
-            fontWeight = FontWeight.Bold,
-            fontSize = 19.sp
+            fontSize = 19.sp,
+            fontWeight = FontWeight.Bold
         )
-        Spacer(Modifier.height(4.dp))
         Text(
-            text = "🇯🇵 ${stop.placeNameJapanese}",
+            text = stop.placeNameJapanese,
             fontSize = 15.sp,
             color = MaterialTheme.colorScheme.secondary,
             fontWeight = FontWeight.SemiBold
         )
 
         if (stop.notes.isNotBlank()) {
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(8.dp))
             Text(
                 text = stop.notes,
                 fontSize = 15.sp,
@@ -1082,213 +1414,28 @@ private fun TimelineStopCard(
         }
 
         Spacer(Modifier.height(14.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Button(
-                onClick = onOpenGoogleMaps,
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(if (isEs) "🗺️ Google Maps" else "🗺️ Google Maps", fontSize = 14.sp)
-            }
-            OutlinedButton(
-                onClick = onExportCalendar,
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(if (isEs) "📅 Calendario" else "📅 Calendar", fontSize = 14.sp)
-            }
-        }
+        AppButtonRow(
+            primaryText = if (isEs) "🗺️ Abrir Mapa" else "🗺️ Open Map",
+            onPrimaryClick = { onOpenGoogleMaps(stop) },
+            secondaryText = if (isEs) "📅 Al Calendario" else "📅 To Calendar",
+            onSecondaryClick = { onExportCalendar(stop) }
+        )
     }
 }
 
-private fun launchGoogleMapsForStop(context: android.content.Context, stop: ItineraryStopItem) {
-    runCatching {
-        val uri = Uri.parse("geo:${stop.latitude},${stop.longitude}?q=${Uri.encode("${stop.title} ${stop.placeNameJapanese}")}")
-        val intent = Intent(Intent.ACTION_VIEW, uri).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        context.startActivity(intent)
-    }
-}
-
-private fun exportStopToSystemCalendar(context: android.content.Context, stop: ItineraryStopItem) {
-    runCatching {
-        val intent = Intent(Intent.ACTION_INSERT).apply {
-            data = CalendarContract.Events.CONTENT_URI
-            putExtra(CalendarContract.Events.TITLE, "[JP] ${stop.title}")
-            putExtra(CalendarContract.Events.EVENT_LOCATION, stop.placeNameJapanese)
-            putExtra(CalendarContract.Events.DESCRIPTION, stop.notes)
-            putExtra(CalendarContract.Events.EVENT_TIMEZONE, "Asia/Tokyo")
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        context.startActivity(intent)
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
+// ============================================================================
+// 5. TRANSPORT & TRAINS SCREEN
+// ============================================================================
 @Composable
-private fun JsonPortabilityModalSheet(
+private fun TransportTabScreen(
     isEs: Boolean,
-    onDismiss: () -> Unit
+    onOpenJsonPortability: () -> Unit
 ) {
-    val context = LocalContext.current
-    val portablePlan by SharedTravelPlanStore.planState.collectAsState()
-    val weatherForecasts by SharedWeatherForecastStore.forecastsState.collectAsState()
-    var jsonEditorText by remember { mutableStateOf(SharedTravelPlanStore.exportCurrentJson()) }
-    var statusMessage by remember { mutableStateOf("") }
-
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 10.dp)
-                .navigationBarsPadding()
-        ) {
-            Text(
-                text = if (isEs) "⚙️ Gestionar Plan (IA, JSON y Datos Demo)" else "⚙️ Manage Plan (AI, JSON & Demo Data)",
-                fontSize = 19.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            // Row 1: AI & Demo Controls
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    onClick = {
-                        val updated = AiPlanBuilderEngine.improveAndExpandPlan(
-                            currentPlan = portablePlan,
-                            userInstruction = "Optimizar ruta y añadir Día 3 en Osaka"
-                        )
-                        val withWeather = AiPlanBuilderEngine.optimizePlanWithWeather(updated, weatherForecasts)
-                        SharedTravelPlanStore.updatePlan(withWeather)
-                        jsonEditorText = SharedTravelPlanStore.exportCurrentJson()
-                        statusMessage = if (isEs) "✅ Plan optimizado con IA + Clima Open-Meteo." else "✅ Plan optimized with AI + Weather."
-                    },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(if (isEs) "✨ Mejorar con IA" else "✨ AI Optimize", fontSize = 14.sp)
-                }
-
-                OutlinedButton(
-                    onClick = {
-                        SharedTravelPlanStore.updatePlan(
-                            PortableTravelPlanBundle(
-                                schemaVersion = 1,
-                                tripTitle = "Mi Viaje a Japón",
-                                itineraryStops = emptyList(),
-                                transportSegments = emptyList()
-                            )
-                        )
-                        jsonEditorText = SharedTravelPlanStore.exportCurrentJson()
-                        statusMessage = if (isEs) "🗑️ Datos de demostración vaciados." else "🗑️ Demo data cleared."
-                    },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(if (isEs) "🗑️ Vaciar Demo" else "🗑️ Clear Demo", fontSize = 14.sp)
-                }
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            // Row 2: JSON Export / Import / Restore Demo
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = {
-                        val exported = SharedTravelPlanStore.exportCurrentJson()
-                        jsonEditorText = exported
-                        runCatching {
-                            val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "application/json"
-                                putExtra(Intent.EXTRA_SUBJECT, "Japan Travel Plan JSON")
-                                putExtra(Intent.EXTRA_TEXT, exported)
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                            context.startActivity(Intent.createChooser(sendIntent, "JSON").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                        }
-                    }
-                ) {
-                    Text(if (isEs) "📤 Exportar JSON" else "📤 Export JSON", fontSize = 14.sp)
-                }
-
-                OutlinedButton(
-                    onClick = {
-                        val res = SharedTravelPlanStore.importJson(jsonEditorText, mergeWithExisting = false)
-                        statusMessage = if (res.isSuccess) {
-                            if (isEs) "✅ JSON importado correctamente." else "✅ JSON imported."
-                        } else {
-                            if (isEs) "⚠️ Error en el formato JSON." else "⚠️ Invalid JSON."
-                        }
-                    }
-                ) {
-                    Text(if (isEs) "📥 Importar JSON" else "📥 Import JSON", fontSize = 14.sp)
-                }
-
-                OutlinedButton(
-                    onClick = {
-                        SharedTravelPlanStore.resetToDefaults()
-                        jsonEditorText = SharedTravelPlanStore.exportCurrentJson()
-                        statusMessage = if (isEs) "🔄 Demo restaurada." else "🔄 Demo restored."
-                    }
-                ) {
-                    Text(if (isEs) "🔄 Cargar Demo" else "🔄 Load Demo", fontSize = 14.sp)
-                }
-            }
-
-            if (statusMessage.isNotBlank()) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = statusMessage,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            Spacer(Modifier.height(10.dp))
-            OutlinedTextField(
-                value = jsonEditorText,
-                onValueChange = { jsonEditorText = it },
-                label = { Text("JSON (Itinerario + Vuelos y Trenes)", fontSize = 14.sp) },
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace, fontSize = 13.sp),
-                maxLines = 8,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(160.dp)
-            )
-            Spacer(Modifier.height(12.dp))
-        }
-    }
-}
-
-// ============================================================================
-// TAB 3: MULTIMODAL TRANSPORT (CLEAN CARDS & LARGE FONTS)
-// ============================================================================
-@Composable
-private fun TransportMultiModalScreen(isEs: Boolean) {
     val portablePlan by SharedTravelPlanStore.planState.collectAsState()
     val segments = portablePlan.transportSegments
     var selectedFilter by rememberSaveable { mutableStateOf<TransportMode?>(null) }
-    var showJsonSheet by rememberSaveable { mutableStateOf(false) }
-
-    val filtered = remember(segments, selectedFilter) {
+    val filteredSegments = remember(segments, selectedFilter) {
         if (selectedFilter == null) segments else segments.filter { it.type == selectedFilter }
-    }
-
-    if (showJsonSheet) {
-        JsonPortabilityModalSheet(
-            isEs = isEs,
-            onDismiss = { showJsonSheet = false }
-        )
     }
 
     LazyColumn(
@@ -1297,60 +1444,42 @@ private fun TransportMultiModalScreen(isEs: Boolean) {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (isEs) "Vuelos, Trenes y Metro" else "Flights, Trains & Metro",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                OutlinedButton(onClick = { showJsonSheet = true }) {
-                    Text("⚙️ JSON / Demo", fontSize = 14.sp)
-                }
-            }
-
-            Spacer(Modifier.height(10.dp))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                FilterChip(
-                    selected = selectedFilter == null,
-                    onClick = { selectedFilter = null },
-                    label = {
-                        Text(
-                            text = if (isEs) "Todos" else "All",
-                            fontSize = 15.sp,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        )
-                    }
-                )
-                TransportMode.entries.forEach { mode ->
-                    FilterChip(
-                        selected = selectedFilter == mode,
-                        onClick = { selectedFilter = mode },
-                        label = {
-                            Text(
-                                text = if (isEs) mode.labelEs else mode.labelEn,
-                                fontSize = 15.sp,
-                                modifier = Modifier.padding(vertical = 4.dp)
-                            )
-                        }
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AppOptionButton(
+                        text = if (isEs) "Todos" else "All",
+                        selected = selectedFilter == null,
+                        onClick = { selectedFilter = null },
+                        modifier = Modifier.weight(1f)
+                    )
+                    AppOptionButton(
+                        text = if (isEs) "✈️ Vuelos" else "✈️ Flights",
+                        selected = selectedFilter == TransportMode.FLIGHT,
+                        onClick = { selectedFilter = TransportMode.FLIGHT },
+                        modifier = Modifier.weight(1f)
+                    )
+                    AppOptionButton(
+                        text = if (isEs) "🚄 Trenes" else "🚄 Trains",
+                        selected = selectedFilter == TransportMode.TRAIN_SHINKANSEN,
+                        onClick = { selectedFilter = TransportMode.TRAIN_SHINKANSEN },
+                        modifier = Modifier.weight(1f)
                     )
                 }
+
+                AppSecondaryButton(
+                    text = if (isEs) "⚙️ Importar / Exportar JSON o Demo" else "⚙️ Import / Export JSON or Demo",
+                    onClick = onOpenJsonPortability,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
 
-        items(filtered.indices.toList()) { idx ->
-            val seg = filtered[idx]
+        items(filteredSegments.indices.toList()) { idx ->
+            val seg = filteredSegments[idx]
             val durationMins = TransportPlannerUseCase.calculateSegmentDurationMinutes(seg)
-
             KotlinConfCard {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1359,8 +1488,8 @@ private fun TransportMultiModalScreen(isEs: Boolean) {
                 ) {
                     Text(
                         text = "${seg.operatorName} · ${seg.lineOrNumber}",
-                        fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
                         modifier = Modifier.weight(1f)
                     )
                     InfoTagPill(text = seg.passOrPaymentBadge)
@@ -1369,289 +1498,39 @@ private fun TransportMultiModalScreen(isEs: Boolean) {
                 Spacer(Modifier.height(10.dp))
                 Text(
                     text = "${seg.departureCode} (${seg.departureName}) ➔ ${seg.arrivalCode} (${seg.arrivalName})",
-                    fontWeight = FontWeight.SemiBold,
                     fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary
                 )
 
                 Spacer(Modifier.height(6.dp))
                 Text(
                     text = "🕒 ${seg.departureTimeIso.substringAfter('T')} ➔ ${seg.arrivalTimeIso.substringAfter('T')} (${TransportPlannerUseCase.formatDurationHoursMinutes(durationMins)})",
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold
                 )
-
-                Spacer(Modifier.height(6.dp))
                 Text(
                     text = "📍 ${seg.departureTerminalOrPlatform} · 💺 ${seg.seatOrCarInfo}",
-                    fontSize = 15.sp,
+                    fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-
-                if (seg.stationExitOrBelt.isNotBlank()) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = "🚪 ${seg.stationExitOrBelt}",
-                        fontSize = 15.sp,
-                        color = MaterialTheme.colorScheme.secondary,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-
-            if (idx < filtered.lastIndex) {
-                val nextSeg = filtered[idx + 1]
-                if (seg.arrivalCode == nextSeg.departureCode) {
-                    val conn = TransportPlannerUseCase.calculateConnection(seg, nextSeg)
-                    Spacer(Modifier.height(10.dp))
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            Text(
-                                text = "🔄 Escala en ${conn.fromCode}: ${TransportPlannerUseCase.formatDurationHoursMinutes(conn.totalConnectionMinutes)}",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = conn.transferSummary,
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
             }
         }
     }
 }
 
 // ============================================================================
-// TAB 4: PASSPORT/DNI, RESERVATIONS & GUIDES (SEGMENTED SO IT DOESN'T CLUTTER)
+// 6. VOICE TRANSLATOR SCREEN (BIDIRECTIONAL STT + AUTO-TTS)
 // ============================================================================
 @Composable
-private fun VaultAndGuidesAdaptiveScreen(
-    isEs: Boolean,
-    biometricLockEnabled: Boolean,
-    onToggleBiometric: (Boolean) -> Unit
-) {
-    var activeSection by rememberSaveable { mutableIntStateOf(0) } // 0: Pasaporte, 1: Reservas, 2: Guías
-    var vaultUnlocked by rememberSaveable { mutableStateOf(!biometricLockEnabled) }
-    var searchQuery by rememberSaveable { mutableStateOf("") }
-
-    val docs = remember { DefaultTravelGuidesCatalog.initialDocuments() }
-    val guides = remember { DefaultTravelGuidesCatalog.initialGuides() }
-    val filteredDocs = remember(docs, searchQuery) {
-        DocumentsFilterUseCase.filterDocuments(docs, null, searchQuery)
-    }
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                FilterChip(
-                    selected = activeSection == 0,
-                    onClick = { activeSection = 0 },
-                    label = {
-                        Text(
-                            text = if (isEs) "🛂 Pasaporte" else "🛂 Passport",
-                            fontSize = 15.sp,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        )
-                    }
-                )
-                FilterChip(
-                    selected = activeSection == 1,
-                    onClick = { activeSection = 1 },
-                    label = {
-                        Text(
-                            text = if (isEs) "📄 Reservas" else "📄 Bookings",
-                            fontSize = 15.sp,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        )
-                    }
-                )
-                FilterChip(
-                    selected = activeSection == 2,
-                    onClick = { activeSection = 2 },
-                    label = {
-                        Text(
-                            text = if (isEs) "📖 Guías" else "📖 Guides",
-                            fontSize = 15.sp,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        )
-                    }
-                )
-            }
-        }
-
-        when (activeSection) {
-            0 -> item {
-                KotlinConfCard {
-                    Text(
-                        text = if (isEs) "Pasaporte y DNI (Tax-Free)" else "Passport & ID Vault",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (isEs) "🔒 Proteger con Huella / PIN" else "🔒 Biometric / PIN Lock",
-                            fontSize = 16.sp
-                        )
-                        Switch(
-                            checked = biometricLockEnabled,
-                            onCheckedChange = {
-                                onToggleBiometric(it)
-                                vaultUnlocked = !it
-                            }
-                        )
-                    }
-
-                    Spacer(Modifier.height(14.dp))
-
-                    if (biometricLockEnabled && !vaultUnlocked) {
-                        Button(
-                            onClick = { vaultUnlocked = true },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(if (isEs) "🔓 Desbloquear Identificación" else "🔓 Unlock ID", fontSize = 16.sp)
-                        }
-                    } else {
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.padding(18.dp)) {
-                                Text("🛂 PASAPORTE + QR VISIT JAPAN WEB", fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    text = if (isEs) "Guardado en almacenamiento privado offline para mostrar en hoteles y tiendas Tax-Free." else "Stored offline in private storage for hotels & Tax-Free.",
-                                    fontSize = 15.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        Spacer(Modifier.height(12.dp))
-
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.padding(18.dp)) {
-                                Text("🪪 DNI / DOCUMENTO DE IDENTIDAD", fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    text = if (isEs) "Anverso y reverso disponibles sin conexión." else "Front and back available offline.",
-                                    fontSize = 15.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            1 -> {
-                item {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        label = { Text(if (isEs) "🔍 Buscar vuelos, hoteles, JR Pass..." else "🔍 Search bookings...", fontSize = 15.sp) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-                items(filteredDocs) { doc ->
-                    KotlinConfCard {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = if (doc.isPinned) "📌 ${doc.title}" else doc.title,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 17.sp,
-                                modifier = Modifier.weight(1f)
-                            )
-                            InfoTagPill(text = doc.category.badgeCode)
-                        }
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            text = doc.referenceOrNotes,
-                            fontSize = 15.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-
-            else -> {
-                items(guides) { guide ->
-                    KotlinConfCard {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = guide.title,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp,
-                                modifier = Modifier.weight(1f)
-                            )
-                            InfoTagPill(text = guide.cityRegion)
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = guide.markdownSummary,
-                            fontSize = 15.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ============================================================================
-// TAB 5: VOICE TRANSLATOR & GEMINI AI (SEGMENTED & LARGE READABLE CONTROLS)
-// ============================================================================
-@Composable
-private fun GeminiAndTranslatorScreen(isEs: Boolean) {
+private fun VoiceTranslatorScreen(isEs: Boolean) {
     val context = LocalContext.current
-    val portablePlan by SharedTravelPlanStore.planState.collectAsState()
-    var activeSection by rememberSaveable { mutableIntStateOf(0) } // 0: Traductor de Voz, 1: Asistente IA Gemini
-
     var phraseInput by rememberSaveable { mutableStateOf("¿Dónde está el andén del Shinkansen?") }
     var japaneseHeardInput by rememberSaveable {
         mutableStateOf("いらっしゃいませ。何名様ですか？禁煙席でよろしいですか？")
     }
     var rotateJapaneseCard180 by rememberSaveable { mutableStateOf(false) }
-    var geminiPrompt by rememberSaveable { mutableStateOf("Traducir carta de Ramen y convertir precios ¥ a EUR") }
-    var geminiResponse by rememberSaveable {
-        mutableStateOf(GeminiAssistantEngine.generateSmartTravelAnswer("ramen", 164.80))
-    }
 
     var ttsEngine by remember { mutableStateOf<TextToSpeech?>(null) }
     DisposableEffect(context) {
@@ -1714,302 +1593,189 @@ private fun GeminiAndTranslatorScreen(isEs: Boolean) {
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                FilterChip(
-                    selected = activeSection == 0,
-                    onClick = { activeSection = 0 },
-                    label = {
+            // CARD 1: YOU SPEAK -> PHONE SPEAKS JAPANESE
+            KotlinConfCard {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (isEs) "1. Tú hablas ➔ Suena Japonés" else "1. You speak ➔ Plays Japanese",
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    AppOptionButton(
+                        text = if (rotateJapaneseCard180) "Normal" else "🔄 180°",
+                        selected = rotateJapaneseCard180,
+                        onClick = { rotateJapaneseCard180 = !rotateJapaneseCard180 },
+                        modifier = Modifier.width(96.dp)
+                    )
+                }
+
+                Spacer(Modifier.height(14.dp))
+
+                AppButtonRow(
+                    primaryText = if (isEs) "🎙️ Hablar por Micro" else "🎙️ Speak Mic",
+                    onPrimaryClick = {
+                        runCatching {
+                            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                putExtra(RecognizerIntent.EXTRA_LANGUAGE, if (isEs) "es-ES" else "en-US")
+                            }
+                            travelerSpeechLauncher.launch(intent)
+                        }.onFailure {
+                            speakOutLoud(translation.japaneseText, Locale.JAPAN)
+                        }
+                    },
+                    secondaryText = if (isEs) "🔊 Sonar en Japonés" else "🔊 Play Japanese",
+                    onSecondaryClick = { speakOutLoud(translation.japaneseText, Locale.JAPAN) }
+                )
+
+                Spacer(Modifier.height(14.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .rotate(if (rotateJapaneseCard180) 180f else 0f)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = if (isEs) "🎙️ Traductor de Voz" else "🎙️ Voice Translator",
+                            text = phraseInput,
                             fontSize = 15.sp,
-                            modifier = Modifier.padding(vertical = 4.dp)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = translation.japaneseText,
+                            fontSize = 23.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = "🗣️ ${translation.romaji}",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
+                }
+
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    text = if (isEs) "Frases rápidas con audio japonés:" else "Quick Japanese audio phrases:",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                FilterChip(
-                    selected = activeSection == 1,
-                    onClick = { activeSection = 1 },
-                    label = {
-                        Text(
-                            text = if (isEs) "✨ Asistente Gemini IA" else "✨ Gemini AI",
-                            fontSize = 15.sp,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        )
+                Spacer(Modifier.height(8.dp))
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OfflineTranslatorEngine.essentialPhrases.chunked(2).forEach { pair ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            pair.forEach { preset ->
+                                AppOptionButton(
+                                    text = "🔊 ${preset.categoryBadge}",
+                                    selected = phraseInput == preset.sourceText,
+                                    onClick = {
+                                        phraseInput = preset.sourceText
+                                        speakOutLoud(preset.japaneseText, Locale.JAPAN)
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
                     }
-                )
+                }
             }
         }
 
-        if (activeSection == 0) {
-            item {
-                // CARD 1: YOU SPEAK -> PHONE SPEAKS JAPANESE
-                KotlinConfCard {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+        item {
+            // CARD 2: JAPANESE PERSON SPEAKS -> PHONE SPEAKS SPANISH TO YOU
+            KotlinConfCard {
+                Text(
+                    text = if (isEs) "2. Habla el Japonés ➔ Te habla en Español" else "2. Japanese speaks ➔ Speaks English to you",
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(Modifier.height(14.dp))
+
+                AppButtonRow(
+                    primaryText = if (isEs) "🎙️ Escuchar Japonés" else "🎙️ Listen Japanese",
+                    onPrimaryClick = {
+                        runCatching {
+                            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ja-JP")
+                            }
+                            japaneseSpeechLauncher.launch(intent)
+                        }.onFailure {
+                            val spoken = if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText
+                            speakOutLoud(spoken, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
+                        }
+                    },
+                    secondaryText = if (isEs) "🔊 Oír en Español" else "🔊 Hear in English",
+                    onSecondaryClick = {
+                        val spoken = if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText
+                        speakOutLoud(spoken, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
+                    }
+                )
+
+                Spacer(Modifier.height(14.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = if (isEs) "1. Tú hablas ➔ Suena Japonés" else "1. You speak ➔ Plays Japanese",
+                            text = if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText,
                             fontSize = 19.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.secondary
                         )
-                        OutlinedButton(onClick = { rotateJapaneseCard180 = !rotateJapaneseCard180 }) {
-                            Text(if (rotateJapaneseCard180) "Normal" else "🔄 180°", fontSize = 14.sp)
-                        }
-                    }
-
-                    Spacer(Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                runCatching {
-                                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                                        putExtra(RecognizerIntent.EXTRA_LANGUAGE, if (isEs) "es-ES" else "en-US")
-                                    }
-                                    travelerSpeechLauncher.launch(intent)
-                                }.onFailure {
-                                    speakOutLoud(translation.japaneseText, Locale.JAPAN)
-                                }
-                            },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(54.dp)
-                        ) {
-                            Text(if (isEs) "🎙️ Hablar por Micro" else "🎙️ Speak Mic", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        }
-
-                        OutlinedButton(
-                            onClick = { speakOutLoud(translation.japaneseText, Locale.JAPAN) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(54.dp)
-                        ) {
-                            Text(if (isEs) "🔊 Sonar en Japonés" else "🔊 Play Japanese", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    Spacer(Modifier.height(14.dp))
-
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .rotate(if (rotateJapaneseCard180) 180f else 0f)
-                    ) {
-                        Column(modifier = Modifier.padding(18.dp)) {
-                            Text(
-                                text = phraseInput,
-                                fontSize = 16.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                text = translation.japaneseText,
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                text = "🗣️ ${translation.romaji}",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-
-                    Spacer(Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OfflineTranslatorEngine.essentialPhrases.forEach { preset ->
-                            FilterChip(
-                                selected = phraseInput == preset.sourceText,
-                                onClick = {
-                                    phraseInput = preset.sourceText
-                                    speakOutLoud(preset.japaneseText, Locale.JAPAN)
-                                },
-                                label = {
-                                    Text(
-                                        text = "🔊 ${preset.categoryBadge}",
-                                        fontSize = 14.sp,
-                                        modifier = Modifier.padding(vertical = 4.dp)
-                                    )
-                                }
-                            )
-                        }
                     }
                 }
-            }
 
-            item {
-                // CARD 2: JAPANESE PERSON SPEAKS -> PHONE SPEAKS SPANISH TO YOU
-                KotlinConfCard {
-                    Text(
-                        text = if (isEs) "2. Habla el Japonés ➔ Te habla en Español" else "2. Japanese speaks ➔ Speaks English to you",
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    text = if (isEs) "Simular respuestas habituales en Japón:" else "Simulate common Japanese replies:",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
 
-                    Spacer(Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                runCatching {
-                                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                                        putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ja-JP")
-                                    }
-                                    japaneseSpeechLauncher.launch(intent)
-                                }.onFailure {
-                                    val spoken = if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText
-                                    speakOutLoud(spoken, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(54.dp)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OfflineTranslatorEngine.incomingJapaneseSamples.chunked(2).forEach { pair ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text(if (isEs) "🎙️ Escuchar Japonés" else "🎙️ Listen Japanese", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        }
-
-                        OutlinedButton(
-                            onClick = {
-                                val spoken = if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText
-                                speakOutLoud(spoken, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
-                            },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(54.dp)
-                        ) {
-                            Text(if (isEs) "🔊 Oír en Español" else "🔊 Hear in English", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    Spacer(Modifier.height(14.dp))
-
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(18.dp)) {
-                            Text(
-                                text = if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                        }
-                    }
-
-                    Spacer(Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OfflineTranslatorEngine.incomingJapaneseSamples.forEach { sample ->
-                            FilterChip(
-                                selected = japaneseHeardInput == sample.japaneseHeardText,
-                                onClick = {
-                                    japaneseHeardInput = sample.japaneseHeardText
-                                    val spoken = if (isEs) sample.spanishSpokenText else sample.englishSpokenText
-                                    speakOutLoud(spoken, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
-                                },
-                                label = {
-                                    Text(
-                                        text = "🔊 ${sample.contextLabel}",
-                                        fontSize = 14.sp,
-                                        modifier = Modifier.padding(vertical = 4.dp)
-                                    )
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-        } else {
-            item {
-                // Gemini AI Assistant & Plan Optimizer
-                KotlinConfCard {
-                    Text(
-                        text = if (isEs) "Asistente Gemini IA" else "Gemini AI Assistant",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(Modifier.height(12.dp))
-
-                    OutlinedTextField(
-                        value = geminiPrompt,
-                        onValueChange = { geminiPrompt = it },
-                        label = { Text(if (isEs) "Pregunta o traduce un menú en ¥..." else "Ask Gemini or translate ¥ menu...", fontSize = 15.sp) },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                geminiResponse = GeminiAssistantEngine.generateSmartTravelAnswer(geminiPrompt, 164.80)
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(if (isEs) "✨ Consultar" else "✨ Ask Gemini", fontSize = 15.sp)
-                        }
-
-                        OutlinedButton(
-                            onClick = {
-                                val updated = AiPlanBuilderEngine.improveAndExpandPlan(
-                                    currentPlan = portablePlan,
-                                    userInstruction = "Mejorar plan y añadir Osaka"
+                            pair.forEach { sample ->
+                                AppOptionButton(
+                                    text = "🔊 ${sample.contextLabel}",
+                                    selected = japaneseHeardInput == sample.japaneseHeardText,
+                                    onClick = {
+                                        japaneseHeardInput = sample.japaneseHeardText
+                                        val spoken = if (isEs) sample.spanishSpokenText else sample.englishSpokenText
+                                        speakOutLoud(spoken, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
+                                    },
+                                    modifier = Modifier.weight(1f)
                                 )
-                                val withWeather = AiPlanBuilderEngine.optimizePlanWithWeather(
-                                    currentPlan = updated,
-                                    forecasts = SharedWeatherForecastStore.forecastsState.value
-                                )
-                                SharedTravelPlanStore.updatePlan(withWeather)
-                                geminiResponse = withWeather.aiOptimizationSummary
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(if (isEs) "🗺️ Mejorar mi Ruta" else "🗺️ Improve Route", fontSize = 15.sp)
+                            }
+                            if (pair.size == 1) {
+                                Spacer(Modifier.weight(1f))
+                            }
                         }
-                    }
-
-                    Spacer(Modifier.height(14.dp))
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = geminiResponse,
-                            fontSize = 16.sp,
-                            modifier = Modifier.padding(18.dp)
-                        )
                     }
                 }
             }
@@ -2018,15 +1784,376 @@ private fun GeminiAndTranslatorScreen(isEs: Boolean) {
 }
 
 // ============================================================================
-// TAB 6: SETTINGS & ABOUT (SEGMENTED & CLEAN)
+// 7. AI TRAVEL ASSISTANT SCREEN (SMART ANSWERS + ROUTE BUILDER)
 // ============================================================================
 @Composable
-private fun SettingsAndAboutScreen(
+private fun AiAssistantScreen(
+    isEs: Boolean,
+    onNavigateToPlanner: () -> Unit
+) {
+    val portablePlan by SharedTravelPlanStore.planState.collectAsState()
+    var geminiPrompt by rememberSaveable { mutableStateOf("¿Cómo funciona la Suica y el metro?") }
+    var geminiResponse by rememberSaveable {
+        mutableStateOf(
+            GeminiAssistantEngine.generateSmartTravelAnswer(
+                prompt = "¿Cómo funciona la Suica y el metro?",
+                eurToJpyRate = 164.80,
+                currentPlan = null
+            )
+        )
+    }
+
+    val quickTopics = listOf(
+        "💳 Tarjeta Suica" to "¿Cómo funciona la Suica y el metro?",
+        "🚄 Shinkansen" to "Consejos de Shinkansen y maletas",
+        "🍜 Carta Ramen ¥" to "Traducir carta de Ramen con precios en ¥",
+        "🦌 Ruta Nara" to "Añadir excursión a Nara y ciervos",
+        "🗻 Ruta Hakone" to "Añadir excursión a Hakone y Monte Fuji",
+        "🐙 Ruta Osaka" to "Añadir día en Osaka y Dotonbori",
+        "🏧 Cajeros 7-Eleven" to "¿Dónde sacar efectivo en cajeros 7-Eleven?",
+        "🧳 Envío Maletas" to "¿Cómo enviar maletas con Takkyubin Yamato?"
+    )
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            KotlinConfCard {
+                Text(
+                    text = if (isEs) "Asistente IA de Viaje a Japón" else "Japan AI Travel Assistant",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = if (isEs) {
+                        "Selecciona un tema rápido, escribe importes en yenes o añade nuevas excursiones directamente a tu Planificador."
+                    } else {
+                        "Pick a quick topic, type Yen amounts, or add new day trips directly to your Planner."
+                    },
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(Modifier.height(14.dp))
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    quickTopics.chunked(2).forEach { pair ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            pair.forEach { (shortLabel, fullQuery) ->
+                                AppOptionButton(
+                                    text = shortLabel,
+                                    selected = geminiPrompt == fullQuery,
+                                    onClick = {
+                                        geminiPrompt = fullQuery
+                                        geminiResponse = GeminiAssistantEngine.generateSmartTravelAnswer(
+                                            prompt = fullQuery,
+                                            eurToJpyRate = 164.80,
+                                            currentPlan = portablePlan
+                                        )
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(14.dp))
+
+                OutlinedTextField(
+                    value = geminiPrompt,
+                    onValueChange = { geminiPrompt = it },
+                    label = {
+                        Text(
+                            text = if (isEs) "Escribe tu consulta o ciudad a añadir..." else "Type your question or city to add...",
+                            fontSize = 15.sp
+                        )
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(Modifier.height(14.dp))
+
+                AppButtonRow(
+                    primaryText = if (isEs) "✨ Consultar IA" else "✨ Ask AI",
+                    onPrimaryClick = {
+                        geminiResponse = GeminiAssistantEngine.generateSmartTravelAnswer(
+                            prompt = geminiPrompt,
+                            eurToJpyRate = 164.80,
+                            currentPlan = portablePlan
+                        )
+                    },
+                    secondaryText = if (isEs) "🗓️ Aplicar en Ruta" else "🗓️ Apply to Route",
+                    onSecondaryClick = {
+                        val updated = AiPlanBuilderEngine.improveAndExpandPlan(
+                            currentPlan = portablePlan,
+                            userInstruction = geminiPrompt
+                        )
+                        SharedTravelPlanStore.updatePlan(updated)
+                        geminiResponse = updated.aiOptimizationSummary
+                    }
+                )
+
+                Spacer(Modifier.height(14.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = geminiResponse,
+                        fontSize = 15.sp,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+
+                Spacer(Modifier.height(12.dp))
+                AppSecondaryButton(
+                    text = if (isEs) "🗓️ Abrir Planificador de Viaje" else "🗓️ Open Trip Planner",
+                    onClick = onNavigateToPlanner,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    }
+}
+
+// ============================================================================
+// 8. PASSPORT & CUSTOMS SCREEN
+// ============================================================================
+@Composable
+private fun PassportAndCustomsScreen(
     isEs: Boolean,
     prefs: UserPreferences,
     prefsRepository: DefaultUserPreferencesRepository
 ) {
-    var activeSection by rememberSaveable { mutableIntStateOf(0) } // 0: Ajustes, 1: Acerca de
+    var vaultUnlocked by rememberSaveable { mutableStateOf(!prefs.biometricLockEnabled) }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            KotlinConfCard {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (isEs) "Pasaporte, DNI y QR Aduanas" else "Passport, ID & Customs QR",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Switch(
+                        checked = prefs.biometricLockEnabled,
+                        onCheckedChange = { enabled ->
+                            prefsRepository.setBiometricLockEnabled(enabled)
+                            if (!enabled) vaultUnlocked = true
+                        }
+                    )
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                if (prefs.biometricLockEnabled && !vaultUnlocked) {
+                    AppPrimaryButton(
+                        text = if (isEs) "🔓 Desbloquear Documentación" else "🔓 Unlock ID Vault",
+                        onClick = { vaultUnlocked = true },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "🛂 PASAPORTE + QR VISIT JAPAN WEB",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                text = if (isEs) {
+                                    "Guardado en almacenamiento privado offline para mostrar en hoteles y tiendas Tax-Free."
+                                } else {
+                                    "Stored offline in private storage for hotels & Tax-Free."
+                                },
+                                fontSize = 15.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "🪪 DNI / DOCUMENTO DE IDENTIDAD",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                text = if (isEs) {
+                                    "Anverso y reverso disponibles 100% sin conexión (Context.filesDir)."
+                                } else {
+                                    "Front and back available 100% offline (Context.filesDir)."
+                                },
+                                fontSize = 15.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// 9. BOOKINGS VAULT SCREEN
+// ============================================================================
+@Composable
+private fun BookingsVaultScreen(isEs: Boolean) {
+    val allDocuments = remember { DefaultTravelGuidesCatalog.initialDocuments() }
+    var selectedCategory by rememberSaveable { mutableStateOf<DocumentCategory?>(null) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    val filteredDocs = remember(allDocuments, selectedCategory, searchQuery) {
+        DocumentsFilterUseCase.filterDocuments(allDocuments, selectedCategory, searchQuery)
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AppOptionButton(
+                        text = if (isEs) "Todos" else "All",
+                        selected = selectedCategory == null,
+                        onClick = { selectedCategory = null },
+                        modifier = Modifier.weight(1f)
+                    )
+                    AppOptionButton(
+                        text = if (isEs) "✈️ Vuelos" else "✈️ Flights",
+                        selected = selectedCategory == DocumentCategory.FLIGHT,
+                        onClick = { selectedCategory = DocumentCategory.FLIGHT },
+                        modifier = Modifier.weight(1f)
+                    )
+                    AppOptionButton(
+                        text = if (isEs) "🏨 Hoteles" else "🏨 Hotels",
+                        selected = selectedCategory == DocumentCategory.HOTEL,
+                        onClick = { selectedCategory = DocumentCategory.HOTEL },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    label = { Text(if (isEs) "🔍 Buscar vuelos, hoteles, JR Pass..." else "🔍 Search bookings...", fontSize = 15.sp) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        items(filteredDocs, key = { it.id }) { doc ->
+            KotlinConfCard {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (doc.isPinned) "📌 ${doc.title}" else doc.title,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    InfoTagPill(text = doc.category.badgeCode)
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = doc.referenceOrNotes,
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+// ============================================================================
+// 10. TRAVEL GUIDES SCREEN
+// ============================================================================
+@Composable
+private fun TravelGuidesScreen(isEs: Boolean) {
+    val guides = remember { DefaultTravelGuidesCatalog.initialGuides() }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        items(guides, key = { it.id }) { guide ->
+            KotlinConfCard {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = guide.title,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    InfoTagPill(text = guide.cityRegion)
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = guide.markdownSummary,
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+// ============================================================================
+// 11. SETTINGS & SYNC SCREEN
+// ============================================================================
+@Composable
+private fun SettingsPreferencesScreen(
+    isEs: Boolean,
+    prefs: UserPreferences,
+    prefsRepository: DefaultUserPreferencesRepository
+) {
     var emailInput by rememberSaveable { mutableStateOf(prefs.googleAccountEmail ?: "carlos.travel.japan@gmail.com") }
 
     LazyColumn(
@@ -2035,159 +2162,267 @@ private fun SettingsAndAboutScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                FilterChip(
-                    selected = activeSection == 0,
-                    onClick = { activeSection = 0 },
-                    label = {
-                        Text(
-                            text = if (isEs) "⚙️ Preferencias y Sync" else "⚙️ Preferences & Sync",
-                            fontSize = 15.sp,
-                            modifier = Modifier.padding(vertical = 4.dp)
+            KotlinConfCard {
+                Text(
+                    text = if (isEs) "Idioma y Tema Visual" else "Language & Visual Theme",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    text = if (isEs) "Idioma de la aplicación" else "App Language",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AppLanguagePreference.entries.forEach { lang ->
+                        AppOptionButton(
+                            text = when (lang) {
+                                AppLanguagePreference.SYSTEM -> if (isEs) "Sistema" else "System"
+                                AppLanguagePreference.ENGLISH -> "English"
+                                AppLanguagePreference.SPANISH -> "Español"
+                            },
+                            selected = prefs.language == lang,
+                            onClick = { prefsRepository.setLanguage(lang) },
+                            modifier = Modifier.weight(1f)
                         )
                     }
+                }
+
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = if (isEs) "Tema de color" else "Color Theme",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
-                FilterChip(
-                    selected = activeSection == 1,
-                    onClick = { activeSection = 1 },
-                    label = {
-                        Text(
-                            text = if (isEs) "ℹ️ Acerca de" else "ℹ️ About",
-                            fontSize = 15.sp,
-                            modifier = Modifier.padding(vertical = 4.dp)
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AppThemeMode.entries.forEach { mode ->
+                        AppOptionButton(
+                            text = when (mode) {
+                                AppThemeMode.SYSTEM -> if (isEs) "Sistema" else "System"
+                                AppThemeMode.LIGHT -> if (isEs) "☀️ Claro" else "☀️ Light"
+                                AppThemeMode.DARK -> if (isEs) "🌙 Oscuro" else "🌙 Dark"
+                            },
+                            selected = prefs.themeMode == mode,
+                            onClick = { prefsRepository.setThemeMode(mode) },
+                            modifier = Modifier.weight(1f)
                         )
                     }
-                )
+                }
             }
         }
 
-        if (activeSection == 0) {
-            item {
-                KotlinConfCard {
-                    Text(
-                        text = if (isEs) "Idioma y Tema Visual" else "Language & Theme",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(Modifier.height(14.dp))
-
-                    Text(
-                        text = if (isEs) "Idioma:" else "Language:",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(
-                            selected = prefs.language == AppLanguagePreference.SYSTEM,
-                            onClick = { prefsRepository.setLanguage(AppLanguagePreference.SYSTEM) },
-                            label = { Text(if (isEs) "Sistema" else "System", fontSize = 15.sp) }
+        item {
+            KotlinConfCard {
+                Text(
+                    text = if (isEs) "Sincronización con Cuenta Google" else "Google Account Sync",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = emailInput,
+                    onValueChange = { emailInput = it },
+                    label = { Text("Google Account Email", fontSize = 15.sp) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(14.dp))
+                AppPrimaryButton(
+                    text = if (isEs) "🔄 Sincronizar Dispositivos" else "🔄 Sync Devices",
+                    onClick = {
+                        prefsRepository.setGoogleAccountSync(
+                            email = emailInput,
+                            lastSyncedMillis = System.currentTimeMillis()
                         )
-                        FilterChip(
-                            selected = prefs.language == AppLanguagePreference.SPANISH,
-                            onClick = { prefsRepository.setLanguage(AppLanguagePreference.SPANISH) },
-                            label = { Text("🇪🇸 Español", fontSize = 15.sp) }
-                        )
-                        FilterChip(
-                            selected = prefs.language == AppLanguagePreference.ENGLISH,
-                            onClick = { prefsRepository.setLanguage(AppLanguagePreference.ENGLISH) },
-                            label = { Text("🇬🇧 English", fontSize = 15.sp) }
-                        )
-                    }
-
-                    Spacer(Modifier.height(16.dp))
-                    Text(
-                        text = if (isEs) "Tema:" else "Theme:",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(
-                            selected = prefs.themeMode == AppThemeMode.SYSTEM,
-                            onClick = { prefsRepository.setThemeMode(AppThemeMode.SYSTEM) },
-                            label = { Text(if (isEs) "Sistema" else "System", fontSize = 15.sp) }
-                        )
-                        FilterChip(
-                            selected = prefs.themeMode == AppThemeMode.LIGHT,
-                            onClick = { prefsRepository.setThemeMode(AppThemeMode.LIGHT) },
-                            label = { Text(if (isEs) "☀️ Claro" else "☀️ Light", fontSize = 15.sp) }
-                        )
-                        FilterChip(
-                            selected = prefs.themeMode == AppThemeMode.DARK,
-                            onClick = { prefsRepository.setThemeMode(AppThemeMode.DARK) },
-                            label = { Text(if (isEs) "🌙 Oscuro" else "🌙 Dark", fontSize = 15.sp) }
-                        )
-                    }
-                }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
+        }
+    }
+}
 
-            item {
-                KotlinConfCard {
-                    Text(
-                        text = if (isEs) "Sincronización con Google" else "Google Account Sync",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    OutlinedTextField(
-                        value = emailInput,
-                        onValueChange = { emailInput = it },
-                        label = { Text("Google Account", fontSize = 15.sp) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Button(
-                        onClick = {
-                            prefsRepository.setGoogleAccountSync(
-                                email = emailInput,
-                                lastSyncedMillis = System.currentTimeMillis()
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth()
+// ============================================================================
+// 12. ABOUT APP SCREEN
+// ============================================================================
+@Composable
+private fun AboutAppScreen(isEs: Boolean) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            KotlinConfCard {
+                Text(
+                    text = "Japan Travel Tools · v${OpenSourceLibrariesCatalog.APP_VERSION_NAME} (build ${OpenSourceLibrariesCatalog.APP_VERSION_CODE})",
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(12.dp))
+                OpenSourceLibrariesCatalog.thirdPartyLibraries.forEach { lib ->
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 5.dp)
                     ) {
-                        Text(if (isEs) "🔄 Sincronizar Dispositivos" else "🔄 Sync Devices", fontSize = 15.sp)
-                    }
-                }
-            }
-        } else {
-            item {
-                KotlinConfCard {
-                    Text(
-                        text = "Japan Travel Tools · v${OpenSourceLibrariesCatalog.APP_VERSION_NAME}",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    OpenSourceLibrariesCatalog.thirdPartyLibraries.forEach { lib ->
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 5.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(14.dp)) {
-                                Text(lib.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                Text(
-                                    text = "${lib.version} · ${lib.license}",
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Text(
-                                    text = if (isEs) lib.purposeEs else lib.purposeEn,
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text(text = "${lib.name} (${lib.version})", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "${lib.artifactId} · ${lib.license}", fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
+                            Spacer(Modifier.height(4.dp))
+                            Text(text = if (isEs) lib.purposeEs else lib.purposeEn, fontSize = 14.sp)
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+// ============================================================================
+// MODAL BOTTOM SHEET: JSON PORTABILITY, AI ROUTE BUILDER & DEMO DATA MANAGER
+// ============================================================================
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun JsonPortabilityModalSheet(
+    isEs: Boolean,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val currentPlan by SharedTravelPlanStore.planState.collectAsState()
+    var jsonEditorText by remember(currentPlan) {
+        mutableStateOf(SharedTravelPlanStore.exportCurrentJson())
+    }
+    var statusMessage by remember { mutableStateOf<String?>(null) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 10.dp)
+        ) {
+            Text(
+                text = if (isEs) "Gestión de Plan: Demo, IA y JSON" else "Plan Manager: Demo, AI & JSON",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = if (isEs) {
+                    "Los planes iniciales son de demostración. Puedes vaciarlos para empezar de cero, restaurarlos o importar/exportar JSON."
+                } else {
+                    "Initial plans are demo seed data. You can clear them, restore them, or import/export JSON."
+                },
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(Modifier.height(14.dp))
+
+            AppButtonRow(
+                primaryText = if (isEs) "✨ Añadir Osaka (IA)" else "✨ Add Osaka (AI)",
+                onPrimaryClick = {
+                    val improved = AiPlanBuilderEngine.improveAndExpandPlan(
+                        currentPlan = currentPlan,
+                        userInstruction = "Añadir Osaka"
+                    )
+                    SharedTravelPlanStore.updatePlan(improved)
+                    jsonEditorText = SharedTravelPlanStore.exportCurrentJson()
+                    statusMessage = improved.aiOptimizationSummary
+                },
+                secondaryText = if (currentPlan.itineraryStops.isNotEmpty()) {
+                    if (isEs) "🗑️ Vaciar Demo" else "🗑️ Clear Demo"
+                } else {
+                    if (isEs) "🔄 Cargar Demo" else "🔄 Load Demo"
+                },
+                onSecondaryClick = {
+                    if (currentPlan.itineraryStops.isNotEmpty()) {
+                        SharedTravelPlanStore.updatePlan(
+                            PortableTravelPlanBundle(
+                                schemaVersion = 1,
+                                tripTitle = "Mi Viaje a Japón",
+                                itineraryStops = emptyList(),
+                                transportSegments = emptyList()
+                            )
+                        )
+                        jsonEditorText = SharedTravelPlanStore.exportCurrentJson()
+                        statusMessage = if (isEs) "✅ Datos demo eliminados." else "✅ Demo data cleared."
+                    } else {
+                        SharedTravelPlanStore.resetToDefaults()
+                        jsonEditorText = SharedTravelPlanStore.exportCurrentJson()
+                        statusMessage = if (isEs) "✅ Datos demo restaurados." else "✅ Demo data restored."
+                    }
+                }
+            )
+
+            Spacer(Modifier.height(10.dp))
+
+            AppButtonRow(
+                primaryText = if (isEs) "📥 Importar JSON" else "📥 Import JSON",
+                onPrimaryClick = {
+                    SharedTravelPlanStore.importJson(jsonEditorText, mergeWithExisting = false)
+                        .onSuccess {
+                            statusMessage = if (isEs) "✅ Plan JSON importado." else "✅ JSON plan imported."
+                        }
+                        .onFailure {
+                            statusMessage = if (isEs) "⚠️ JSON no válido." else "⚠️ Invalid JSON."
+                        }
+                },
+                secondaryText = if (isEs) "📤 Compartir JSON" else "📤 Share JSON",
+                onSecondaryClick = {
+                    val exported = SharedTravelPlanStore.exportCurrentJson()
+                    jsonEditorText = exported
+                    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "application/json"
+                        putExtra(Intent.EXTRA_SUBJECT, "Japan Travel Plan JSON")
+                        putExtra(Intent.EXTRA_TEXT, exported)
+                    }
+                    runCatching {
+                        context.startActivity(Intent.createChooser(sendIntent, "Export Travel Plan JSON"))
+                    }
+                }
+            )
+
+            if (statusMessage != null) {
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = statusMessage!!,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = jsonEditorText,
+                onValueChange = { jsonEditorText = it },
+                label = { Text("JSON (japan-travel-plan.v1)", fontSize = 14.sp) },
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 13.sp
+                ),
+                minLines = 6,
+                maxLines = 10,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(20.dp))
         }
     }
 }
@@ -2213,19 +2448,17 @@ private fun QuickConnectivitySwitcherContent(
             fontWeight = FontWeight.Bold
         )
 
-        Button(
+        AppPrimaryButton(
+            text = if (isEs) "📶 Abrir Panel Wi-Fi / Datos" else "📶 Open Wi-Fi / Cellular Panel",
             onClick = onOpenInternetPanel,
             modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(if (isEs) "📶 Abrir Panel Wi-Fi / Datos" else "📶 Open Wi-Fi / Cellular Panel", fontSize = 16.sp)
-        }
+        )
 
-        OutlinedButton(
+        AppSecondaryButton(
+            text = if (isEs) "📲 Cambiar entre SIM y eSIM" else "📲 Switch SIM / eSIM",
             onClick = onOpenSimSettings,
             modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(if (isEs) "📲 Cambiar entre SIM y eSIM" else "📲 Switch SIM / eSIM", fontSize = 16.sp)
-        }
+        )
 
         Row(
             modifier = Modifier.fillMaxWidth(),

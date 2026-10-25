@@ -131,4 +131,47 @@ class TravelPlanJsonPortabilityTest {
         assertTrue(improvedBundle.itineraryStops.any { it.dayNumber == 3 })
         assertTrue(improvedBundle.transportSegments.isNotEmpty())
     }
+
+    @Test
+    fun `AiPlanBuilderEngine respects specific city requests like Nara or Hakone and does not shift non-overlapping stops`() {
+        val cleanStop = ItineraryStopItem(
+            id = "s1",
+            dayNumber = 1,
+            dateIso = "2026-11-11",
+            startTime = "09:00",
+            endTime = "10:30",
+            title = "Senso-ji",
+            category = StopCategory.SIGHTSEEING,
+            placeNameJapanese = "浅草寺",
+            latitude = 35.7147,
+            longitude = 139.7966
+        )
+        val cleanStop2 = ItineraryStopItem(
+            id = "s2",
+            dayNumber = 1,
+            dateIso = "2026-11-11",
+            startTime = "10:45",
+            endTime = "12:00",
+            title = "Asakusa Culture Center",
+            category = StopCategory.SIGHTSEEING,
+            placeNameJapanese = "浅草文化観光センター",
+            latitude = 35.7126,
+            longitude = 139.7963
+        )
+        val initial = PortableTravelPlanBundle(
+            tripTitle = "Mi Viaje",
+            itineraryStops = listOf(cleanStop, cleanStop2),
+            transportSegments = emptyList()
+        )
+
+        val withNara = AiPlanBuilderEngine.improveAndExpandPlan(
+            currentPlan = initial,
+            userInstruction = "Añadir excursión a Nara y ciervos"
+        )
+        // Non-overlapping stop s2 must keep its exact 10:45 start time!
+        val afterS2 = withNara.itineraryStops.first { it.id == "s2" }
+        assertEquals("10:45", afterS2.startTime)
+        // And Nara stops must be added
+        assertTrue(withNara.itineraryStops.any { it.title.contains("Nara", ignoreCase = true) || it.title.contains("Todai-ji", ignoreCase = true) })
+    }
 }
