@@ -7,6 +7,22 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.21] - 2026-10-25
+
+### Added
+- **Búsqueda Predictiva de Ciudades y Geocodificación Automática de Coordenadas de Google Maps (`SPEC-07 RF-07.6`)**:
+  - **Listado Predictivo Reactivo al Escribir**:
+    - A medida que el usuario teclea el nombre de la ciudad en el formulario (`CityWeatherEditorModalSheet`), se despliega una lista interactiva de sugerencias coincidentes con un diseño limpio basado en Material Design 3.
+    - Motor de búsqueda insensible a mayúsculas, minúsculas y acentos (`Normalizer`) que localiza destinos por nombre en español, inglés o nombres de barrios/zonas turísticas clave (ej. "Shinjuku", "Hakata", "Fuji", "Gion").
+  - **Autocompletado Inmediato de Nombres y Coordenadas**:
+    - Al pulsar cualquier sugerencia del listado predictivo, se auto-rellenan instantáneamente el nombre en español, en inglés, la latitud y la longitud con máxima precisión.
+  - **Geocodificación Automática con Google Maps**:
+    - Botón `"📍 Obtener coordenadas de Google Maps"` para resolver y rellenar automáticamente la latitud y longitud de cualquier ciudad personalizada mediante `android.location.Geocoder` en Android (servicios de Google Maps) con fallback a la API de geocodificación de Open-Meteo.
+  - **Catálogo Geográfico Extendido 100% Offline**:
+    - Más de 50 destinos y capitales de prefecturas japonesas preinstaladas (Tokio, Kioto, Osaka, Hakone/Fuji, Nara, Hiroshima, Miyajima, Kamakura, Nikko, Takayama, Shirakawa-go, Kanazawa, Sapporo, Otaru, Hakodate, Fukuoka, Nagoya, Yokohama, Kobe, Himeji, Okayama, Kurashiki, Naoshima, Takamatsu, Matsuyama, Nagano, Matsumoto, Karuizawa, Niigata, Shizuoka, Sendai, Okinawa, Beppu, Kagoshima, etc.) y hubs de origen/escala internacional (Madrid, Barcelona, Valencia, Sevilla, Málaga, Bilbao, Doha, Dubái, Abu Dabi, Londres, París, Roma, Ámsterdam, Fráncfort, Múnich, Seúl, etc.).
+  - **Batería de Tests Unitarios TDD (`CityGeocodingHelperTest`)**:
+    - 11 tests unitarios que verifican la búsqueda por prefijo, tolerancia a acentos, aliases de barrios/zonas, destinos internacionales, parseo de respuestas JSON de geocodificación y cobertura de presets.
+
 ## [0.0.1-beta.20] - 2026-10-25
 
 ### Added
