@@ -124,6 +124,14 @@ En un viaje a Japón es habitual alternar entre una **eSIM de datos japonesa** (
      - **Selector de SIM / eSIM de Datos (`ACTION_NETWORK_OPERATOR_SETTINGS` / `ACTION_MANAGE_ALL_SIM_PROFILES_SETTINGS`)**: Acceso directo de un toque para alternar qué tarjeta (**SIM física vs. eSIM de Japón**) lleva los datos móviles activos o gestionar perfiles eSIM.
      - **Modo Solo Offline en la App (Opcional)**: Interruptor para forzar a **Japan Travel Tools** a no realizar peticiones de red aunque el teléfono tenga datos activos (modo ahorro extremo de datos de eSIM).
 
+### RF-00.10: Revisión Continua, Análisis y Respuesta a GitHub Issues
+1. Como parte integral del flujo SDD/TDD del proyecto, durante el desarrollo se revisará periódicamente el apartado de **GitHub Issues** del repositorio (`laralbir/japan-travel-tools`).
+2. Por cada issue reportado:
+   - Se realizará un **análisis técnico y funcional** para evaluar si procede o no su reparación/implementación.
+   - **Siempre se responderá al issue en GitHub** dejando constancia del análisis:
+     - Si **procede**: se comenta el diagnóstico y plan de resolución, se incorpora al flujo `Especificación -> Análisis -> Tareas -> TDD (Test que reproduce el bug -> Fix)`, se vincula el commit con `Closes #<id>` y se notifica al cerrar.
+     - Si **no procede**: se responde explicando los motivos técnicos o de diseño por los que se descarta o se solicita aclaración al autor.
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin / BDD)
