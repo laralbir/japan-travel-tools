@@ -22,7 +22,8 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 - [ ] **TASK-101 (TDD)**: Escribir tests unitarios para `LanguageResolver` (idioma del sistema `es` -> Español, `en` -> Inglés, cualquier otro como `fr`/`ja` -> fallback a Inglés; selección manual prevalece).
 - [ ] **TASK-102 (TDD)**: Implementar `UserPreferencesRepository` con Jetpack DataStore y sus tests de persistencia (tema Claro/Oscuro/Sistema, idioma, preferencias de herramientas).
 - [ ] **TASK-103 (TDD)**: Implementar recursos de cadenas `res/values/strings.xml` (EN por defecto) y `res/values-es/strings.xml` (ES), junto con `SettingsViewModel` y `SettingsScreen`.
-- [ ] **TASK-104 (TDD)**: Implementar navegación principal (Bottom Navigation / Navigation Bar) con indicador visual `BETA` para herramientas en desarrollo.
+- [ ] **TASK-104 (TDD)**: Implementar apartado **"Acerca de y Licencias Open Source"** (`AboutScreen` y `OpenSourceLicensesScreen` con plugin `AboutLibraries`), mostrando la versión exacta de la app (`0.0.1-beta.X` / `0.0.1`), créditos de datos abiertos (Frankfurter API) y todas las librerías de terceros usadas con sus licencias offline.
+- [ ] **TASK-105 (TDD)**: Implementar navegación principal (Bottom Navigation / Navigation Bar) con indicador visual `BETA` para herramientas en desarrollo.
 
 ---
 

@@ -16,6 +16,11 @@ Al abrir **Japan Travel Tools** por primera vez:
 3. En **Tema (Theme)**, elige entre *Sistema (Por defecto)*, *Claro* u *Oscuro*.
 4. Tus preferencias quedan guardadas automáticamente para siempre.
 
+### ¿Cómo ver la versión de la app y las librerías Open Source utilizadas?
+1. Entra en **Ajustes (⚙️) > Acerca de (About)**.
+2. Verás el número de versión exacto instalado (ej. `v0.0.1-beta.1` o `v0.0.1`) y las fuentes de datos abiertas empleadas.
+3. Toca en **"Librerías Open Source de terceros"** para consultar la lista completa de todas las bibliotecas de código abierto utilizadas en la app junto con sus autores, versiones y textos de licencia (disponible sin conexión a internet).
+
 ---
 
 ## 2. Herramienta: Relojes de Viaje (Hora Local, Japón y País de Origen)

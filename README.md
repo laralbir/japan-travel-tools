@@ -12,6 +12,7 @@ Aplicación Android **offline-first** con herramientas esenciales para viajar a 
 - **Multiidioma**: Español e Inglés. Selecciona automáticamente el idioma del sistema (con **Inglés** como idioma por defecto si el sistema usa otro idioma) y permite cambiarlo manualmente dentro de la app.
 - **Tema Personalizable**: Modo Claro, Modo Oscuro o Automático según el sistema (opción por defecto).
 - **100% Persistente y Offline-First**: Todas las preferencias, cachés de datos externos y documentos del viajero se persisten localmente en el dispositivo para funcionar sin conexión a internet en cualquier momento del viaje.
+- **Transparencia y Open Source ("Acerca de")**: Apartado integrado que muestra la versión exacta de la aplicación (`0.0.1-beta.X` / `0.0.1`), las fuentes de datos abiertas utilizadas y el listado completo de todas las librerías open source de terceros con sus respectivas licencias accesibles offline.
 
 ### Herramientas Incluidas en la Especificación (v0.0.1)
 1. **Relojes Duales (Hora Local / Japón / País de Origen) [En Especificación - Beta]**

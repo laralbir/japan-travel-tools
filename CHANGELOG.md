@@ -11,7 +11,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - Inicialización del repositorio orientado a Agentes de IA (`AGENTS.md`, `.gitignore`, `README.md`, `CHANGELOG.md`).
 - Configuración de ramas **Gitflow** (`main` y `develop`).
 - Documentación completa de **Fase 1: Especificación (SDD)** en `/docs/specs/`:
-  - `00-core-configuration-spec.md`: Requisitos de internacionalización (ES/EN con fallback a EN), tema claro/oscuro/sistema, persistencia y arquitectura offline-first.
+  - `00-core-configuration-spec.md`: Requisitos de internacionalización (ES/EN con fallback a EN), tema claro/oscuro/sistema, persistencia, arquitectura offline-first y apartado **"Acerca de"** con versión de la app y listado completo de librerías open source de terceros.
   - `01-world-clock-spec.md`: Especificación de relojes duales/múltiples con detección de ubicación y país de origen.
   - `02-currency-converter-spec.md`: Especificación de conversor de divisas (`EUR <-> JPY` por defecto) con **Frankfurter API** y caché offline persistente.
   - `03-documents-and-id-vault-spec.md`: Especificación de bóveda de Pasaporte/DNI (con bloqueo biométrico opcional), repositorio offline de documentos de viaje (vuelos, hoteles, etc.) y gestor/creador de **Guías de Viaje** (importadas en PDF/Markdown/Imagen y nativas con fotos).
