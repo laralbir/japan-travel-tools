@@ -54,9 +54,9 @@ Todos los mensajes de commit deben seguir el estándar [Conventional Commits v1.
 
 ## 3. Versionado Semántico, Regla Beta y Releases (GitHub + APK)
 
-- **Versión inicial**: `0.0.1` (con sufijo `-beta.X` mientras las herramientas estén en desarrollo).
-- **Regla de Madurez Beta**:
-  > **IMPORTANTE**: Hasta que una herramienta (`tool`) no esté implementada al 100%, sea completamente funcional (incluyendo modo offline y tests al 100%) y haya sido aprobada por el usuario, cualquier versión publicada llevará el sufijo `-beta.X` (ej. `0.0.1-beta.1`) y la herramienta mostrará o tendrá estado Beta.
+- **Versión inicial**: `0.0.1` (con sufijo `-beta.X` en las releases de Git mientras las herramientas estén en desarrollo).
+- **Regla de Madurez Beta y Prohibición de Etiquetas `BETA` en UI**:
+  > **IMPORTANTE**: Hasta que una herramienta (`tool`) no esté implementada al 100%, sea completamente funcional (incluyendo modo offline y tests al 100%) y haya sido aprobada por el usuario, cualquier versión publicada en Git/GitHub llevará el sufijo `-beta.X` (ej. `0.0.1-beta.4`). Sin embargo, **NUNCA se debe mostrar la etiqueta o insignia `BETA` en ningún sitio de la interfaz de usuario (UI)**, ya que no aporta valor al viajero y ocupa espacio valioso en la pantalla.
 - **Publicación en `main`**:
   - Cada vez que se publique una versión en `main`, se debe:
     1. Actualizar `CHANGELOG.md` y `README.md`.
