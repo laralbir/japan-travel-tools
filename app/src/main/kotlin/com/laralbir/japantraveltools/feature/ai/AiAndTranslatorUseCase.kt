@@ -20,6 +20,17 @@ data class JapaneseToTravelerVoiceResult(
 
 object OfflineTranslatorEngine {
 
+    fun isJapaneseText(text: String): Boolean {
+        return text.any { char ->
+            val code = char.code
+            (code in 0x3040..0x309F) || // Hiragana
+            (code in 0x30A0..0x30FF) || // Katakana
+            (code in 0x4E00..0x9FFF) || // CJK Unified Ideographs (Kanji)
+            (code in 0x31F0..0x31FF) || // Katakana Phonetic Extensions
+            (code in 0xFF65..0xFF9F)    // Halfwidth Katakana
+        }
+    }
+
     val incomingJapaneseSamples = listOf(
         JapaneseToTravelerVoiceResult(
             japaneseHeardText = "いらっしゃいませ。何名様ですか？禁煙席でよろしいですか？",
@@ -60,41 +71,393 @@ object OfflineTranslatorEngine {
 
     fun translateFromJapaneseSpeech(japaneseInput: String): JapaneseToTravelerVoiceResult {
         val clean = japaneseInput.trim()
-        return when {
-            clean.contains("何名") || clean.contains("いらっしゃい") || clean.contains("席") || clean.contains("予約") ->
-                incomingJapaneseSamples[0].copy(japaneseHeardText = clean)
-            clean.contains("ホーム") || clean.contains("番線") || clean.contains("新幹線") || clean.contains("16") || clean.contains("電車") ->
-                incomingJapaneseSamples[1].copy(japaneseHeardText = clean)
-            clean.contains("袋") || clean.contains("温め") || clean.contains("箸") || clean.contains("弁当") ->
-                incomingJapaneseSamples[2].copy(japaneseHeardText = clean)
-            clean.contains("パスポート") || clean.contains("免税") ->
-                incomingJapaneseSamples[3].copy(japaneseHeardText = clean)
-            clean.contains("現金") || clean.contains("カード") || clean.contains("Suica") || clean.contains("会計") ->
-                incomingJapaneseSamples[4].copy(japaneseHeardText = clean)
-            clean.contains("トイレ") || clean.contains("お手洗い") ->
-                JapaneseToTravelerVoiceResult(
-                    japaneseHeardText = clean,
-                    romaji = "O-tearai wa massugu itte migigawa desu.",
-                    spanishSpokenText = "El baño está todo recto a mano derecha.",
-                    englishSpokenText = "The restroom is straight ahead on the right.",
-                    contextLabel = "DIRECCIÓN / BAÑO"
-                )
-            clean.contains("チェックイン") || clean.contains("部屋") || clean.contains("朝食") ->
-                JapaneseToTravelerVoiceResult(
-                    japaneseHeardText = clean,
-                    romaji = "Chekkuin no tetsuzuki o shimasu. Chōshoku wa shichi-ji kara desu.",
-                    spanishSpokenText = "Vamos a realizar el check-in. El desayuno se sirve a partir de las 7:00.",
-                    englishSpokenText = "We will process your check-in now. Breakfast starts at 7:00 AM.",
-                    contextLabel = "HOTEL / RECEPCIÓN"
-                )
-            else -> JapaneseToTravelerVoiceResult(
-                japaneseHeardText = clean,
-                romaji = "Nihongo: $clean",
-                spanishSpokenText = clean,
-                englishSpokenText = clean,
-                contextLabel = "VOZ JAPONESA"
+        if (clean.isBlank()) {
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = "",
+                romaji = "",
+                spanishSpokenText = "Por favor, hable en japonés cuando pulse el micrófono.",
+                englishSpokenText = "Please speak in Japanese when pressing the microphone.",
+                contextLabel = "MICRÓFONO VACÍO"
             )
         }
+
+        // 1. Precios y cantidades en Yenes (ej. 1500円, 2000 円, etc.)
+        val yenRegex = """([0-9]{1,3}(?:,[0-9]{3})*|[0-9]+)\s*円""".toRegex()
+        val yenMatch = yenRegex.find(clean)
+        if (yenMatch != null) {
+            val amount = yenMatch.groupValues[1]
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "$amount-en ni narimasu.",
+                spanishSpokenText = "El total a pagar son $amount yenes.",
+                englishSpokenText = "The total is $amount yen.",
+                contextLabel = "PRECIO / YENES"
+            )
+        }
+
+        // 2. Direcciones hacia baños / aseos
+        if (clean.contains("トイレ") || clean.contains("お手洗い") || clean.contains("化粧室")) {
+            val direction = when {
+                clean.contains("右") -> "a mano derecha"
+                clean.contains("左") -> "a mano izquierda"
+                clean.contains("まっすぐ") || clean.contains("直進") -> "todo recto hacia adelante"
+                clean.contains("あちら") || clean.contains("あそこ") || clean.contains("向こう") -> "en esa dirección, por allí"
+                clean.contains("2階") -> "en la segunda planta"
+                clean.contains("地下") -> "en la planta sótano"
+                else -> "todo recto a mano derecha"
+            }
+            val dirEn = when {
+                clean.contains("右") -> "on the right"
+                clean.contains("左") -> "on the left"
+                clean.contains("まっすぐ") || clean.contains("直進") -> "straight ahead"
+                clean.contains("あちら") || clean.contains("あそこ") || clean.contains("向こう") -> "over there"
+                clean.contains("2階") -> "on the second floor"
+                clean.contains("地下") -> "in the basement"
+                else -> "straight ahead on the right"
+            }
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "O-tearai wa $direction desu.",
+                spanishSpokenText = "El baño está $direction.",
+                englishSpokenText = "The restroom is $dirEn.",
+                contextLabel = "DIRECCIÓN / BAÑO"
+            )
+        }
+
+        // 3. Saludos, cortesía y agradecimientos
+        if (clean.contains("ありがとう") || clean.contains("有難う") || clean.contains("どうもありがとう")) {
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Arigatō gozaimasu.",
+                spanishSpokenText = "Muchas gracias.",
+                englishSpokenText = "Thank you very much.",
+                contextLabel = "AGRADECIMIENTO"
+            )
+        }
+        if (clean.contains("こんにちは") || clean.contains("こんにちわ")) {
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Konnichiwa.",
+                spanishSpokenText = "Hola, buenas tardes.",
+                englishSpokenText = "Hello, good day.",
+                contextLabel = "SALUDO"
+            )
+        }
+        if (clean.contains("おはよう")) {
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Ohayō gozaimasu.",
+                spanishSpokenText = "Buenos días.",
+                englishSpokenText = "Good morning.",
+                contextLabel = "SALUDO"
+            )
+        }
+        if (clean.contains("こんばんは")) {
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Konbanwa.",
+                spanishSpokenText = "Buenas noches.",
+                englishSpokenText = "Good evening.",
+                contextLabel = "SALUDO"
+            )
+        }
+        if (clean.contains("さようなら") || clean.contains("またね") || clean.contains("じゃあね")) {
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Sayōnara.",
+                spanishSpokenText = "Adiós, hasta la próxima.",
+                englishSpokenText = "Goodbye, see you.",
+                contextLabel = "DESPEDIDA"
+            )
+        }
+        if (clean.contains("いただきます")) {
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Itadakimasu.",
+                spanishSpokenText = "Que aproveche la comida.",
+                englishSpokenText = "Enjoy your meal.",
+                contextLabel = "COMIDA"
+            )
+        }
+        if (clean.contains("ごちそうさま")) {
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Gochisōsama deshita.",
+                spanishSpokenText = "Muchas gracias por la comida, estuvo delicioso.",
+                englishSpokenText = "Thank you for the delicious meal.",
+                contextLabel = "COMIDA"
+            )
+        }
+        if (clean.contains("すみません") || clean.contains("すいません")) {
+            val extra = when {
+                clean.contains("右") -> "El camino está a la derecha."
+                clean.contains("左") -> "El camino está a la izquierda."
+                clean.contains("まっすぐ") -> "Siga todo recto."
+                clean.contains("わかりません") -> "Disculpe, no lo sé."
+                else -> "Disculpe, ¿en qué puedo ayudarle?"
+            }
+            val extraEn = when {
+                clean.contains("右") -> "The way is on the right."
+                clean.contains("左") -> "The way is on the left."
+                clean.contains("まっすぐ") -> "Go straight ahead."
+                clean.contains("わかりません") -> "Excuse me, I don't know."
+                else -> "Excuse me, how can I help you?"
+            }
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Sumimasen.",
+                spanishSpokenText = extra,
+                englishSpokenText = extraEn,
+                contextLabel = "DISCULPA / ATENCIÓN"
+            )
+        }
+        if (clean.contains("ごめんなさい") || clean.contains("ごめん")) {
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Gomennasai.",
+                spanishSpokenText = "Lo siento, perdón por las molestias.",
+                englishSpokenText = "I am sorry for the inconvenience.",
+                contextLabel = "DISCULPA"
+            )
+        }
+
+        // 4. Confirmaciones, estados y respuestas cotidianas
+        if (clean.contains("大丈夫") || clean.contains("だいじょうぶ")) {
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Daijōbu desu.",
+                spanishSpokenText = "Está bien, no hay problema.",
+                englishSpokenText = "It is okay, no problem at all.",
+                contextLabel = "CONFIRMACIÓN"
+            )
+        }
+        if (clean.contains("わかりました") || clean.contains("かしこまりました") || clean.contains("承知")) {
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Wakarimashita. Kashikomarimashita.",
+                spanishSpokenText = "Entendido, de acuerdo, enseguida lo preparo.",
+                englishSpokenText = "Understood, right away.",
+                contextLabel = "ENTENDIDO"
+            )
+        }
+        if (clean.contains("わかりません") || clean.contains("分かりません") || clean.contains("知らない")) {
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Wakarimasen.",
+                spanishSpokenText = "Lo siento, no lo sé o no lo entiendo.",
+                englishSpokenText = "Sorry, I don't know or don't understand.",
+                contextLabel = "NO SABE"
+            )
+        }
+        if (clean.contains("お待ち") || clean.contains("待って")) {
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Shōshō omachi kudasai.",
+                spanishSpokenText = "Por favor, espere un momento enseguida le atendemos.",
+                englishSpokenText = "Please wait a moment, we will be right with you.",
+                contextLabel = "ESPERA"
+            )
+        }
+        if (clean.contains("こちらへどうぞ") || clean.contains("どうぞ")) {
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Kochira e dōzo.",
+                spanishSpokenText = "Por aquí por favor, adelante.",
+                englishSpokenText = "This way please, go ahead.",
+                contextLabel = "PASO / ADELANTE"
+            )
+        }
+        if (clean.contains("満席") || clean.contains("いっぱい") || clean.contains("満員")) {
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Tadaima manseki desu.",
+                spanishSpokenText = "Lo sentimos, el local está completo en este momento.",
+                englishSpokenText = "Sorry, the place is fully booked at this moment.",
+                contextLabel = "LOCAL LLENO"
+            )
+        }
+        if (clean.contains("ラストオーダー") || clean.contains("ラスト")) {
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Rasuto ōdā desu.",
+                spanishSpokenText = "Es la última ronda de pedidos de comida y bebida.",
+                englishSpokenText = "It is the last call for orders.",
+                contextLabel = "ÚLTIMO PEDIDO"
+            )
+        }
+        if (clean.contains("水") || clean.contains("お冷") || clean.contains("お茶")) {
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "O-mizu o dōzo.",
+                spanishSpokenText = "Aquí tiene agua fresca de cortesía.",
+                englishSpokenText = "Here is your complimentary cold water.",
+                contextLabel = "AGUA / BEBIDA"
+            )
+        }
+
+        // 5. Pagos y caja (efectivo, tarjeta, Suica)
+        if (clean.contains("現金のみ") || clean.contains("現金だけ")) {
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Genkin nomi desu.",
+                spanishSpokenText = "Disculpe, solo aceptamos pago en efectivo.",
+                englishSpokenText = "Sorry, cash only please.",
+                contextLabel = "PAGO / EFECTIVO"
+            )
+        }
+        if (clean.contains("カード") && (clean.contains("使えません") || clean.contains("ダメ") || clean.contains("不可") || clean.contains("無理"))) {
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Kādo wa tsukaemasen. Genkin nomi desu.",
+                spanishSpokenText = "No aceptamos tarjeta de crédito, debe ser en efectivo.",
+                englishSpokenText = "Credit cards are not accepted, cash only.",
+                contextLabel = "SIN TARJETA"
+            )
+        }
+        if (clean.contains("現金") || clean.contains("カード") || clean.contains("Suica") || clean.contains("会計") || clean.contains("お会計")) {
+            return incomingJapaneseSamples[4].copy(japaneseHeardText = clean)
+        }
+
+        // 6. Konbini & tienda
+        if (clean.contains("袋") || clean.contains("温め") || clean.contains("箸") || clean.contains("弁当")) {
+            return incomingJapaneseSamples[2].copy(japaneseHeardText = clean)
+        }
+        if (clean.contains("売り切れ") || clean.contains("完売")) {
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Mōshiwake arimasen, urikire desu.",
+                spanishSpokenText = "Lo sentimos mucho, este artículo está agotado.",
+                englishSpokenText = "We are sorry, this item is sold out.",
+                contextLabel = "AGOTADO"
+            )
+        }
+
+        // 7. Tax-Free & Pasaporte
+        if (clean.contains("パスポート") || clean.contains("免税")) {
+            return incomingJapaneseSamples[3].copy(japaneseHeardText = clean)
+        }
+
+        // 8. Restaurante y comensales
+        if (clean.contains("何名") || clean.contains("いらっしゃい") || clean.contains("席") || clean.contains("予約")) {
+            return incomingJapaneseSamples[0].copy(japaneseHeardText = clean)
+        }
+
+        // 9. Estaciones, trenes y Shinkansen
+        if (clean.contains("ホーム") || clean.contains("番線") || clean.contains("新幹線") || clean.contains("電車") || clean.contains("切符")) {
+            val platformNum = """([0-9]+)\s*番""".toRegex().find(clean)?.groupValues?.get(1)
+            val trainText = if (platformNum != null) {
+                "El tren sale del andén número $platformNum."
+            } else {
+                "El tren sale del andén indicado en las pantallas de la estación."
+            }
+            val trainTextEn = if (platformNum != null) {
+                "The train departs from platform number $platformNum."
+            } else {
+                "The train departs from the platform shown on station displays."
+            }
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Hōmu kara hassha shimasu.",
+                spanishSpokenText = trainText,
+                englishSpokenText = trainTextEn,
+                contextLabel = "ESTACIÓN / TREN"
+            )
+        }
+
+        // 10. Hoteles & Check-in
+        if (clean.contains("チェックイン") || clean.contains("部屋") || clean.contains("朝食") || clean.contains("荷物")) {
+            return incomingJapaneseSamples[0].copy(
+                japaneseHeardText = clean,
+                romaji = "Chekkuin no tetsuzuki o shimasu.",
+                spanishSpokenText = "Vamos a gestionar el check-in de su habitación. Por favor, muestre su pasaporte.",
+                englishSpokenText = "We will process your room check-in. Please show your passport.",
+                contextLabel = "HOTEL / RECEPCIÓN"
+            )
+        }
+
+        // 11. Direcciones generales
+        if (clean.contains("右") || clean.contains("左") || clean.contains("まっすぐ") || clean.contains("あちら")) {
+            val dir = when {
+                clean.contains("右") -> "a la derecha"
+                clean.contains("左") -> "a la izquierda"
+                clean.contains("まっすぐ") -> "todo recto hacia adelante"
+                else -> "hacia allí enfrente"
+            }
+            val dirEn = when {
+                clean.contains("右") -> "on the right"
+                clean.contains("左") -> "on the left"
+                clean.contains("まっすぐ") -> "straight ahead"
+                else -> "over there"
+            }
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Achira no hōkō desu.",
+                spanishSpokenText = "Debe dirigirse $dir.",
+                englishSpokenText = "Please head $dirEn.",
+                contextLabel = "INDICACIÓN DE RUTA"
+            )
+        }
+
+        // 12. Reglas, calzado y fotografía
+        if (clean.contains("靴") || clean.contains("脱い") || clean.contains("土足")) {
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Kutsu o nuide kudasai.",
+                spanishSpokenText = "Por favor, quítese los zapatos antes de entrar.",
+                englishSpokenText = "Please take off your shoes before entering.",
+                contextLabel = "COSTUMBRE / ZAPATOS"
+            )
+        }
+        if (clean.contains("撮影禁止") || clean.contains("写真")) {
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Satsuei kinshi desu.",
+                spanishSpokenText = "Está prohibido hacer fotos o vídeos en este lugar.",
+                englishSpokenText = "Photography is prohibited in this area.",
+                contextLabel = "PROHIBICIÓN / FOTOS"
+            )
+        }
+        if (clean.contains("禁煙")) {
+            return JapaneseToTravelerVoiceResult(
+                japaneseHeardText = clean,
+                romaji = "Kin'en desu.",
+                spanishSpokenText = "Área de no fumadores, prohibido fumar.",
+                englishSpokenText = "Non-smoking area, smoking is prohibited.",
+                contextLabel = "PROHIBIDO FUMAR"
+            )
+        }
+
+        // 13. Fallback heurístico multi-término: NUNCA fugar caracteres japoneses al texto hablado
+        val recognizedKeywords = mutableListOf<String>()
+        val recognizedKeywordsEn = mutableListOf<String>()
+        if (clean.contains("駅")) { recognizedKeywords.add("estación"); recognizedKeywordsEn.add("station") }
+        if (clean.contains("ホテル")) { recognizedKeywords.add("hotel"); recognizedKeywordsEn.add("hotel") }
+        if (clean.contains("空港")) { recognizedKeywords.add("aeropuerto"); recognizedKeywordsEn.add("airport") }
+        if (clean.contains("バス")) { recognizedKeywords.add("autobús"); recognizedKeywordsEn.add("bus") }
+        if (clean.contains("タクシー")) { recognizedKeywords.add("taxi"); recognizedKeywordsEn.add("taxi") }
+        if (clean.contains("時間")) { recognizedKeywords.add("horario"); recognizedKeywordsEn.add("schedule") }
+        if (clean.contains("雨")) { recognizedKeywords.add("lluvia"); recognizedKeywordsEn.add("rain") }
+        if (clean.contains("薬")) { recognizedKeywords.add("medicamento/farmacia"); recognizedKeywordsEn.add("medicine/pharmacy") }
+
+        val spanishSummary = if (recognizedKeywords.isNotEmpty()) {
+            "El interlocutor ha indicado información sobre: ${recognizedKeywords.joinToString(", ")}. Por favor, pídele que hable despacio si necesitas más detalles."
+        } else {
+            "El interlocutor ha respondido en japonés. Por favor, pídele que hable despacio o te lo muestre en pantalla."
+        }
+
+        val englishSummary = if (recognizedKeywordsEn.isNotEmpty()) {
+            "The speaker provided information regarding: ${recognizedKeywordsEn.joinToString(", ")}. Please ask them to speak slowly for more details."
+        } else {
+            "The speaker replied in Japanese. Please ask them to speak slowly or show the screen."
+        }
+
+        return JapaneseToTravelerVoiceResult(
+            japaneseHeardText = clean,
+            romaji = "Nihongo no kotae: $clean",
+            spanishSpokenText = spanishSummary,
+            englishSpokenText = englishSummary,
+            contextLabel = "RESPUESTA JAPONESA"
+        )
     }
 
     val essentialPhrases = listOf(

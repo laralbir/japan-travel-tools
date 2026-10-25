@@ -39,6 +39,69 @@ class AiAndTranslatorUseCaseTest {
     }
 
     @Test
+    fun `isJapaneseText correctly identifies Japanese scripts versus Latin scripts`() {
+        assertTrue(OfflineTranslatorEngine.isJapaneseText("こんにちは"))
+        assertTrue(OfflineTranslatorEngine.isJapaneseText("新幹線"))
+        assertTrue(OfflineTranslatorEngine.isJapaneseText("ラーメン"))
+        assertTrue(OfflineTranslatorEngine.isJapaneseText("1500円"))
+        assertTrue(!OfflineTranslatorEngine.isJapaneseText("Hola, ¿dónde está el baño?"))
+        assertTrue(!OfflineTranslatorEngine.isJapaneseText("Where is the train station?"))
+    }
+
+    @Test
+    fun `translateFromJapaneseSpeech translates common Japanese travel phrases directly into Spanish without repeating Japanese`() {
+        val konnichiwa = OfflineTranslatorEngine.translateFromJapaneseSpeech("こんにちは")
+        assertTrue(konnichiwa.spanishSpokenText.contains("hola", ignoreCase = true) || konnichiwa.spanishSpokenText.contains("buenos", ignoreCase = true))
+        assertTrue(!OfflineTranslatorEngine.isJapaneseText(konnichiwa.spanishSpokenText))
+
+        val arigato = OfflineTranslatorEngine.translateFromJapaneseSpeech("ありがとうございます")
+        assertTrue(arigato.spanishSpokenText.contains("gracias", ignoreCase = true))
+        assertTrue(!OfflineTranslatorEngine.isJapaneseText(arigato.spanishSpokenText))
+
+        val sumimasen = OfflineTranslatorEngine.translateFromJapaneseSpeech("すみません")
+        assertTrue(sumimasen.spanishSpokenText.contains("disculpe", ignoreCase = true) || sumimasen.spanishSpokenText.contains("perdón", ignoreCase = true))
+        assertTrue(!OfflineTranslatorEngine.isJapaneseText(sumimasen.spanishSpokenText))
+
+        val daijoubu = OfflineTranslatorEngine.translateFromJapaneseSpeech("大丈夫です")
+        assertTrue(daijoubu.spanishSpokenText.contains("bien", ignoreCase = true) || daijoubu.spanishSpokenText.contains("problema", ignoreCase = true))
+        assertTrue(!OfflineTranslatorEngine.isJapaneseText(daijoubu.spanishSpokenText))
+
+        val wakarimashita = OfflineTranslatorEngine.translateFromJapaneseSpeech("わかりました")
+        assertTrue(wakarimashita.spanishSpokenText.contains("entendido", ignoreCase = true) || wakarimashita.spanishSpokenText.contains("acuerdo", ignoreCase = true))
+        assertTrue(!OfflineTranslatorEngine.isJapaneseText(wakarimashita.spanishSpokenText))
+
+        val genkin = OfflineTranslatorEngine.translateFromJapaneseSpeech("現金のみです")
+        assertTrue(genkin.spanishSpokenText.contains("efectivo", ignoreCase = true))
+        assertTrue(!OfflineTranslatorEngine.isJapaneseText(genkin.spanishSpokenText))
+
+        val yenPrice = OfflineTranslatorEngine.translateFromJapaneseSpeech("1500円になります")
+        assertTrue(yenPrice.spanishSpokenText.contains("1500") || yenPrice.spanishSpokenText.contains("yenes", ignoreCase = true))
+        assertTrue(!OfflineTranslatorEngine.isJapaneseText(yenPrice.spanishSpokenText))
+
+        val cardUnavailable = OfflineTranslatorEngine.translateFromJapaneseSpeech("カードは使えません")
+        assertTrue(cardUnavailable.spanishSpokenText.contains("tarjeta", ignoreCase = true))
+        assertTrue(!OfflineTranslatorEngine.isJapaneseText(cardUnavailable.spanishSpokenText))
+
+        val waitMoment = OfflineTranslatorEngine.translateFromJapaneseSpeech("少々お待ちください")
+        assertTrue(waitMoment.spanishSpokenText.contains("esper", ignoreCase = true) || waitMoment.spanishSpokenText.contains("momento", ignoreCase = true))
+        assertTrue(!OfflineTranslatorEngine.isJapaneseText(waitMoment.spanishSpokenText))
+
+        val restroom = OfflineTranslatorEngine.translateFromJapaneseSpeech("トイレはまっすぐ行って右です")
+        assertTrue(restroom.spanishSpokenText.contains("baño", ignoreCase = true))
+        assertTrue(restroom.spanishSpokenText.contains("derecha", ignoreCase = true) || restroom.spanishSpokenText.contains("recto", ignoreCase = true))
+        assertTrue(!OfflineTranslatorEngine.isJapaneseText(restroom.spanishSpokenText))
+    }
+
+    @Test
+    fun `translateFromJapaneseSpeech fallback strictly never leaks Japanese characters into Spanish or English audio`() {
+        val unknown = OfflineTranslatorEngine.translateFromJapaneseSpeech("明日は大雨になる可能性があります")
+        assertTrue(!OfflineTranslatorEngine.isJapaneseText(unknown.spanishSpokenText))
+        assertTrue(!OfflineTranslatorEngine.isJapaneseText(unknown.englishSpokenText))
+        assertTrue(unknown.spanishSpokenText.isNotBlank())
+        assertTrue(unknown.englishSpokenText.isNotBlank())
+    }
+
+    @Test
     fun `OfflineTranslatorEngine translates everyday questions without leaking raw Spanish into Japanese TTS`() {
         val restroom = OfflineTranslatorEngine.translateToJapanese("¿Dónde está el baño por favor?")
         assertTrue(restroom.japaneseText.contains("トイレ"))

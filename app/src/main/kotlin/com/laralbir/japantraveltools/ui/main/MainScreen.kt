@@ -2057,7 +2057,14 @@ private fun VoiceTranslatorScreen(isEs: Boolean) {
 
     fun speakOutLoud(text: String, locale: Locale) {
         val engine = ttsEngine ?: return
-        engine.language = locale
+        val res = engine.setLanguage(locale)
+        if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
+            if (locale.language == "es") {
+                engine.setLanguage(Locale.forLanguageTag("es"))
+            } else if (locale.language == "ja") {
+                engine.setLanguage(Locale.JAPANESE)
+            }
+        }
         engine.setSpeechRate(0.95f)
         engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "utt_${System.currentTimeMillis()}")
     }
@@ -2075,9 +2082,16 @@ private fun VoiceTranslatorScreen(isEs: Boolean) {
         if (result.resultCode == Activity.RESULT_OK) {
             val spokenText = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
             if (!spokenText.isNullOrBlank()) {
-                phraseInput = spokenText
-                val translated = OfflineTranslatorEngine.translateToJapanese(spokenText)
-                speakOutLoud(translated.japaneseText, Locale.JAPAN)
+                if (OfflineTranslatorEngine.isJapaneseText(spokenText)) {
+                    japaneseHeardInput = spokenText
+                    val reply = OfflineTranslatorEngine.translateFromJapaneseSpeech(spokenText)
+                    val targetSpeech = if (isEs) reply.spanishSpokenText else reply.englishSpokenText
+                    speakOutLoud(targetSpeech, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
+                } else {
+                    phraseInput = spokenText
+                    val translated = OfflineTranslatorEngine.translateToJapanese(spokenText)
+                    speakOutLoud(translated.japaneseText, Locale.JAPAN)
+                }
             }
         }
     }
@@ -2088,10 +2102,16 @@ private fun VoiceTranslatorScreen(isEs: Boolean) {
         if (result.resultCode == Activity.RESULT_OK) {
             val heardJa = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
             if (!heardJa.isNullOrBlank()) {
-                japaneseHeardInput = heardJa
-                val reply = OfflineTranslatorEngine.translateFromJapaneseSpeech(heardJa)
-                val targetSpeech = if (isEs) reply.spanishSpokenText else reply.englishSpokenText
-                speakOutLoud(targetSpeech, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
+                if (!OfflineTranslatorEngine.isJapaneseText(heardJa) && heardJa.any { it.isLetter() }) {
+                    phraseInput = heardJa
+                    val translated = OfflineTranslatorEngine.translateToJapanese(heardJa)
+                    speakOutLoud(translated.japaneseText, Locale.JAPAN)
+                } else {
+                    japaneseHeardInput = heardJa
+                    val reply = OfflineTranslatorEngine.translateFromJapaneseSpeech(heardJa)
+                    val targetSpeech = if (isEs) reply.spanishSpokenText else reply.englishSpokenText
+                    speakOutLoud(targetSpeech, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
+                }
             }
         }
     }

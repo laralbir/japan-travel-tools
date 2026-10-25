@@ -7,6 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.9] - 2026-10-25
+
+### Fixed
+- **Traducción de Voz de Japonés a Español sin Repetición en Japonés (`SPEC-06 RF-06.1`)**:
+  - `OfflineTranslatorEngine`: Implementado diccionario exhaustivo de frases, cortesía, transportes, direcciones, precios en yenes y respuestas en japonés con traducción directa al español y al inglés.
+  - **Regla Estricta de No-Fuga de Texto**: Garantizado que `spanishSpokenText` y `englishSpokenText` nunca devuelvan caracteres japoneses (Kanji/Kana) en crudo ni oraciones sin traducir, evitando que el sintetizador de voz (TTS) repita las palabras en japonés.
+  - **Enrutamiento Inteligente de Idioma (`isJapaneseText`)**: Si el usuario habla en japonés en cualquiera de los dos micrófonos, la app detecta automáticamente los caracteres japoneses y lo locuta traducido en español (`Locale.forLanguageTag("es-ES")`). Si habla en español o inglés, lo traduce y locuta en japonés (`Locale.JAPAN`).
+  - **Manejo Robusto de Locales en TTS**: Configuración resiliente del motor `TextToSpeech` con comprobación de soporte y fallback automático.
+
 ## [0.0.1-beta.8] - 2026-10-25
 
 ### Added
