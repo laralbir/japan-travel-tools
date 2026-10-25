@@ -133,7 +133,8 @@ for serial in ${CONNECTED_SERIALS}; do
     else
       "${ADB_BIN}" -s "${serial}" install -r -t "${APK_PATH}"
     fi
-    "${ADB_BIN}" -s "${serial}" shell am start -n "${MAIN_ACTIVITY}"
+    "${ADB_BIN}" -s "${serial}" shell am force-stop "${APP_ID}" >/dev/null 2>&1 || true
+    "${ADB_BIN}" -s "${serial}" shell am start -S -n "${MAIN_ACTIVITY}"
     INSTALLED_COUNT=$((INSTALLED_COUNT + 1))
   else
     echo "🔒 Ignorando dispositivo conectado NO incluido en authorized-devices.local.conf: ${serial}"
