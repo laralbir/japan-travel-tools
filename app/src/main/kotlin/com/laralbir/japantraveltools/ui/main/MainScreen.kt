@@ -9,7 +9,6 @@ import android.speech.tts.TextToSpeech
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -26,7 +25,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -40,7 +38,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -67,7 +64,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
@@ -85,6 +81,7 @@ import com.laralbir.japantraveltools.core.i18n.LanguageResolver
 import com.laralbir.japantraveltools.core.network.ActiveConnectionKind
 import com.laralbir.japantraveltools.core.network.ConnectivityStatusHelper
 import com.laralbir.japantraveltools.core.portability.AiPlanBuilderEngine
+import com.laralbir.japantraveltools.core.portability.PortableTravelPlanBundle
 import com.laralbir.japantraveltools.core.portability.SharedTravelPlanStore
 import com.laralbir.japantraveltools.core.preferences.AppThemeMode
 import com.laralbir.japantraveltools.core.preferences.DefaultUserPreferencesRepository
@@ -123,12 +120,12 @@ enum class JapanToolTab(
     val shortTitleEs: String,
     val symbol: String
 ) {
-    HOME_CLOCK_CURRENCY("Clocks & ¥", "Reloj y ¥", "¥/🕒"),
-    PLANNER("Planner", "Planificador", "⛩️"),
-    TRANSPORT("Transport", "Transporte", "🚅"),
-    VAULT_GUIDES("ID & Guides", "ID y Guías", "🛂"),
-    AI_TRANSLATE("Gemini & 訳", "IA y Trad.", "訳"),
-    SETTINGS("Settings", "Ajustes", "⚙️")
+    HOME_CLOCK_CURRENCY("Home", "Inicio", "💴"),
+    PLANNER("Route", "Ruta", "⛩️"),
+    TRANSPORT("Transit", "Tren/Vuelo", "🚅"),
+    VAULT_GUIDES("Docs", "Docs", "🛂"),
+    AI_TRANSLATE("Voice", "Voz / IA", "🎙️"),
+    SETTINGS("Config", "Ajustes", "⚙️")
 }
 
 @Composable
@@ -185,16 +182,14 @@ fun JapanTravelToolsAppContent(
 ) {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
-    val isTabletWide = configuration.screenWidthDp >= 600 // TCL NXTPAPER 11 Plus (11.5" 3:2) vs Pixel 9/10 Pro XL
+    val isTabletWide = configuration.screenWidthDp >= 600
 
     val effectiveLang = LanguageResolver.resolveEffectiveLanguage(prefs.language)
     val isEs = effectiveLang == EffectiveLanguage.SPANISH
 
     var selectedTab by rememberSaveable { mutableStateOf(JapanToolTab.HOME_CLOCK_CURRENCY) }
     var showConnectivitySheet by rememberSaveable { mutableStateOf(false) }
-    var showQuickTranslateModal by rememberSaveable { mutableStateOf(false) }
 
-    // Live ticker for clocks & connectivity
     var currentInstant by remember { mutableStateOf(Instant.now()) }
     var connectivitySnapshot by remember {
         mutableStateOf(ConnectivityStatusHelper.inspectCurrentConnection(context, prefs.forceOfflineMode))
@@ -210,12 +205,11 @@ fun JapanTravelToolsAppContent(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = {
-            KotlinConfStyleHeaderBar(
+            CleanMinimalHeaderBar(
                 isEs = isEs,
-                isTabletWide = isTabletWide,
                 connectivityKind = connectivitySnapshot.kind,
                 onConnectivityClick = { showConnectivitySheet = true },
-                onQuickLiveTranslateClick = { showQuickTranslateModal = true }
+                onQuickVoiceClick = { selectedTab = JapanToolTab.AI_TRANSLATE }
             )
         },
         bottomBar = {
@@ -232,14 +226,14 @@ fun JapanTravelToolsAppContent(
                             icon = {
                                 Text(
                                     text = tab.symbol,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp
+                                    fontSize = 18.sp
                                 )
                             },
                             label = {
                                 Text(
                                     text = if (isEs) tab.shortTitleEs else tab.shortTitleEn,
-                                    fontSize = 10.sp,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (selectedTab == tab) FontWeight.Bold else FontWeight.Normal,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -256,7 +250,6 @@ fun JapanTravelToolsAppContent(
                 .padding(innerPadding)
         ) {
             if (isTabletWide) {
-                // TCL NXTPAPER 11 Plus Adaptive NavigationRail
                 NavigationRail(
                     containerColor = MaterialTheme.colorScheme.surface,
                     modifier = Modifier.fillMaxHeight()
@@ -266,17 +259,11 @@ fun JapanTravelToolsAppContent(
                         NavigationRailItem(
                             selected = selectedTab == tab,
                             onClick = { selectedTab = tab },
-                            icon = {
-                                Text(
-                                    text = tab.symbol,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                )
-                            },
+                            icon = { Text(text = tab.symbol, fontSize = 18.sp) },
                             label = {
                                 Text(
                                     text = if (isEs) tab.shortTitleEs else tab.shortTitleEn,
-                                    fontSize = 11.sp
+                                    fontSize = 12.sp
                                 )
                             }
                         )
@@ -294,7 +281,6 @@ fun JapanTravelToolsAppContent(
                 when (selectedTab) {
                     JapanToolTab.HOME_CLOCK_CURRENCY -> ClocksAndCurrencyDashboardScreen(
                         isEs = isEs,
-                        isTabletWide = isTabletWide,
                         currentInstant = currentInstant,
                         prefs = prefs,
                         prefsRepository = prefsRepository
@@ -308,13 +294,11 @@ fun JapanTravelToolsAppContent(
                     )
                     JapanToolTab.VAULT_GUIDES -> VaultAndGuidesAdaptiveScreen(
                         isEs = isEs,
-                        isTabletWide = isTabletWide,
                         biometricLockEnabled = prefs.biometricLockEnabled,
                         onToggleBiometric = { prefsRepository.setBiometricLockEnabled(it) }
                     )
                     JapanToolTab.AI_TRANSLATE -> GeminiAndTranslatorScreen(
-                        isEs = isEs,
-                        isTabletWide = isTabletWide
+                        isEs = isEs
                     )
                     JapanToolTab.SETTINGS -> SettingsAndAboutScreen(
                         isEs = isEs,
@@ -341,114 +325,70 @@ fun JapanTravelToolsAppContent(
             )
         }
     }
-
-    if (showQuickTranslateModal) {
-        ModalBottomSheet(
-            onDismissRequest = { showQuickTranslateModal = false },
-            containerColor = MaterialTheme.colorScheme.surface
-        ) {
-            QuickSimultaneousTranslationSheet(isEs = isEs)
-        }
-    }
 }
 
 @Composable
-private fun KotlinConfStyleHeaderBar(
+private fun CleanMinimalHeaderBar(
     isEs: Boolean,
-    isTabletWide: Boolean,
     connectivityKind: ActiveConnectionKind,
     onConnectivityClick: () -> Unit,
-    onQuickLiveTranslateClick: () -> Unit
+    onQuickVoiceClick: () -> Unit
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
     ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+        Column {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(14.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = if (isEs) "Japan Travel Tools" else "Japan Travel Tools",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.ExtraBold
-                    )
-                }
+                Text(
+                    text = "🇯🇵 Japan Travel",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
 
-                // Direct Quick Action for Simultaneous Voice & Audio Translation (SPEC-06)
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.clickable { onQuickLiveTranslateClick() }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = if (isEs) "🎙️🔊 Voz ⇄ 日本語" else "🎙️🔊 Voice ⇄ JP",
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Live Connectivity Status Pill & Switcher (RF-00.9)
-                val connColor = when (connectivityKind) {
-                    ActiveConnectionKind.CELLULAR_ROAMING -> MaterialTheme.colorScheme.primary
-                    ActiveConnectionKind.OFFLINE -> MaterialTheme.colorScheme.secondary
-                    else -> MaterialTheme.colorScheme.tertiary
-                }
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = connColor.copy(alpha = 0.14f),
-                    border = BorderStroke(1.dp, connColor),
-                    modifier = Modifier.clickable { onConnectivityClick() }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.clickable { onConnectivityClick() }
                     ) {
                         Text(
-                            text = if (isEs) {
-                                "📡 ${connectivityKind.badgeEs} · Cambiar (Wi-Fi/SIM/eSIM)"
-                            } else {
-                                "📡 ${connectivityKind.badgeEn} · Switch (Wi-Fi/SIM/eSIM)"
-                            },
-                            fontSize = 11.sp,
+                            text = "📡 ${if (isEs) connectivityKind.badgeEs.substringBefore(" ") else connectivityKind.badgeEn.substringBefore(" ")}",
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        )
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.clickable { onQuickVoiceClick() }
+                    ) {
+                        Text(
+                            text = if (isEs) "🎙️ Voz" else "🎙️ Voice",
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         )
                     }
                 }
-
-                if (isTabletWide) {
-                    Text(
-                        text = "TCL NXTPAPER 11 Plus · 3:2 Multi-Pane",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.secondary,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
             }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
         }
     }
 }
@@ -456,16 +396,15 @@ private fun KotlinConfStyleHeaderBar(
 @Composable
 fun InfoTagPill(text: String) {
     Surface(
-        shape = RoundedCornerShape(6.dp),
-        color = MaterialTheme.colorScheme.primaryContainer,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
     ) {
         Text(
             text = text,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
         )
     }
 }
@@ -478,63 +417,52 @@ fun KotlinConfCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, accentBorderColor),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(20.dp),
             content = content
         )
     }
 }
 
 // ============================================================================
-// TAB 1: WORLD CLOCKS (SPEC-01) & OFFLINE CURRENCY CONVERTER (SPEC-02)
+// TAB 1: CLEAN SEGMENTED HOME (CONVERTER | CLOCKS | WEATHER)
 // ============================================================================
 @Composable
 private fun ClocksAndCurrencyDashboardScreen(
     isEs: Boolean,
-    isTabletWide: Boolean,
     currentInstant: Instant,
     prefs: UserPreferences,
     prefsRepository: DefaultUserPreferencesRepository
 ) {
-    var gpsDetectedZone by rememberSaveable { mutableStateOf(TimeZone.getDefault().id) }
-    var simulatedInTokyo by rememberSaveable { mutableStateOf(false) }
+    var activeSection by rememberSaveable { mutableIntStateOf(0) } // 0: Divisa, 1: Relojes, 2: Tiempo
 
-    val effectiveLocalZone = remember(gpsDetectedZone, simulatedInTokyo) {
-        if (simulatedInTokyo) {
-            OfflineTimeZoneResolver.resolveZoneFromCoordinates(35.6762, 139.6503)
-        } else {
-            runCatching { ZoneId.of(gpsDetectedZone) }.getOrDefault(ZoneId.systemDefault())
-        }
-    }
     val originZone = remember(prefs.originZoneId) {
         runCatching { ZoneId.of(prefs.originZoneId) }.getOrDefault(ZoneId.of("Europe/Madrid"))
     }
-
-    val clockComparison = remember(currentInstant, effectiveLocalZone, originZone) {
+    val clockComparison = remember(currentInstant, originZone) {
         CalculateClockComparisonUseCase.calculate(
             instant = currentInstant,
-            localZone = effectiveLocalZone,
+            localZone = ZoneId.systemDefault(),
             originZone = originZone
         )
     }
 
-    // Currency Converter State (SPEC-02)
     val coroutineScope = rememberCoroutineScope()
     var rateSnapshot by remember { mutableStateOf(SeedExchangeRates.defaultSnapshot()) }
     var isSyncingRates by remember { mutableStateOf(false) }
     var syncStatusMessage by remember {
         mutableStateOf(
-            if (isEs) "Modo Offline Listo · Semilla BCE 1 EUR = 164.80 JPY"
-            else "Offline Ready · ECB Seed 1 EUR = 164.80 JPY"
+            if (isEs) "1 EUR = 164.80 JPY · Offline listo"
+            else "1 EUR = 164.80 JPY · Offline ready"
         )
     }
     var inputAmountText by rememberSaveable { mutableStateOf("1000") }
-    var isJpyToBaseDirection by rememberSaveable { mutableStateOf(true) } // Default quick check: ¥ -> €
+    var isJpyToBaseDirection by rememberSaveable { mutableStateOf(true) }
 
     val numericInput = inputAmountText.toDoubleOrNull() ?: 0.0
     val fromCurrency = if (isJpyToBaseDirection) prefs.targetCurrency else prefs.baseCurrency
@@ -551,292 +479,303 @@ private fun ClocksAndCurrencyDashboardScreen(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            // Dual / Triple World Clocks Card (SPEC-01)
-            KotlinConfCard(accentBorderColor = MaterialTheme.colorScheme.primary) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (isEs) "🕒 Relojes de Viaje y Ubicación" else "🕒 Travel Clocks & Location",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Spacer(Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    // Japan JST Clock
-                    Surface(
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(
-                                text = "🇯🇵 TOKYO (JST) ${clockComparison.japanDayPeriod.iconSymbol}",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = clockComparison.japanTimeFormatted,
-                                fontSize = 28.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontFamily = FontFamily.Monospace
-                            )
-                            Text(
-                                text = clockComparison.japanDateFormatted,
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    // Origin Country Clock
-                    Surface(
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary)
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(
-                                text = "🏠 ${clockComparison.originZoneId.substringAfterLast('/')} ${clockComparison.originDayPeriod.iconSymbol}",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1
-                            )
-                            Text(
-                                text = clockComparison.originTimeFormatted,
-                                fontSize = 28.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontFamily = FontFamily.Monospace
-                            )
-                            val sign = if (clockComparison.hoursDifferenceTokyoVsOrigin >= 0) "+" else ""
-                            Text(
-                                text = "${clockComparison.originDateFormatted} (${sign}${clockComparison.hoursDifferenceTokyoVsOrigin}h vs JP)",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(10.dp))
-
-                // Location & Origin Selector Chips
-                Text(
-                    text = if (isEs) "País de Origen (Persistido Offline):" else "Origin Country (Persisted Offline):",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OfflineTimeZoneResolver.supportedOrigins.forEach { origin ->
-                        FilterChip(
-                            selected = prefs.originZoneId == origin.zoneId,
-                            onClick = { prefsRepository.setOriginZoneId(origin.zoneId) },
-                            label = {
-                                Text(
-                                    text = "${origin.flagEmoji} ${if (isEs) origin.nameEs else origin.nameEn}",
-                                    fontSize = 11.sp
-                                )
-                            }
+            // Sub-view selector: only 1 focused tool on screen at a time
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = activeSection == 0,
+                    onClick = { activeSection = 0 },
+                    label = {
+                        Text(
+                            text = if (isEs) "💴 Conversor" else "💴 Currency",
+                            fontSize = 15.sp,
+                            modifier = Modifier.padding(vertical = 4.dp)
                         )
                     }
-                }
+                )
+                FilterChip(
+                    selected = activeSection == 1,
+                    onClick = { activeSection = 1 },
+                    label = {
+                        Text(
+                            text = if (isEs) "🕒 Relojes" else "🕒 Clocks",
+                            fontSize = 15.sp,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+                )
+                FilterChip(
+                    selected = activeSection == 2,
+                    onClick = { activeSection = 2 },
+                    label = {
+                        Text(
+                            text = if (isEs) "🌦️ Tiempo" else "🌦️ Weather",
+                            fontSize = 15.sp,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+                )
+            }
+        }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (isEs) {
-                            "📍 Zona Local GPS: ${effectiveLocalZone.id} (${clockComparison.localTimeFormatted})"
-                        } else {
-                            "📍 Local GPS Zone: ${effectiveLocalZone.id} (${clockComparison.localTimeFormatted})"
-                        },
-                        fontSize = 12.sp
-                    )
-                    OutlinedButton(
-                        onClick = { simulatedInTokyo = !simulatedInTokyo },
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+        when (activeSection) {
+            0 -> item {
+                // Focused Currency Converter Card + Compact Tokyo Time header
+                KotlinConfCard {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = if (simulatedInTokyo) {
-                                if (isEs) "GPS: En Tokio" else "GPS: In Tokyo"
-                            } else {
-                                if (isEs) "Simular GPS Tokio" else "Simulate Tokyo GPS"
-                            },
-                            fontSize = 11.sp
+                            text = if (isEs) "Conversor de Yenes" else "Yen Converter",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
                         )
+                        InfoTagPill(text = "🇯🇵 ${clockComparison.japanTimeFormatted}")
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    // Large Converted Result Display
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "$inputAmountText $fromCurrency =",
+                                fontSize = 16.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = "${ConvertCurrencyUseCase.formatAmount(convertedValue, toCurrency)} $toCurrency",
+                                fontSize = 34.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontFamily = FontFamily.Monospace,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = inputAmountText,
+                            onValueChange = { newValue ->
+                                inputAmountText = newValue.filter { it.isDigit() || it == '.' }
+                            },
+                            label = { Text(if (isEs) "Cantidad en $fromCurrency" else "Amount in $fromCurrency", fontSize = 14.sp) },
+                            textStyle = MaterialTheme.typography.titleLarge,
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        Button(
+                            onClick = { isJpyToBaseDirection = !isJpyToBaseDirection },
+                            modifier = Modifier.height(56.dp)
+                        ) {
+                            Text("⇅ $toCurrency", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    Text(
+                        text = if (isEs) "Importes rápidos en Japón:" else "Quick amounts in Japan:",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        ConvertCurrencyUseCase.japanQuickAmountsJpy.forEach { yenBill ->
+                            FilterChip(
+                                selected = isJpyToBaseDirection && inputAmountText == yenBill.toString(),
+                                onClick = {
+                                    isJpyToBaseDirection = true
+                                    inputAmountText = yenBill.toString()
+                                },
+                                label = {
+                                    Text(
+                                        text = "¥%,d".format(yenBill),
+                                        fontSize = 15.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        modifier = Modifier.padding(vertical = 4.dp)
+                                    )
+                                }
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = syncStatusMessage,
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedButton(
+                            enabled = !isSyncingRates,
+                            onClick = {
+                                isSyncingRates = true
+                                coroutineScope.launch {
+                                    FrankfurterJsonParser.fetchFromFrankfurterApi()
+                                        .onSuccess { fresh ->
+                                            rateSnapshot = fresh
+                                            val jpyRate = fresh.rates["JPY"] ?: 164.80
+                                            syncStatusMessage = "1 EUR = $jpyRate JPY (${fresh.rateDate})"
+                                        }
+                                        .onFailure {
+                                            syncStatusMessage = if (isEs) "Modo Offline (${rateSnapshot.rateDate})" else "Offline (${rateSnapshot.rateDate})"
+                                        }
+                                    isSyncingRates = false
+                                }
+                            }
+                        ) {
+                            Text(if (isEs) "🔄 Actualizar" else "🔄 Update", fontSize = 14.sp)
+                        }
                     }
                 }
             }
-        }
 
-        item {
-            // Offline-First Currency Converter Card (SPEC-02: EUR <-> JPY + Frankfurter API)
-            KotlinConfCard(accentBorderColor = MaterialTheme.colorScheme.secondary) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+            1 -> item {
+                // Focused World Clocks Card
+                KotlinConfCard {
                     Text(
-                        text = if (isEs) "💴 Conversor Offline (${prefs.baseCurrency} ⇄ ${prefs.targetCurrency})" else "💴 Offline Converter (${prefs.baseCurrency} ⇄ ${prefs.targetCurrency})",
-                        style = MaterialTheme.typography.titleMedium,
+                        text = if (isEs) "Hora en Japón y en Casa" else "Japan & Home Time",
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
                     )
-                }
-
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = "📊 Frankfurter Open API (BCE) · Fecha: ${rateSnapshot.rateDate}",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = syncStatusMessage,
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.tertiary,
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                Spacer(Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedTextField(
-                        value = inputAmountText,
-                        onValueChange = { newValue ->
-                            inputAmountText = newValue.filter { it.isDigit() || it == '.' }
-                        },
-                        label = { Text("$fromCurrency") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    Button(
-                        onClick = { isJpyToBaseDirection = !isJpyToBaseDirection },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                    ) {
-                        Text("⇅", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    }
+                    Spacer(Modifier.height(16.dp))
 
                     Surface(
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(text = toCurrency, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "🇯🇵 Tokio (JST)",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = clockComparison.japanDateFormatted,
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                             Text(
-                                text = "${ConvertCurrencyUseCase.formatAmount(convertedValue, toCurrency)} $toCurrency",
-                                fontSize = 20.sp,
+                                text = clockComparison.japanTimeFormatted,
+                                fontSize = 34.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontFamily = FontFamily.Monospace,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        val sign = if (clockComparison.hoursDifferenceTokyoVsOrigin >= 0) "+" else ""
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "🏠 ${clockComparison.originZoneId.substringAfterLast('/')}",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = "${clockComparison.originDateFormatted} (${sign}${clockComparison.hoursDifferenceTokyoVsOrigin}h)",
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Text(
+                                text = clockComparison.originTimeFormatted,
+                                fontSize = 34.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 fontFamily = FontFamily.Monospace
                             )
                         }
                     }
-                }
 
-                Spacer(Modifier.height(10.dp))
-
-                // Quick Japanese Coin / Banknote Buttons (Ergonomic thumb zone for Pixel 9/10 Pro XL)
-                Text(
-                    text = if (isEs) "Billetes y Monedas Rápidas de Japón:" else "Quick Japan Coins & Banknotes:",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    ConvertCurrencyUseCase.japanQuickAmountsJpy.forEach { yenBill ->
-                        FilterChip(
-                            selected = isJpyToBaseDirection && inputAmountText == yenBill.toString(),
-                            onClick = {
-                                isJpyToBaseDirection = true
-                                inputAmountText = yenBill.toString()
-                            },
-                            label = { Text("¥%,d".format(yenBill), fontFamily = FontFamily.Monospace) }
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Base currency selector
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf("EUR", "USD", "GBP", "MXN").forEach { curr ->
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        text = if (isEs) "Cambiar país de origen:" else "Change home country:",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OfflineTimeZoneResolver.supportedOrigins.forEach { origin ->
                             FilterChip(
-                                selected = prefs.baseCurrency == curr,
-                                onClick = { prefsRepository.setCurrencyPair(curr, "JPY") },
-                                label = { Text(curr, fontSize = 11.sp) }
+                                selected = prefs.originZoneId == origin.zoneId,
+                                onClick = { prefsRepository.setOriginZoneId(origin.zoneId) },
+                                label = {
+                                    Text(
+                                        text = "${origin.flagEmoji} ${if (isEs) origin.nameEs else origin.nameEn}",
+                                        fontSize = 14.sp,
+                                        modifier = Modifier.padding(vertical = 4.dp)
+                                    )
+                                }
                             )
                         }
                     }
-
-                    Button(
-                        enabled = !isSyncingRates,
-                        onClick = {
-                            isSyncingRates = true
-                            coroutineScope.launch {
-                                val result = FrankfurterJsonParser.fetchFromFrankfurterApi()
-                                result.onSuccess { fresh ->
-                                    rateSnapshot = fresh
-                                    val jpyRate = fresh.rates["JPY"] ?: 164.80
-                                    syncStatusMessage = if (isEs) {
-                                        "✅ Actualizado de Frankfurter API: 1 EUR = $jpyRate JPY (${fresh.rateDate})"
-                                    } else {
-                                        "✅ Synced from Frankfurter API: 1 EUR = $jpyRate JPY (${fresh.rateDate})"
-                                    }
-                                }.onFailure {
-                                    syncStatusMessage = if (isEs) {
-                                        "📡 Sin red: usando tasa cacheada local (${rateSnapshot.rateDate})"
-                                    } else {
-                                        "📡 Offline: using locally cached rate (${rateSnapshot.rateDate})"
-                                    }
-                                }
-                                isSyncingRates = false
-                            }
-                        }
-                    ) {
-                        Text(if (isEs) "🔄 Actualizar BCE" else "🔄 Sync ECB")
-                    }
                 }
             }
-        }
 
-        item {
-            // Open-Meteo Weather & Climate Planner Card (SPEC-07: User & AI Planning Intelligence)
-            OpenMeteoWeatherPlannerCard(isEs = isEs)
+            else -> item {
+                OpenMeteoWeatherPlannerCard(isEs = isEs)
+            }
         }
     }
 }
@@ -847,12 +786,6 @@ private fun OpenMeteoWeatherPlannerCard(isEs: Boolean) {
     val allForecasts by SharedWeatherForecastStore.forecastsState.collectAsState()
     var selectedCity by rememberSaveable { mutableStateOf(JapanWeatherCity.TOKYO) }
     var isSyncingWeather by remember { mutableStateOf(false) }
-    var weatherSyncStatus by remember {
-        mutableStateOf(
-            if (isEs) "📡 Open-Meteo (JMA Japón) · Semilla Offline Lista"
-            else "📡 Open-Meteo (JMA Japan) · Offline Seed Ready"
-        )
-    }
 
     val cityDays = remember(allForecasts, selectedCity) {
         allForecasts.filter { it.cityKey == selectedCity.key }.ifEmpty {
@@ -860,108 +793,88 @@ private fun OpenMeteoWeatherPlannerCard(isEs: Boolean) {
         }
     }
 
-    KotlinConfCard(accentBorderColor = MaterialTheme.colorScheme.primary) {
+    KotlinConfCard {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = if (isEs) "🌦️ Tiempo y Planificación Climática (Open-Meteo)" else "🌦️ Open-Meteo Weather & Climate Planner",
-                style = MaterialTheme.typography.titleMedium,
+                text = if (isEs) "Tiempo en Japón" else "Japan Weather",
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
-        }
-
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = weatherSyncStatus,
-            fontSize = 11.sp,
-            color = MaterialTheme.colorScheme.tertiary,
-            fontWeight = FontWeight.SemiBold
-        )
-
-        Spacer(Modifier.height(8.dp))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            JapanWeatherCity.entries.forEach { city ->
-                FilterChip(
-                    selected = selectedCity == city,
-                    onClick = { selectedCity = city },
-                    label = { Text(if (isEs) city.nameEs else city.nameEn, fontSize = 11.sp) }
-                )
-            }
             OutlinedButton(
                 enabled = !isSyncingWeather,
                 onClick = {
                     isSyncingWeather = true
                     coroutineScope.launch {
-                        val res = OpenMeteoWeatherUseCase.fetchCityForecastOnline(selectedCity)
-                        res.onSuccess { liveDays ->
-                            SharedWeatherForecastStore.updateCityForecasts(selectedCity.key, liveDays)
-                            weatherSyncStatus = if (isEs) {
-                                "✅ Actualizado en vivo desde api.open-meteo.com (${selectedCity.nameEs}, ${liveDays.size} días)"
-                            } else {
-                                "✅ Live synced from api.open-meteo.com (${selectedCity.nameEn}, ${liveDays.size} days)"
+                        OpenMeteoWeatherUseCase.fetchCityForecastOnline(selectedCity)
+                            .onSuccess { liveDays ->
+                                SharedWeatherForecastStore.updateCityForecasts(selectedCity.key, liveDays)
                             }
-                        }.onFailure {
-                            weatherSyncStatus = if (isEs) {
-                                "📡 Modo Offline: mostrando previsión local cacheada para ${selectedCity.nameEs}"
-                            } else {
-                                "📡 Offline Mode: showing locally cached forecast for ${selectedCity.nameEn}"
-                            }
-                        }
                         isSyncingWeather = false
                     }
-                },
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                }
             ) {
-                Text(if (isEs) "🔄 Actualizar Open-Meteo" else "🔄 Sync Open-Meteo", fontSize = 11.sp)
+                Text(if (isEs) "🔄 Actualizar" else "🔄 Update", fontSize = 14.sp)
             }
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            JapanWeatherCity.entries.forEach { city ->
+                FilterChip(
+                    selected = selectedCity == city,
+                    onClick = { selectedCity = city },
+                    label = {
+                        Text(
+                            text = if (isEs) city.nameEs else city.nameEn,
+                            fontSize = 15.sp,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+                )
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
         cityDays.take(3).forEach { day ->
             Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = if (day.suitability == PlanningSuitability.INDOOR_RECOMMENDED) {
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
-                } else {
-                    MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f)
-                },
-                border = BorderStroke(
-                    1.dp,
-                    if (day.suitability == PlanningSuitability.INDOOR_RECOMMENDED) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
-                ),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp)
+                    .padding(vertical = 6.dp)
             ) {
-                Column(modifier = Modifier.padding(10.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "${day.condition.emoji} ${day.dateIso} · ${day.tempMaxC.toInt()}°C / ${day.tempMinC.toInt()}°C · ☔ ${day.precipitationProbabilityMax}%",
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 13.sp,
-                            fontFamily = FontFamily.Monospace
+                            text = "${day.condition.emoji} ${day.dateIso}",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp
                         )
-                        InfoTagPill(
-                            text = if (isEs) day.suitability.badgeEs else day.suitability.badgeEn
+                        Text(
+                            text = "${day.tempMaxC.toInt()}° / ${day.tempMinC.toInt()}°C · ☔ ${day.precipitationProbabilityMax}%",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp,
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(6.dp))
                     Text(
                         text = if (isEs) day.userPlanningAdviceEs else day.userPlanningAdviceEn,
-                        fontSize = 11.sp
+                        fontSize = 15.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -970,7 +883,7 @@ private fun OpenMeteoWeatherPlannerCard(isEs: Boolean) {
 }
 
 // ============================================================================
-// TAB 2: TRIP PLANNER WITH PHOTOS, GOOGLE MAPS DUAL, CALENDAR & JSON/AI (SPEC-04)
+// TAB 2: TRIP PLANNER (CLEAN CARDS, LARGE FONTS, OPTIONS SHEET FOR DEMO/AI/JSON)
 // ============================================================================
 @Composable
 private fun TripPlannerAdaptiveScreen(
@@ -983,15 +896,14 @@ private fun TripPlannerAdaptiveScreen(
     val stops = portablePlan.itineraryStops
 
     var selectedDay by rememberSaveable { mutableIntStateOf(1) }
-    var selectedStopForMap by remember { mutableStateOf<ItineraryStopItem?>(null) }
     var showJsonSheet by rememberSaveable { mutableStateOf(false) }
+
+    val availableDays = remember(stops) {
+        stops.map { it.dayNumber }.distinct().sorted().ifEmpty { listOf(1) }
+    }
 
     val selectedDayWeather = remember(weatherForecasts, selectedDay) {
         SharedWeatherForecastStore.forecastForDayNumber(selectedDay)
-    }
-
-    val availableDays = remember(stops) {
-        stops.map { it.dayNumber }.distinct().sorted().ifEmpty { listOf(1, 2) }
     }
 
     val dayStops = remember(stops, selectedDay) {
@@ -1005,212 +917,119 @@ private fun TripPlannerAdaptiveScreen(
         )
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        // KotlinConf-style Header + JSON Export/Import & AI Plan Optimizer
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = if (isEs) "⛩️ Planificador de Viaje, Fotos y Google Maps" else "⛩️ Trip Planner, Photos & Google Maps",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        // JSON Export/Import + Gemini AI Plan Builder Action Bar (RF-04.6 & RF-06.2)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 6.dp)
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OutlinedButton(
-                onClick = { showJsonSheet = true },
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    text = if (isEs) "📥/📤 Exportar / Importar JSON" else "📥/📤 Export / Import JSON",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            Button(
-                onClick = {
-                    val updated = AiPlanBuilderEngine.improveAndExpandPlan(
-                        currentPlan = portablePlan,
-                        userInstruction = "Optimizar conflictos horarios y añadir Día 3 en Osaka con Shinkansen"
-                    )
-                    SharedTravelPlanStore.updatePlan(updated)
-                    selectedDay = 3
-                },
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    text = if (isEs) "✨ Mejorar / Ampliar Plan con Gemini IA" else "✨ Improve / Expand Plan with Gemini AI",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            OutlinedButton(
-                onClick = {
-                    val weatherAdapted = AiPlanBuilderEngine.optimizePlanWithWeather(
-                        currentPlan = portablePlan,
-                        forecasts = weatherForecasts
-                    )
-                    SharedTravelPlanStore.updatePlan(weatherAdapted)
-                },
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    text = if (isEs) "🌦️✨ Adaptar Ruta al Clima (Open-Meteo)" else "🌦️✨ Adapt Route to Weather (Open-Meteo)",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-
-        // Daily Open-Meteo Weather Planning Strip for User & AI (SPEC-07 RF-07.2)
-        Spacer(Modifier.height(6.dp))
-        Surface(
-            shape = RoundedCornerShape(10.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-            modifier = Modifier.fillMaxWidth()
-        ) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        item {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "${selectedDayWeather.condition.emoji} Open-Meteo Día $selectedDay: ${selectedDayWeather.tempMaxC.toInt()}°/${selectedDayWeather.tempMinC.toInt()}°C · ☔${selectedDayWeather.precipitationProbabilityMax}% · 🗻Fuji ${selectedDayWeather.fujiVisibilityPercent}%",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
+                    text = if (isEs) "Itinerario del Viaje" else "Trip Itinerary",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
                 )
-                InfoTagPill(
-                    text = if (isEs) selectedDayWeather.suitability.badgeEs else selectedDayWeather.suitability.badgeEn
-                )
-            }
-        }
-
-        if (portablePlan.aiOptimizationSummary.isNotBlank()) {
-            Spacer(Modifier.height(6.dp))
-            Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = "🤖 ${portablePlan.aiOptimizationSummary}",
-                    fontSize = 11.sp,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                )
-            }
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp)
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            availableDays.forEach { dayNum ->
-                val dayLabel = when (dayNum) {
-                    1 -> if (isEs) "Día 1 · 11 Nov · Tokio (Asakusa/Shinjuku)" else "Day 1 · Nov 11 · Tokyo"
-                    2 -> if (isEs) "Día 2 · 12 Nov · Kioto (Inari/Gion)" else "Day 2 · Nov 12 · Kyoto"
-                    3 -> if (isEs) "Día 3 · 13 Nov · Osaka (Castillo/Dotonbori ✨IA)" else "Day 3 · Nov 13 · Osaka (✨AI)"
-                    else -> if (isEs) "Día $dayNum · Japón" else "Day $dayNum · Japan"
+                OutlinedButton(onClick = { showJsonSheet = true }) {
+                    Text(if (isEs) "⚙️ IA / JSON / Demo" else "⚙️ AI / JSON / Demo", fontSize = 14.sp)
                 }
-                FilterChip(
-                    selected = selectedDay == dayNum,
-                    onClick = { selectedDay = dayNum },
-                    label = { Text(dayLabel) }
-                )
             }
-        }
 
-        if (isTabletWide) {
-            // TCL NXTPAPER 11 Plus 50/50 Dual Pane (Timeline Left + Embedded Map Right)
+            Spacer(Modifier.height(10.dp))
+
             Row(
-                modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Box(modifier = Modifier.weight(1f)) {
-                    DayTimelineList(
-                        isEs = isEs,
-                        analyzedStops = dayStops,
-                        onSelectStop = { selectedStopForMap = it },
-                        onOpenGoogleMaps = { stop -> launchGoogleMapsForStop(context, stop) },
-                        onExportCalendar = { stop -> exportStopToSystemCalendar(context, stop) }
+                availableDays.forEach { dayNum ->
+                    val dayLabel = when (dayNum) {
+                        1 -> if (isEs) "Día 1 · Tokio" else "Day 1 · Tokyo"
+                        2 -> if (isEs) "Día 2 · Kioto" else "Day 2 · Kyoto"
+                        3 -> if (isEs) "Día 3 · Osaka" else "Day 3 · Osaka"
+                        else -> if (isEs) "Día $dayNum" else "Day $dayNum"
+                    }
+                    FilterChip(
+                        selected = selectedDay == dayNum,
+                        onClick = { selectedDay = dayNum },
+                        label = {
+                            Text(
+                                text = dayLabel,
+                                fontSize = 15.sp,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+                        }
                     )
                 }
-                Box(modifier = Modifier.weight(1f)) {
-                    EmbeddedRouteMapCard(
-                        isEs = isEs,
-                        dayNumber = selectedDay,
-                        analyzedStops = dayStops,
-                        highlightedStop = selectedStopForMap ?: dayStops.firstOrNull()?.item,
-                        onLaunchFullMap = { stop -> launchGoogleMapsForStop(context, stop) }
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            // Clean 1-line Weather Summary for the selected day
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${selectedDayWeather.condition.emoji} ${selectedDayWeather.tempMaxC.toInt()}° / ${selectedDayWeather.tempMinC.toInt()}°C · ☔ ${selectedDayWeather.precipitationProbabilityMax}%",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = if (selectedDayWeather.suitability == PlanningSuitability.INDOOR_RECOMMENDED) {
+                            if (isEs) "☔ Plan Cubierto" else "☔ Indoor Day"
+                        } else {
+                            if (isEs) "☀️ Ideal Exterior" else "☀️ Great Outdoors"
+                        },
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+
+        if (dayStops.isEmpty()) {
+            item {
+                KotlinConfCard {
+                    Text(
+                        text = if (isEs) "Itinerario vacío" else "Empty itinerary",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = if (isEs) {
+                            "Pulsa en '⚙️ IA / JSON / Demo' para crear tu ruta con IA, importar tu JSON o cargar los datos de ejemplo."
+                        } else {
+                            "Tap '⚙️ AI / JSON / Demo' to create a route with AI, import your JSON, or load sample data."
+                        },
+                        fontSize = 15.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
         } else {
-            // Pixel 10 Pro XL / Pixel 9 Pro XL: Embedded Map Summary Top + Ergonomic Timeline
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                item {
-                    EmbeddedRouteMapCard(
-                        isEs = isEs,
-                        dayNumber = selectedDay,
-                        analyzedStops = dayStops,
-                        highlightedStop = selectedStopForMap ?: dayStops.firstOrNull()?.item,
-                        onLaunchFullMap = { stop -> launchGoogleMapsForStop(context, stop) }
-                    )
-                }
-                items(dayStops) { analyzed ->
-                    TimelineStopCard(
-                        isEs = isEs,
-                        analyzed = analyzed,
-                        onClick = { selectedStopForMap = analyzed.item },
-                        onOpenGoogleMaps = { launchGoogleMapsForStop(context, analyzed.item) },
-                        onExportCalendar = { exportStopToSystemCalendar(context, analyzed.item) }
-                    )
-                }
+            items(dayStops) { analyzed ->
+                TimelineStopCard(
+                    isEs = isEs,
+                    analyzed = analyzed,
+                    onOpenGoogleMaps = { launchGoogleMapsForStop(context, analyzed.item) },
+                    onExportCalendar = { exportStopToSystemCalendar(context, analyzed.item) }
+                )
             }
-        }
-    }
-}
-
-@Composable
-private fun DayTimelineList(
-    isEs: Boolean,
-    analyzedStops: List<com.laralbir.japantraveltools.feature.planner.AnalyzedItineraryStop>,
-    onSelectStop: (ItineraryStopItem) -> Unit,
-    onOpenGoogleMaps: (ItineraryStopItem) -> Unit,
-    onExportCalendar: (ItineraryStopItem) -> Unit
-) {
-    LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxSize()
-    ) {
-        items(analyzedStops) { analyzed ->
-            TimelineStopCard(
-                isEs = isEs,
-                analyzed = analyzed,
-                onClick = { onSelectStop(analyzed.item) },
-                onOpenGoogleMaps = { onOpenGoogleMaps(analyzed.item) },
-                onExportCalendar = { onExportCalendar(analyzed.item) }
-            )
         }
     }
 }
@@ -1219,178 +1038,65 @@ private fun DayTimelineList(
 private fun TimelineStopCard(
     isEs: Boolean,
     analyzed: com.laralbir.japantraveltools.feature.planner.AnalyzedItineraryStop,
-    onClick: () -> Unit,
     onOpenGoogleMaps: () -> Unit,
     onExportCalendar: () -> Unit
 ) {
     val stop = analyzed.item
-    KotlinConfCard(
-        modifier = Modifier.clickable { onClick() },
-        accentBorderColor = if (analyzed.hasTimeConflict) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-    ) {
+    KotlinConfCard {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primary
-                ) {
-                    Text(
-                        text = "#${analyzed.orderNumber}",
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                }
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = "${stop.startTime} - ${stop.endTime} JST",
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
-                )
-            }
+            Text(
+                text = "${stop.startTime} – ${stop.endTime}",
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.primary
+            )
             InfoTagPill(text = if (isEs) stop.category.labelEs else stop.category.labelEn)
         }
 
-        Spacer(Modifier.height(6.dp))
-        Text(text = stop.title, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+        Spacer(Modifier.height(8.dp))
         Text(
-            text = "🇯🇵 ${stop.placeNameJapanese} · (${stop.latitude}, ${stop.longitude})",
-            fontSize = 12.sp,
+            text = stop.title,
+            fontWeight = FontWeight.Bold,
+            fontSize = 19.sp
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = "🇯🇵 ${stop.placeNameJapanese}",
+            fontSize = 15.sp,
             color = MaterialTheme.colorScheme.secondary,
             fontWeight = FontWeight.SemiBold
         )
+
         if (stop.notes.isNotBlank()) {
-            Spacer(Modifier.height(4.dp))
-            Text(text = stop.notes, fontSize = 12.sp)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = stop.notes,
+                fontSize = 15.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
 
-        // Offline Reference Photos Chips (SPEC-04 RF-04.2)
-        if (stop.photoLabels.isNotEmpty()) {
-            Spacer(Modifier.height(8.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.horizontalScroll(rememberScrollState())
-            ) {
-                stop.photoLabels.forEach { photo ->
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                    ) {
-                        Text(
-                            text = "📷 $photo (Offline)",
-                            fontSize = 11.sp,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-            }
-        }
-
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(14.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Button(
                 onClick = onOpenGoogleMaps,
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                modifier = Modifier.weight(1f)
             ) {
-                Text(if (isEs) "🗺️ Abrir Google Maps" else "🗺️ Open Google Maps", fontSize = 11.sp)
+                Text(if (isEs) "🗺️ Google Maps" else "🗺️ Google Maps", fontSize = 14.sp)
             }
             OutlinedButton(
                 onClick = onExportCalendar,
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                modifier = Modifier.weight(1f)
             ) {
-                Text(if (isEs) "📅 Añadir a Calendar" else "📅 Add to Calendar", fontSize = 11.sp)
-            }
-        }
-    }
-}
-
-@Composable
-private fun EmbeddedRouteMapCard(
-    isEs: Boolean,
-    dayNumber: Int,
-    analyzedStops: List<com.laralbir.japantraveltools.feature.planner.AnalyzedItineraryStop>,
-    highlightedStop: ItineraryStopItem?,
-    onLaunchFullMap: (ItineraryStopItem) -> Unit
-) {
-    KotlinConfCard(accentBorderColor = MaterialTheme.colorScheme.secondary) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = if (isEs) "🗺️ Mapa Interactivo de Ruta (Día $dayNumber)" else "🗺️ Interactive Route Map (Day $dayNumber)",
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp
-            )
-            Text(
-                text = "Offline Vector + Google Maps",
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.tertiary
-            )
-        }
-        Spacer(Modifier.height(8.dp))
-
-        // Interactive numbered stop nodes connected sequentially
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.28f),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                    text = if (isEs) "Secuencia de Marcadores Numerados del Día:" else "Day Numbered Route Markers:",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.height(6.dp))
-                analyzedStops.forEach { node ->
-                    val isSelected = highlightedStop?.id == node.item.id
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 3.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "[#${node.orderNumber}] ${node.item.startTime} · ${node.item.title}",
-                            fontSize = 12.sp,
-                            fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Normal,
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "${node.item.latitude}, ${node.item.longitude}",
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-                }
-                highlightedStop?.let { stop ->
-                    Spacer(Modifier.height(8.dp))
-                    Button(
-                        onClick = { onLaunchFullMap(stop) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = if (isEs) "🧭 Cómo llegar a ${stop.title} en Google Maps" else "🧭 Navigate to ${stop.title} in Google Maps",
-                            fontSize = 12.sp
-                        )
-                    }
-                }
+                Text(if (isEs) "📅 Calendario" else "📅 Calendar", fontSize = 14.sp)
             }
         }
     }
@@ -1411,7 +1117,7 @@ private fun exportStopToSystemCalendar(context: android.content.Context, stop: I
         val intent = Intent(Intent.ACTION_INSERT).apply {
             data = CalendarContract.Events.CONTENT_URI
             putExtra(CalendarContract.Events.TITLE, "[JP] ${stop.title}")
-            putExtra(CalendarContract.Events.EVENT_LOCATION, "${stop.placeNameJapanese} (${stop.latitude}, ${stop.longitude})")
+            putExtra(CalendarContract.Events.EVENT_LOCATION, stop.placeNameJapanese)
             putExtra(CalendarContract.Events.DESCRIPTION, stop.notes)
             putExtra(CalendarContract.Events.EVENT_TIMEZONE, "Asia/Tokyo")
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -1427,6 +1133,8 @@ private fun JsonPortabilityModalSheet(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val portablePlan by SharedTravelPlanStore.planState.collectAsState()
+    val weatherForecasts by SharedWeatherForecastStore.forecastsState.collectAsState()
     var jsonEditorText by remember { mutableStateOf(SharedTravelPlanStore.exportCurrentJson()) }
     var statusMessage by remember { mutableStateOf("") }
 
@@ -1434,41 +1142,67 @@ private fun JsonPortabilityModalSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 8.dp)
+                .padding(horizontal = 20.dp, vertical = 10.dp)
                 .navigationBarsPadding()
         ) {
+            Text(
+                text = if (isEs) "⚙️ Gestionar Plan (IA, JSON y Datos Demo)" else "⚙️ Manage Plan (AI, JSON & Demo Data)",
+                fontSize = 19.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            // Row 1: AI & Demo Controls
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = if (isEs) "📥/📤 Portabilidad JSON (Itinerario + Vuelos/Trenes)" else "📥/📤 JSON Portability (Itinerary + Transport)",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+                Button(
+                    onClick = {
+                        val updated = AiPlanBuilderEngine.improveAndExpandPlan(
+                            currentPlan = portablePlan,
+                            userInstruction = "Optimizar ruta y añadir Día 3 en Osaka"
+                        )
+                        val withWeather = AiPlanBuilderEngine.optimizePlanWithWeather(updated, weatherForecasts)
+                        SharedTravelPlanStore.updatePlan(withWeather)
+                        jsonEditorText = SharedTravelPlanStore.exportCurrentJson()
+                        statusMessage = if (isEs) "✅ Plan optimizado con IA + Clima Open-Meteo." else "✅ Plan optimized with AI + Weather."
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(if (isEs) "✨ Mejorar con IA" else "✨ AI Optimize", fontSize = 14.sp)
+                }
 
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = if (isEs) {
-                    "Formato legible para preparar rutas, vuelos, Shinkansen, metro o autobús en una app externa o con IA e importarlos al instante."
-                } else {
-                    "Human-readable format to prepare itineraries, flights, Shinkansen, subway, or bus plans in an external app or AI and import them."
-                },
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+                OutlinedButton(
+                    onClick = {
+                        SharedTravelPlanStore.updatePlan(
+                            PortableTravelPlanBundle(
+                                schemaVersion = 1,
+                                tripTitle = "Mi Viaje a Japón",
+                                itineraryStops = emptyList(),
+                                transportSegments = emptyList()
+                            )
+                        )
+                        jsonEditorText = SharedTravelPlanStore.exportCurrentJson()
+                        statusMessage = if (isEs) "🗑️ Datos de demostración vaciados." else "🗑️ Demo data cleared."
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(if (isEs) "🗑️ Vaciar Demo" else "🗑️ Clear Demo", fontSize = 14.sp)
+                }
+            }
 
             Spacer(Modifier.height(8.dp))
 
+            // Row 2: JSON Export / Import / Restore Demo
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(
+                OutlinedButton(
                     onClick = {
                         val exported = SharedTravelPlanStore.exportCurrentJson()
                         jsonEditorText = exported
@@ -1481,75 +1215,55 @@ private fun JsonPortabilityModalSheet(
                             }
                             context.startActivity(Intent.createChooser(sendIntent, "JSON").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                         }
-                        statusMessage = if (isEs) "✅ JSON exportado y listo para compartir." else "✅ JSON exported and ready to share."
-                    },
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                    }
                 ) {
-                    Text(if (isEs) "📤 Exportar / Compartir JSON" else "📤 Export / Share JSON", fontSize = 11.sp)
-                }
-
-                OutlinedButton(
-                    onClick = {
-                        val res = SharedTravelPlanStore.importJson(jsonEditorText, mergeWithExisting = true)
-                        if (res.isSuccess) {
-                            jsonEditorText = SharedTravelPlanStore.exportCurrentJson()
-                            statusMessage = if (isEs) "✅ Plan importado y fusionado (Merge) con éxito." else "✅ Plan imported and merged successfully."
-                        } else {
-                            statusMessage = if (isEs) "⚠️ Error de formato JSON. Verifica la sintaxis." else "⚠️ Invalid JSON format."
-                        }
-                    },
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
-                ) {
-                    Text(if (isEs) "📥 Importar (Fusionar)" else "📥 Import (Merge)", fontSize = 11.sp)
+                    Text(if (isEs) "📤 Exportar JSON" else "📤 Export JSON", fontSize = 14.sp)
                 }
 
                 OutlinedButton(
                     onClick = {
                         val res = SharedTravelPlanStore.importJson(jsonEditorText, mergeWithExisting = false)
-                        if (res.isSuccess) {
-                            jsonEditorText = SharedTravelPlanStore.exportCurrentJson()
-                            statusMessage = if (isEs) "✅ Plan reemplazado íntegramente desde JSON." else "✅ Plan replaced from JSON."
+                        statusMessage = if (res.isSuccess) {
+                            if (isEs) "✅ JSON importado correctamente." else "✅ JSON imported."
                         } else {
-                            statusMessage = if (isEs) "⚠️ Error de formato JSON." else "⚠️ Invalid JSON format."
+                            if (isEs) "⚠️ Error en el formato JSON." else "⚠️ Invalid JSON."
                         }
-                    },
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                    }
                 ) {
-                    Text(if (isEs) "🔄 Importar (Reemplazar)" else "🔄 Import (Replace)", fontSize = 11.sp)
+                    Text(if (isEs) "📥 Importar JSON" else "📥 Import JSON", fontSize = 14.sp)
                 }
 
                 OutlinedButton(
                     onClick = {
                         SharedTravelPlanStore.resetToDefaults()
                         jsonEditorText = SharedTravelPlanStore.exportCurrentJson()
-                        statusMessage = if (isEs) "🔄 Restaurado plan semilla original." else "🔄 Restored default seed plan."
-                    },
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                        statusMessage = if (isEs) "🔄 Demo restaurada." else "🔄 Demo restored."
+                    }
                 ) {
-                    Text(if (isEs) "Restaurar Base" else "Reset Seed", fontSize = 11.sp)
+                    Text(if (isEs) "🔄 Cargar Demo" else "🔄 Load Demo", fontSize = 14.sp)
                 }
             }
 
             if (statusMessage.isNotBlank()) {
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(8.dp))
                 Text(
                     text = statusMessage,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.tertiary
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
             OutlinedTextField(
                 value = jsonEditorText,
                 onValueChange = { jsonEditorText = it },
-                label = { Text("japan-travel-plan.v1 (JSON)") },
-                textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
-                maxLines = 12,
+                label = { Text("JSON (Itinerario + Vuelos y Trenes)", fontSize = 14.sp) },
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace, fontSize = 13.sp),
+                maxLines = 8,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(220.dp)
+                    .height(160.dp)
             )
             Spacer(Modifier.height(12.dp))
         }
@@ -1557,7 +1271,7 @@ private fun JsonPortabilityModalSheet(
 }
 
 // ============================================================================
-// TAB 3: MULTIMODAL TRANSPORT PLANNER (FLIGHTS, SHINKANSEN, METRO, BUS - SPEC-05)
+// TAB 3: MULTIMODAL TRANSPORT (CLEAN CARDS & LARGE FONTS)
 // ============================================================================
 @Composable
 private fun TransportMultiModalScreen(isEs: Boolean) {
@@ -1580,7 +1294,7 @@ private fun TransportMultiModalScreen(isEs: Boolean) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
             Row(
@@ -1589,64 +1303,45 @@ private fun TransportMultiModalScreen(isEs: Boolean) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (isEs) "🚅 Planificador de Vuelos, Trenes, Metros y Autobuses" else "🚅 Flights, Shinkansen, Subway & Bus Planner",
-                    style = MaterialTheme.typography.titleMedium,
+                    text = if (isEs) "Vuelos, Trenes y Metro" else "Flights, Trains & Metro",
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
+                OutlinedButton(onClick = { showJsonSheet = true }) {
+                    Text("⚙️ JSON / Demo", fontSize = 14.sp)
+                }
             }
+
+            Spacer(Modifier.height(10.dp))
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 6.dp)
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = { showJsonSheet = true },
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = if (isEs) "📥/📤 Exportar / Importar Transporte (JSON)" else "📥/📤 Export / Import Transport (JSON)",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Button(
-                    onClick = {
-                        val updated = AiPlanBuilderEngine.improveAndExpandPlan(
-                            currentPlan = portablePlan,
-                            userInstruction = "Añadir Shinkansen Nozomi Kioto-Osaka y optimizar conexiones"
-                        )
-                        SharedTravelPlanStore.updatePlan(updated)
-                    },
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = if (isEs) "✨ Añadir / Optimizar Tramos con Gemini IA" else "✨ Add / Optimize Segments with Gemini AI",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp)
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 FilterChip(
                     selected = selectedFilter == null,
                     onClick = { selectedFilter = null },
-                    label = { Text(if (isEs) "Todos (Multimodal)" else "All (Multimodal)") }
+                    label = {
+                        Text(
+                            text = if (isEs) "Todos" else "All",
+                            fontSize = 15.sp,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
                 )
                 TransportMode.entries.forEach { mode ->
                     FilterChip(
                         selected = selectedFilter == mode,
                         onClick = { selectedFilter = mode },
-                        label = { Text(if (isEs) mode.labelEs else mode.labelEn) }
+                        label = {
+                            Text(
+                                text = if (isEs) mode.labelEs else mode.labelEn,
+                                fontSize = 15.sp,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+                        }
                     )
                 }
             }
@@ -1656,269 +1351,6 @@ private fun TransportMultiModalScreen(isEs: Boolean) {
             val seg = filtered[idx]
             val durationMins = TransportPlannerUseCase.calculateSegmentDurationMinutes(seg)
 
-            KotlinConfCard(accentBorderColor = MaterialTheme.colorScheme.primary) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "${seg.operatorName} · ${seg.lineOrNumber}",
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 15.sp
-                    )
-                    InfoTagPill(text = seg.passOrPaymentBadge)
-                }
-
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = "🛫 ${seg.departureCode} (${seg.departureName}) ➔ 🛬 ${seg.arrivalCode} (${seg.arrivalName})",
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp
-                )
-                Text(
-                    text = "🕒 Salida: ${seg.departureTimeIso.replace('T', ' ')} (${seg.departureZoneId}) | Llegada: ${seg.arrivalTimeIso.replace('T', ' ')} (${seg.arrivalZoneId}) · ⏱️ ${TransportPlannerUseCase.formatDurationHoursMinutes(durationMins)}",
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-
-                if (seg.checkInTime != null || seg.boardingTime != null) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = buildString {
-                            seg.checkInTime?.let { append("🧾 Facturación/Andén: ${it.substringAfter('T')}   ") }
-                            seg.boardingTime?.let { append("🛂 Embarque: ${it.substringAfter('T')}") }
-                        },
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "📍 ${seg.departureTerminalOrPlatform} · 💺 ${seg.seatOrCarInfo}",
-                    fontSize = 12.sp
-                )
-                if (seg.stationExitOrBelt.isNotBlank()) {
-                    Text(
-                        text = "🚪 Salida / Equipaje: ${seg.stationExitOrBelt}",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.secondary,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-
-            // Show Layover / Transfer Card between consecutive segments (SPEC-05 RF-05.3)
-            if (idx < filtered.lastIndex) {
-                val nextSeg = filtered[idx + 1]
-                if (seg.arrivalCode == nextSeg.departureCode) {
-                    val conn = TransportPlannerUseCase.calculateConnection(seg, nextSeg)
-                    Spacer(Modifier.height(8.dp))
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f),
-                        border = BorderStroke(
-                            1.dp,
-                            if (conn.isTightConnection) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(
-                                text = if (isEs) {
-                                    "🔄 Escala / Transbordo en ${conn.fromCode}: ${TransportPlannerUseCase.formatDurationHoursMinutes(conn.totalConnectionMinutes)} totales (${TransportPlannerUseCase.formatDurationHoursMinutes(conn.minutesUntilNextBoardingOrDeparture)} hasta siguiente embarque)"
-                                } else {
-                                    "🔄 Layover / Transfer at ${conn.fromCode}: ${TransportPlannerUseCase.formatDurationHoursMinutes(conn.totalConnectionMinutes)} total (${TransportPlannerUseCase.formatDurationHoursMinutes(conn.minutesUntilNextBoardingOrDeparture)} until next boarding)"
-                                },
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = conn.transferSummary,
-                                fontSize = 11.sp
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ============================================================================
-// TAB 4: PASSPORT/DNI VAULT, DOCUMENTS & TRAVEL GUIDES (SPEC-03)
-// ============================================================================
-@Composable
-private fun VaultAndGuidesAdaptiveScreen(
-    isEs: Boolean,
-    isTabletWide: Boolean,
-    biometricLockEnabled: Boolean,
-    onToggleBiometric: (Boolean) -> Unit
-) {
-    var vaultUnlocked by rememberSaveable { mutableStateOf(!biometricLockEnabled) }
-    var searchQuery by rememberSaveable { mutableStateOf("") }
-    var selectedDocCategory by rememberSaveable { mutableStateOf<DocumentCategory?>(null) }
-
-    val docs = remember { DefaultTravelGuidesCatalog.initialDocuments() }
-    val guides = remember { DefaultTravelGuidesCatalog.initialGuides() }
-
-    val filteredDocs = remember(docs, selectedDocCategory, searchQuery) {
-        DocumentsFilterUseCase.filterDocuments(docs, selectedDocCategory, searchQuery)
-    }
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        item {
-            // Passport & DNI Quick Vault Card (RF-03.1 & RF-03.2)
-            KotlinConfCard(accentBorderColor = MaterialTheme.colorScheme.primary) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (isEs) "🛂 Bóveda Rápida: Pasaporte y DNI (Tax-Free)" else "🛂 Quick ID Vault: Passport & National ID",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (isEs) "🔒 Bloqueo Biométrico / PIN de Identificación" else "🔒 Biometric / PIN Lock for ID Vault",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Switch(
-                        checked = biometricLockEnabled,
-                        onCheckedChange = {
-                            onToggleBiometric(it)
-                            if (it) vaultUnlocked = false else vaultUnlocked = true
-                        }
-                    )
-                }
-
-                if (biometricLockEnabled && !vaultUnlocked) {
-                    Button(
-                        onClick = { vaultUnlocked = true },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(if (isEs) "🔓 Desbloquear Pasaporte y DNI con Huella/PIN" else "🔓 Unlock Passport & ID with Biometrics")
-                    }
-                } else {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Surface(
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text("🛂 PASSPORT", fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
-                                Text(
-                                    text = if (isEs) "Foto HD + QR Visit Japan Web (Almacenamiento Privado)" else "HD Photo + Visit Japan QR (Private Storage)",
-                                    fontSize = 11.sp
-                                )
-                            }
-                        }
-                        Surface(
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary)
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text("🪪 DNI / ID CARD", fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
-                                Text(
-                                    text = if (isEs) "Anverso + Reverso Offline con Zoom" else "Front & Back Offline with Pinch-Zoom",
-                                    fontSize = 11.sp
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        item {
-            // Travel Guides Section (RF-03.4)
-            KotlinConfCard(accentBorderColor = MaterialTheme.colorScheme.secondary) {
-                Text(
-                    text = if (isEs) "📖 Guías de Viaje Offline (Tokio, Kioto, Osaka)" else "📖 Offline Travel Guides (Tokyo, Kyoto, Osaka)",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.height(8.dp))
-                guides.forEach { guide ->
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(guide.title, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.weight(1f))
-                                InfoTagPill(text = "${guide.cityRegion} · 📷${guide.photoCount}")
-                            }
-                            Spacer(Modifier.height(4.dp))
-                            Text(guide.markdownSummary, fontSize = 12.sp)
-                        }
-                    }
-                }
-            }
-        }
-
-        item {
-            // Document Repository Filter & Search (RF-03.3)
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                label = { Text(if (isEs) "🔍 Buscar billetes, hoteles, JR Pass, seguros..." else "🔍 Search flights, hotels, JR Pass...") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp)
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                FilterChip(
-                    selected = selectedDocCategory == null,
-                    onClick = { selectedDocCategory = null },
-                    label = { Text(if (isEs) "Todos" else "All") }
-                )
-                DocumentCategory.entries.forEach { cat ->
-                    FilterChip(
-                        selected = selectedDocCategory == cat,
-                        onClick = { selectedDocCategory = cat },
-                        label = { Text(if (isEs) cat.labelEs else cat.labelEn, fontSize = 11.sp) }
-                    )
-                }
-            }
-        }
-
-        items(filteredDocs) { doc ->
             KotlinConfCard {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1926,53 +1358,301 @@ private fun VaultAndGuidesAdaptiveScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (doc.isPinned) "📌 ${doc.title}" else doc.title,
+                        text = "${seg.operatorName} · ${seg.lineOrNumber}",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
+                        fontSize = 18.sp,
                         modifier = Modifier.weight(1f)
                     )
-                    InfoTagPill(text = doc.category.badgeCode)
+                    InfoTagPill(text = seg.passOrPaymentBadge)
                 }
-                Spacer(Modifier.height(4.dp))
-                Text(text = doc.referenceOrNotes, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = "${seg.departureCode} (${seg.departureName}) ➔ ${seg.arrivalCode} (${seg.arrivalName})",
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = "🕒 ${seg.departureTimeIso.substringAfter('T')} ➔ ${seg.arrivalTimeIso.substringAfter('T')} (${TransportPlannerUseCase.formatDurationHoursMinutes(durationMins)})",
+                    fontSize = 16.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = "📍 ${seg.departureTerminalOrPlatform} · 💺 ${seg.seatOrCarInfo}",
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                if (seg.stationExitOrBelt.isNotBlank()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "🚪 ${seg.stationExitOrBelt}",
+                        fontSize = 15.sp,
+                        color = MaterialTheme.colorScheme.secondary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            if (idx < filtered.lastIndex) {
+                val nextSeg = filtered[idx + 1]
+                if (seg.arrivalCode == nextSeg.departureCode) {
+                    val conn = TransportPlannerUseCase.calculateConnection(seg, nextSeg)
+                    Spacer(Modifier.height(10.dp))
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text(
+                                text = "🔄 Escala en ${conn.fromCode}: ${TransportPlannerUseCase.formatDurationHoursMinutes(conn.totalConnectionMinutes)}",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = conn.transferSummary,
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
             }
         }
     }
 }
 
 // ============================================================================
-// TAB 5: GEMINI AI ASSISTANT & SIMULTANEOUS TRANSLATION (SPEC-06)
+// TAB 4: PASSPORT/DNI, RESERVATIONS & GUIDES (SEGMENTED SO IT DOESN'T CLUTTER)
 // ============================================================================
 @Composable
-private fun GeminiAndTranslatorScreen(
+private fun VaultAndGuidesAdaptiveScreen(
     isEs: Boolean,
-    isTabletWide: Boolean
+    biometricLockEnabled: Boolean,
+    onToggleBiometric: (Boolean) -> Unit
 ) {
+    var activeSection by rememberSaveable { mutableIntStateOf(0) } // 0: Pasaporte, 1: Reservas, 2: Guías
+    var vaultUnlocked by rememberSaveable { mutableStateOf(!biometricLockEnabled) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+
+    val docs = remember { DefaultTravelGuidesCatalog.initialDocuments() }
+    val guides = remember { DefaultTravelGuidesCatalog.initialGuides() }
+    val filteredDocs = remember(docs, searchQuery) {
+        DocumentsFilterUseCase.filterDocuments(docs, null, searchQuery)
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = activeSection == 0,
+                    onClick = { activeSection = 0 },
+                    label = {
+                        Text(
+                            text = if (isEs) "🛂 Pasaporte" else "🛂 Passport",
+                            fontSize = 15.sp,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+                )
+                FilterChip(
+                    selected = activeSection == 1,
+                    onClick = { activeSection = 1 },
+                    label = {
+                        Text(
+                            text = if (isEs) "📄 Reservas" else "📄 Bookings",
+                            fontSize = 15.sp,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+                )
+                FilterChip(
+                    selected = activeSection == 2,
+                    onClick = { activeSection = 2 },
+                    label = {
+                        Text(
+                            text = if (isEs) "📖 Guías" else "📖 Guides",
+                            fontSize = 15.sp,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+                )
+            }
+        }
+
+        when (activeSection) {
+            0 -> item {
+                KotlinConfCard {
+                    Text(
+                        text = if (isEs) "Pasaporte y DNI (Tax-Free)" else "Passport & ID Vault",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (isEs) "🔒 Proteger con Huella / PIN" else "🔒 Biometric / PIN Lock",
+                            fontSize = 16.sp
+                        )
+                        Switch(
+                            checked = biometricLockEnabled,
+                            onCheckedChange = {
+                                onToggleBiometric(it)
+                                vaultUnlocked = !it
+                            }
+                        )
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+
+                    if (biometricLockEnabled && !vaultUnlocked) {
+                        Button(
+                            onClick = { vaultUnlocked = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(if (isEs) "🔓 Desbloquear Identificación" else "🔓 Unlock ID", fontSize = 16.sp)
+                        }
+                    } else {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(18.dp)) {
+                                Text("🛂 PASAPORTE + QR VISIT JAPAN WEB", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = if (isEs) "Guardado en almacenamiento privado offline para mostrar en hoteles y tiendas Tax-Free." else "Stored offline in private storage for hotels & Tax-Free.",
+                                    fontSize = 15.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Spacer(Modifier.height(12.dp))
+
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(18.dp)) {
+                                Text("🪪 DNI / DOCUMENTO DE IDENTIDAD", fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = if (isEs) "Anverso y reverso disponibles sin conexión." else "Front and back available offline.",
+                                    fontSize = 15.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            1 -> {
+                item {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        label = { Text(if (isEs) "🔍 Buscar vuelos, hoteles, JR Pass..." else "🔍 Search bookings...", fontSize = 15.sp) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                items(filteredDocs) { doc ->
+                    KotlinConfCard {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (doc.isPinned) "📌 ${doc.title}" else doc.title,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 17.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            InfoTagPill(text = doc.category.badgeCode)
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = doc.referenceOrNotes,
+                            fontSize = 15.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            else -> {
+                items(guides) { guide ->
+                    KotlinConfCard {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = guide.title,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            InfoTagPill(text = guide.cityRegion)
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = guide.markdownSummary,
+                            fontSize = 15.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// TAB 5: VOICE TRANSLATOR & GEMINI AI (SEGMENTED & LARGE READABLE CONTROLS)
+// ============================================================================
+@Composable
+private fun GeminiAndTranslatorScreen(isEs: Boolean) {
     val context = LocalContext.current
     val portablePlan by SharedTravelPlanStore.planState.collectAsState()
+    var activeSection by rememberSaveable { mutableIntStateOf(0) } // 0: Traductor de Voz, 1: Asistente IA Gemini
+
     var phraseInput by rememberSaveable { mutableStateOf("¿Dónde está el andén del Shinkansen?") }
     var japaneseHeardInput by rememberSaveable {
         mutableStateOf("いらっしゃいませ。何名様ですか？禁煙席でよろしいですか？")
-    }
-    var autoSpeakEnabled by rememberSaveable { mutableStateOf(true) }
-    var voiceStatusBanner by rememberSaveable {
-        mutableStateOf(
-            if (isEs) "🔊 Motor de Voz Activo: Pulsa 🎙️ Hablar o 🔊 Escuchar para traducir con audio real."
-            else "🔊 Voice Engine Ready: Tap 🎙️ Speak or 🔊 Listen for real audio translation."
-        )
     }
     var rotateJapaneseCard180 by rememberSaveable { mutableStateOf(false) }
     var geminiPrompt by rememberSaveable { mutableStateOf("Traducir carta de Ramen y convertir precios ¥ a EUR") }
     var geminiResponse by rememberSaveable {
         mutableStateOf(GeminiAssistantEngine.generateSmartTravelAnswer("ramen", 164.80))
     }
-    var aiPlanGoalPrompt by rememberSaveable {
-        mutableStateOf("Optimizar solapamientos horarios del viaje y añadir Día 3 completo en Osaka (Castillo + Dotonbori + Shinkansen Nozomi)")
-    }
-    var aiPlanStatusBanner by rememberSaveable { mutableStateOf("") }
-    var showJsonSheet by rememberSaveable { mutableStateOf(false) }
 
-    // Android Native TextToSpeech Engine (Japanese ja-JP + Traveler ES/EN)
     var ttsEngine by remember { mutableStateOf<TextToSpeech?>(null) }
     DisposableEffect(context) {
         var instance: TextToSpeech? = null
@@ -1987,23 +1667,11 @@ private fun GeminiAndTranslatorScreen(
         }
     }
 
-    fun speakOutLoud(text: String, locale: Locale, label: String) {
-        val engine = ttsEngine
-        if (engine != null) {
-            engine.language = locale
-            engine.setSpeechRate(0.95f)
-            engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "utt_${System.currentTimeMillis()}")
-            voiceStatusBanner = "🔊 Reproduciendo por altavoz ($label): $text"
-        } else {
-            voiceStatusBanner = if (isEs) "⏳ Inicializando motor de voz TTS del Pixel..." else "⏳ Initializing Pixel TTS engine..."
-        }
-    }
-
-    if (showJsonSheet) {
-        JsonPortabilityModalSheet(
-            isEs = isEs,
-            onDismiss = { showJsonSheet = false }
-        )
+    fun speakOutLoud(text: String, locale: Locale) {
+        val engine = ttsEngine ?: return
+        engine.language = locale
+        engine.setSpeechRate(0.95f)
+        engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "utt_${System.currentTimeMillis()}")
     }
 
     val translation = remember(phraseInput) {
@@ -2013,38 +1681,29 @@ private fun GeminiAndTranslatorScreen(
         OfflineTranslatorEngine.translateFromJapaneseSpeech(japaneseHeardInput)
     }
 
-    // Speech-to-Text Launcher 1: Traveler speaks ES/EN -> Translates & Speaks Japanese out loud
     val travelerSpeechLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            val matches = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-            val spokenText = matches?.firstOrNull()
+            val spokenText = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
             if (!spokenText.isNullOrBlank()) {
                 phraseInput = spokenText
                 val translated = OfflineTranslatorEngine.translateToJapanese(spokenText)
-                if (autoSpeakEnabled) {
-                    speakOutLoud(translated.japaneseText, Locale.JAPAN, "日本語 🇯🇵")
-                }
+                speakOutLoud(translated.japaneseText, Locale.JAPAN)
             }
         }
     }
 
-    // Speech-to-Text Launcher 2: Japanese person speaks ja-JP -> Translates & Speaks ES/EN out loud to Traveler!
     val japaneseSpeechLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            val matches = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-            val heardJa = matches?.firstOrNull()
+            val heardJa = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
             if (!heardJa.isNullOrBlank()) {
                 japaneseHeardInput = heardJa
                 val reply = OfflineTranslatorEngine.translateFromJapaneseSpeech(heardJa)
                 val targetSpeech = if (isEs) reply.spanishSpokenText else reply.englishSpokenText
-                val targetLocale = if (isEs) Locale("es", "ES") else Locale.US
-                if (autoSpeakEnabled) {
-                    speakOutLoud(targetSpeech, targetLocale, if (isEs) "Español 🇪🇸" else "English 🇬🇧")
-                }
+                speakOutLoud(targetSpeech, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
             }
         }
     }
@@ -2052,425 +1711,305 @@ private fun GeminiAndTranslatorScreen(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            // Simultaneous Bidirectional Voice & Audio Translator Card (STT + Auto-TTS)
-            KotlinConfCard(accentBorderColor = MaterialTheme.colorScheme.primary) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (isEs) "🎙️🔊 Traducción Simultánea por Voz y Audio" else "🎙️🔊 Simultaneous Voice & Audio Translator",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    OutlinedButton(
-                        onClick = { rotateJapaneseCard180 = !rotateJapaneseCard180 },
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Text(if (rotateJapaneseCard180) "🔄 Normal" else "🔄 180°", fontSize = 11.sp)
-                    }
-                }
-
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = voiceStatusBanner,
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.tertiary,
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                Spacer(Modifier.height(10.dp))
-
-                // BIG TWO-WAY VOICE MICROPHONE BUTTONS (Hands-free audio for someone who doesn't read Japanese)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = {
-                            runCatching {
-                                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, if (isEs) "es-ES" else "en-US")
-                                    putExtra(
-                                        RecognizerIntent.EXTRA_PROMPT,
-                                        if (isEs) "🎙️ Habla en Español (sonará en Japonés)..." else "🎙️ Speak in English (will speak Japanese)..."
-                                    )
-                                }
-                                travelerSpeechLauncher.launch(intent)
-                            }.onFailure {
-                                speakOutLoud(translation.japaneseText, Locale.JAPAN, "日本語 🇯🇵")
-                            }
-                        },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                    ) {
-                        Text(
-                            text = if (isEs) "🎙️ Hablar Yo (ES)\n➔ 🔊 Suena Japonés" else "🎙️ Speak (EN)\n➔ 🔊 Plays Japanese",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Button(
-                        onClick = {
-                            runCatching {
-                                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ja-JP")
-                                    putExtra(RecognizerIntent.EXTRA_PROMPT, "🎙️ 日本語で話してください (Habla el Japonés)...")
-                                }
-                                japaneseSpeechLauncher.launch(intent)
-                            }.onFailure {
-                                val spoken = if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText
-                                speakOutLoud(spoken, if (isEs) Locale("es", "ES") else Locale.US, if (isEs) "Español 🇪🇸" else "English 🇬🇧")
-                            }
-                        },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                    ) {
-                        Text(
-                            text = if (isEs) "🎙️ Escuchar Japonés\n➔ 🔊 Me habla en ES" else "🎙️ Listen Japanese\n➔ 🔊 Speaks to me in EN",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(10.dp))
-
-                // DIRECTION 1: What the Traveler says -> Spoken in Japanese out loud
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .rotate(if (rotateJapaneseCard180) 180f else 0f)
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = if (isEs) "🇯🇵 Lo que suena en Japonés para él/ella:" else "🇯🇵 Spoken in Japanese for them:",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Button(
-                                onClick = {
-                                    speakOutLoud(translation.japaneseText, Locale.JAPAN, "日本語 🇯🇵")
-                                },
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-                            ) {
-                                Text(if (isEs) "🔊 Sonar en Japonés" else "🔊 Speak Japanese", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = translation.japaneseText,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                        Text(
-                            text = "🗣️ Cómo se pronuncia: ${translation.romaji}",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.secondary,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = if (isEs) "Toca una frase para que el móvil la hable en Japonés:" else "Tap a phrase to speak it out loud in Japanese:",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OfflineTranslatorEngine.essentialPhrases.forEach { preset ->
-                        FilterChip(
-                            selected = phraseInput == preset.sourceText,
-                            onClick = {
-                                phraseInput = preset.sourceText
-                                speakOutLoud(preset.japaneseText, Locale.JAPAN, "日本語 🇯🇵")
-                            },
-                            label = { Text("🔊 ${preset.categoryBadge}", fontSize = 11.sp) }
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = phraseInput,
-                    onValueChange = { phraseInput = it },
-                    label = { Text(if (isEs) "Tu frase en Español / Inglés" else "Your phrase in English / Spanish") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(Modifier.height(12.dp))
-                HorizontalDivider()
-                Spacer(Modifier.height(10.dp))
-
-                // DIRECTION 2: What the Japanese person replies -> Spoken in Spanish/English for the Traveler!
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = if (isEs) "🇪🇸 Lo que te responde el Japonés (en tu idioma):" else "🇬🇧 What the Japanese speaker replied (in English):",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Button(
-                                onClick = {
-                                    val spoken = if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText
-                                    speakOutLoud(
-                                        spoken,
-                                        if (isEs) Locale("es", "ES") else Locale.US,
-                                        if (isEs) "Español 🇪🇸" else "English 🇬🇧"
-                                    )
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-                            ) {
-                                Text(if (isEs) "🔊 Escuchar en Español" else "🔊 Listen in English", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            text = if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = "🇯🇵 Voz captada: ${japaneseReplyTranslation.japaneseHeardText}",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = if (isEs) "Respuestas habituales en Japón (toca para escucharlas en Español):" else "Common replies in Japan (tap to hear in English):",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OfflineTranslatorEngine.incomingJapaneseSamples.forEach { sample ->
-                        FilterChip(
-                            selected = japaneseHeardInput == sample.japaneseHeardText,
-                            onClick = {
-                                japaneseHeardInput = sample.japaneseHeardText
-                                val spoken = if (isEs) sample.spanishSpokenText else sample.englishSpokenText
-                                speakOutLoud(
-                                    spoken,
-                                    if (isEs) Locale("es", "ES") else Locale.US,
-                                    if (isEs) "Español 🇪🇸" else "English 🇬🇧"
-                                )
-                            },
-                            label = { Text("🔊 ${sample.contextLabel}", fontSize = 11.sp) }
-                        )
-                    }
-                }
-            }
-        }
-
-        item {
-            // Gemini AI Assistant (Gemini Nano On-Device Pixel 10/9 Pro XL + Gemini Cloud)
-            KotlinConfCard(accentBorderColor = MaterialTheme.colorScheme.secondary) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (isEs) "✨ Asistente IA con Google Gemini (Menús + Rutas)" else "✨ Google Gemini AI Travel Assistant",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = geminiPrompt,
-                    onValueChange = { geminiPrompt = it },
-                    label = { Text(if (isEs) "Pregunta a Gemini o analiza carta en ¥..." else "Ask Gemini or analyze ¥ menu...") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = {
-                            geminiResponse = GeminiAssistantEngine.generateSmartTravelAnswer(geminiPrompt, 164.80)
-                        }
-                    ) {
-                        Text(if (isEs) "✨ Consultar a Gemini" else "✨ Ask Gemini")
-                    }
-                    OutlinedButton(
-                        onClick = {
-                            geminiPrompt = "Plan para tarde de lluvia en Kioto"
-                            geminiResponse = GeminiAssistantEngine.generateSmartTravelAnswer("kioto lluvia", 164.80)
-                        }
-                    ) {
-                        Text(if (isEs) "🌧️ Ejemplo Kioto" else "🌧️ Kyoto Sample")
-                    }
-                }
-
-                Spacer(Modifier.height(10.dp))
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = geminiResponse,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(12.dp)
-                    )
-                }
-            }
-        }
-
-        item {
-            // AI Travel & Transport Plan Builder & Optimizer (SPEC-06 RF-06.2)
-            KotlinConfCard(accentBorderColor = MaterialTheme.colorScheme.primary) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (isEs) "🗺️🤖 Creador y Optimizador de Planes con IA (Ruta + Trenes)" else "🗺️🤖 AI Travel & Transport Plan Builder / Optimizer",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = if (isEs) {
-                        "Estado actual del plan: ${portablePlan.itineraryStops.size} paradas de itinerario · ${portablePlan.transportSegments.size} tramos de transporte (Vuelos/Shinkansen/Metro/Bus)."
-                    } else {
-                        "Current plan state: ${portablePlan.itineraryStops.size} itinerary stops · ${portablePlan.transportSegments.size} transport segments."
-                    },
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.secondary,
-                    fontWeight = FontWeight.SemiBold
-                )
-
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = aiPlanGoalPrompt,
-                    onValueChange = { aiPlanGoalPrompt = it },
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = activeSection == 0,
+                    onClick = { activeSection = 0 },
                     label = {
                         Text(
-                            if (isEs) "Instrucción para crear o mejorar el plan de viaje de la app"
-                            else "Prompt to create or improve the app's travel plan"
+                            text = if (isEs) "🎙️ Traductor de Voz" else "🎙️ Voice Translator",
+                            fontSize = 15.sp,
+                            modifier = Modifier.padding(vertical = 4.dp)
                         )
-                    },
-                    modifier = Modifier.fillMaxWidth()
+                    }
                 )
+                FilterChip(
+                    selected = activeSection == 1,
+                    onClick = { activeSection = 1 },
+                    label = {
+                        Text(
+                            text = if (isEs) "✨ Asistente Gemini IA" else "✨ Gemini AI",
+                            fontSize = 15.sp,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+                )
+            }
+        }
 
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = {
-                            val updated = AiPlanBuilderEngine.improveAndExpandPlan(
-                                currentPlan = portablePlan,
-                                userInstruction = aiPlanGoalPrompt
-                            )
-                            SharedTravelPlanStore.updatePlan(updated)
-                            aiPlanStatusBanner = if (isEs) {
-                                "✅ IA aplicó mejoras: ${updated.itineraryStops.size} paradas totales (incl. Osaka Día 3) y ${updated.transportSegments.size} tramos de transporte."
-                            } else {
-                                "✅ AI applied improvements: ${updated.itineraryStops.size} total stops (incl. Osaka Day 3) & ${updated.transportSegments.size} transport segments."
-                            }
-                        }
+        if (activeSection == 0) {
+            item {
+                // CARD 1: YOU SPEAK -> PHONE SPEAKS JAPANESE
+                KotlinConfCard {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(if (isEs) "✨ Crear / Mejorar Plan en la App" else "✨ Create / Improve Plan in App", fontSize = 12.sp)
+                        Text(
+                            text = if (isEs) "1. Tú hablas ➔ Suena Japonés" else "1. You speak ➔ Plays Japanese",
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        OutlinedButton(onClick = { rotateJapaneseCard180 = !rotateJapaneseCard180 }) {
+                            Text(if (rotateJapaneseCard180) "Normal" else "🔄 180°", fontSize = 14.sp)
+                        }
                     }
 
-                    OutlinedButton(
-                        onClick = {
-                            val weatherForecasts = SharedWeatherForecastStore.forecastsState.value
-                            val updated = AiPlanBuilderEngine.optimizePlanWithWeather(
-                                currentPlan = portablePlan,
-                                forecasts = weatherForecasts
-                            )
-                            SharedTravelPlanStore.updatePlan(updated)
-                            aiPlanStatusBanner = if (isEs) {
-                                "🌦️ IA + Open-Meteo: paradas adaptadas según previsión de lluvia/sol (${weatherForecasts.size} días)."
-                            } else {
-                                "🌦️ AI + Open-Meteo: stops adapted to rain/sun forecast (${weatherForecasts.size} days)."
-                            }
-                        }
+                    Spacer(Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text(if (isEs) "🌦️✨ Optimizar con Clima Open-Meteo" else "🌦️✨ Optimize with Open-Meteo", fontSize = 12.sp)
+                        Button(
+                            onClick = {
+                                runCatching {
+                                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                        putExtra(RecognizerIntent.EXTRA_LANGUAGE, if (isEs) "es-ES" else "en-US")
+                                    }
+                                    travelerSpeechLauncher.launch(intent)
+                                }.onFailure {
+                                    speakOutLoud(translation.japaneseText, Locale.JAPAN)
+                                }
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(54.dp)
+                        ) {
+                            Text(if (isEs) "🎙️ Hablar por Micro" else "🎙️ Speak Mic", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        OutlinedButton(
+                            onClick = { speakOutLoud(translation.japaneseText, Locale.JAPAN) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(54.dp)
+                        ) {
+                            Text(if (isEs) "🔊 Sonar en Japonés" else "🔊 Play Japanese", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
 
-                    OutlinedButton(onClick = { showJsonSheet = true }) {
-                        Text(if (isEs) "📥/📤 Ver / Exportar JSON" else "📥/📤 View / Export JSON", fontSize = 12.sp)
+                    Spacer(Modifier.height(14.dp))
+
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .rotate(if (rotateJapaneseCard180) 180f else 0f)
+                    ) {
+                        Column(modifier = Modifier.padding(18.dp)) {
+                            Text(
+                                text = phraseInput,
+                                fontSize = 16.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                text = translation.japaneseText,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                text = "🗣️ ${translation.romaji}",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OfflineTranslatorEngine.essentialPhrases.forEach { preset ->
+                            FilterChip(
+                                selected = phraseInput == preset.sourceText,
+                                onClick = {
+                                    phraseInput = preset.sourceText
+                                    speakOutLoud(preset.japaneseText, Locale.JAPAN)
+                                },
+                                label = {
+                                    Text(
+                                        text = "🔊 ${preset.categoryBadge}",
+                                        fontSize = 14.sp,
+                                        modifier = Modifier.padding(vertical = 4.dp)
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
+            }
 
-                if (aiPlanStatusBanner.isNotBlank() || portablePlan.aiOptimizationSummary.isNotBlank()) {
-                    Spacer(Modifier.height(8.dp))
+            item {
+                // CARD 2: JAPANESE PERSON SPEAKS -> PHONE SPEAKS SPANISH TO YOU
+                KotlinConfCard {
+                    Text(
+                        text = if (isEs) "2. Habla el Japonés ➔ Te habla en Español" else "2. Japanese speaks ➔ Speaks English to you",
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                runCatching {
+                                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                        putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ja-JP")
+                                    }
+                                    japaneseSpeechLauncher.launch(intent)
+                                }.onFailure {
+                                    val spoken = if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText
+                                    speakOutLoud(spoken, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(54.dp)
+                        ) {
+                            Text(if (isEs) "🎙️ Escuchar Japonés" else "🎙️ Listen Japanese", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                val spoken = if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText
+                                speakOutLoud(spoken, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(54.dp)
+                        ) {
+                            Text(if (isEs) "🔊 Oír en Español" else "🔊 Hear in English", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.45f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary),
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(modifier = Modifier.padding(10.dp)) {
-                            if (aiPlanStatusBanner.isNotBlank()) {
-                                Text(
-                                    text = aiPlanStatusBanner,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                            if (portablePlan.aiOptimizationSummary.isNotBlank()) {
-                                Text(
-                                    text = portablePlan.aiOptimizationSummary,
-                                    fontSize = 11.sp
-                                )
-                            }
+                        Column(modifier = Modifier.padding(18.dp)) {
+                            Text(
+                                text = if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
                         }
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OfflineTranslatorEngine.incomingJapaneseSamples.forEach { sample ->
+                            FilterChip(
+                                selected = japaneseHeardInput == sample.japaneseHeardText,
+                                onClick = {
+                                    japaneseHeardInput = sample.japaneseHeardText
+                                    val spoken = if (isEs) sample.spanishSpokenText else sample.englishSpokenText
+                                    speakOutLoud(spoken, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
+                                },
+                                label = {
+                                    Text(
+                                        text = "🔊 ${sample.contextLabel}",
+                                        fontSize = 14.sp,
+                                        modifier = Modifier.padding(vertical = 4.dp)
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        } else {
+            item {
+                // Gemini AI Assistant & Plan Optimizer
+                KotlinConfCard {
+                    Text(
+                        text = if (isEs) "Asistente Gemini IA" else "Gemini AI Assistant",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = geminiPrompt,
+                        onValueChange = { geminiPrompt = it },
+                        label = { Text(if (isEs) "Pregunta o traduce un menú en ¥..." else "Ask Gemini or translate ¥ menu...", fontSize = 15.sp) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                geminiResponse = GeminiAssistantEngine.generateSmartTravelAnswer(geminiPrompt, 164.80)
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(if (isEs) "✨ Consultar" else "✨ Ask Gemini", fontSize = 15.sp)
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                val updated = AiPlanBuilderEngine.improveAndExpandPlan(
+                                    currentPlan = portablePlan,
+                                    userInstruction = "Mejorar plan y añadir Osaka"
+                                )
+                                val withWeather = AiPlanBuilderEngine.optimizePlanWithWeather(
+                                    currentPlan = updated,
+                                    forecasts = SharedWeatherForecastStore.forecastsState.value
+                                )
+                                SharedTravelPlanStore.updatePlan(withWeather)
+                                geminiResponse = withWeather.aiOptimizationSummary
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(if (isEs) "🗺️ Mejorar mi Ruta" else "🗺️ Improve Route", fontSize = 15.sp)
+                        }
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = geminiResponse,
+                            fontSize = 16.sp,
+                            modifier = Modifier.padding(18.dp)
+                        )
                     }
                 }
             }
@@ -2479,7 +2018,7 @@ private fun GeminiAndTranslatorScreen(
 }
 
 // ============================================================================
-// TAB 6: SETTINGS, GOOGLE ACCOUNT SYNC & ABOUT / OSS LIBRARIES (SPEC-00)
+// TAB 6: SETTINGS & ABOUT (SEGMENTED & CLEAN)
 // ============================================================================
 @Composable
 private fun SettingsAndAboutScreen(
@@ -2487,197 +2026,164 @@ private fun SettingsAndAboutScreen(
     prefs: UserPreferences,
     prefsRepository: DefaultUserPreferencesRepository
 ) {
+    var activeSection by rememberSaveable { mutableIntStateOf(0) } // 0: Ajustes, 1: Acerca de
     var emailInput by rememberSaveable { mutableStateOf(prefs.googleAccountEmail ?: "carlos.travel.japan@gmail.com") }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            // Language & Theme Configuration (RF-00.1, RF-00.2, RF-00.3)
-            KotlinConfCard(accentBorderColor = MaterialTheme.colorScheme.primary) {
-                Text(
-                    text = if (isEs) "⚙️ Idioma y Tema Visual (Persistente)" else "⚙️ Language & Visual Theme (Persistent)",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = activeSection == 0,
+                    onClick = { activeSection = 0 },
+                    label = {
+                        Text(
+                            text = if (isEs) "⚙️ Preferencias y Sync" else "⚙️ Preferences & Sync",
+                            fontSize = 15.sp,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
                 )
-                Spacer(Modifier.height(8.dp))
-
-                Text(
-                    text = if (isEs) "Idioma (Por defecto Sistema con fallback a Inglés):" else "Language (System default with English fallback):",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
+                FilterChip(
+                    selected = activeSection == 1,
+                    onClick = { activeSection = 1 },
+                    label = {
+                        Text(
+                            text = if (isEs) "ℹ️ Acerca de" else "ℹ️ About",
+                            fontSize = 15.sp,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = prefs.language == AppLanguagePreference.SYSTEM,
-                        onClick = { prefsRepository.setLanguage(AppLanguagePreference.SYSTEM) },
-                        label = { Text(if (isEs) "Sistema" else "System") }
-                    )
-                    FilterChip(
-                        selected = prefs.language == AppLanguagePreference.SPANISH,
-                        onClick = { prefsRepository.setLanguage(AppLanguagePreference.SPANISH) },
-                        label = { Text("🇪🇸 Español") }
-                    )
-                    FilterChip(
-                        selected = prefs.language == AppLanguagePreference.ENGLISH,
-                        onClick = { prefsRepository.setLanguage(AppLanguagePreference.ENGLISH) },
-                        label = { Text("🇬🇧 English") }
-                    )
-                }
-
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = if (isEs) "Tema de Color Japonés (Washi Claro / Sumi OLED Oscuro):" else "Japanese Color Theme (Washi Light / Sumi Dark):",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = prefs.themeMode == AppThemeMode.SYSTEM,
-                        onClick = { prefsRepository.setThemeMode(AppThemeMode.SYSTEM) },
-                        label = { Text(if (isEs) "Sistema" else "System") }
-                    )
-                    FilterChip(
-                        selected = prefs.themeMode == AppThemeMode.LIGHT,
-                        onClick = { prefsRepository.setThemeMode(AppThemeMode.LIGHT) },
-                        label = { Text(if (isEs) "☀️ Claro (Washi)" else "☀️ Light (Washi)") }
-                    )
-                    FilterChip(
-                        selected = prefs.themeMode == AppThemeMode.DARK,
-                        onClick = { prefsRepository.setThemeMode(AppThemeMode.DARK) },
-                        label = { Text(if (isEs) "🌙 Oscuro (Sumi)" else "🌙 Dark (Sumi)") }
-                    )
-                }
             }
         }
 
-        item {
-            // Google Account Multi-Device Synchronization (RF-00.11)
-            KotlinConfCard(accentBorderColor = MaterialTheme.colorScheme.secondary) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+        if (activeSection == 0) {
+            item {
+                KotlinConfCard {
                     Text(
-                        text = if (isEs) "☁️ Sincronización Cuenta de Google (Pixel ⇄ Tablet TCL)" else "☁️ Google Account Sync (Pixel ⇄ TCL Tablet)",
-                        style = MaterialTheme.typography.titleMedium,
+                        text = if (isEs) "Idioma y Tema Visual" else "Language & Theme",
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
                     )
+                    Spacer(Modifier.height(14.dp))
+
+                    Text(
+                        text = if (isEs) "Idioma:" else "Language:",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = prefs.language == AppLanguagePreference.SYSTEM,
+                            onClick = { prefsRepository.setLanguage(AppLanguagePreference.SYSTEM) },
+                            label = { Text(if (isEs) "Sistema" else "System", fontSize = 15.sp) }
+                        )
+                        FilterChip(
+                            selected = prefs.language == AppLanguagePreference.SPANISH,
+                            onClick = { prefsRepository.setLanguage(AppLanguagePreference.SPANISH) },
+                            label = { Text("🇪🇸 Español", fontSize = 15.sp) }
+                        )
+                        FilterChip(
+                            selected = prefs.language == AppLanguagePreference.ENGLISH,
+                            onClick = { prefsRepository.setLanguage(AppLanguagePreference.ENGLISH) },
+                            label = { Text("🇬🇧 English", fontSize = 15.sp) }
+                        )
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        text = if (isEs) "Tema:" else "Theme:",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = prefs.themeMode == AppThemeMode.SYSTEM,
+                            onClick = { prefsRepository.setThemeMode(AppThemeMode.SYSTEM) },
+                            label = { Text(if (isEs) "Sistema" else "System", fontSize = 15.sp) }
+                        )
+                        FilterChip(
+                            selected = prefs.themeMode == AppThemeMode.LIGHT,
+                            onClick = { prefsRepository.setThemeMode(AppThemeMode.LIGHT) },
+                            label = { Text(if (isEs) "☀️ Claro" else "☀️ Light", fontSize = 15.sp) }
+                        )
+                        FilterChip(
+                            selected = prefs.themeMode == AppThemeMode.DARK,
+                            onClick = { prefsRepository.setThemeMode(AppThemeMode.DARK) },
+                            label = { Text(if (isEs) "🌙 Oscuro" else "🌙 Dark", fontSize = 15.sp) }
+                        )
+                    }
                 }
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = if (isEs) {
-                        "Sincroniza itinerarios, transportes, guías y documentos entre tu Pixel 10/9 Pro XL y tu TCL NXTPAPER 11 Plus manteniendo copia 100% offline."
-                    } else {
-                        "Syncs itineraries, transport, guides and documents across your Pixel 10/9 Pro XL and TCL NXTPAPER 11 Plus keeping 100% offline copies."
-                    },
-                    fontSize = 12.sp
-                )
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = emailInput,
-                    onValueChange = { emailInput = it },
-                    label = { Text("Google Account") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+            }
+
+            item {
+                KotlinConfCard {
                     Text(
-                        text = if (prefs.googleAccountEmail != null) {
-                            "✅ Vinculado: ${prefs.googleAccountEmail}"
-                        } else {
-                            if (isEs) "No vinculado aún" else "Not linked yet"
-                        },
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.tertiary,
+                        text = if (isEs) "Sincronización con Google" else "Google Account Sync",
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
                     )
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = emailInput,
+                        onValueChange = { emailInput = it },
+                        label = { Text("Google Account", fontSize = 15.sp) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(12.dp))
                     Button(
                         onClick = {
                             prefsRepository.setGoogleAccountSync(
                                 email = emailInput,
                                 lastSyncedMillis = System.currentTimeMillis()
                             )
-                        }
+                        },
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(if (isEs) "🔄 Sincronizar Dispositivos" else "🔄 Sync Devices")
+                        Text(if (isEs) "🔄 Sincronizar Dispositivos" else "🔄 Sync Devices", fontSize = 15.sp)
                     }
                 }
             }
-        }
-
-        item {
-            // About & Third-Party Open Source Libraries Section (RF-00.6)
-            KotlinConfCard(accentBorderColor = MaterialTheme.colorScheme.tertiary) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+        } else {
+            item {
+                KotlinConfCard {
                     Text(
-                        text = if (isEs) "ℹ️ Acerca de y Librerías Open Source" else "ℹ️ About & Open Source Libraries",
-                        style = MaterialTheme.typography.titleMedium,
+                        text = "Japan Travel Tools · v${OpenSourceLibrariesCatalog.APP_VERSION_NAME}",
+                        fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
                     )
-                }
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "Japan Travel Tools · Version ${OpenSourceLibrariesCatalog.APP_VERSION_NAME} (Code ${OpenSourceLibrariesCatalog.APP_VERSION_CODE})",
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp
-                )
-                Text(
-                    text = if (isEs) {
-                        "Optimizado para Google Pixel 10 Pro XL, Google Pixel 9 Pro XL y Tablet TCL NXTPAPER 11 Plus."
-                    } else {
-                        "Optimized for Google Pixel 10 Pro XL, Google Pixel 9 Pro XL & TCL NXTPAPER 11 Plus Tablet."
-                    },
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    text = if (isEs) "Librerías Open Source de Terceros Utilizadas:" else "Third-Party Open Source Libraries Used:",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp
-                )
-                Spacer(Modifier.height(6.dp))
-                OpenSourceLibrariesCatalog.thirdPartyLibraries.forEach { lib ->
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(10.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(lib.name, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                Text(lib.license, fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.height(12.dp))
+                    OpenSourceLibrariesCatalog.thirdPartyLibraries.forEach { lib ->
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 5.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Text(lib.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Text(
+                                    text = "${lib.version} · ${lib.license}",
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = if (isEs) lib.purposeEs else lib.purposeEn,
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
-                            Text(
-                                text = "${lib.artifactId} (${lib.version}) · ${lib.author}",
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
-                            Text(
-                                text = if (isEs) lib.purposeEs else lib.purposeEn,
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
                         }
                     }
                 }
@@ -2698,33 +2204,27 @@ private fun QuickConnectivitySwitcherContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text(
-            text = if (isEs) "📡 Estado de Red y Cambio Rápido (Wi-Fi / SIM / eSIM)" else "📡 Live Network & Quick Switcher (Wi-Fi / SIM / eSIM)",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.ExtraBold
-        )
-        Text(
-            text = if (isEs) "Conexión activa detectada: ${kind.badgeEs}" else "Active connection detected: ${kind.badgeEn}",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.primary
+            text = if (isEs) "📡 Conexión Activa: ${kind.badgeEs}" else "📡 Active Connection: ${kind.badgeEn}",
+            fontSize = 19.sp,
+            fontWeight = FontWeight.Bold
         )
 
         Button(
             onClick = onOpenInternetPanel,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(if (isEs) "📶 Abrir Panel de Internet (Wi-Fi / Datos Móviles)" else "📶 Open Android Internet Panel (Wi-Fi / Cellular)")
+            Text(if (isEs) "📶 Abrir Panel Wi-Fi / Datos" else "📶 Open Wi-Fi / Cellular Panel", fontSize = 16.sp)
         }
 
         OutlinedButton(
             onClick = onOpenSimSettings,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(if (isEs) "📲 Cambiar entre SIM Física y eSIM de Japón" else "📲 Switch between Physical SIM & Japan eSIM")
+            Text(if (isEs) "📲 Cambiar entre SIM y eSIM" else "📲 Switch SIM / eSIM", fontSize = 16.sp)
         }
 
         Row(
@@ -2733,50 +2233,12 @@ private fun QuickConnectivitySwitcherContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = if (isEs) "Forzar Modo Solo Offline en la app (Ahorro eSIM)" else "Force App Offline-Only Mode (Save eSIM Data)",
-                fontSize = 13.sp,
+                text = if (isEs) "Modo Solo Offline (Ahorro eSIM)" else "Offline-Only Mode",
+                fontSize = 16.sp,
                 modifier = Modifier.weight(1f)
             )
             Switch(checked = forceOffline, onCheckedChange = onToggleForceOffline)
         }
-        Spacer(Modifier.height(12.dp))
-    }
-}
-
-@Composable
-private fun QuickSimultaneousTranslationSheet(isEs: Boolean) {
-    var quickInput by rememberSaveable { mutableStateOf("¿Dónde está el andén del Shinkansen?") }
-    val translated = remember(quickInput) { OfflineTranslatorEngine.translateToJapanese(quickInput) }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Text(
-            text = if (isEs) "🎙️ Acceso Directo: Traducción Simultánea" else "🎙️ Quick Simultaneous Translation",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.ExtraBold
-        )
-        Surface(
-            shape = RoundedCornerShape(14.dp),
-            color = MaterialTheme.colorScheme.primaryContainer,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(translated.japaneseText, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
-                Spacer(Modifier.height(4.dp))
-                Text(translated.romaji, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-            }
-        }
-        OutlinedTextField(
-            value = quickInput,
-            onValueChange = { quickInput = it },
-            label = { Text(if (isEs) "Frase a traducir al Japonés" else "Phrase to translate to Japanese") },
-            modifier = Modifier.fillMaxWidth()
-        )
         Spacer(Modifier.height(12.dp))
     }
 }

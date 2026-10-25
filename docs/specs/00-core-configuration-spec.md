@@ -40,17 +40,16 @@ Establecer los cimientos funcionales y de experiencia de usuario de **Japan Trav
      - **Cabeceras de fecha y filtros estilo *Agenda/Schedule* (`Pill Chips`)** con scroll horizontal suave para alternar días del itinerario, ciudades (*Tokio*, *Kioto*, *Osaka*) o categorías de documentos.
      - **Tipografía con jerarquía editorial y números tabulares (`tnum`)** para que los relojes duales, horarios del planificador y cifras del conversor de yenes estén siempre perfectamente alineados.
      - **Barra de navegación flotante/estilizada** en smartphones (`NavigationBar`) y barra lateral limpia (`NavigationRail`) en tablet.
-3. **Paleta de Colores Tradicionales de Japón (`日本の伝統色` — Nippon Colors)**:
-   - **Acento Principal (`Akabeni` / `Torii Vermilion`)**:
-     - Modo Claro: `#C9171E` (Carmesí profundo del Sol Naciente / Santuarios Torii).
-     - Modo Oscuro: `#FF5A5F` (Coral/Bermellón luminoso de alta legibilidad sobre fondo oscuro).
-   - **Acento Secundario (`Ai-iro` — Índigo Japonés)**:
-     - Modo Claro: `#165E83` | Modo Oscuro: `#64B5F6`.
-   - **Acento Terciario (`Matcha` / `Sakura`)**:
-     - Verde Matcha (`#5B8930` / `#81C784`) para estados sincronizados/offline OK y Rosa Sakura (`#F4A7B9`) para destacados/favoritos (`Pinned`).
-   - **Fondos y Superficies**:
-     - Modo Claro (*Washi*): Fondo principal `#FAF7F2` (blanco cálido papel Washi), tarjetas `#FFFFFF` con borde `#E6E0D6`, texto principal `#1C1B1F` (*Sumi* carbón).
-     - Modo Oscuro (*Sumi / OLED*): Fondo principal `#0F1115` (negro carbón profundo para los paneles OLED de Pixel 9/10 Pro XL), tarjetas `#181B22` con borde `#2A2F3A`, texto principal `#F4F1EA`.
+3. **Paleta de Colores Descansada y Ergonomía Visual (Calm Japanese Slate & Washi)**:
+   - **Diseño No Cargante en Modo Oscuro**: Se prohíbe el uso de bordes rojos/azules saturados alrededor de las tarjetas o fondos rojos intensos que fatiguen la vista. Las tarjetas utilizan superficies neutras suaves (`#1B1F27` sobre fondo `#111318` con borde sutil neutro `#2E3440`).
+   - **Acento Principal Sereno (`Ai-iro Soft` / Índigo Pizarra)**:
+     - Modo Claro: `#1E567A` | Modo Oscuro: `#8AB4F8` (Azul pizarra suave y descansado).
+   - **Acento Secundario (`Matcha Sage` / Verde Salvia)**:
+     - Modo Claro: `#3F6E4E` | Modo Oscuro: `#9CCFA4`.
+   - **Tipografía Amplia y Legible**:
+     - Cuerpo de texto principal en `15.sp`–`16.sp`, textos secundarios nunca inferiores a `13.sp`–`14.sp`, títulos de tarjeta en `18.sp`–`20.sp` y cifras clave en `26.sp`–`32.sp`.
+   - **Baja Densidad Cognitiva (Una tarea por vista)**:
+     - Evitar apilar múltiples herramientas complejas en una misma pantalla de scroll infinito; utilizar selectores de sub-vista limpios (ej. `Divisa y Reloj` vs `Tiempo Open-Meteo`; `Traductor de Voz` vs `Asistente Gemini`; `Pasaporte y Reservas` vs `Guías`) y ocultar metadatos técnicos innecesarios (como coordenadas GPS en crudo).
 
 ### RF-00.3: Persistencia de Configuración
 1. Toda configuración modificada por el usuario en la app o en cualquiera de sus herramientas (idioma, tema, país de origen en relojes, divisas seleccionadas, bloqueo biométrico, etc.) se guardará automáticamente en almacenamiento local persistente.
