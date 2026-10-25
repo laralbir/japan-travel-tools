@@ -379,8 +379,6 @@ private fun KotlinConfStyleHeaderBar(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.ExtraBold
                     )
-                    Spacer(Modifier.width(6.dp))
-                    BetaBadgePill(text = "v0.0.1-beta.1")
                 }
 
                 // Direct Quick Action for Simultaneous Translation (SPEC-06)
@@ -449,7 +447,7 @@ private fun KotlinConfStyleHeaderBar(
 }
 
 @Composable
-fun BetaBadgePill(text: String = "BETA") {
+fun InfoTagPill(text: String) {
     Surface(
         shape = RoundedCornerShape(6.dp),
         color = MaterialTheme.colorScheme.primaryContainer,
@@ -561,7 +559,6 @@ private fun ClocksAndCurrencyDashboardScreen(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    BetaBadgePill()
                 }
 
                 Spacer(Modifier.height(10.dp))
@@ -698,7 +695,6 @@ private fun ClocksAndCurrencyDashboardScreen(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    BetaBadgePill()
                 }
 
                 Spacer(Modifier.height(6.dp))
@@ -868,7 +864,6 @@ private fun OpenMeteoWeatherPlannerCard(isEs: Boolean) {
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
-            BetaBadgePill(text = "OPEN-METEO")
         }
 
         Spacer(Modifier.height(4.dp))
@@ -952,7 +947,7 @@ private fun OpenMeteoWeatherPlannerCard(isEs: Boolean) {
                             fontSize = 13.sp,
                             fontFamily = FontFamily.Monospace
                         )
-                        BetaBadgePill(
+                        InfoTagPill(
                             text = if (isEs) day.suitability.badgeEs else day.suitability.badgeEn
                         )
                     }
@@ -1015,7 +1010,6 @@ private fun TripPlannerAdaptiveScreen(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
-            BetaBadgePill()
         }
 
         // JSON Export/Import + Gemini AI Plan Builder Action Bar (RF-04.6 & RF-06.2)
@@ -1092,7 +1086,7 @@ private fun TripPlannerAdaptiveScreen(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
                 )
-                BetaBadgePill(
+                InfoTagPill(
                     text = if (isEs) selectedDayWeather.suitability.badgeEs else selectedDayWeather.suitability.badgeEn
                 )
             }
@@ -1253,7 +1247,7 @@ private fun TimelineStopCard(
                     fontSize = 14.sp
                 )
             }
-            BetaBadgePill(text = if (isEs) stop.category.labelEs else stop.category.labelEn)
+            InfoTagPill(text = if (isEs) stop.category.labelEs else stop.category.labelEn)
         }
 
         Spacer(Modifier.height(6.dp))
@@ -1446,7 +1440,6 @@ private fun JsonPortabilityModalSheet(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                BetaBadgePill(text = "JSON v1.0")
             }
 
             Spacer(Modifier.height(6.dp))
@@ -1593,7 +1586,6 @@ private fun TransportMultiModalScreen(isEs: Boolean) {
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                BetaBadgePill()
             }
 
             Row(
@@ -1668,7 +1660,7 @@ private fun TransportMultiModalScreen(isEs: Boolean) {
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 15.sp
                     )
-                    BetaBadgePill(text = seg.passOrPaymentBadge)
+                    InfoTagPill(text = seg.passOrPaymentBadge)
                 }
 
                 Spacer(Modifier.height(6.dp))
@@ -1787,7 +1779,6 @@ private fun VaultAndGuidesAdaptiveScreen(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    BetaBadgePill()
                 }
 
                 Spacer(Modifier.height(8.dp))
@@ -1879,7 +1870,7 @@ private fun VaultAndGuidesAdaptiveScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(guide.title, fontWeight = FontWeight.Bold, fontSize = 14.sp, modifier = Modifier.weight(1f))
-                                BetaBadgePill(text = "${guide.cityRegion} · 📷${guide.photoCount}")
+                                InfoTagPill(text = "${guide.cityRegion} · 📷${guide.photoCount}")
                             }
                             Spacer(Modifier.height(4.dp))
                             Text(guide.markdownSummary, fontSize = 12.sp)
@@ -1933,7 +1924,7 @@ private fun VaultAndGuidesAdaptiveScreen(
                         fontSize = 14.sp,
                         modifier = Modifier.weight(1f)
                     )
-                    BetaBadgePill(text = doc.category.badgeCode)
+                    InfoTagPill(text = doc.category.badgeCode)
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(text = doc.referenceOrNotes, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -2064,7 +2055,6 @@ private fun GeminiAndTranslatorScreen(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    BetaBadgePill(text = "GEMINI AI")
                 }
 
                 Spacer(Modifier.height(8.dp))
@@ -2122,7 +2112,6 @@ private fun GeminiAndTranslatorScreen(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    BetaBadgePill(text = "AI PLANNER")
                 }
 
                 Spacer(Modifier.height(6.dp))
@@ -2316,7 +2305,6 @@ private fun SettingsAndAboutScreen(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    BetaBadgePill()
                 }
                 Spacer(Modifier.height(6.dp))
                 Text(
@@ -2378,7 +2366,6 @@ private fun SettingsAndAboutScreen(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    BetaBadgePill(text = "v${OpenSourceLibrariesCatalog.APP_VERSION_NAME}")
                 }
                 Spacer(Modifier.height(4.dp))
                 Text(

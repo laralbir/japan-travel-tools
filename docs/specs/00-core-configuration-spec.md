@@ -63,8 +63,8 @@ Establecer los cimientos funcionales y de experiencia de usuario de **Japan Trav
    - Cachearse y persistirse en base de datos local (`Room` / `DataStore`) cada vez que se obtenga una actualización exitosa.
    - Mostrar de forma clara cuándo se actualizaron los datos por última vez y si se está operando en modo offline/cacheado.
 
-### RF-00.5: Indicador de Estado Beta por Herramienta
-1. Mientras una herramienta no esté implementada al 100%, validada y aprobada por el usuario, mostrará una etiqueta visual discreta `BETA` y la versión de la aplicación se mantendrá bajo numeración pre-release (`0.0.1-beta.X`).
+### RF-00.5: Prohibición de Etiquetas `BETA` en la Interfaz de Usuario
+1. Aunque la numeración interna de versiones pre-release en Git/GitHub utilice el sufijo `-beta.X` (`0.0.1-beta.X`) hasta la aprobación final de `0.0.1`, **queda estrictamente prohibido mostrar etiquetas, píldoras o insignias `BETA` en ningún lugar de la interfaz de la aplicación**, ya que no aportan información útil al usuario y consumen espacio en pantalla.
 
 ### RF-00.6: Apartado "Acerca de" (Versión de la App y Librerías Open Source de Terceros)
 1. Dentro de Ajustes (`Settings` / `About`), la aplicación contará con un apartado **"Acerca de / Información de la App"** accesible 100% offline que mostrará:
