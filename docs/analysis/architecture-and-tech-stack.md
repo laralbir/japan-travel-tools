@@ -88,10 +88,10 @@ flowchart TD
   - `domain/`: `CreateTripUseCase`, `ScheduleItineraryItemUseCase`, `DetectScheduleConflictsUseCase`, `ParseGoogleMapsUrlUseCase`, `ExportToSystemCalendarUseCase`, `TripPlannerRepository`.
   - `data/`: `TripPlannerDao`, `SystemCalendarExporter`, `GoogleMapsIntentLauncher`.
   - `ui/`: `TripPlannerScreen`, `DayTimelineView`, `DayEmbeddedMapView`, `ItineraryItemEditorSheet`, `TripPlannerViewModel`.
-- `feature/flights/`:
-  - `domain/`: `CalculateFlightTimelineUseCase`, `CalculateLayoverInfoUseCase`, `FlightPlannerRepository`, modelos `FlightJourney`, `FlightSegment`, `LayoverDetails`.
-  - `data/`: `FlightPlannerDao`, `AirportTimeZoneCatalog` (catálogo offline de aeropuertos principales como `MAD`, `BCN`, `DOH`, `DXB`, `IST`, `FRA`, `CDG`, `HND`, `NRT`, `KIX`, `FUK`, `CTS` con sus `ZoneId` y coordenadas).
-  - `ui/`: `FlightPlannerScreen`, `FlightSegmentTimelineCard`, `LayoverConnectorCard`, `FlightEditorSheet`, `FlightPlannerViewModel`.
+- `feature/transport/` (Planificador Multimodal: Vuelos, Trenes/Shinkansen, Metros y Autobuses):
+  - `domain/`: `CalculateTransportTimelineUseCase`, `CalculateLayoverAndTransferUseCase`, `TransportPlannerRepository`, modelos `TransportJourney`, `TransportSegment`, `TransportType` (`FLIGHT`, `TRAIN_SHINKANSEN`, `TRAIN_EXPRESS`, `TRAIN_LOCAL`, `SUBWAY_METRO`, `BUS_HIGHWAY`, `BUS_LOCAL`, `BUS_AIRPORT`), `ConnectionDetails`.
+  - `data/`: `TransportPlannerDao`, `AirportAndStationCatalog` (catálogo offline de aeropuertos internacionales/japoneses `MAD`, `BCN`, `DOH`, `HND`, `NRT`, `KIX` y principales estaciones de Japón como `Tokyo`, `Shinjuku`, `Shibuya`, `Kyoto`, `Shin-Osaka`, `Kanazawa`, `Hiroshima` con sus `ZoneId`, nombres en japonés y coordenadas).
+  - `ui/`: `TransportPlannerScreen`, `FlightSegmentTimelineCard`, `TrainMetroBusSegmentCard`, `LayoverTransferConnectorCard`, `TransportEditorSheet`, `TransportPlannerViewModel`.
 
 ---
 
@@ -171,37 +171,43 @@ data class UserPreferences(
   - `linkedGuideId: String?` (FK opcional a guía en `travel_guides`)
   - `syncedCalendarEventId: Long?` (ID en `CalendarContract` si fue exportado)
 
-### 3.5. Planificador de Vuelos y Escalas (`FlightJourneyEntity` & `FlightSegmentEntity`)
-- **Tabla Room `flight_journeys`** (Agrupador de trayecto, ej. *Ida a Japón* / *Vuelta a Casa* / *Vuelo doméstico*):
+### 3.5. Planificador de Transporte Multimodal: Vuelos, Trenes, Metros y Autobuses (`TransportJourneyEntity` & `TransportSegmentEntity`)
+- **Tabla Room `transport_journeys`** (Agrupador de trayecto, ej. *Ida a Japón: Avión + Narita Express + Metro* o *Ruta Tokio ➔ Kioto ➔ Nara*):
   - `id: String` (UUID)
   - `tripId: String?` (FK opcional a `trips`)
-  - `title: String` (ej. `"Vuelo de Ida: Madrid ➔ Tokio Haneda"`)
+  - `title: String` (ej. `"Llegada a Tokio: Vuelo + N'EX + Metro"`)
   - `bookingReferencePnr: String?`
-- **Tabla Room `flight_segments`** (Cada vuelo individual dentro del trayecto):
+- **Tabla Room `transport_segments`** (Cada tramo individual de Vuelo, Tren, Metro o Autobús):
   - `id: String` (UUID)
-  - `journeyId: String` (FK a `flight_journeys`)
+  - `journeyId: String` (FK a `transport_journeys`)
   - `segmentOrder: Int` (`0`, `1`, `2`...)
-  - `airline: String`
-  - `flightNumber: String` (ej. `"QR806"`)
-  - `departureAirportIata: String` (ej. `"MAD"`, `"DOH"`)
-  - `departureCity: String`
-  - `departureZoneId: String` (ej. `"Europe/Madrid"`, `"Asia/Qatar"`)
-  - `departureTerminal: String?`
-  - `checkInCounter: String?`
-  - `boardingGate: String?`
-  - `seatNumber: String?`
-  - `onlineCheckInOpensIso: String?`
-  - `counterCheckInTimeIso: String?` (Hora de facturación en aeropuerto)
+  - `transportType: TransportType` (`FLIGHT`, `TRAIN_SHINKANSEN`, `TRAIN_EXPRESS`, `TRAIN_LOCAL`, `SUBWAY_METRO`, `BUS_HIGHWAY`, `BUS_LOCAL`, `BUS_AIRPORT`)
+  - `operatorOrAirline: String` (ej. `"Qatar Airways"`, `"JR Central"`, `"Tokyo Metro"`, `"Keio Bus"`)
+  - `lineOrFlightNumber: String` (ej. `"QR806"`, `"Nozomi #21"`, `"Ginza Line (G)"`, `"Bus #206"`)
+  - `lineColorHex: String?` (color identificativo de la línea de metro/tren, ej. `"#FF9500"`)
+  - `departureStationOrAirportCode: String` (IATA `"MAD"` / `"NRT"` o código de estación `"G19"` / `"TYO"`)
+  - `departurePlaceName: String` (ej. `"Madrid Barajas"` o `"Tokyo Station (東京駅)"`)
+  - `departureZoneId: String` (ej. `"Europe/Madrid"`, `"Asia/Tokyo"`)
+  - `departureTerminalOrPlatform: String?` (Terminal `"T4S"` en vuelos, Andén `"Track 16"` en tren/metro, o Dársena `"Bay 4"` en autobús)
+  - `checkInCounterOrStationGate: String?` (Mostrador de facturación o Entrada de estación)
+  - `boardingGate: String?` (Puerta de embarque en vuelos)
+  - `carNumber: String?` (Número de vagón/coche en Shinkansen o vagón recomendado en Metro para transbordo)
+  - `seatNumber: String?` (Asiento `"18K"`, `"12E (Fuji View)"` o `"Non-Reserved / 自由席"`)
+  - `oversizedBaggageReserved: Boolean` (Reserva de espacio para maletas grandes en Shinkansen)
+  - `passOrPaymentType: String?` (`"JR Pass"`, `"Suica / IC Card"`, `"Billete Reservado"`, `"Efectivo"`)
+  - `onlineCheckInOpensIso: String?` (Vuelos)
+  - `counterCheckInTimeIso: String?` (Hora de facturación en aeropuerto / llegada al andén)
   - `bagDropDeadlineIso: String?` (Cierre de facturación de maletas)
   - `boardingTimeIso: String?` (Hora de embarque)
   - `departureTimeIso: String` (Hora de salida local en `departureZoneId`)
-  - `arrivalAirportIata: String` (ej. `"DOH"`, `"HND"`, `"NRT"`, `"KIX"`)
-  - `arrivalCity: String`
+  - `arrivalStationOrAirportCode: String` (ej. `"HND"`, `"KYO"`, `"G01"`)
+  - `arrivalPlaceName: String`
   - `arrivalZoneId: String` (ej. `"Asia/Tokyo"`)
-  - `arrivalTerminal: String?`
-  - `baggageClaimBelt: String?`
+  - `arrivalTerminalOrPlatform: String?` (Terminal de llegada, Andén de llegada o Parada)
+  - `stationExitNumber: String?` (Salida exacta de estación de metro/tren, ej. `"Salida A4"`, `"Hachiko Exit"`)
+  - `baggageClaimBelt: String?` (Cinta de equipaje en vuelos)
   - `arrivalTimeIso: String` (Hora de llegada local en `arrivalZoneId`)
-  - `boardingPassDocumentId: String?` (FK opcional a la tarjeta de embarque en `travel_documents`)
+  - `ticketDocumentId: String?` (FK opcional a tarjeta de embarque o billete QR en `travel_documents`)
   - `notes: String?`
 
 ---
@@ -218,7 +224,7 @@ Cada funcionalidad sigue el ciclo **Red -> Green -> Refactor**:
      - Conversión bidireccional `EUR <-> JPY`, aplicación de tasas semilla cuando no hay red, actualización de caché con Frankfurter API simulada (`MockEngine` / Fake API) y supervivencia de datos en modo offline.
      - Filtrado, categorización, alta y borrado de documentos de viaje, guías personalizadas/importadas y fotos de Pasaporte/DNI usando un `FakeFileStorageManager`.
      - Lógica del **Planificador de Viaje**: generación de días entre fechas, ordenación cronológica de horarios, detección de solapamientos (`DetectScheduleConflictsUseCase`), extracción de coordenadas desde enlaces de Google Maps (`ParseGoogleMapsUrlUseCase`) y conversión de horarios a `Asia/Tokyo` para exportación a calendario.
-     - Lógica del **Planificador de Vuelos (`SPEC-05`)**: cálculo exacto de duración real de cada tramo aéreo entre distintas zonas horarias (`CalculateFlightTimelineUseCase`), cálculo de tiempo total y tiempo útil de escala hasta el siguiente embarque (`CalculateLayoverInfoUseCase`), detección de alertas de escala corta (`< 60/90 min`) y cálculo de diferencia de días (`+1 día` / `+2 días`).
+     - Lógica del **Planificador de Transporte Multimodal (`SPEC-05` — Vuelos, Trenes, Metros y Autobuses)**: cálculo exacto de duración real de cada tramo aéreo o terrestre entre distintas zonas horarias (`CalculateTransportTimelineUseCase`), cálculo de tiempo de escala aérea y tiempo de transbordo entre avión/tren/metro/autobús (`CalculateLayoverAndTransferUseCase`), detección de alertas de escala o transbordo ajustado y cálculo de diferencia de días (`+1 día` / `+2 días`).
 2. **Tests de UI / Instrumentados (`src/androidTest/java`)**:
    - **Compose UI Test (`createComposeRule`) + Room In-Memory Database**.
    - Verificación de navegación, cambio de tema Claro/Oscuro, interacción con el conversor, selector de zona horaria de origen, creación/lectura de guías de viaje y línea temporal/mapa del planificador.

@@ -141,12 +141,11 @@ Organiza tu itinerario día por día y hora por hora en un solo lugar conectado 
 
 ---
 
-## 6. Herramienta: Planificador de Vuelos (Facturación, Embarque, Salida, Escalas y Llegada)
+## 6. Herramienta: Planificador de Vuelos, Trenes, Metros y Autobuses
 
-Los viajes a Japón suelen incluir vuelos largos y escalas internacionales atravesando múltiples zonas horarias. Esta herramienta te permite tener todo el cronograma aéreo bajo control y 100% offline.
+En Japón combinarás vuelos internacionales con escalas, trenes bala (*Shinkansen*), expresos de aeropuerto (*Narita Express*, *Haruka*), líneas de metro y autobuses (*Highway Bus* o urbanos). Esta herramienta te permite planificar y encadenar todos tus trayectos 100% offline.
 
-### 6.1. Qué puedes configurar en cada vuelo y tramo
-Puedes crear un trayecto completo (por ejemplo, *"Ida a Japón"* o *"Vuelta a Casa"*) compuesto por uno o varios vuelos conectados:
+### 6.1. Planificador de Vuelos (Facturación, Embarque, Salida, Escalas y Llegada)
 1. **Datos del Vuelo**: Aerolínea, número de vuelo (`IB6801`, `QR806`, `NH211`), código de reserva (`PNR` copiable), Terminal, Mostrador de facturación, Puerta de embarque (`Gate`), Asiento (`Seat`) y Cinta de equipaje.
 2. **Cronograma paso a paso por tramo**:
    - 🕒 **Apertura de Check-in Online** y **Hora de Facturación en mostrador / Límite de maletas (`Bag Drop`)**.
@@ -155,12 +154,22 @@ Puedes crear un trayecto completo (por ejemplo, *"Ida a Japón"* o *"Vuelta a Ca
    - 🛬 **Hora de Llegada (`Arrival`)** en la hora local del aeropuerto de destino (indicando automáticamente si llegas `+1 día` o `+2 días` después).
    - ⏱️ **Duración real del vuelo**: Calculada automáticamente teniendo en cuenta la diferencia de husos horarios entre origen, escala y Japón.
 
-### 6.2. Control de Escalas (`Layovers`)
-- Si tu vuelo tiene una o más escalas (por ejemplo, en *Doha*, *Dubái*, *Estambul*, *Fráncfort* o *París*), la app muestra automáticamente entre ambos vuelos una **Tarjeta de Escala** con:
-  - El **tiempo total de escala** (desde que aterrizas hasta que despega el siguiente avión).
-  - El **tiempo real disponible hasta el siguiente Embarque** (para que sepas cuánto margen tienes para cambiar de terminal o pasar controles).
-  - Cambio de terminal (ej. `Terminal 1 ➔ Terminal 3`) y **alerta visual en rojo (`Akabeni`)** si la escala es ajustada.
+### 6.2. Planificador de Trenes (Shinkansen / JR), Metros y Autobuses
+Dentro del mismo trayecto o en trayectos diarios por Japón puedes añadir tramos terrestres con toda la información clave para moverte como un local:
+1. 🚅 **Trenes y Shinkansen (`Nozomi`, `Hikari`, `Narita Express`, `JR`)**:
+   - Estación de origen y destino (con nombre en japonés para identificarla en los paneles del andén).
+   - **Andén de salida y llegada (`Track / Platform`)**, **Número de Coche (`Car`)** y **Asiento (`Seat` reservado o no reservado)**.
+   - Indicador de **Reserva de Equipaje Grande (`Oversized Baggage`)** y si el trayecto se cubre con **JR Pass** o tarjeta **Suica / Pasmo / Icoca**.
+2. 🚇 **Metro (`Tokyo Metro`, `Toei`, `Osaka Metro`, `Kyoto Subway`)**:
+   - Nombre y color oficial de la línea, **código alfanumérico de estación** (ej. `G19 Asakusa` ➔ `G01 Shibuya`).
+   - **Vagón recomendado** para hacer el transbordo más rápido y **Número de Salida Exacta (`Station Exit`, ej. `Salida A4` o `Hachiko Exit`)** para salir directamente a la calle correcta.
+3. 🚌 **Autobuses (`Highway Bus`, `Airport Limousine`, `Kyoto Bus`)**:
+   - Compañía, número de línea, **Dársena / Parada (`Bus Bay`)**, asiento reservado y método de pago (reserva previa, Suica o efectivo al bajar).
 
-### 6.3. Tarjetas de Embarque a un toque y Alarmas Offline
-- Enlaza el PDF o captura QR de tu **Tarjeta de Embarque** a cada tramo para abrirla al instante desde la propia tarjeta del vuelo sin buscarla.
-- Activa recordatorios locales para que el teléfono te avise cuando abra el Check-in online, cuando toque facturar o cuando empiece el embarque.
+### 6.3. Control de Escalas Aéreas y Transbordos Multimodales (`Layovers & Transfers`)
+- Cuando encadenas varios tramos (por ejemplo: *Vuelo a Narita ➔ Tren Narita Express ➔ Metro hasta el hotel*, o *Shinkansen ➔ Autobús a Shirakawa-go*), la app inserta automáticamente una **Tarjeta de Escala / Transbordo** entre cada tramo indicando:
+  - El **tiempo total de conexión** y el **tiempo real hasta el siguiente embarque o salida de tren/autobús**.
+  - El cambio de terminal, andén o dársena (ej. `Andén 14 Shinkansen ➔ Andén 5 JR Yamanote`) y una **alerta visual en rojo (`Akabeni`)** si el tiempo de transbordo es demasiado justo.
+
+### 6.4. Tarjetas de Embarque y Billetes QR a un toque
+- Enlaza el PDF o captura QR de tu **Tarjeta de Embarque**, billete de **Shinkansen** o reserva de **Highway Bus** a cada tramo para abrirlo al instante desde la propia tarjeta del trayecto sin conexión a internet.
