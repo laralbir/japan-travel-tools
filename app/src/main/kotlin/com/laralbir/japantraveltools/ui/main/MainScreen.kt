@@ -2127,13 +2127,16 @@ private fun ItineraryStopEditorModalSheet(
     onSave: (ItineraryStopItem) -> Unit,
     onDelete: (String) -> Unit
 ) {
-    var dayText by rememberSaveable { mutableStateOf(initialStop.dayNumber.toString()) }
-    var startTimeText by rememberSaveable { mutableStateOf(initialStop.startTime) }
-    var endTimeText by rememberSaveable { mutableStateOf(initialStop.endTime) }
-    var titleText by rememberSaveable { mutableStateOf(initialStop.title) }
-    var japaneseNameText by rememberSaveable { mutableStateOf(initialStop.placeNameJapanese) }
-    var notesText by rememberSaveable { mutableStateOf(initialStop.notes) }
-    var selectedCategory by rememberSaveable { mutableStateOf(initialStop.category) }
+    var stopDateText by rememberSaveable(initialStop.id) {
+        mutableStateOf(if (isNew) "" else initialStop.dateIso)
+    }
+    var dayText by rememberSaveable(initialStop.id) { mutableStateOf(if (isNew) "" else initialStop.dayNumber.toString()) }
+    var startTimeText by rememberSaveable(initialStop.id) { mutableStateOf(if (isNew) "" else initialStop.startTime) }
+    var endTimeText by rememberSaveable(initialStop.id) { mutableStateOf(if (isNew) "" else initialStop.endTime) }
+    var titleText by rememberSaveable(initialStop.id) { mutableStateOf(if (isNew) "" else initialStop.title) }
+    var japaneseNameText by rememberSaveable(initialStop.id) { mutableStateOf(if (isNew) "" else initialStop.placeNameJapanese) }
+    var notesText by rememberSaveable(initialStop.id) { mutableStateOf(if (isNew) "" else initialStop.notes) }
+    var selectedCategory by rememberSaveable(initialStop.id) { mutableStateOf(initialStop.category) }
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
 
     AppConfirmationDialog(
@@ -2167,26 +2170,39 @@ private fun ItineraryStopEditorModalSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                AppDatePickerField(
+                    label = if (isEs) "Fecha Actividad" else "Activity Date",
+                    dateIso = stopDateText,
+                    onDateSelected = { stopDateText = it },
+                    isEs = isEs,
+                    modifier = Modifier.weight(1.3f)
+                )
                 OutlinedTextField(
                     value = dayText,
                     onValueChange = { dayText = it.filter { ch -> ch.isDigit() } },
                     label = { Text(if (isEs) "Día" else "Day", fontSize = 14.sp) },
                     singleLine = true,
-                    modifier = Modifier.weight(0.8f)
+                    modifier = Modifier.weight(0.7f)
                 )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 OutlinedTextField(
                     value = startTimeText,
                     onValueChange = { startTimeText = it },
                     label = { Text(if (isEs) "Inicio (HH:mm)" else "Start (HH:mm)", fontSize = 14.sp) },
                     singleLine = true,
-                    modifier = Modifier.weight(1.1f)
+                    modifier = Modifier.weight(1f)
                 )
                 OutlinedTextField(
                     value = endTimeText,
                     onValueChange = { endTimeText = it },
                     label = { Text(if (isEs) "Fin (HH:mm)" else "End (HH:mm)", fontSize = 14.sp) },
                     singleLine = true,
-                    modifier = Modifier.weight(1.1f)
+                    modifier = Modifier.weight(1f)
                 )
             }
 
@@ -2237,9 +2253,12 @@ private fun ItineraryStopEditorModalSheet(
                 primaryText = if (isEs) "💾 Guardar Parada" else "💾 Save Stop",
                 onPrimaryClick = {
                     val safeDay = dayText.toIntOrNull()?.coerceAtLeast(1) ?: 1
+                    val finalDateIso = stopDateText.trim().ifBlank {
+                        String.format(Locale.US, "2026-11-%02d", (10 + safeDay).coerceAtMost(30))
+                    }
                     val updated = initialStop.copy(
                         dayNumber = safeDay,
-                        dateIso = String.format(Locale.US, "2026-11-%02d", (10 + safeDay).coerceAtMost(30)),
+                        dateIso = finalDateIso,
                         startTime = startTimeText.ifBlank { "10:00" },
                         endTime = endTimeText.ifBlank { "11:30" },
                         title = titleText.ifBlank { if (isEs) "Nueva Parada" else "New Stop" },
@@ -2336,11 +2355,11 @@ private fun PlanEditorModalSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                OutlinedTextField(
-                    value = startDateText,
-                    onValueChange = { startDateText = it },
-                    label = { Text(if (isEs) "Fecha Inicio (YYYY-MM-DD)" else "Start Date") },
-                    singleLine = true,
+                AppDatePickerField(
+                    label = if (isEs) "Fecha Inicio" else "Start Date",
+                    dateIso = startDateText,
+                    onDateSelected = { startDateText = it },
+                    isEs = isEs,
                     modifier = Modifier.weight(1.3f)
                 )
                 OutlinedTextField(
@@ -2855,6 +2874,17 @@ private fun TransportSegmentEditorModalSheet(
     var lineNumberText by rememberSaveable(initialSegment.id) { mutableStateOf(if (isNew) "" else initialSegment.lineOrNumber) }
     var depNameText by rememberSaveable(initialSegment.id) { mutableStateOf(if (isNew) "" else initialSegment.departureName) }
     var arrNameText by rememberSaveable(initialSegment.id) { mutableStateOf(if (isNew) "" else initialSegment.arrivalName) }
+    var depDateText by rememberSaveable(initialSegment.id) {
+        mutableStateOf(
+            if (isNew) {
+                ""
+            } else if (initialSegment.departureTimeIso.contains('T')) {
+                initialSegment.departureTimeIso.substringBefore('T')
+            } else {
+                initialSegment.departureTimeIso
+            }
+        )
+    }
     var depTimeText by rememberSaveable(initialSegment.id) {
         mutableStateOf(if (isNew || !initialSegment.departureTimeIso.contains('T')) "" else initialSegment.departureTimeIso.substringAfter('T'))
     }
@@ -2952,6 +2982,14 @@ private fun TransportSegmentEditorModalSheet(
                 )
             }
 
+            AppDatePickerField(
+                label = if (isEs) "Fecha del Trayecto" else "Journey Date",
+                dateIso = depDateText,
+                onDateSelected = { depDateText = it },
+                isEs = isEs,
+                modifier = Modifier.fillMaxWidth()
+            )
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -3017,9 +3055,11 @@ private fun TransportSegmentEditorModalSheet(
                 onPrimaryClick = {
                     val depCode = depNameText.trim().take(3).uppercase(Locale.ROOT).ifBlank { "TYO" }
                     val arrCode = arrNameText.trim().take(3).uppercase(Locale.ROOT).ifBlank { "KYO" }
-                    val baseDate = if (initialSegment.departureTimeIso.contains('T')) {
-                        initialSegment.departureTimeIso.substringBefore('T')
-                    } else "2026-11-12"
+                    val baseDate = depDateText.trim().ifBlank {
+                        if (initialSegment.departureTimeIso.contains('T')) {
+                            initialSegment.departureTimeIso.substringBefore('T')
+                        } else "2026-11-12"
+                    }
                     val defaultOp = when (selectedType) {
                         TransportMode.FLIGHT -> if (isEs) "Vuelo" else "Flight"
                         TransportMode.TRAIN_SHINKANSEN -> if (isEs) "Shinkansen / Tren" else "Shinkansen / Train"
