@@ -37,6 +37,12 @@ En la barra superior del **Home** verás siempre una **píldora de estado de red
   2. Abrir directamente el **Selector de SIM / eSIM** para alternar entre tu SIM habitual y tu eSIM de datos en Japón.
   3. Activar el **Modo Solo Offline** dentro de la app para ahorrar datos de tu eSIM.
 
+### Sincronización entre Varios Dispositivos con tu Cuenta de Google (Móvil + Tablet)
+Puedes usar la app indistintamente en tu móvil (**Pixel 10 Pro XL / Pixel 9 Pro XL**) y en tu tablet (**TCL NXTPAPER 11 Plus**):
+1. Entra en **Ajustes (⚙️) > Sincronización con Cuenta de Google** e inicia sesión con la misma cuenta en ambos dispositivos.
+2. Todo lo que prepares en la tablet desde casa o el hotel (horarios del planificador, vuelos, trenes Shinkansen, guías de viaje, fotos de referencia y PDFs de reservas/pasaporte) se **sincronizará y descargará automáticamente en la memoria interna de tu móvil** (y viceversa) para que lo lleves siempre **100% offline** en todos tus dispositivos.
+3. Puedes activar la opción **"Sincronizar fotos y PDFs solo con Wi-Fi"** para no consumir datos de tu eSIM mientras estás en la calle.
+
 ---
 
 ## 2. Herramienta: Relojes de Viaje (Hora Local, Japón y País de Origen)
