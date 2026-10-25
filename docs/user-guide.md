@@ -29,6 +29,14 @@ Al abrir **Japan Travel Tools** por primera vez:
   - En el **Planificador de Viaje**, verás simultáneamente tu **horario a la izquierda y el mapa de Google Maps a la derecha** (doble panel).
   - En **Documentos y Guías de Viaje**, tendrás la lista a la izquierda y el lector de PDF/Guías a gran tamaño a la derecha, con bordes y tipografía de alto contraste pensados específicamente para los modos de lectura *Ink Paper* y *Color Paper* de la pantalla NXTPAPER.
 
+### Indicador de Conexión en Vivo y Cambio Rápido (Wi-Fi / SIM / eSIM / Offline)
+En la barra superior del **Home** verás siempre una **píldora de estado de red en tiempo real**:
+- Te indica al instante si estás conectado por **Wi-Fi** (o *Pocket Wi-Fi*), **eSIM de viaje**, **SIM física**, si tienes el **Roaming activo** (con aviso visual para evitar cargos en tu SIM de origen) o si estás en **Modo Offline**.
+- **Cambiar de conexión con un toque**: Al pulsar sobre el indicador de conexión, se abre un panel rápido desde el que puedes:
+  1. Desplegar el **Panel Flotante de Internet de Android** para cambiar de red Wi-Fi o activar/desactivar datos móviles sin salir de la app.
+  2. Abrir directamente el **Selector de SIM / eSIM** para alternar entre tu SIM habitual y tu eSIM de datos en Japón.
+  3. Activar el **Modo Solo Offline** dentro de la app para ahorrar datos de tu eSIM.
+
 ---
 
 ## 2. Herramienta: Relojes de Viaje (Hora Local, Japón y País de Origen)
