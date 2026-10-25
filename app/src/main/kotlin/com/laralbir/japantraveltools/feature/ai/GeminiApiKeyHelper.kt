@@ -22,6 +22,11 @@ sealed class GeminiConnectionResult {
 object GeminiApiKeyHelper {
     const val AI_STUDIO_API_KEY_URL = "https://aistudio.google.com/app/apikey"
     const val DEFAULT_MODEL_ID = "gemini-2.0-flash"
+    const val FLASH_DEFAULT_MODEL_ID = "gemini-2.0-flash"
+    const val PRO_DEFAULT_MODEL_ID = "gemini-1.5-pro"
+
+    fun isProModel(modelId: String?): Boolean =
+        !modelId.isNullOrBlank() && modelId.contains("pro", ignoreCase = true)
 
     fun getAvailableModels(): List<GeminiModelOption> = listOf(
         GeminiModelOption(
@@ -32,30 +37,42 @@ object GeminiApiKeyHelper {
             isRecommended = true
         ),
         GeminiModelOption(
+            id = "gemini-1.5-pro",
+            displayName = "Gemini 1.5 Pro",
+            descriptionEs = "Razonamiento profundo para itinerarios y consultas complejas",
+            descriptionEn = "Deep reasoning for complex plans and itineraries"
+        ),
+        GeminiModelOption(
+            id = "gemini-2.5-pro",
+            displayName = "Gemini 2.5 Pro",
+            descriptionEs = "Última generación Pro con razonamiento avanzado de Google",
+            descriptionEn = "Latest Pro generation with advanced reasoning from Google"
+        ),
+        GeminiModelOption(
             id = "gemini-2.0-flash-lite",
             displayName = "Gemini 2.0 Flash Lite",
             descriptionEs = "Máxima velocidad y menor latencia",
             descriptionEn = "Maximum speed and lower latency"
         ),
         GeminiModelOption(
-            id = "gemini-1.5-pro",
-            displayName = "Gemini 1.5 Pro",
-            descriptionEs = "Razonamiento profundo para planes extensos",
-            descriptionEn = "Deep reasoning for complex plans"
+            id = "gemini-2.5-flash",
+            displayName = "Gemini 2.5 Flash",
+            descriptionEs = "Última versión 2.5 preview de Google",
+            descriptionEn = "Latest 2.5 Flash preview from Google"
         ),
         GeminiModelOption(
             id = "gemini-1.5-flash",
             displayName = "Gemini 1.5 Flash",
             descriptionEs = "Generación previa estable",
             descriptionEn = "Stable previous generation"
-        ),
-        GeminiModelOption(
-            id = "gemini-2.5-flash",
-            displayName = "Gemini 2.5 Flash",
-            descriptionEs = "Última versión 2.5 preview de Google",
-            descriptionEn = "Latest 2.5 Flash preview from Google"
         )
     )
+
+    fun getProModels(): List<GeminiModelOption> =
+        getAvailableModels().filter { isProModel(it.id) }
+
+    fun getFlashModels(): List<GeminiModelOption> =
+        getAvailableModels().filter { !isProModel(it.id) }
 
     fun resolveModelName(modelId: String?): String {
         val targetId = if (modelId.isNullOrBlank()) DEFAULT_MODEL_ID else modelId.trim()
