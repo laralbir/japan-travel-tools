@@ -133,6 +133,7 @@ import com.laralbir.japantraveltools.feature.documents.TravelGuideArticle
 import com.laralbir.japantraveltools.feature.documents.DocumentCategory
 import com.laralbir.japantraveltools.feature.documents.DocumentsFilterUseCase
 import com.laralbir.japantraveltools.feature.documents.FullScreenZoomableImageViewerDialog
+import com.laralbir.japantraveltools.feature.documents.CustomIdDocumentItem
 import com.laralbir.japantraveltools.feature.planner.ItineraryStopItem
 import com.laralbir.japantraveltools.feature.planner.StopCategory
 import com.laralbir.japantraveltools.feature.planner.TripPlannerUseCase
@@ -4532,6 +4533,10 @@ private fun PassportAndCustomsScreen(
     var authErrorText by remember { mutableStateOf<String?>(null) }
     var refreshPhotoCounter by remember { mutableIntStateOf(0) }
 
+    val customDocs by SharedDocumentsAndGuidesStore.customIdDocsState.collectAsState()
+    var editingCustomDoc by remember { mutableStateOf<CustomIdDocumentItem?>(null) }
+    var isCreatingCustomDoc by remember { mutableStateOf(false) }
+
     fun launchRealBiometricPrompt() {
         if (activity == null) {
             vaultUnlocked = true
@@ -4574,6 +4579,45 @@ private fun PassportAndCustomsScreen(
         }
     }
 
+    if (isCreatingCustomDoc || editingCustomDoc != null) {
+        CustomIdDocumentEditorModalSheet(
+            isEs = isEs,
+            initialDoc = editingCustomDoc,
+            onDismiss = {
+                isCreatingCustomDoc = false
+                editingCustomDoc = null
+            },
+            onSave = { title, subtitle, photoUri ->
+                val docToEdit = editingCustomDoc
+                if (docToEdit != null) {
+                    val updated = docToEdit.copy(title = title, subtitle = subtitle)
+                    SharedDocumentsAndGuidesStore.upsertCustomIdDoc(updated)
+                    if (photoUri != null) {
+                        SharedDocumentsAndGuidesStore.saveIdPhoto(context, photoUri, docToEdit.fileName)
+                        refreshPhotoCounter++
+                    }
+                } else {
+                    val newId = "custom_${System.currentTimeMillis()}"
+                    val fileName = "${newId}.jpg"
+                    if (photoUri != null) {
+                        SharedDocumentsAndGuidesStore.saveIdPhoto(context, photoUri, fileName)
+                    }
+                    val newDoc = CustomIdDocumentItem(
+                        id = newId,
+                        title = title,
+                        subtitle = subtitle,
+                        fileName = fileName,
+                        createdAtEpochMs = System.currentTimeMillis()
+                    )
+                    SharedDocumentsAndGuidesStore.upsertCustomIdDoc(newDoc)
+                    refreshPhotoCounter++
+                }
+                isCreatingCustomDoc = false
+                editingCustomDoc = null
+            }
+        )
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
@@ -4581,46 +4625,74 @@ private fun PassportAndCustomsScreen(
     ) {
         item {
             KotlinConfCard {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (isEs) "Pasaporte, DNI y Documentos" else "Passport, ID & Documents",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f)
-                    )
-                    if (biometricAvailable) {
-                        Switch(
-                            checked = prefs.biometricLockEnabled,
-                            onCheckedChange = { enabled ->
-                                prefsRepository.setBiometricLockEnabled(enabled)
-                                if (enabled) {
-                                    vaultUnlocked = false
-                                    launchRealBiometricPrompt()
-                                } else {
-                                    vaultUnlocked = true
-                                }
-                            }
-                        )
-                    }
-                }
+                Text(
+                    text = if (isEs) "Bóveda de Documentos e Identidad" else "Identity & Documents Vault",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
 
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(4.dp))
+
+                Text(
+                    text = if (isEs) {
+                        "Almacenamiento offline privado y seguro en tu dispositivo para pasaportes, DNI y documentos oficiales del viaje."
+                    } else {
+                        "Private and secure offline storage on your device for passports, national ID, and official travel documents."
+                    },
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(Modifier.height(14.dp))
 
                 if (biometricAvailable) {
-                    Text(
-                        text = if (isEs) {
-                            "🔒 Protegido con Huella / Rostro / PIN del Pixel"
-                        } else {
-                            "🔒 Protected with Pixel Fingerprint / Face / PIN"
-                        },
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.secondary,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("🔒", fontSize = 15.sp)
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        text = if (isEs) "Bloqueo Biométrico / PIN" else "Biometric / PIN Lock",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Spacer(Modifier.height(3.dp))
+                                Text(
+                                    text = if (isEs) {
+                                        "Exigir huella, rostro o PIN para acceder a las fotos de pasaporte y documentos"
+                                    } else {
+                                        "Require fingerprint, face or PIN to access passport and document photos"
+                                    },
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Switch(
+                                checked = prefs.biometricLockEnabled,
+                                onCheckedChange = { enabled ->
+                                    prefsRepository.setBiometricLockEnabled(enabled)
+                                    if (enabled) {
+                                        vaultUnlocked = false
+                                        launchRealBiometricPrompt()
+                                    } else {
+                                        vaultUnlocked = true
+                                    }
+                                }
+                            )
+                        }
+                    }
                 }
 
                 if (!vaultUnlocked && biometricAvailable) {
@@ -4640,9 +4712,9 @@ private fun PassportAndCustomsScreen(
                             Spacer(Modifier.height(6.dp))
                             Text(
                                 text = if (isEs) {
-                                    "Por seguridad, tus fotos de Pasaporte y DNI están encriptadas offline. Autentícate para verlas."
+                                    "Por seguridad, tus fotos de Pasaporte, DNI y documentos están protegidas en el almacenamiento privado. Autentícate para verlas."
                                 } else {
-                                    "Your Passport and ID photos are encrypted offline. Authenticate to view."
+                                    "Your Passport, ID and documents photos are protected in private storage. Authenticate to view."
                                 },
                                 fontSize = 14.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -4664,7 +4736,7 @@ private fun PassportAndCustomsScreen(
                         }
                     }
                 } else {
-                    Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(16.dp))
 
                     // 1. PASSPORT SECTION
                     IdDocumentPhotoSection(
@@ -4699,6 +4771,109 @@ private fun PassportAndCustomsScreen(
                         refreshTrigger = refreshPhotoCounter,
                         onPhotoChanged = { refreshPhotoCounter++ }
                     )
+
+                    Spacer(Modifier.height(18.dp))
+
+                    // 4. CUSTOM DOCUMENTS SECTION (VACCINES, PRESCRIPTIONS, PERMITS, ETC.)
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                                    Text(
+                                        text = if (isEs) "📋 Documentos Personalizados" else "📋 Custom Documents",
+                                        fontSize = 17.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        text = if (isEs) {
+                                            "Certificados de vacunas, recetas médicas, carnet internacional, seguros o visados"
+                                        } else {
+                                            "Vaccines, prescriptions, international driving permit, insurance, visas"
+                                        },
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Button(
+                                    onClick = { isCreatingCustomDoc = true },
+                                    shape = RoundedCornerShape(10.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                    modifier = Modifier.height(38.dp)
+                                ) {
+                                    Text(
+                                        text = if (isEs) "➕ Añadir" else "➕ Add",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+
+                            if (customDocs.isEmpty()) {
+                                Spacer(Modifier.height(14.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(16.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Text("📄", fontSize = 28.sp)
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(
+                                            text = if (isEs) "Sin documentos adicionales guardados" else "No additional documents saved",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Spacer(Modifier.height(3.dp))
+                                        Text(
+                                            text = if (isEs) {
+                                                "Añade cualquier documento oficial con foto (ej. certificado de vacunas, receta médica para aduanas japonesas, carnet internacional de conducir, póliza de seguro o visado)."
+                                            } else {
+                                                "Add any official photo document (e.g. vaccine certificate, prescription for Japanese customs, international permit, insurance policy or visa)."
+                                            },
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            textAlign = TextAlign.Center
+                                        )
+                                        Spacer(Modifier.height(12.dp))
+                                        AppPrimaryButton(
+                                            text = if (isEs) "➕ Añadir Documento Personalizado" else "➕ Add Custom Document",
+                                            onClick = { isCreatingCustomDoc = true },
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
+                                }
+                            } else {
+                                Spacer(Modifier.height(14.dp))
+                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    customDocs.forEach { customDoc ->
+                                        CustomIdDocumentItemCard(
+                                            isEs = isEs,
+                                            item = customDoc,
+                                            refreshTrigger = refreshPhotoCounter,
+                                            onEdit = { editingCustomDoc = customDoc },
+                                            onDelete = {
+                                                SharedDocumentsAndGuidesStore.deleteCustomIdDoc(customDoc.id, context)
+                                                refreshPhotoCounter++
+                                            },
+                                            onPhotoChanged = { refreshPhotoCounter++ }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -4823,6 +4998,355 @@ private fun IdDocumentPhotoSection(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun CustomIdDocumentItemCard(
+    isEs: Boolean,
+    item: CustomIdDocumentItem,
+    refreshTrigger: Int,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onPhotoChanged: () -> Unit
+) {
+    val context = LocalContext.current
+    val photoFile = remember(item.fileName, refreshTrigger) {
+        SharedDocumentsAndGuidesStore.getIdPhotoFile(context, item.fileName)
+    }
+    val photoBitmap = remember(photoFile) {
+        photoFile?.let { runCatching { BitmapFactory.decodeFile(it.absolutePath)?.asImageBitmap() }.getOrNull() }
+    }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            SharedDocumentsAndGuidesStore.saveIdPhoto(context, uri, item.fileName)
+            onPhotoChanged()
+        }
+    }
+
+    var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
+    var isViewingFullScreen by remember { mutableStateOf(false) }
+
+    AppConfirmationDialog(
+        state = confirmationDialogState,
+        onDismiss = { confirmationDialogState = null }
+    )
+
+    if (photoBitmap != null && isViewingFullScreen) {
+        FullScreenZoomableImageViewerDialog(
+            title = item.title,
+            bitmap = photoBitmap,
+            isEs = isEs,
+            onDismiss = { isViewingFullScreen = false }
+        )
+    }
+
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 6.dp)) {
+                    Text(text = item.title, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    if (item.subtitle.isNotBlank()) {
+                        Spacer(Modifier.height(3.dp))
+                        Text(
+                            text = item.subtitle,
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    IconButton(onClick = onEdit) {
+                        Text("✏️", fontSize = 16.sp)
+                    }
+                    IconButton(onClick = {
+                        confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
+                            itemName = item.title,
+                            itemTypeEs = "documento de identidad",
+                            itemTypeEn = "identity document",
+                            isEs = isEs,
+                            onConfirm = onDelete
+                        )
+                    }) {
+                        Text("🗑️", fontSize = 16.sp)
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            if (photoBitmap != null) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(210.dp)
+                        .clickable { isViewingFullScreen = true }
+                ) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        Image(
+                            bitmap = photoBitmap,
+                            contentDescription = item.title,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+                            shadowElevation = 2.dp,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text("🔍", fontSize = 13.sp)
+                                Text(
+                                    text = if (isEs) "Toca para pantalla completa y zoom" else "Tap for full screen & zoom",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                AppButtonRow(
+                    primaryText = if (isEs) "🔄 Cambiar Foto" else "🔄 Change Photo",
+                    onPrimaryClick = { photoPickerLauncher.launch("image/*") },
+                    secondaryText = if (isEs) "🗑️ Quitar Foto" else "🗑️ Remove Photo",
+                    onSecondaryClick = {
+                        confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
+                            itemName = item.title,
+                            itemTypeEs = "foto del documento",
+                            itemTypeEn = "document photo",
+                            isEs = isEs,
+                            onConfirm = {
+                                SharedDocumentsAndGuidesStore.deleteIdPhoto(context, item.fileName)
+                                onPhotoChanged()
+                            }
+                        )
+                    }
+                )
+            } else {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = if (isEs) "Sin foto adjunta todavía" else "No photo attached yet",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        AppPrimaryButton(
+                            text = if (isEs) "📷 Seleccionar Foto de Galería" else "📷 Select Photo from Gallery",
+                            onClick = { photoPickerLauncher.launch("image/*") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CustomIdDocumentEditorModalSheet(
+    isEs: Boolean,
+    initialDoc: CustomIdDocumentItem?,
+    onDismiss: () -> Unit,
+    onSave: (title: String, subtitle: String, photoUri: Uri?) -> Unit
+) {
+    var titleText by rememberSaveable { mutableStateOf(initialDoc?.title ?: "") }
+    var subtitleText by rememberSaveable { mutableStateOf(initialDoc?.subtitle ?: "") }
+    var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    val isNew = initialDoc == null
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            selectedPhotoUri = uri
+        }
+    }
+
+    val presets = remember(isEs) {
+        if (isEs) {
+            listOf(
+                "💉 Certificado de Vacunas",
+                "💊 Receta Médica",
+                "🚗 Carnet Internacional",
+                "🏥 Seguro Médico",
+                "🛂 Visado / QR",
+                "📄 Documento Personal"
+            )
+        } else {
+            listOf(
+                "💉 Vaccine Certificate",
+                "💊 Medical Prescription",
+                "🚗 International Driving Permit",
+                "🏥 Health Insurance",
+                "🛂 Visa / Entry QR",
+                "📄 Personal Document"
+            )
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 18.dp, vertical = 10.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Text(
+                text = if (isNew) {
+                    if (isEs) "➕ Añadir Documento de Identidad" else "➕ Add Identity Document"
+                } else {
+                    if (isEs) "✏️ Editar Documento" else "✏️ Edit Document"
+                },
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                text = if (isEs) {
+                    "Guarda certificados de vacunación, recetas médicas para aduanas, carnet internacional de conducir, visados o cualquier otro documento sensible."
+                } else {
+                    "Store vaccination certificates, prescriptions for customs, international permits, visas or sensitive documents."
+                },
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Text(
+                text = if (isEs) "Sugerencias rápidas:" else "Quick suggestions:",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                presets.forEach { preset ->
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.clickable {
+                            val cleanName = preset.substringAfter(" ").trim()
+                            titleText = cleanName
+                        }
+                    ) {
+                        Text(
+                            text = preset,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        )
+                    }
+                }
+            }
+
+            OutlinedTextField(
+                value = titleText,
+                onValueChange = { titleText = it },
+                label = { Text(if (isEs) "Nombre del Documento *" else "Document Title *") },
+                placeholder = { Text(if (isEs) "ej. Certificado Vacunas Fiebre Amarilla" else "e.g. Yellow Fever Vaccine") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = subtitleText,
+                onValueChange = { subtitleText = it },
+                label = { Text(if (isEs) "Notas / Referencia / Caducidad (Opcional)" else "Notes / Expiration (Optional)") },
+                placeholder = { Text(if (isEs) "ej. Hospital Carlos III · Válido hasta 2028" else "e.g. Valid until 2028") },
+                singleLine = false,
+                maxLines = 3,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        text = if (isEs) "Foto del Documento" else "Document Photo",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = if (selectedPhotoUri != null) {
+                            if (isEs) "✅ Foto seleccionada lista para guardar" else "✅ Photo selected and ready to save"
+                        } else if (initialDoc != null) {
+                            if (isEs) "ℹ️ Foto actual guardada en bóveda (puedes cambiarla)" else "ℹ️ Current photo saved in vault (can be changed)"
+                        } else {
+                            if (isEs) "Selecciona una foto desde tu galería o archivos" else "Select a photo from gallery or files"
+                        },
+                        fontSize = 12.sp,
+                        color = if (selectedPhotoUri != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    AppPrimaryButton(
+                        text = if (selectedPhotoUri != null || initialDoc != null) {
+                            if (isEs) "🔄 Elegir otra foto" else "🔄 Choose different photo"
+                        } else {
+                            if (isEs) "📷 Seleccionar Foto de Galería" else "📷 Select Photo from Gallery"
+                        },
+                        onClick = { photoPickerLauncher.launch("image/*") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(4.dp))
+
+            AppButtonRow(
+                primaryText = if (isEs) "💾 Guardar Documento" else "💾 Save Document",
+                onPrimaryClick = {
+                    if (titleText.isNotBlank()) {
+                        onSave(titleText, subtitleText, selectedPhotoUri)
+                    }
+                },
+                secondaryText = if (isEs) "Cancelar" else "Cancel",
+                onSecondaryClick = onDismiss,
+                primaryEnabled = titleText.isNotBlank()
+            )
+
+            Spacer(Modifier.height(16.dp))
         }
     }
 }

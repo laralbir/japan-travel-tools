@@ -39,6 +39,14 @@ data class TravelGuideArticle(
     val isPinned: Boolean = false
 )
 
+data class CustomIdDocumentItem(
+    val id: String,
+    val title: String,
+    val subtitle: String = "",
+    val fileName: String,
+    val createdAtEpochMs: Long = System.currentTimeMillis()
+)
+
 object DefaultTravelGuidesCatalog {
     fun initialDocuments(): List<TravelDocumentItem> = listOf(
         TravelDocumentItem(
@@ -141,12 +149,16 @@ object SharedDocumentsAndGuidesStore {
     private var storageContext: Context? = null
     private const val DOCS_FILE_NAME = "saved_documents.json"
     private const val GUIDES_FILE_NAME = "saved_guides.json"
+    private const val CUSTOM_ID_DOCS_FILE_NAME = "custom_id_docs.json"
 
     private val _documentsState = MutableStateFlow(DefaultTravelGuidesCatalog.initialDocuments())
     val documentsState: StateFlow<List<TravelDocumentItem>> = _documentsState.asStateFlow()
 
     private val _guidesState = MutableStateFlow(DefaultTravelGuidesCatalog.initialGuides())
     val guidesState: StateFlow<List<TravelGuideArticle>> = _guidesState.asStateFlow()
+
+    private val _customIdDocsState = MutableStateFlow<List<CustomIdDocumentItem>>(emptyList())
+    val customIdDocsState: StateFlow<List<CustomIdDocumentItem>> = _customIdDocsState.asStateFlow()
 
     fun init(context: Context) {
         if (storageContext != null) return
@@ -161,6 +173,8 @@ object SharedDocumentsAndGuidesStore {
             docsFile.writeText(DocumentsAndGuidesJsonCodec.exportDocumentsJson(_documentsState.value))
             val guidesFile = File(ctx.filesDir, GUIDES_FILE_NAME)
             guidesFile.writeText(DocumentsAndGuidesJsonCodec.exportGuidesJson(_guidesState.value))
+            val customDocsFile = File(getIdVaultDir(ctx), CUSTOM_ID_DOCS_FILE_NAME)
+            customDocsFile.writeText(DocumentsAndGuidesJsonCodec.exportCustomIdDocsJson(_customIdDocsState.value))
         }
     }
 
@@ -182,6 +196,13 @@ object SharedDocumentsAndGuidesStore {
                 if (loaded.isNotEmpty()) {
                     _guidesState.value = loaded
                 }
+            }
+        }
+        runCatching {
+            val customDocsFile = File(getIdVaultDir(ctx), CUSTOM_ID_DOCS_FILE_NAME)
+            if (customDocsFile.exists() && customDocsFile.length() > 0) {
+                val loaded = DocumentsAndGuidesJsonCodec.importCustomIdDocsJson(customDocsFile.readText())
+                _customIdDocsState.value = loaded
             }
         }
     }
@@ -289,6 +310,65 @@ object SharedDocumentsAndGuidesStore {
         val file = File(getIdVaultDir(context), fileName)
         return if (file.exists() && file.length() > 0) file else null
     }
+
+    fun upsertCustomIdDoc(item: CustomIdDocumentItem) {
+        val current = _customIdDocsState.value.toMutableList()
+        val idx = current.indexOfFirst { it.id == item.id }
+        if (idx >= 0) {
+            current[idx] = item
+        } else {
+            current.add(item)
+        }
+        _customIdDocsState.value = current
+        saveToDisk()
+    }
+
+    fun deleteCustomIdDoc(id: String, context: Context? = null) {
+        val current = _customIdDocsState.value
+        val toDelete = current.firstOrNull { it.id == id }
+        if (toDelete != null) {
+            val ctx = context ?: storageContext
+            if (ctx != null && toDelete.fileName.isNotBlank()) {
+                deleteIdPhoto(ctx, toDelete.fileName)
+            }
+        }
+        _customIdDocsState.value = current.filterNot { it.id == id }
+        saveToDisk()
+    }
+
+    fun addCustomIdDocumentWithPhoto(
+        context: Context,
+        title: String,
+        subtitle: String,
+        sourceUri: Uri
+    ): CustomIdDocumentItem? {
+        val docId = "custom_doc_${System.currentTimeMillis()}"
+        val fileName = "${docId}.jpg"
+        val saved = saveIdPhoto(context, sourceUri, fileName)
+        if (!saved) return null
+        val doc = CustomIdDocumentItem(
+            id = docId,
+            title = title.trim(),
+            subtitle = subtitle.trim(),
+            fileName = fileName,
+            createdAtEpochMs = System.currentTimeMillis()
+        )
+        upsertCustomIdDoc(doc)
+        return doc
+    }
+
+    fun updateCustomIdDocumentPhoto(
+        context: Context,
+        id: String,
+        sourceUri: Uri
+    ): Boolean {
+        val current = _customIdDocsState.value.firstOrNull { it.id == id } ?: return false
+        val saved = saveIdPhoto(context, sourceUri, current.fileName)
+        if (saved) {
+            _customIdDocsState.value = _customIdDocsState.value.toList()
+        }
+        return saved
+    }
 }
 
 object DocumentsAndGuidesJsonCodec {
@@ -375,6 +455,44 @@ object DocumentsAndGuidesJsonCodec {
         }
     }
 
+    fun exportCustomIdDocsJson(docs: List<CustomIdDocumentItem>): String {
+        val sb = StringBuilder()
+        sb.appendLine("{")
+        sb.appendLine("  \"customDocs\": [")
+        docs.forEachIndexed { index, doc ->
+            val comma = if (index < docs.lastIndex) "," else ""
+            sb.appendLine("    {")
+            sb.appendLine("      \"id\": \"${escape(doc.id)}\",")
+            sb.appendLine("      \"title\": \"${escape(doc.title)}\",")
+            sb.appendLine("      \"subtitle\": \"${escape(doc.subtitle)}\",")
+            sb.appendLine("      \"fileName\": \"${escape(doc.fileName)}\",")
+            sb.appendLine("      \"createdAtEpochMs\": ${doc.createdAtEpochMs}")
+            sb.appendLine("    }$comma")
+        }
+        sb.appendLine("  ]")
+        sb.appendLine("}")
+        return sb.toString()
+    }
+
+    fun importCustomIdDocsJson(json: String): List<CustomIdDocumentItem> {
+        val block = extractArrayBlock(json, "customDocs")
+        val objs = splitJsonObjects(block)
+        return objs.mapNotNull { obj ->
+            val id = extractString(obj, "id") ?: return@mapNotNull null
+            val title = extractString(obj, "title") ?: ""
+            val subtitle = extractString(obj, "subtitle") ?: ""
+            val fileName = extractString(obj, "fileName") ?: ""
+            val createdAt = extractLong(obj, "createdAtEpochMs") ?: System.currentTimeMillis()
+            CustomIdDocumentItem(
+                id = id,
+                title = title,
+                subtitle = subtitle,
+                fileName = fileName,
+                createdAtEpochMs = createdAt
+            )
+        }
+    }
+
     private fun escape(raw: String): String =
         raw.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")
 
@@ -387,6 +505,11 @@ object DocumentsAndGuidesJsonCodec {
         val quoted = match.groupValues[1]
         val isNull = match.groupValues[2] == "null"
         return if (isNull) null else unescape(quoted)
+    }
+
+    private fun extractLong(source: String, key: String): Long? {
+        val regex = """"$key"\s*:\s*(-?\d+)""".toRegex()
+        return regex.find(source)?.groupValues?.get(1)?.toLongOrNull()
     }
 
     private fun extractBoolean(source: String, key: String): Boolean? {

@@ -55,7 +55,8 @@ Este documento recoge la fase de **Análisis** del flujo SDD para traducir las e
     - **Acciones Rápidas**: Copiado al portapapeles con confirmación visual, exportación directa a la Bóveda de Guías (`SharedDocumentsAndGuidesStore.createGuide`) e inyección al itinerario (`AiPlanBuilderEngine`).
   - **Google ML Kit On-Device Translation (`com.google.mlkit:translate`) + Text Recognition Japanese (`com.google.mlkit:text-recognition-japanese`)**: Traducción simultánea 100% offline `ES/EN <-> JA` y OCR de caracteres japoneses (`Kanji/Kana`), combinados con `SpeechRecognizer` y `TextToSpeech` de Android para conversación en vivo cara a cara.
 - **Seguridad, Licencias Open Source e Internacionalización**:
-  - **AndroidX Biometric (`BiometricPrompt`)** para protección de Pasaporte/DNI.
+  - **AndroidX Biometric (`BiometricPrompt`)** para protección de Pasaporte, DNI y Documentos Personalizados con tarjeta de seguridad dedicada e independiente (`🔒 Bloqueo Biométrico / PIN`).
+  - **Bóveda de Documentos de Identidad Personalizados (`CustomIdDocumentItem`)**: almacenamiento privado de certificados de vacunas, recetas médicas para aduanas japonesas, carnet internacional de conducir, visados y pólizas en `Context.filesDir/id_vault/custom_id_docs.json` con soporte completo de zoom táctil, edición y borrado con doble check.
   - **AndroidX AppCompat (`AppCompatDelegate.setApplicationLocales`)** para soporte nativo multiidioma por aplicación (`es`, `en`).
   - **AboutLibraries (`com.mikepenz:aboutlibraries-compose-m3`)**: Plugin de Gradle que inspecciona automáticamente el árbol de dependencias en tiempo de compilación y empaqueta un JSON local en el APK con todas las librerías open source de terceros, autores, versiones y textos de licencia para mostrarlos 100% offline en Material Design 3.
 
