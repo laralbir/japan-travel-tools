@@ -262,112 +262,256 @@ object AiPlanBuilderEngine {
         userInstruction: String
     ): PortableTravelPlanBundle {
         val lower = userInstruction.lowercase(Locale.ROOT)
+        var resolvedConflictsCount = 0
 
-        // 1. Automatically de-conflict any overlapping stops per day (adding 30m buffer between stops)
+        // 1. Only resolve genuine schedule overlaps (when a stop starts before the previous stop ended)
         val deconflictedStops = currentPlan.itineraryStops
             .groupBy { it.dayNumber }
             .flatMap { (_, dayStops) ->
                 val sorted = dayStops.sortedBy { toMinutes(it.startTime) }
-                var nextAvailableMinute = 0
+                var previousEndMinute = 0
                 sorted.map { stop ->
                     val origStart = toMinutes(stop.startTime)
                     val origEnd = toMinutes(stop.endTime)
                     val duration = (origEnd - origStart).coerceAtLeast(45)
-                    val adjustedStart = if (origStart < nextAvailableMinute) nextAvailableMinute else origStart
-                    val adjustedEnd = adjustedStart + duration
-                    nextAvailableMinute = adjustedEnd + 30 // 30-min transit buffer
-                    stop.copy(
-                        startTime = formatMinutes(adjustedStart),
-                        endTime = formatMinutes(adjustedEnd)
-                    )
+                    if (origStart < previousEndMinute) {
+                        resolvedConflictsCount++
+                        val adjustedStart = previousEndMinute + 15
+                        val adjustedEnd = adjustedStart + duration
+                        previousEndMinute = adjustedEnd
+                        stop.copy(
+                            startTime = formatMinutes(adjustedStart),
+                            endTime = formatMinutes(adjustedEnd)
+                        )
+                    } else {
+                        previousEndMinute = origEnd
+                        stop
+                    }
                 }
             }
             .toMutableList()
 
         val updatedTransport = currentPlan.transportSegments.toMutableList()
+        val nextDayNumber = (deconflictedStops.maxOfOrNull { it.dayNumber } ?: 0) + 1
+        val nextDateIso = String.format(Locale.US, "2026-11-%02d", (10 + nextDayNumber).coerceAtMost(30))
+        val addedDescription = mutableListOf<String>()
 
-        // 2. If user asks to create/add Osaka, Nara or Day 3, generate complete AI itinerary + Shinkansen/Metro
-        if (lower.contains("osaka") || lower.contains("día 3") || lower.contains("day 3") || lower.contains("mejorar") || lower.contains("crear")) {
-            if (deconflictedStops.none { it.dayNumber == 3 }) {
-                deconflictedStops.addAll(
-                    listOf(
-                        ItineraryStopItem(
-                            id = "ai-osaka-1",
-                            dayNumber = 3,
-                            dateIso = "2026-11-13",
-                            startTime = "09:30",
-                            endTime = "11:30",
-                            title = "Osaka Castle & Nishinomaru Garden (IA Gemini)",
-                            category = StopCategory.SIGHTSEEING,
-                            placeNameJapanese = "大阪城 · 西の丸庭園",
-                            latitude = 34.6873,
-                            longitude = 135.5262,
-                            notes = "Optimizado por Gemini: JR Osaka Loop Line hasta Osakajokoen (Salida 1)",
-                            photoLabels = listOf("Torre Principal Osaka-jo")
-                        ),
-                        ItineraryStopItem(
-                            id = "ai-osaka-2",
-                            dayNumber = 3,
-                            dateIso = "2026-11-13",
-                            startTime = "12:15",
-                            endTime = "14:00",
-                            title = "Kuromon Ichiba Market (Marisco y Wagyu)",
-                            category = StopCategory.FOOD,
-                            placeNameJapanese = "黒門市場",
-                            latitude = 34.6654,
-                            longitude = 135.5063,
-                            notes = "Metro Sakaisuji Line hasta Nippombashi (Salida 10)",
-                            photoLabels = listOf("Mapa Puestos Kuromon")
-                        ),
-                        ItineraryStopItem(
-                            id = "ai-osaka-3",
-                            dayNumber = 3,
-                            dateIso = "2026-11-13",
-                            startTime = "18:00",
-                            endTime = "20:30",
-                            title = "Dotonbori, Glico Man & Takoyaki Nocturno",
-                            category = StopCategory.ACTIVITY,
-                            placeNameJapanese = "道頓堀 · グリコサイン",
-                            latitude = 34.6687,
-                            longitude = 135.5013,
-                            notes = "Paseo junto al canal de Dotonbori y Hozenji Yokocho",
-                            photoLabels = listOf("Neones Dotonbori")
+        when {
+            lower.contains("nara") || lower.contains("ciervo") || lower.contains("todai") -> {
+                if (deconflictedStops.none { it.id.startsWith("ai-nara-") }) {
+                    deconflictedStops.addAll(
+                        listOf(
+                            ItineraryStopItem(
+                                id = "ai-nara-1",
+                                dayNumber = nextDayNumber,
+                                dateIso = nextDateIso,
+                                startTime = "09:30",
+                                endTime = "11:00",
+                                title = "Parque de Nara y Ciervos Sagrados",
+                                category = StopCategory.SIGHTSEEING,
+                                placeNameJapanese = "奈良公園",
+                                latitude = 34.6851,
+                                longitude = 135.8430,
+                                notes = "Tren Kintetsu Nara / JR Nara Line"
+                            ),
+                            ItineraryStopItem(
+                                id = "ai-nara-2",
+                                dayNumber = nextDayNumber,
+                                dateIso = nextDateIso,
+                                startTime = "11:15",
+                                endTime = "12:45",
+                                title = "Gran Buda de Todai-ji",
+                                category = StopCategory.SIGHTSEEING,
+                                placeNameJapanese = "東大寺",
+                                latitude = 34.6890,
+                                longitude = 135.8399,
+                                notes = "Pabellón Daibutsuden"
+                            ),
+                            ItineraryStopItem(
+                                id = "ai-nara-3",
+                                dayNumber = nextDayNumber,
+                                dateIso = nextDateIso,
+                                startTime = "13:15",
+                                endTime = "15:00",
+                                title = "Santuario Kasuga Taisha",
+                                category = StopCategory.SIGHTSEEING,
+                                placeNameJapanese = "春日大社",
+                                latitude = 34.6814,
+                                longitude = 135.8484,
+                                notes = "Camino de los faroles de piedra"
+                            )
                         )
                     )
-                )
+                    addedDescription.add("Día $nextDayNumber en Nara (3 paradas)")
+                }
             }
 
-            if (updatedTransport.none { it.id == "ai-seg-kyoto-osaka" }) {
-                updatedTransport.add(
-                    TransportSegmentItem(
-                        id = "ai-seg-kyoto-osaka",
-                        order = updatedTransport.size + 1,
-                        type = TransportMode.TRAIN_SHINKANSEN,
-                        operatorName = "JR West Special Rapid / Shinkansen (Creado por IA)",
-                        lineOrNumber = "Thunderbird / Special Rapid #15",
-                        departureCode = "KYO",
-                        departureName = "Kyoto Station (京都駅)",
-                        departureZoneId = "Asia/Tokyo",
-                        departureTerminalOrPlatform = "Andén 4 (Track 4)",
-                        boardingTime = "2026-11-13T08:35",
-                        departureTimeIso = "2026-11-13T08:45",
-                        arrivalCode = "OSA",
-                        arrivalName = "Osaka Station (大阪駅)",
-                        arrivalZoneId = "Asia/Tokyo",
-                        arrivalTerminalOrPlatform = "Andén 7",
-                        arrivalTimeIso = "2026-11-13T09:14",
-                        seatOrCarInfo = "Vagón 5 · Cubierto por JR Pass / Suica (¥580)",
-                        stationExitOrBelt = "Conexión directa a JR Osaka Loop Line",
-                        passOrPaymentBadge = "AI Optimized"
+            lower.contains("hakone") || lower.contains("fuji") || lower.contains("onsen") -> {
+                if (deconflictedStops.none { it.id.startsWith("ai-hakone-") }) {
+                    deconflictedStops.addAll(
+                        listOf(
+                            ItineraryStopItem(
+                                id = "ai-hakone-1",
+                                dayNumber = nextDayNumber,
+                                dateIso = nextDateIso,
+                                startTime = "10:00",
+                                endTime = "11:45",
+                                title = "Teleférico Hakone y Valle Owakudani",
+                                category = StopCategory.SIGHTSEEING,
+                                placeNameJapanese = "大涌谷",
+                                latitude = 35.2443,
+                                longitude = 139.0195,
+                                notes = "Mirador panorámico al Monte Fuji"
+                            ),
+                            ItineraryStopItem(
+                                id = "ai-hakone-2",
+                                dayNumber = nextDayNumber,
+                                dateIso = nextDateIso,
+                                startTime = "12:15",
+                                endTime = "14:00",
+                                title = "Crucero Lago Ashi y Santuario Hakone-jinja",
+                                category = StopCategory.ACTIVITY,
+                                placeNameJapanese = "芦ノ湖 · 箱根神社",
+                                latitude = 35.2045,
+                                longitude = 139.0253,
+                                notes = "Torii rojo junto al agua"
+                            )
+                        )
                     )
-                )
+                    addedDescription.add("Día $nextDayNumber en Hakone / Monte Fuji (2 paradas)")
+                }
+            }
+
+            lower.contains("hiroshima") || lower.contains("miyajima") -> {
+                if (deconflictedStops.none { it.id.startsWith("ai-hiroshima-") }) {
+                    deconflictedStops.addAll(
+                        listOf(
+                            ItineraryStopItem(
+                                id = "ai-hiroshima-1",
+                                dayNumber = nextDayNumber,
+                                dateIso = nextDateIso,
+                                startTime = "10:00",
+                                endTime = "13:00",
+                                title = "Isla de Miyajima y Santuario Itsukushima",
+                                category = StopCategory.SIGHTSEEING,
+                                placeNameJapanese = "厳島神社 · 宮島",
+                                latitude = 34.2960,
+                                longitude = 132.3198,
+                                notes = "Ferry JR desde Miyajimaguchi (10 min)"
+                            ),
+                            ItineraryStopItem(
+                                id = "ai-hiroshima-2",
+                                dayNumber = nextDayNumber,
+                                dateIso = nextDateIso,
+                                startTime = "15:00",
+                                endTime = "17:30",
+                                title = "Parque Conmemorativo de la Paz de Hiroshima",
+                                category = StopCategory.SIGHTSEEING,
+                                placeNameJapanese = "広島平和記念公園",
+                                latitude = 34.3955,
+                                longitude = 132.4536,
+                                notes = "Cúpula Genbaku y Museo de la Paz"
+                            )
+                        )
+                    )
+                    addedDescription.add("Día $nextDayNumber en Hiroshima y Miyajima")
+                }
+            }
+
+            lower.contains("osaka") || lower.contains("día 3") || lower.contains("day 3") || lower.contains("mejorar") || lower.contains("crear") -> {
+                val targetOsakaDay = if (lower.contains("día 3") || lower.contains("day 3")) 3 else nextDayNumber
+                if (deconflictedStops.none { it.id.startsWith("ai-osaka-") }) {
+                    deconflictedStops.addAll(
+                        listOf(
+                            ItineraryStopItem(
+                                id = "ai-osaka-1",
+                                dayNumber = targetOsakaDay,
+                                dateIso = "2026-11-13",
+                                startTime = "09:30",
+                                endTime = "11:30",
+                                title = "Castillo de Osaka y Jardín Nishinomaru",
+                                category = StopCategory.SIGHTSEEING,
+                                placeNameJapanese = "大阪城 · 西の丸庭園",
+                                latitude = 34.6873,
+                                longitude = 135.5262,
+                                notes = "JR Osaka Loop Line hasta Osakajokoen (Salida 1)"
+                            ),
+                            ItineraryStopItem(
+                                id = "ai-osaka-2",
+                                dayNumber = targetOsakaDay,
+                                dateIso = "2026-11-13",
+                                startTime = "12:15",
+                                endTime = "14:00",
+                                title = "Mercado Kuromon Ichiba (Marisco y Wagyu)",
+                                category = StopCategory.FOOD,
+                                placeNameJapanese = "黒門市場",
+                                latitude = 34.6654,
+                                longitude = 135.5063,
+                                notes = "Metro Sakaisuji Line hasta Nippombashi (Salida 10)"
+                            ),
+                            ItineraryStopItem(
+                                id = "ai-osaka-3",
+                                dayNumber = targetOsakaDay,
+                                dateIso = "2026-11-13",
+                                startTime = "18:00",
+                                endTime = "20:30",
+                                title = "Dotonbori, Glico Man y Takoyaki Nocturno",
+                                category = StopCategory.ACTIVITY,
+                                placeNameJapanese = "道頓堀 · グリコサイン",
+                                latitude = 34.6687,
+                                longitude = 135.5013,
+                                notes = "Paseo junto al canal de Dotonbori y Hozenji Yokocho"
+                            )
+                        )
+                    )
+                    addedDescription.add("Día $targetOsakaDay en Osaka (3 paradas)")
+                }
+
+                if (updatedTransport.none { it.id == "ai-seg-kyoto-osaka" }) {
+                    updatedTransport.add(
+                        TransportSegmentItem(
+                            id = "ai-seg-kyoto-osaka",
+                            order = updatedTransport.size + 1,
+                            type = TransportMode.TRAIN_SHINKANSEN,
+                            operatorName = "JR West Special Rapid",
+                            lineOrNumber = "Special Rapid #15",
+                            departureCode = "KYO",
+                            departureName = "Kyoto Station (京都駅)",
+                            departureZoneId = "Asia/Tokyo",
+                            departureTerminalOrPlatform = "Andén 4",
+                            boardingTime = "2026-11-13T08:35",
+                            departureTimeIso = "2026-11-13T08:45",
+                            arrivalCode = "OSA",
+                            arrivalName = "Osaka Station (大阪駅)",
+                            arrivalZoneId = "Asia/Tokyo",
+                            arrivalTerminalOrPlatform = "Andén 7",
+                            arrivalTimeIso = "2026-11-13T09:14",
+                            seatOrCarInfo = "Vagón 5 · JR Pass / Suica (¥580)",
+                            stationExitOrBelt = "Conexión directa a JR Osaka Loop Line",
+                            passOrPaymentBadge = "JR Pass / IC"
+                        )
+                    )
+                    addedDescription.add("tren JR Kioto➔Osaka")
+                }
+            }
+        }
+
+        val summaryText = buildString {
+            append("✅ Ruta actualizada por IA: ")
+            if (resolvedConflictsCount > 0) {
+                append("$resolvedConflictsCount solapamiento(s) horario(s) corregido(s). ")
+            } else {
+                append("Horarios verificados sin solapamientos. ")
+            }
+            if (addedDescription.isNotEmpty()) {
+                append("Añadido: ${addedDescription.joinToString(" + ")}.")
             }
         }
 
         return currentPlan.copy(
             itineraryStops = deconflictedStops,
             transportSegments = updatedTransport,
-            aiOptimizationSummary = "Gemini IA: Solapamientos horarios corregidos (+30m margen) + Día 3 en Osaka (3 paradas) + tren JR Kioto➔Osaka añadido."
+            aiOptimizationSummary = summaryText
         )
     }
 
