@@ -103,6 +103,8 @@ import com.laralbir.japantraveltools.feature.ai.AssistantSource
 import com.laralbir.japantraveltools.feature.ai.GeminiAssistantEngine
 import com.laralbir.japantraveltools.feature.ai.OfflineTranslatorEngine
 import com.laralbir.japantraveltools.feature.ai.OnlineTranslatorClient
+import com.laralbir.japantraveltools.feature.ai.GeminiApiKeySetupCard
+import com.laralbir.japantraveltools.feature.ai.GeminiApiKeyHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -4171,9 +4173,9 @@ private fun AiAssistantScreen(
                     TextButton(onClick = { showApiKeyConfig = !showApiKeyConfig }) {
                         Text(
                             text = if (showApiKeyConfig) {
-                                if (isEs) "Ocultar Ajustes" else "Hide Key"
+                                if (isEs) "▲ Ocultar Ajustes" else "▲ Hide Setup"
                             } else {
-                                if (isEs) "⚙️ Gemini API Key" else "⚙️ Gemini API Key"
+                                if (isEs) "⚙️ Configurar Gemini Key" else "⚙️ Setup Gemini Key"
                             },
                             fontSize = 13.sp
                         )
@@ -4181,56 +4183,18 @@ private fun AiAssistantScreen(
                 }
 
                 if (showApiKeyConfig) {
-                    Spacer(Modifier.height(8.dp))
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(
-                                text = if (isEs) "Clave de API de Google Gemini (Opcional):" else "Google Gemini API Key (Optional):",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Spacer(Modifier.height(6.dp))
-                            OutlinedTextField(
-                                value = apiKeyInput,
-                                onValueChange = { apiKeyInput = it },
-                                placeholder = { Text("AIzaSy...", fontSize = 13.sp) },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Spacer(Modifier.height(8.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Button(
-                                    onClick = {
-                                        prefsRepository.setGeminiApiKey(apiKeyInput.trim())
-                                        showApiKeyConfig = false
-                                        actionStatusMessage = if (isEs) "✅ Clave Gemini guardada" else "✅ Gemini key saved"
-                                    },
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Text(if (isEs) "Guardar Clave" else "Save Key", fontSize = 13.sp)
-                                }
-                                if (!prefs.geminiApiKey.isNullOrBlank()) {
-                                    OutlinedButton(
-                                        onClick = {
-                                            apiKeyInput = ""
-                                            prefsRepository.setGeminiApiKey(null)
-                                            actionStatusMessage = if (isEs) "🗑️ Clave eliminada (Modo offline activo)" else "🗑️ Key removed (Offline mode active)"
-                                        },
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Text(if (isEs) "Borrar" else "Clear", fontSize = 13.sp)
-                                    }
-                                }
-                            }
+                    Spacer(Modifier.height(10.dp))
+                    GeminiApiKeySetupCard(
+                        isEs = isEs,
+                        prefs = prefs,
+                        prefsRepository = prefsRepository,
+                        onKeySaved = {
+                            actionStatusMessage = if (isEs) "✅ Clave Gemini guardada con éxito" else "✅ Gemini key saved successfully"
+                        },
+                        onKeyDeleted = {
+                            actionStatusMessage = if (isEs) "🗑️ Clave eliminada (Modo 100% offline activo)" else "🗑️ Key removed (100% offline active)"
                         }
-                    }
+                    )
                 }
 
                 Spacer(Modifier.height(14.dp))
@@ -6142,55 +6106,11 @@ private fun SettingsPreferencesScreen(
         }
 
         item {
-            KotlinConfCard {
-                Text(
-                    text = if (isEs) "Asistente IA (Google Gemini API Key)" else "AI Assistant (Google Gemini API Key)",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = if (isEs) {
-                        "Opcional: Si configuras tu API Key de Google AI Studio, las consultas complejas usarán Gemini 2.0 Flash cuando tengas conexión. Si no configuras ninguna clave, la app utilizará siempre el motor experto local 100% offline."
-                    } else {
-                        "Optional: Enter your Google AI Studio API key to enable Gemini 2.0 Flash cloud answers when online. Without a key, the app relies on the offline expert engine."
-                    },
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(12.dp))
-                var settingsGeminiKey by rememberSaveable { mutableStateOf(prefs.geminiApiKey ?: "") }
-                OutlinedTextField(
-                    value = settingsGeminiKey,
-                    onValueChange = { settingsGeminiKey = it },
-                    label = { Text("Gemini API Key (AIzaSy...)", fontSize = 15.sp) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(Modifier.height(14.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = { prefsRepository.setGeminiApiKey(settingsGeminiKey.trim()) },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(if (isEs) "💾 Guardar Clave" else "💾 Save Key", fontSize = 14.sp)
-                    }
-                    if (!prefs.geminiApiKey.isNullOrBlank()) {
-                        OutlinedButton(
-                            onClick = {
-                                settingsGeminiKey = ""
-                                prefsRepository.setGeminiApiKey(null)
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(if (isEs) "🗑️ Borrar Clave" else "🗑️ Clear Key", fontSize = 14.sp)
-                        }
-                    }
-                }
-            }
+            GeminiApiKeySetupCard(
+                isEs = isEs,
+                prefs = prefs,
+                prefsRepository = prefsRepository
+            )
         }
     }
 }

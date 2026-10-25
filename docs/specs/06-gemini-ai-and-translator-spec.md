@@ -72,6 +72,23 @@ Dotar a **Japan Travel Tools** de capacidades de Inteligencia Artificial mediant
           - Puede generar y modificar directamente el **JSON legible del plan de viaje** para aplicar mejoras en bloque.
    - **Consultor de Etiqueta, Trenes y Costumbres en Japón**: Respuestas rápidas contextualizadas para el viajero.
 
+### RF-06.3: Configuración Amigable de Clave de API de Gemini (`GeminiApiKeyHelper` & `GeminiApiKeySetupCard`)
+1. **Acceso Directo y Asistido a Google AI Studio**:
+   - Botón directo y destacado: `🌐 Obtener Clave Gratis en Google AI Studio`, que abre con un solo toque la consola oficial (`https://aistudio.google.com/app/apikey`) en el navegador del dispositivo.
+2. **Tutorial Integrado en 4 Pasos Sencillos**:
+   - Tarjeta desplegable con guía paso a paso para cualquier perfil de viajero:
+     - **Paso 1**: Abrir Google AI Studio con el botón directo.
+     - **Paso 2**: Iniciar sesión con cualquier cuenta personal de Google/Gmail (acceso 100% gratuito y sin tarjetas de crédito).
+     - **Paso 3**: Crear la clave con un toque en «Create API key» y copiarla.
+     - **Paso 4**: Volver a la app, pulsar «Pegar desde Portapapeles» y guardar.
+3. **Pegado Rápido y Conmutador de Visibilidad**:
+   - Botón `📋 Pegar`: Extrae automáticamente la clave copiada del portapapeles del sistema evitando selecciones manuales complejas en pantallas táctiles.
+   - Conmutador `👁️ / 🙈`: Permite alternar la máscara de contraseña para verificar la clave o mantenerla oculta.
+4. **Validación Reactiva de Formato**:
+   - Verificación en vivo del prefijo estándar `AIzaSy...` con indicación visual (`✅ Formato válido` vs advertencias descriptivas).
+5. **Garantía y Tranquilidad Offline**:
+   - Aclaración explícita de que la clave es 100% opcional; la app funciona de manera autónoma sin internet ni registro gracias a su Motor Experto On-Device.
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin / BDD)
