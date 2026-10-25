@@ -105,6 +105,13 @@ Permite además **encadenar tramos multimodales** en un mismo trayecto (por ejem
    - **Permisos**: Declaración y solicitud en tiempo de ejecución de `android.permission.POST_NOTIFICATIONS` para Android 13+ (API 33+).
    - **Notificación Enriquecida**: Con título claro, indicación de puerta/mostrador/andén y apertura directa de la app al pulsar.
 
+### RF-05.6: Creación y Edición de Tramos con Formulario Limpio (`Empty State on Create`)
+1. **Inputs Limpios en Alta de Transporte**:
+   - Al pulsar el botón `➕ Añadir Transporte`, el formulario modal (`TransportSegmentEditorModalSheet`) debe abrirse con todos los campos de texto e inputs de edición completamente limpios y vacíos (`""`).
+   - Queda prohibida la precarga involuntaria de valores de ejemplo (como `"JR Shinkansen"`, `"Nozomi #21"`, `"Tokyo Station"`, `"Kyoto Station"`, `"09:00"`, `"11:15"`, `"Andén 16"`, `"Vagón 7 · Asiento 12E"`, etc.), evitando que el usuario deba borrar manualmente caracteres previos.
+2. **Fidelidad en Modo Edición**:
+   - Al abrir un tramo existente mediante `✏️ Editar`, el formulario cargará de forma fidedigna los datos específicos de dicho tramo, aislando el estado de edición mediante clave única (`initialSegment.id`) para prevenir fugas de estado en Compose.
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin / BDD)
@@ -137,3 +144,8 @@ Permite además **encadenar tramos multimodales** en un mismo trayecto (por ejem
 - **Dado** que el usuario tiene un vuelo con hora de embarque a las `14:40` en la Puerta `S22`
 - **Cuando** faltan `45 minutos` o menos para el embarque (o se encuentra en curso a falta de $\le 15$ minutos)
 - **Entonces** la app despliega la advertencia visual urgente (`BOARDING_APPROACHING` / `BOARDING_NOW`) en rojo bermellón `Akabeni`, resalta la puerta `S22` y lanza una notificación de alta prioridad con sonido/vibración.
+
+### Escenario 6: Apertura del modal de nuevo transporte con inputs limpios sin texto precargado
+- **Dado** que el usuario pulsa «➕ Añadir Transporte» en la pantalla de transportes
+- **Cuando** se despliega el formulario modal de alta (`TransportSegmentEditorModalSheet`)
+- **Entonces** todos los campos de texto e inputs (compañía/operador, número/tren/vuelo, origen, destino, salida, llegada, facturación, embarque, andén/terminal y asiento) se muestran completamente limpios y vacíos (`""`), permitiendo la entrada directa de datos sin requerir el borrado manual de ejemplos precargados.

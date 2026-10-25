@@ -7,6 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.17] - 2026-10-25
+
+### Added
+- **Inicialización Limpia de Tramos al Añadir Transporte (`SPEC-05 RF-05.6`)**:
+  - **Formulario Limpio sin Texto Residual**: Al pulsar «➕ Añadir Transporte», todos los campos de texto e inputs de edición (`TransportSegmentEditorModalSheet`) se abren completamente vacíos (`""`), eliminando la precarga de datos de ejemplo (Nozomi, Shinkansen, horas predeterminadas u orígenes/destinos precargados) para que el viajero no tenga que borrar manualmente texto previo.
+  - **Aislamiento Reactivo en Compose**: Claves de estado ligadas a `initialSegment.id` en `rememberSaveable` para evitar fugas de estado entre creaciones y ediciones.
+  - **Selector de Modo Dinámico y Soporte de Autobús**: Selección de modo precargada según el filtro activo en pantalla e inclusión del botón de selección para Autobús (`BUS`).
+  - **Tests Unitarios TDD**: Cobertura en `TransportPlannerUseCaseTest` para `createEmptySegment`.
+
 ## [0.0.1-beta.16] - 2026-10-25
 
 ### Added

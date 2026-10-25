@@ -111,5 +111,44 @@ class TransportPlannerUseCaseTest {
         // 6 minutes between Shinkansen and Subway is flagged as tight (< 10 min threshold)
         assertTrue(transfer.isTightConnection)
     }
+
+    @Test
+    fun `createEmptySegment produces clean segment with completely empty text inputs`() {
+        val emptySeg = TransportPlannerUseCase.createEmptySegment(id = "seg-new-123", order = 3)
+
+        assertEquals("seg-new-123", emptySeg.id)
+        assertEquals(3, emptySeg.order)
+        assertEquals(TransportMode.TRAIN_SHINKANSEN, emptySeg.type)
+        assertEquals("", emptySeg.operatorName)
+        assertEquals("", emptySeg.lineOrNumber)
+        assertEquals("", emptySeg.departureCode)
+        assertEquals("", emptySeg.departureName)
+        assertEquals("", emptySeg.departureTerminalOrPlatform)
+        assertEquals(null, emptySeg.checkInTime)
+        assertEquals(null, emptySeg.boardingTime)
+        assertEquals("", emptySeg.departureTimeIso)
+        assertEquals("", emptySeg.arrivalCode)
+        assertEquals("", emptySeg.arrivalName)
+        assertEquals("", emptySeg.arrivalTerminalOrPlatform)
+        assertEquals("", emptySeg.arrivalTimeIso)
+        assertEquals("", emptySeg.seatOrCarInfo)
+        assertEquals("", emptySeg.stationExitOrBelt)
+        assertEquals("", emptySeg.passOrPaymentBadge)
+    }
+
+    @Test
+    fun `createEmptySegment supports explicit initial mode without injecting sample text`() {
+        val emptyFlight = TransportPlannerUseCase.createEmptySegment(
+            id = "seg-flight-1",
+            order = 1,
+            initialMode = TransportMode.FLIGHT
+        )
+
+        assertEquals(TransportMode.FLIGHT, emptyFlight.type)
+        assertEquals("", emptyFlight.operatorName)
+        assertEquals("", emptyFlight.lineOrNumber)
+        assertEquals("", emptyFlight.departureName)
+        assertEquals("", emptyFlight.arrivalName)
+    }
 }
 
