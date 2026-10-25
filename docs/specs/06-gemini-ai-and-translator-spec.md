@@ -41,12 +41,19 @@ Dotar a **Japan Travel Tools** de capacidades de Inteligencia Artificial mediant
 
 ### RF-06.2: Asistente de Viaje con IA (Google Gemini: On-Device + Cloud con Caché Offline)
 1. **Arquitectura Híbrida de Gemini (Optimizada para Pixel 10/9 Pro XL y Tablet TCL)**:
-   - **Modo Gemini Cloud (`Google GenAI SDK` — ej. `gemini-2.5-flash`)**:
-     - Permite configurar la API Key de Gemini en Ajustes (guardada de forma segura en `EncryptedSharedPreferences` / DataStore) para consultas complejas, análisis de fotos de menús japoneses, carteles de estaciones o sugerencias de itinerario.
-   - **Modo Gemini Nano On-Device (`AICore` en Pixel 10 Pro XL y Pixel 9 Pro XL)**:
-     - Aprovecha el procesador Tensor G4 / G5 de los **Pixel 9 Pro XL y Pixel 10 Pro XL** para ejecutar inferencia local sin conexión cuando esté disponible en el dispositivo.
+   - **Modo Gemini Cloud (`Google GenAI REST API` — ej. `gemini-2.0-flash` / `gemini-1.5-flash`)**:
+     - Permite configurar la API Key de Gemini en Ajustes y en el propio Asistente IA (guardada de forma segura en `EncryptedSharedPreferences` / DataStore) para consultas libres y complejas con generación en tiempo real cuando hay conexión.
+   - **Modo Experto Offline en Viajes a Japón (On-Device Knowledge Engine)**:
+     - Motor offline especializado con cobertura profunda de más de 20 categorías habituales (Tarjetas Suica/Pasmo/IC, Shinkansen, JR Pass y rentabilidad, reglas de maletas grandes >160cm, comida y cartas de Izakaya/Ramen/Sushi, Tax-Free y compras en Don Quijote, eSIM/Pocket Wi-Fi, cajeros 7-Eleven y efectivo, enchufes y voltaje 100V, propinas y modales, normas Onsen y tatuajes, clima y ropa por temporada, traslados desde aeropuertos Narita/Haneda/KIX, emergencias y terremotos J-Alert, rutas completas Tokio/Kioto/Osaka/Nara/Hakone/Hiroshima).
+   - **Estados de Carga y Retroalimentación Visual Reactiva**:
+     - Al pulsar `✨ Consultar IA` o cualquier chip de tema rápido, la interfaz debe mostrar de forma inequívoca el estado de carga (`isLoading = true`), bloqueando pulsaciones duplicadas y mostrando un spinner animado (`CircularProgressIndicator`) con el texto *"Consultando a la IA..."*.
+     - Cada respuesta debe mostrar su fuente de procedencia (`✨ Gemini Cloud (Online)` o `⚡ Experto Japón (100% Offline)`) y la hora de generación para que el usuario compruebe de forma inmediata que el botón funciona y actualiza el contenido.
+   - **Acciones Directas sobre la Respuesta Generada**:
+     - Botón `📋 Copiar`: Copia la respuesta completa al portapapeles del sistema con confirmación visual.
+     - Botón `📖 Guardar como Guía`: Guarda la respuesta como un nuevo artículo en la Bóveda de Guías (`SPEC-03`) para conservarla permanentemente offline.
+     - Botón `🗓️ Aplicar al Itinerario`: Inyecta las paradas o excursión sugerida en el Planificador de Viaje (`SPEC-04`).
    - **Persistencia y Caché Offline de Conversaciones e Insights de IA**:
-     - Todas las respuestas, explicaciones culturales, traducciones de menús y rutas generadas por Gemini se guardan automáticamente en la base de datos local (`Room`) para poder consultarlas después en el metro o avión sin conexión, e incluso **exportarlas con un toque como una nueva Guía de Viaje (`SPEC-03`) o como paradas del Planificador (`SPEC-04`)**.
+     - Todas las respuestas, explicaciones culturales, traducciones de menús y rutas generadas por Gemini se guardan automáticamente en la base de datos local para poder consultarlas después en el metro o avión sin conexión.
 2. **Funciones Contextuales de Gemini en la App**:
    - **Asistente de Menús y Productos Japoneses (Visión)**: Haz una foto a la carta de un *Izakaya* en japonés o a un producto de farmacia/supermercado y Gemini te explica cada plato, ingredientes, precios convertidos a `EUR` (usando la tasa cacheada de `SPEC-02`) y cómo pedirlo.
    - **Creación y Mejora Directa de Planes de Viaje y Transporte en la App (`AI Plan Builder & Optimizer`)**:

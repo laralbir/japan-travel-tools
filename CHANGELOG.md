@@ -7,7 +7,22 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
-## [0.0.1-beta.12] - 2026-10-25
+## [0.0.1-beta.13] - 2026-10-25
+
+### Fixed & Enhanced
+- **Asistente IA de Viaje Interactivo y Funcional (`SPEC-06 RF-06.2`)**:
+  - **Estado Reactivo de Carga y Retroalimentación Visual**:
+    - El botón `✨ Consultar IA` y los chips de temas rápidos activan inmediatamente un estado de carga (`isLoading = true`) con un spinner animado (`CircularProgressIndicator`) y el texto *"Consultando..."*, bloqueando pulsaciones dobles accidentales.
+    - Tarjeta de progreso visible mientras se genera la respuesta, indicando si se está conectando con Gemini Cloud o analizando el motor experto local.
+    - Insignia de origen en cada respuesta (`✨ Gemini Cloud` o `⚡ Experto Japón Offline`) junto con la hora exacta de generación (`🕐 HH:mm`).
+  - **Arquitectura Híbrida Real (Google Gemini 2.0 Flash REST API + Motor Experto On-Device Offline)**:
+    - **Soporte Gemini Cloud**: Permite configurar opcionalmente una Google Gemini API Key (`AIzaSy...`) tanto en la propia pantalla del Asistente IA como en *Ajustes*, conectando directamente con Gemini 2.0 Flash en la nube cuando hay conexión a internet.
+    - **Ampliación Profunda del Motor Experto Offline**: Cobertura detallada de más de 20 temáticas esenciales para el viajero (Compras Tax-Free en Don Quijote, conexión a internet con eSIM vs Pocket Wi-Fi, propinas y modales en restaurantes, normas en Onsen y política de tatuajes, rentabilidad del JR Pass nacional vs billetes sueltos, enchufes y voltaje 100V, traslados desde aeropuertos Narita/Haneda/KIX, equipaje grande en Shinkansen, ropa según la estación, Akihabara y anime, y teléfonos de emergencia 110/119).
+  - **Acciones Rápidas sobre la Respuesta de la IA**:
+    - Botón `📋 Copiar`: Copia la respuesta completa al portapapeles con confirmación visual en pantalla.
+    - Botón `📖 Guardar Guía`: Exporta directamente la respuesta generada a la *Bóveda de Guías de Viaje* (`SharedDocumentsAndGuidesStore.upsertGuide`) con persistencia local permanente en disco.
+    - Botón `🗓️ Aplicar`: Aplica sugerencias de itinerario directamente en el Planificador de Viaje.
+    - Campo de consulta con botón de borrado rápido (`✕`) e inicialización limpia con tarjeta de bienvenida y consejos de uso.
 
 ### Added
 - **Gestión Completa de Múltiples Planes de Viaje (`SPEC-04 RF-04.1`)**:
