@@ -102,6 +102,10 @@ import com.laralbir.japantraveltools.data.DefaultDataRepository
 import com.laralbir.japantraveltools.feature.ai.AssistantSource
 import com.laralbir.japantraveltools.feature.ai.GeminiAssistantEngine
 import com.laralbir.japantraveltools.feature.ai.OfflineTranslatorEngine
+import com.laralbir.japantraveltools.feature.ai.OnlineTranslatorClient
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.laralbir.japantraveltools.feature.clock.CalculateClockComparisonUseCase
 import com.laralbir.japantraveltools.feature.clock.OfflineTimeZoneResolver
 import com.laralbir.japantraveltools.feature.currency.ConvertCurrencyUseCase
@@ -803,7 +807,7 @@ private fun ActiveToolContent(
         JapanDrawerDestination.WEATHER -> WeatherToolScreen(isEs = isEs)
         JapanDrawerDestination.PLANNER -> TripPlannerTabScreen(isEs = isEs, onOpenJsonPortability = onOpenPlanSheet)
         JapanDrawerDestination.TRANSPORT -> TransportTabScreen(isEs = isEs, onOpenJsonPortability = onOpenPlanSheet)
-        JapanDrawerDestination.VOICE_TRANSLATOR -> VoiceTranslatorScreen(isEs = isEs)
+        JapanDrawerDestination.VOICE_TRANSLATOR -> VoiceTranslatorScreen(isEs = isEs, prefs = prefs)
         JapanDrawerDestination.AI_ASSISTANT -> AiAssistantScreen(
             isEs = isEs,
             prefs = prefs,
@@ -3124,8 +3128,9 @@ private fun TransportSegmentEditorModalSheet(
 // 6. VOICE & CAMERA TRANSLATOR SCREEN (BIDIRECTIONAL STT + CAMERA OCR)
 // ============================================================================
 @Composable
-private fun VoiceTranslatorScreen(isEs: Boolean) {
+private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     var translatorMode by rememberSaveable { mutableIntStateOf(0) } // 0: Voz, 1: Cámara
 
     // --- MODO 0: VOZ SIMULTÁNEA ---
@@ -3133,6 +3138,8 @@ private fun VoiceTranslatorScreen(isEs: Boolean) {
     var japaneseHeardInput by rememberSaveable {
         mutableStateOf("いらっしゃいませ。何名様ですか？禁煙席でよろしいですか？")
     }
+    var customOnlineTranslationJaToEs by rememberSaveable { mutableStateOf<String?>(null) }
+    var customOnlineTranslationEsToJa by rememberSaveable { mutableStateOf<String?>(null) }
     var rotateJapaneseCard180 by rememberSaveable { mutableStateOf(false) }
 
     // --- MODO 1: CÁMARA & OCR DE CARTELES ---
@@ -3252,14 +3259,38 @@ private fun VoiceTranslatorScreen(isEs: Boolean) {
             val spokenText = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
             if (!spokenText.isNullOrBlank()) {
                 if (OfflineTranslatorEngine.isJapaneseText(spokenText)) {
+                    // Si se detecta voz japonesa en el micrófono del viajero
                     japaneseHeardInput = spokenText
+                    customOnlineTranslationJaToEs = null
                     val reply = OfflineTranslatorEngine.translateFromJapaneseSpeech(spokenText)
                     val targetSpeech = if (isEs) reply.spanishSpokenText else reply.englishSpokenText
                     speakOutLoud(targetSpeech, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
+                    if (prefs?.forceOfflineMode != true) {
+                        coroutineScope.launch(Dispatchers.IO) {
+                            val online = OnlineTranslatorClient.translate(spokenText, "ja", if (isEs) "es" else "en")
+                            if (!online.isNullOrBlank() && online != targetSpeech) {
+                                withContext(Dispatchers.Main) {
+                                    customOnlineTranslationJaToEs = online
+                                }
+                            }
+                        }
+                    }
                 } else {
+                    // Flujo 2: Habla español -> se captura texto en español -> se traduce al japonés -> se habla el texto traducido en japonés
                     phraseInput = spokenText
+                    customOnlineTranslationEsToJa = null
                     val translated = OfflineTranslatorEngine.translateToJapanese(spokenText)
                     speakOutLoud(translated.japaneseText, Locale.JAPAN)
+                    if (prefs?.forceOfflineMode != true) {
+                        coroutineScope.launch(Dispatchers.IO) {
+                            val online = OnlineTranslatorClient.translate(spokenText, if (isEs) "es" else "en", "ja")
+                            if (!online.isNullOrBlank() && online != translated.japaneseText) {
+                                withContext(Dispatchers.Main) {
+                                    customOnlineTranslationEsToJa = online
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -3272,14 +3303,38 @@ private fun VoiceTranslatorScreen(isEs: Boolean) {
             val heardJa = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
             if (!heardJa.isNullOrBlank()) {
                 if (!OfflineTranslatorEngine.isJapaneseText(heardJa) && heardJa.any { it.isLetter() }) {
+                    // Si se detecta voz en español en el micrófono japonés
                     phraseInput = heardJa
+                    customOnlineTranslationEsToJa = null
                     val translated = OfflineTranslatorEngine.translateToJapanese(heardJa)
                     speakOutLoud(translated.japaneseText, Locale.JAPAN)
+                    if (prefs?.forceOfflineMode != true) {
+                        coroutineScope.launch(Dispatchers.IO) {
+                            val online = OnlineTranslatorClient.translate(heardJa, if (isEs) "es" else "en", "ja")
+                            if (!online.isNullOrBlank() && online != translated.japaneseText) {
+                                withContext(Dispatchers.Main) {
+                                    customOnlineTranslationEsToJa = online
+                                }
+                            }
+                        }
+                    }
                 } else {
+                    // Flujo 1: Habla japonés -> se captura texto japonés -> se traduce el texto al español -> se habla el texto traducido en español
                     japaneseHeardInput = heardJa
+                    customOnlineTranslationJaToEs = null
                     val reply = OfflineTranslatorEngine.translateFromJapaneseSpeech(heardJa)
                     val targetSpeech = if (isEs) reply.spanishSpokenText else reply.englishSpokenText
                     speakOutLoud(targetSpeech, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
+                    if (prefs?.forceOfflineMode != true) {
+                        coroutineScope.launch(Dispatchers.IO) {
+                            val online = OnlineTranslatorClient.translate(heardJa, "ja", if (isEs) "es" else "en")
+                            if (!online.isNullOrBlank() && online != targetSpeech) {
+                                withContext(Dispatchers.Main) {
+                                    customOnlineTranslationJaToEs = online
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -3312,7 +3367,112 @@ private fun VoiceTranslatorScreen(isEs: Boolean) {
         }
 
         if (translatorMode == 0) {
-            // MODO VOZ - CARD 1: YOU SPEAK -> PHONE SPEAKS JAPANESE
+            // MODO VOZ - TARJETA 1: HABLA JAPONÉS ➔ SE CAPTURA TEXTO JAPONÉS ➔ SE TRADUCE AL ESPAÑOL ➔ SE HABLA EN ESPAÑOL
+            item {
+                KotlinConfCard {
+                    Text(
+                        text = if (isEs) "1. Habla Japonés ➔ Traduce y Habla en Español" else "1. Speaks Japanese ➔ Translates and Speaks in Spanish",
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    AppButtonRow(
+                        primaryText = if (isEs) "🎙️ Hablar en Japonés" else "🎙️ Speak Japanese",
+                        onPrimaryClick = {
+                            runCatching {
+                                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ja-JP")
+                                }
+                                japaneseSpeechLauncher.launch(intent)
+                            }.onFailure {
+                                val spoken = customOnlineTranslationJaToEs ?: if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText
+                                speakOutLoud(spoken, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
+                            }
+                        },
+                        secondaryText = if (isEs) "🔊 Hablar en Español" else "🔊 Speak in Spanish",
+                        onSecondaryClick = {
+                            val spoken = customOnlineTranslationJaToEs ?: if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText
+                            speakOutLoud(spoken, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
+                        }
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = japaneseHeardInput.ifBlank { if (isEs) "Pulsa el micro para hablar en japonés 🇯🇵" else "Tap mic to speak in Japanese 🇯🇵" },
+                                fontSize = 21.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            if (japaneseReplyTranslation.romaji.isNotBlank()) {
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = "🗣️ ${japaneseReplyTranslation.romaji}",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Spacer(Modifier.height(10.dp))
+                            HorizontalDivider()
+                            Spacer(Modifier.height(10.dp))
+                            val displayTranslation = customOnlineTranslationJaToEs ?: if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText
+                            Text(
+                                text = "🇪🇸 $displayTranslation",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+                    Text(
+                        text = if (isEs) "Frases habituales en japonés para probar:" else "Common Japanese phrases to test:",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OfflineTranslatorEngine.incomingJapaneseSamples.chunked(2).forEach { pair ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                pair.forEach { sample ->
+                                    AppOptionButton(
+                                        text = "🔊 ${sample.contextLabel}",
+                                        selected = japaneseHeardInput == sample.japaneseHeardText,
+                                        onClick = {
+                                            japaneseHeardInput = sample.japaneseHeardText
+                                            customOnlineTranslationJaToEs = null
+                                            val spoken = if (isEs) sample.spanishSpokenText else sample.englishSpokenText
+                                            speakOutLoud(spoken, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                                if (pair.size == 1) {
+                                    Spacer(Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // MODO VOZ - TARJETA 2: HABLA ESPAÑOL ➔ SE CAPTURA TEXTO EN ESPAÑOL ➔ SE TRADUCE AL JAPONÉS ➔ SE HABLA EN JAPONÉS
             item {
                 KotlinConfCard {
                     Row(
@@ -3321,7 +3481,7 @@ private fun VoiceTranslatorScreen(isEs: Boolean) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = if (isEs) "1. Tú hablas ➔ Suena Japonés" else "1. You speak ➔ Plays Japanese",
+                            text = if (isEs) "2. Habla Español ➔ Traduce y Habla en Japonés" else "2. Speaks Spanish ➔ Translates and Speaks in Japanese",
                             fontSize = 19.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.weight(1f)
@@ -3337,7 +3497,7 @@ private fun VoiceTranslatorScreen(isEs: Boolean) {
                     Spacer(Modifier.height(14.dp))
 
                     AppButtonRow(
-                        primaryText = if (isEs) "🎙️ Hablar por Micro" else "🎙️ Speak Mic",
+                        primaryText = if (isEs) "🎙️ Hablar en Español" else "🎙️ Speak Spanish",
                         onPrimaryClick = {
                             runCatching {
                                 val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
@@ -3346,11 +3506,15 @@ private fun VoiceTranslatorScreen(isEs: Boolean) {
                                 }
                                 travelerSpeechLauncher.launch(intent)
                             }.onFailure {
-                                speakOutLoud(translation.japaneseText, Locale.JAPAN)
+                                val target = customOnlineTranslationEsToJa ?: translation.japaneseText
+                                speakOutLoud(target, Locale.JAPAN)
                             }
                         },
-                        secondaryText = if (isEs) "🔊 Sonar en Japonés" else "🔊 Play Japanese",
-                        onSecondaryClick = { speakOutLoud(translation.japaneseText, Locale.JAPAN) }
+                        secondaryText = if (isEs) "🔊 Hablar en Japonés" else "🔊 Speak in Japanese",
+                        onSecondaryClick = {
+                            val target = customOnlineTranslationEsToJa ?: translation.japaneseText
+                            speakOutLoud(target, Locale.JAPAN)
+                        }
                     )
 
                     Spacer(Modifier.height(14.dp))
@@ -3364,13 +3528,16 @@ private fun VoiceTranslatorScreen(isEs: Boolean) {
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                text = phraseInput,
-                                fontSize = 15.sp,
+                                text = phraseInput.ifBlank { if (isEs) "Pulsa el micro para hablar en español 🇪🇸" else "Tap mic to speak 🇺🇸" },
+                                fontSize = 16.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Spacer(Modifier.height(6.dp))
+                            Spacer(Modifier.height(8.dp))
+                            HorizontalDivider()
+                            Spacer(Modifier.height(8.dp))
+                            val displayJa = customOnlineTranslationEsToJa ?: translation.japaneseText
                             Text(
-                                text = translation.japaneseText,
+                                text = displayJa,
                                 fontSize = 23.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.primary
@@ -3405,95 +3572,11 @@ private fun VoiceTranslatorScreen(isEs: Boolean) {
                                         selected = phraseInput == preset.sourceText,
                                         onClick = {
                                             phraseInput = preset.sourceText
+                                            customOnlineTranslationEsToJa = null
                                             speakOutLoud(preset.japaneseText, Locale.JAPAN)
                                         },
                                         modifier = Modifier.weight(1f)
                                     )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // MODO VOZ - CARD 2: JAPANESE PERSON SPEAKS -> PHONE SPEAKS SPANISH TO YOU
-            item {
-                KotlinConfCard {
-                    Text(
-                        text = if (isEs) "2. Habla el Japonés ➔ Te habla en Español" else "2. Japanese speaks ➔ Speaks English to you",
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Spacer(Modifier.height(14.dp))
-
-                    AppButtonRow(
-                        primaryText = if (isEs) "🎙️ Escuchar Japonés" else "🎙️ Listen Japanese",
-                        onPrimaryClick = {
-                            runCatching {
-                                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ja-JP")
-                                }
-                                japaneseSpeechLauncher.launch(intent)
-                            }.onFailure {
-                                val spoken = if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText
-                                speakOutLoud(spoken, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
-                            }
-                        },
-                        secondaryText = if (isEs) "🔊 Oír en Español" else "🔊 Hear in English",
-                        onSecondaryClick = {
-                            val spoken = if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText
-                            speakOutLoud(spoken, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
-                        }
-                    )
-
-                    Spacer(Modifier.height(14.dp))
-
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText,
-                                fontSize = 19.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                        }
-                    }
-
-                    Spacer(Modifier.height(14.dp))
-                    Text(
-                        text = if (isEs) "Simular respuestas habituales en Japón:" else "Simulate common Japanese replies:",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(8.dp))
-
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OfflineTranslatorEngine.incomingJapaneseSamples.chunked(2).forEach { pair ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                pair.forEach { sample ->
-                                    AppOptionButton(
-                                        text = "🔊 ${sample.contextLabel}",
-                                        selected = japaneseHeardInput == sample.japaneseHeardText,
-                                        onClick = {
-                                            japaneseHeardInput = sample.japaneseHeardText
-                                            val spoken = if (isEs) sample.spanishSpokenText else sample.englishSpokenText
-                                            speakOutLoud(spoken, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
-                                        },
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-                                if (pair.size == 1) {
-                                    Spacer(Modifier.weight(1f))
                                 }
                             }
                         }

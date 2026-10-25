@@ -240,6 +240,12 @@ data class UserPreferences(
   - `japaneseText: String` (`Kanji/Kana`)
   - `romajiText: String` (pronunciación fonética)
   - `isPinnedPhrase: Boolean`
+- **Motor de Traducción de Voz Fiel y Bidireccional (`FaithfulVoiceTranslator` / `LiveTranslationEngine`)**:
+  - **Flujo 1 (Japonés ➔ Español)**: Voz japonesa (`ja-JP`) capturada por `RecognizerIntent` ➔ Texto japonés ➔ Traducción literal y fiel a Español (sin invención conversacional ni mensajes meta de chatbot) ➔ Locución de audio en Español (`TextToSpeech` con `Locale.forLanguageTag("es-ES")`). Interfaz con visualización del texto japonés capturado (`Kanji/Kana`), pronunciación en Romaji y texto en español.
+  - **Flujo 2 (Español ➔ Japonés)**: Voz del viajero (`es-ES`) ➔ Texto en español ➔ Traducción literal a Japonés con Romaji ➔ Locución de audio en Japonés (`TextToSpeech` con `Locale.JAPAN`).
+  - **Estrategia Híbrida**:
+    - **Online**: Llamada en segundo plano al endpoint de traducción rápida en tiempo real para traducir libremente cualquier locución cuando hay conectividad.
+    - **100% Offline-First**: Analizador léxico y de términos de viaje directo (`OfflineTranslatorEngine`) que traduce exactamente palabras, preguntas, direcciones, precios, alimentos y cortesía de forma literal, garantizando cero desfases sin inventar respuestas.
 
 ### 3.7. Portabilidad JSON Legible (`TravelPlanJsonCodec`) y Constructor/Optimizador IA (`AiPlanBuilderEngine`)
 - **`PortableTravelPlanBundle` (`schemaVersion = "japan-travel-plan.v1"`)**:
