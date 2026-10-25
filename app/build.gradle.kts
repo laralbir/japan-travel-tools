@@ -12,7 +12,7 @@ android {
     applicationId = "com.laralbir.japantraveltools"
     minSdk = 26
     targetSdk = 36
-    versionCode = 7
+    versionCode = 8
     versionName = "0.0.1"
   }
 
@@ -82,6 +82,9 @@ dependencies {
   implementation(libs.androidx.navigation3.ui)
   implementation(libs.androidx.navigation3.runtime)
   implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+
+  // Real Biometrics & Device Credential Authentication
+  implementation(libs.androidx.biometric)
 }
 
 tasks.register<Exec>("installAuthorizedDebug") {

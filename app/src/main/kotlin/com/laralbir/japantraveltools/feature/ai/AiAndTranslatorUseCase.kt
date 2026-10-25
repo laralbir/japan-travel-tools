@@ -89,9 +89,9 @@ object OfflineTranslatorEngine {
                 )
             else -> JapaneseToTravelerVoiceResult(
                 japaneseHeardText = clean,
-                romaji = "Sumimasen, mō ichido yukkuri hanashite kudasai.",
-                spanishSpokenText = "Ha hablado en japonés («$clean»). Si necesitas que repita más despacio, pulsa hablar en japonés.",
-                englishSpokenText = "Spoken in Japanese («$clean»). Ask them to repeat slowly if needed.",
+                romaji = "Nihongo: $clean",
+                spanishSpokenText = clean,
+                englishSpokenText = clean,
                 contextLabel = "VOZ JAPONESA"
             )
         }

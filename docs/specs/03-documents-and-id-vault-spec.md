@@ -28,25 +28,28 @@ Permitir al viajero llevar siempre a mano y **100% offline**:
 4. Notas rápidas asociadas (opcional):
    - Campos opcionales para anotar el número de pasaporte, fecha de caducidad y número de DNI para copiar al portapapeles con un toque al rellenar formularios.
 
-### RF-03.2: Privacidad y Bloqueo Biométrico Opcional
+### RF-03.2: Privacidad y Bloqueo Biométrico Obligatorio (Real Android BiometricPrompt)
 1. **Almacenamiento Interno Privado**:
-   - Todas las imágenes de Pasaporte/DNI, los documentos importados y las guías de viaje se copian al directorio interno privado de la app (`Context.filesDir/vault/`, `Context.filesDir/documents/` y `Context.filesDir/guides/`).
+   - Todas las imágenes de Pasaporte/DNI, los documentos importados y las guías de viaje se copian al directorio interno privado de la app (`Context.filesDir/id_vault/`, `Context.filesDir/documents/` y `Context.filesDir/guides/`).
    - **Nunca** se exponen en la galería pública de fotos del teléfono ni son accesibles por otras aplicaciones.
-   - Si el usuario borra el archivo original de su galería de descargas, la copia dentro de **Japan Travel Tools** permanece intacta y disponible offline.
-2. **Bloqueo Biométrico / PIN Opcional**:
-   - El usuario puede activar en Ajustes o en la propia pantalla de Pasaporte/DNI la opción *"Proteger documentos de identidad con biometría/PIN"*.
-   - Cuando está activo, antes de mostrar o ampliar el Pasaporte o DNI se solicita autenticación mediante `BiometricPrompt` (huella, reconocimiento facial o PIN/patrón del dispositivo).
+   - Si el usuario borra el archivo original de su galería o descargas, la copia dentro de **Japan Travel Tools** permanece intacta y disponible offline.
+2. **Bloqueo Biométrico / Credencial del Dispositivo Obligatorio (`BiometricPrompt`)**:
+   - Para garantizar la máxima seguridad de la documentación oficial del viajero (Pasaporte y DNI), la aplicación verifica la capacidad biométrica o de credenciales del dispositivo (`BiometricManager.from(context).canAuthenticate(BIOMETRIC_STRONG or DEVICE_CREDENTIAL)`).
+   - Si el dispositivo dispone de huella dactilar, desbloqueo facial o PIN/patrón/contraseña configurado, la sección de Identificación requiere **autenticación real mediante `BiometricPrompt`** para visualizar o editar las fotografías de los documentos.
+   - Si el dispositivo no tiene ningún método de seguridad configurado, se permite el acceso directo mostrando una advertencia de seguridad recomendando configurar un PIN en el sistema.
 
-### RF-03.3: Repositorio de Documentos de Viaje (Vuelos, Hoteles, Otros)
-1. El usuario puede añadir, organizar, visualizar y eliminar documentos de su viaje en formato **PDF** (`application/pdf`) o **Imagen** (`image/jpeg`, `image/png`, `image/webp`).
+### RF-03.3: Repositorio de Documentos y Entradas de Viaje (Vuelos, Hoteles, Entradas y Museos)
+1. El usuario puede añadir, organizar, visualizar, editar y eliminar documentos y entradas de su viaje en formato **PDF** (`application/pdf`) o **Imagen** (`image/jpeg`, `image/png`, `image/webp`).
 2. **Categorías predefinidas**:
    - ✈️ **Vuelos** (billetes, tarjetas de embarque, itinerarios).
    - 🏨 **Hoteles y Alojamiento** (reservas de Booking/Agoda, direcciones en japonés para el taxi).
+   - 🎟️ **Entradas y Ocio (Tickets)**: Gestión específica para museos (Museo Ghibli, teamLab Planets, Museo Nacional), parques temáticos (Universal Studios Japan USJ con pase Nintendo World, Tokyo Disneyland / DisneySea), miradores (Shibuya Sky, Tokyo Skytree) y reservas con código QR o localizador horario.
    - 🚄 **Transporte** (JR Pass, reservas Shinkansen, autobuses).
    - 🛡️ **Seguros y Salud** (póliza de seguro de viaje, certificados).
-   - 🎟️ **Entradas y Reservas** (parques, museos, restaurantes, eSIM, Visit Japan Web).
    - 📖 **Guías de Viaje** (guías PDF, folletos, mapas de barrios o rutas).
    - 📁 **Otros**.
+3. **Gestión Completa (CRUD)**:
+   - Posibilidad de crear, editar datos (título, categoría, localizador/notas, fecha) y eliminar cualquier documento o entrada en cualquier momento.
 3. **Metadatos y Búsqueda Offline**:
    - Cada documento tendrá: Título personalizado, Categoría, Fecha asociada opcional (ej. fecha del vuelo o check-in), Notas rápidas y marca de Favorito/Destacado (`Pinned`).
    - Buscador por texto y filtro por categoría instantáneo.

@@ -7,6 +7,34 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.8] - 2026-10-25
+
+### Added
+- **Creación, Edición y Eliminación Completa de Planes, Paradas, Días y Transporte (`SPEC-04 RF-04.1`, `SPEC-05 RF-05.1`)**:
+  - `SharedTravelPlanStore`: Métodos `upsertStop`, `deleteStop`, `deleteDay`, `upsertTransportSegment`, `deleteTransportSegment` y `clearAll` con tests unitarios en `TravelPlanJsonPortabilityTest`.
+  - **En el Planificador de Viaje**:
+    - Botón **`➕ Añadir Parada`** y botón **`➕ Día`** en la cabecera de días.
+    - Botones directos **`✏️ Editar`** y **`🗑️ Eliminar`** en cada tarjeta de parada del itinerario.
+    - Botón **`🗑️ Borrar Día X`** para eliminar un día completo y editor modal (`ItineraryStopEditorModalSheet`) para modificar día, hora de inicio/fin, lugar, nombre en japonés, categoría y notas.
+  - **En Transporte y Trenes**:
+    - Botón **`➕ Añadir Transporte`** y botones **`✏️ Editar`** / **`🗑️ Eliminar`** en cada tarjeta de vuelo/tren (`TransportSegmentEditorModalSheet`).
+- **Bóveda de Pasaporte y DNI con Fotos Reales y Biometría Obligatoria (`SPEC-03 RF-03.1`)**:
+  - Selección de imágenes desde Galería, Cámara o Drive (`ActivityResultContracts.GetContent()`), copia privada en almacenamiento interno (`context.filesDir/id_vault/`), renderizado de miniaturas y opciones para sustituir o eliminar cada foto.
+  - Autenticación biométrica real y obligatoria mediante `androidx.biometric.BiometricPrompt` en `FragmentActivity`, con fallback a credencial del sistema (PIN/patrón/contraseña).
+- **Gestión de Entradas, Documentos y Guías de Viaje (`SPEC-03 RF-03.2`, `RF-03.3`)**:
+  - Nueva categoría de **Entradas** (`TICKET`) en `SPEC-03` para parques temáticos y museos (USJ Super Nintendo World, Museo Ghibli, teamLab Planets, Shibuya Sky, Tokyo Disneyland) con soporte de código de reserva y QR.
+  - Creación, edición y borrado de documentos de reserva (`DocumentEditorModalSheet`) y guías de viaje personalizadas (`GuideEditorModalSheet`).
+- **Guía de Esquema JSON para Generación con IA (`SPEC-08`)**:
+  - Documentación de formato estandarizado `japan-travel-plan.v1` (`docs/specs/08-travel-plan-json-schema-guide.md`) con esquema estricto, tipos y prompt de sistema listo para usar en Gemini, Claude o ChatGPT.
+
+### Fixed
+- **Legibilidad de la Barra de Notificaciones en Tema Claro (`SPEC-00`)**:
+  - Configuración explícita de `isAppearanceLightStatusBars = !darkTheme` e `isAppearanceLightNavigationBars = !darkTheme` en `Theme.kt`, evitando iconos blancos sobre fondo gris claro en modo claro.
+- **Traducción de Voz Directa sin Boilerplate (`SPEC-06`)**:
+  - Eliminación de fórmulas repetitivas ("El interlocutor dice...") para una locución en vivo directa y fluida.
+- **Filtro de Previsión Meteorológica Open-Meteo (`SPEC-07`)**:
+  - Visualización exclusiva de la ciudad seleccionada por el usuario (Tokio, Kioto, Osaka, Hakone), sin saturación de tarjetas redundantes.
+
 ## [0.0.1-beta.7] - 2026-10-25
 
 ### Changed

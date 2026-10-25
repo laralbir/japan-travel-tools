@@ -2,7 +2,7 @@
 
 Aplicación Android **offline-first** con herramientas esenciales para viajar a Japón, desarrollada en **Kotlin** y **Jetpack Compose** siguiendo metodologías **SDD (Spec-Driven Development)** y **TDD (Test-Driven Development)** para agentes de Inteligencia Artificial.
 
-> **Estado actual del proyecto**: `v0.0.1-beta.3` (Suite funcional offline-first con previsión meteorológica Open-Meteo para planificación de usuario e IA, portabilidad JSON legible de itinerarios/transportes y constructor/optimizador de planes con IA Gemini).
+> **Estado actual del proyecto**: `v0.0.1-beta.8` (Suite funcional offline-first con CRUD completo en paradas, días, transportes, documentos/entradas y guías; Bóveda de Pasaporte y DNI con fotos reales y biometría nativa obligatoria `BiometricPrompt`; previsión climática Open-Meteo por ciudad seleccionada; portabilidad JSON y guía de esquema para IAs).
 
 ---
 
@@ -90,6 +90,7 @@ Toda la documentación técnica y funcional se encuentra en español dentro del 
   - [05 - Herramienta: Planificador de Transporte (Vuelos, Trenes/Shinkansen, Metros y Autobuses)](docs/specs/05-flight-planner-spec.md)
   - [06 - Herramienta: Asistente IA con Gemini y Acceso Directo a Traducción Simultánea](docs/specs/06-gemini-ai-and-translator-spec.md)
   - [07 - Herramienta: Previsión Meteorológica con Open-Meteo para Planificación de Usuario e IA](docs/specs/07-weather-open-meteo-spec.md)
+  - [08 - Guía y Esquema JSON para Generación con IA y Portabilidad](docs/specs/08-travel-plan-json-schema-guide.md)
 - **Análisis Técnico**:
   - [Arquitectura, Stack Tecnológico y Estrategia TDD](docs/analysis/architecture-and-tech-stack.md)
 - **Planificación de Tareas**:
