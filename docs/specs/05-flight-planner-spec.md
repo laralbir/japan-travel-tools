@@ -1,4 +1,4 @@
-# SPEC-05: Herramienta de Planificador de Vuelos (Facturación, Embarque, Salida, Escalas y Llegada)
+# SPEC-05: Herramienta de Planificador de Transporte (Vuelos, Trenes/Shinkansen, Metros y Autobuses)
 
 - **ID**: `SPEC-05`
 - **Estado**: `Aprobado para Análisis/Implementación`
@@ -8,55 +8,74 @@
 
 ## 1. Objetivo
 
-Proporcionar al viajero una herramienta especializada y **100% offline** para planificar, visualizar y gestionar sus **vuelos de ida, vuelta y trayectos internos** hacia/desde Japón (incluyendo vuelos con una o múltiples escalas), controlando con precisión cada hito crítico en su zona horaria real:
-- **Apertura y límite de Facturación (`Check-in` online y mostrador de equipaje)**.
-- **Hora de Embarque (`Boarding time`) y cierre de puerta**.
-- **Hora de Salida (`Departure`)** en el huso horario del aeropuerto de origen.
-- **Escalas (`Layovers / Stopovers`)**: duración exacta del tránsito, cambio de terminal/puerta y tiempo disponible entre aterrizaje y siguiente embarque.
-- **Hora de Llegada (`Arrival`)** en el huso horario del aeropuerto de destino (con indicador `+1 día` / `+2 días` por cruce de husos horarios hacia Japón).
+Proporcionar al viajero una herramienta integral, unificada y **100% offline** para planificar, visualizar y encadenar todos sus desplazamientos antes y durante su viaje a Japón:
+1. **Planificador de Vuelos (`FLIGHT`)**: Ida, vuelta y vuelos internos con control de **apertura y límite de facturación (`check-in`), hora de embarque (`boarding`), salida, escalas (`layovers`) y llegada** entre husos horarios.
+2. **Planificador de Trenes y Shinkansen (`TRAIN_SHINKANSEN` / `LIMITED_EXPRESS` / `LOCAL_TRAIN`)**: Trayectos ferroviarios por Japón con línea/nombre del tren (ej. *Nozomi*, *Hikari*, *Haruka*, *Narita Express N'EX*, *Skyliner*), andén (`Platform / Track`), coche (`Car`), asiento (`Seat` — ventana Monte Fuji / pasillo / reserva de maletas grandes), transbordos (`Transfers`) y si está cubierto por **JR Pass / Pase Regional** o tarjeta IC (*Suica / Pasmo / Icoca*).
+3. **Planificador de Metro y Suburbano (`SUBWAY_METRO`)**: Desplazamientos urbanos (ej. *Tokyo Metro Ginza Line*, *Toei Oedo Line*, *Osaka Metro Midosuji*) con color oficial de línea, código de estación (ej. `G-09` -> `G-16`), **coche recomendado para el transbordo/salida** y **Número de Salida de Estación (`Exit`, ej. `Salida A4` o `Hachiko Exit`)**, crítico en las macro-estaciones japonesas.
+4. **Planificador de Autobuses (`HIGHWAY_BUS` / `LOCAL_BUS` / `AIRPORT_LIMOUSINE`)**: Autobuses interurbanos (ej. *Highway Bus a Kawaguchiko / Shirakawa-go*), autobuses urbanos de Kioto o *Airport Limousine Bus*, con terminal/parada (`Bus Stop / Bay`), número de línea, hora de embarque, compañía y si requiere reserva previa o pago al subir/bajar.
+
+Permite además **encadenar tramos multimodales** en un mismo trayecto (por ejemplo: *Vuelo aterrizaje en Narita T1 ➔ Tren Narita Express N'EX a Tokyo Station ➔ Metro Marunouchi Line hasta el hotel*), calculando automáticamente el tiempo de cada escala/transbordo.
 
 ---
 
 ## 2. Requisitos Funcionales (RF)
 
-### RF-05.1: Gestión de Viajes Aéreos y Tramos (`Flight Journey & Segments`)
-1. Un vuelo completo (`FlightJourney`, ej. *"Ida a Japón: Madrid -> Doha -> Tokio Haneda"* o *"Vuelta: Osaka Kansai -> Estambul -> Madrid"*) se compone de **uno o varios tramos consecutivos (`FlightSegment`)**.
-2. En cada tramo (`FlightSegment`) el usuario puede registrar y consultar:
-   - **Aerolínea y Número de Vuelo** (ej. `Iberia IB6801`, `Qatar Airways QR806`, `ANA NH211`).
-   - **Código de Reserva (`PNR` / Localizador)** copiable con un toque.
-   - **Aeropuerto de Salida** (Código IATA ej. `MAD`, nombre de ciudad, **Zona Horaria `ZoneId`**, **Terminal** y **Mostrador de Facturación**).
-   - **Aeropuerto de Llegada** (Código IATA ej. `HND` / `NRT` / `KIX`, nombre de ciudad, **Zona Horaria `ZoneId`**, **Terminal** y **Cinta de Equipaje**).
-   - **Puerta de Embarque (`Gate`)**, **Grupo/Zona de Embarque** y **Asiento (`Seat`, ej. `24A`)** + Franquicia de equipaje (mano / facturado).
+### RF-05.1: Gestión de Trayectos Multimodales y Tramos (`TransportJourney & TransportSegment`)
+1. Un trayecto (`TransportJourney`, ej. *"Llegada a Japón: Madrid ➔ Doha ➔ Tokio Narita ➔ Hotel Shinjuku"* o *"Excursión Tokio ➔ Kioto ➔ Arashiyama"*) se compone de **uno o varios tramos consecutivos (`TransportSegment`)** de cualquier medio de transporte:
+   - ✈️ **Vuelo (`FLIGHT`)**
+   - 🚅 **Shinkansen / Tren Expreso (`TRAIN_SHINKANSEN` / `TRAIN_EXPRESS`)**
+   - 🚃 **Tren Local / JR (`TRAIN_LOCAL`)**
+   - 🚇 **Metro (`SUBWAY_METRO`)**
+   - 🚌 **Autobús (`BUS_HIGHWAY` / `BUS_LOCAL` / `BUS_AIRPORT`)**
+2. **Atributos específicos para Vuelos (`FLIGHT`)**:
+   - Aerolínea y Número de Vuelo (`IB6801`, `QR806`, `NH211`), Localizador (`PNR`).
+   - Aeropuerto de Salida y Llegada (Código IATA `MAD`, `HND`, `NRT`, `KIX`, ciudad, **Zona Horaria `ZoneId`**, **Terminal**).
+   - **Mostrador de Facturación**, **Puerta de Embarque (`Gate`)**, **Grupo**, **Asiento (`Seat`)** y **Cinta de Equipaje**.
+3. **Atributos específicos para Trenes y Shinkansen (`TRAIN_*`)**:
+   - Operador y Línea/Servicio (ej. `JR Central · Tokaido Shinkansen Nozomi #21`, `JR Narita Express #18`).
+   - Estación de Salida y Llegada (nombre en español/inglés y japonés para paneles luminosos, ej. `東京 (Tokyo)` ➔ `京都 (Kyoto)`).
+   - **Andén de salida y llegada (`Track / Platform`, ej. `Andén 16`)**.
+   - **Tipo de Asiento**: *Reservado (`Reserved Seat - 指定席`)*, *No Reservado (`Non-Reserved - 自由席`)* o *Green Car*, indicando **Número de Coche (`Car #7`)**, **Asiento (`Seat 12E`)** y si incluye **Reserva de Equipaje Sobredimensionado (`Oversized Baggage Area`)**.
+   - **Método de Pago / Pase**: Cubierto por `JR Pass`, `Regional Pass`, `Billete Individual` o `IC Card (Suica/Pasmo/Icoca)` + coste en `JPY`.
+4. **Atributos específicos para Metro (`SUBWAY_METRO`)**:
+   - Línea de Metro y Color identificativo (ej. `Tokyo Metro Ginza Line (Naranja)`).
+   - Estación de origen y destino con su **código alfanumérico oficial** (ej. `Asakusa G19` ➔ `Shibuya G01`) y sentido/cabecera de la línea (`Bound for Shibuya`).
+   - **Andén (`Platform`)**, **Vagón recomendado (`Best Car for Transfer/Exit`, ej. `Vagón 4`)** y **Salida de Estación exacta (`Station Exit`, ej. `Salida 8 / Exit B2`)** para no perderse dentro de estaciones como Shinjuku, Shibuya o Tokyo.
+5. **Atributos específicos para Autobuses (`BUS_*`)**:
+   - Compañía y Línea/Número de autobús (ej. `Keio Highway Bus`, `Kyoto City Bus #206`, `Airport Limousine Bus`).
+   - Estación/Parada de subida y bajada con **Dársena / Parada (`Bus Terminal / Bay #4`)**.
+   - Código de reserva (si es *Highway Bus*), asiento asignado y modalidad de acceso (subir por puerta trasera / pagar con Suica o efectivo exacto al bajar).
 
-### RF-05.2: Línea Temporal del Vuelo (Facturación -> Embarque -> Salida -> Escala -> Llegada)
-1. Por cada tramo aéreo se gestionan y calculan las siguientes horas clave:
-   - **Apertura de Check-in Online** (configurable, por defecto `-24h` o `-48h` antes de la salida).
-   - **Hora recomendada en Aeropuerto / Inicio de Facturación en mostrador** (ej. `-3h` en vuelos internacionales) y **Hora límite de Facturación / Cierre de entrega de equipaje (`Bag Drop Deadline`)**.
-   - **Hora de Embarque (`Boarding Time`)** y **Cierre de Puerta (`Gate Closure`)**.
-   - **Hora de Salida Programada (`Departure Time`)** expresada en la zona horaria del aeropuerto de salida (con equivalencia simultánea a la hora del usuario/Japón).
-   - **Hora de Llegada Programada (`Arrival Time`)** expresada en la zona horaria del aeropuerto de destino (calculando automáticamente el indicador `+1 día` o `-1 día`).
-2. **Duración Real de Vuelo Calculada con Zonas Horarias (`java.time.ZonedDateTime`)**:
-   - Dado que volar entre Europa/América y Japón implica hasta `+7h`/`+14h` de diferencia horaria, la app calculará automáticamente la **duración real de vuelo en el aire** convirtiendo el `ZonedDateTime` de salida (en zona horaria de origen) y el `ZonedDateTime` de llegada (en zona horaria de destino, ej. `Asia/Tokyo`).
+### RF-05.2: Línea Temporal por Tramo (Facturación / Acceso -> Embarque -> Salida -> Escala/Transbordo -> Llegada)
+1. **Para tramos de Vuelo (`FLIGHT`)**:
+   - **Apertura de Check-in Online** (`-24h` / `-48h`).
+   - **Hora de Facturación en mostrador** y **Hora límite de entrega de equipaje (`Bag Drop Deadline`)**.
+   - **Hora de Embarque (`Boarding Time`)** y **Cierre de Puerta**.
+   - **Hora de Salida (`Departure`)** en el huso horario de origen y **Hora de Llegada (`Arrival`)** en el huso horario de destino (`+1`/`+2` días), calculando la **duración real en el aire** con `java.time.ZonedDateTime`.
+2. **Para tramos de Tren, Metro y Autobús (`TRAIN_*`, `SUBWAY_METRO`, `BUS_*`)**:
+   - **Hora recomendada en Andén / Parada (`Platform / Bus Bay Arrival`)**.
+   - **Hora exacta de Salida (`Departure Time`)** (puntualidad japonesa al minuto en `Asia/Tokyo`).
+   - **Número de paradas intermedias** (opcional) y **Hora exacta de Llegada (`Arrival Time`)** con cálculo automático de duración del trayecto.
 
-### RF-05.3: Cálculo y Asistente de Escalas (`Layover Calculator`)
-1. Cuando un viaje tiene 2 o más tramos consecutivos (ej. `Tramo 1: MAD -> DOH` y `Tramo 2: DOH -> HND`), la herramienta inserta automáticamente una **Tarjeta de Escala (`Layover Card`)** entre ambos tramos que muestra:
-   - **Aeropuerto de escala** y su zona horaria local.
-   - **Tiempo total de escala** (desde el aterrizaje del Tramo 1 hasta la salida del Tramo 2).
-   - **Tiempo efectivo hasta el siguiente Embarque** (desde el aterrizaje del Tramo 1 hasta la **Hora de Embarque** del Tramo 2).
-   - **Cambio de Terminal** (ej. `Terminal 1 ➔ Terminal 3`) y notas de conexión.
-   - **Alerta visual de escala ajustada**: Si el tiempo entre la llegada y el siguiente embarque es inferior a `60 minutos` (o `90 min` en conexión internacional con cambio de terminal), se destaca con un aviso visual en color ámbar/rojo (`Akabeni`).
+### RF-05.3: Asistente de Escalas Aéreas y Transbordos de Tren/Metro/Bus (`Layover & Transfer Calculator`)
+1. Entre cualesquiera dos tramos consecutivos (sean dos vuelos, un vuelo conectado con el tren del aeropuerto, o un transbordo entre Shinkansen, Metro y Autobús), la herramienta inserta automáticamente una **Tarjeta de Escala / Transbordo (`Layover & Transfer Card`)** que muestra:
+   - **Tiempo total de conexión** (desde la llegada del tramo anterior hasta la salida del siguiente tramo).
+   - **Tiempo efectivo hasta el siguiente Embarque** (en vuelos) o **margen de cambio de andén/dársena** (en trenes, metros y autobuses).
+   - **Instrucciones visuales de cambio**:
+     - En vuelos: ej. `Terminal 1 ➔ Terminal 3`.
+     - En tren/metro/bus: ej. `Andén 14 (Shinkansen) ➔ Transfer Gate JR ➔ Andén 5 (Yamanote Line)` o `Salida Este ➔ Dársena Bus #2`.
+   - **Alertas de conexión ajustada (`Akabeni` Warning)**:
+     - En escalas aéreas: alerta si el margen hasta el embarque es `< 60 min` (o `< 90 min` con cambio de terminal/inmigración).
+     - En transbordos de tren/metro/autobús: alerta si el margen de cambio de andén en grandes estaciones es `< 7 min` (o `< 15 min` entre Shinkansen y líneas convencionales/metro).
 
 ### RF-05.4: Integración con Documentos (`SPEC-03`), Planificador (`SPEC-04`) y Calendario
-1. **Vínculo con Tarjetas de Embarque y Billetes PDF (`SPEC-03`)**:
-   - Cada tramo permite adjuntar o enlazar directamente la **Tarjeta de Embarque (PDF/Imagen/QR)** o el billete electrónico guardado en el Repositorio de Documentos para abrirlo con un toque en la cola de facturación o puerta de embarque.
+1. **Vínculo directo con Billetes, QR y Reservas (`SPEC-03`)**:
+   - Cada tramo permite adjuntar o enlazar su **Tarjeta de Embarque**, **Billete de Shinkansen / QR de SmartEX**, **Reserva de Highway Bus** o captura de ruta guardada en el Repositorio de Documentos para abrirla con un toque sin conexión.
 2. **Integración con el Planificador de Viaje (`SPEC-04`) y Google Maps**:
-   - Los vuelos de llegada/salida se reflejan automáticamente en los días correspondientes del Planificador de Viaje (`Timeline`) y permiten abrir la ubicación de la terminal del aeropuerto en **Google Maps**.
+   - Los trayectos de vuelo, tren, metro y autobús se integran en la línea temporal del día (`SPEC-04`) y permiten abrir la estación/aeropuerto/parada o lanzar la ruta de transporte público en **Google Maps**.
 3. **Recordatorios Locales Offline y Exportación a Calendario**:
-   - Opción de activar **alarmas/notificaciones locales offline** para:
-     - *Apertura de Check-in Online*.
-     - *Hora de ir al mostrador de Facturación*.
-     - *Inicio de Embarque*.
-   - Exportación de los tramos al **Calendario del sistema / Google Calendar** respetando las zonas horarias de cada aeropuerto.
+   - Alarmas offline configurables (apertura de check-in, hora de facturación, embarque, o aviso de bajada en la próxima estación de tren/autobús).
+   - Exportación al Calendario del sistema / Google Calendar respetando la zona horaria de cada tramo.
 
 ---
 
@@ -64,12 +83,19 @@ Proporcionar al viajero una herramienta especializada y **100% offline** para pl
 
 ### Escenario 1: Cálculo exacto de duración de vuelo y escala entre zonas horarias distintas
 - **Dado** que el usuario registra un vuelo de ida con 2 tramos:
-  - *Tramo 1*: `MAD (Europe/Madrid)` salida `10 de nov 15:30` -> `DOH (Asia/Qatar)` llegada `10 de nov 23:45`
-  - *Tramo 2*: `DOH (Asia/Qatar)` embarque `11 de nov 01:15`, salida `11 de nov 02:15` -> `HND (Asia/Tokyo)` llegada `11 de nov 17:55`
-- **Cuando** visualiza el itinerario aéreo en modo offline
+  - *Tramo 1 (Vuelo)*: `MAD (Europe/Madrid)` salida `10 de nov 15:30` -> `DOH (Asia/Qatar)` llegada `10 de nov 23:45`
+  - *Tramo 2 (Vuelo)*: `DOH (Asia/Qatar)` embarque `11 de nov 01:15`, salida `11 de nov 02:15` -> `NRT (Asia/Tokyo)` llegada `11 de nov 17:55`
+- **Cuando** visualiza el itinerario en modo offline
 - **Entonces** la app calcula la duración real del Tramo 1 (`6h 15m`), muestra una **Escala en Doha de `2h 30m` totales (`1h 30m` hasta el embarque del Tramo 2)**, y calcula la duración del Tramo 2 (`9h 40m`) indicando llegada `+1 día` en hora de Japón.
 
-### Escenario 2: Consulta rápida de facturación, puerta de embarque y tarjeta QR en el aeropuerto sin red
-- **Dado** que el usuario ha configurado la hora de facturación (`12:30`), hora de embarque (`14:45`), Terminal `4S`, Puerta `S22`, Asiento `18K` y ha vinculado el PDF/imagen de su tarjeta de embarque
-- **Cuando** abre la tarjeta del vuelo en el aeropuerto en Modo Avión
-- **Entonces** ve el cronograma completo paso a paso (*Facturación -> Embarque -> Salida -> Llegada*) y al pulsar *"Ver Tarjeta de Embarque"* se abre instantáneamente el documento offline a pantalla completa.
+### Escenario 2: Trayecto multimodal (Vuelo + Tren Expreso + Metro + Autobús) con transbordos
+- **Dado** que tras aterrizar en `Narita T1` a las `17:55`, el usuario encadena:
+  - *Tramo 3 (Tren)*: `Narita Express N'EX #46` salida `19:15` (Andén 1, Coche 6, Asiento 11A) -> `Tokyo Station` llegada `20:14`
+  - *Tramo 4 (Metro)*: `Tokyo Metro Marunouchi Line (M)` salida `20:26` (Andén 1, Vagón 3) -> `Shinjuku-gyoemmae (M10)` llegada `20:42` (**Salida 2**)
+- **Cuando** consulta su ruta en la app sin conexión a internet
+- **Entonces** visualiza los tiempos de enlace en el aeropuerto (`1h 20m` para inmigración y canje de billete), el transbordo en `Tokyo Station` (`12m` del andén N'EX al metro Marunouchi) y la indicación destacada de tomar la **Salida 2** al llegar a destino.
+
+### Escenario 3: Consulta rápida de facturación, andén, asiento y billete QR en modo avión
+- **Dado** que el usuario ha vinculado el PDF/QR de su tarjeta de embarque o billete de Shinkansen/Highway Bus al tramo correspondiente
+- **Cuando** pulsa *"Ver Billete / QR"* desde la tarjeta del tramo en Modo Avión
+- **Entonces** el documento se abre instantáneamente a pantalla completa desde el almacenamiento interno privado.

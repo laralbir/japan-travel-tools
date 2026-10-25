@@ -74,11 +74,11 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 
 ---
 
-## Hito 7: Herramienta 5 — Planificador de Vuelos: Facturación, Embarque, Salida, Escalas y Llegada (`SPEC-05`)
+## Hito 7: Herramienta 5 — Planificador de Vuelos, Trenes, Metros y Autobuses (`SPEC-05`)
 
-- [ ] **TASK-601 (TDD)**: Escribir tests unitarios para `CalculateFlightTimelineUseCase` y `CalculateLayoverInfoUseCase` (cálculo exacto de duración de vuelo entre zonas horarias distintas p. ej. `Europe/Madrid` -> `Asia/Qatar` -> `Asia/Tokyo`, tiempos de facturación, embarque, tiempo total de escala vs. tiempo hasta siguiente embarque, alertas de escala corta y cambio de día `+1`/`+2`).
-- [ ] **TASK-602 (TDD)**: Implementar `FlightPlannerDao` (Room), `FlightPlannerRepository` y catálogo offline `AirportTimeZoneCatalog` (aeropuertos internacionales y de Japón `HND`, `NRT`, `KIX`, `ITM`, `FUK`, `CTS` con su zona horaria y coordenadas).
-- [ ] **TASK-603 (TDD)**: Implementar `FlightPlannerViewModel` y pantallas Compose (`FlightPlannerScreen`, `FlightSegmentTimelineCard`, `LayoverConnectorCard`) con estilo `KotlinConf` + colores de Japón, vinculación directa con tarjetas de embarque del repositorio (`SPEC-03`), recordatorios offline y vista adaptativa para Pixel 9/10 Pro XL y TCL NXTPAPER 11 Plus.
+- [ ] **TASK-601 (TDD)**: Escribir tests unitarios para `CalculateTransportTimelineUseCase` y `CalculateLayoverAndTransferUseCase` (cálculo exacto de duración de vuelo entre zonas horarias distintas p. ej. `Europe/Madrid` -> `Asia/Qatar` -> `Asia/Tokyo`, tiempos de facturación/embarque, escalas aéreas, y **transbordos multimodales entre Vuelo, Shinkansen/Tren, Metro y Autobús** con alertas de conexión ajustada y cambio de día `+1`/`+2`).
+- [ ] **TASK-602 (TDD)**: Implementar `TransportPlannerDao` (Room), `TransportPlannerRepository` y catálogo offline `AirportAndStationCatalog` (aeropuertos internacionales/japoneses `HND`, `NRT`, `KIX` y principales estaciones/terminales de tren, metro y autobús de Japón con zona horaria, nombres en japonés y coordenadas).
+- [ ] **TASK-603 (TDD)**: Implementar `TransportPlannerViewModel` y pantallas Compose (`TransportPlannerScreen`, `FlightSegmentTimelineCard`, `TrainMetroBusSegmentCard`, `LayoverTransferConnectorCard`) con estilo `KotlinConf` + colores de Japón, mostrando andén, vagón, asiento, reserva de maletas Shinkansen, cobertura JR Pass/Suica, número de salida de estación de metro (`Exit`), dársena de autobús y enlace directo a tarjetas de embarque / billetes QR (`SPEC-03`).
 
 ---
 
