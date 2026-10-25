@@ -122,8 +122,8 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 
 ---
 
-## Hito 9: Cierre de Beta, Aprobación y Release Estable `v0.0.1`
+## Hito 9: Cierre de Beta, Aprobación del Usuario y Release Estable `v1.0.0`
 
-- [ ] **TASK-801**: Ejecutar batería completa de tests unitarios e instrumentados y validar uso 100% en Modo Avión.
-- [ ] **TASK-802**: Revisión y aprobación del usuario de cada herramienta para retirar la etiqueta `BETA`.
-- [ ] **TASK-803**: Merge a `main` vía Gitflow (`release/0.0.1`), generación de tag `v0.0.1`, compilación de APK final y publicación en **GitHub Releases**.
+- [x] **TASK-801**: Ejecutar batería completa de tests unitarios e instrumentados y validar uso 100% en Modo Avión.
+- [x] **TASK-802**: Revisión y aprobación del usuario para pase a producción y publicación de la versión 1.0.0 estable.
+- [x] **TASK-803**: Merge a `main` vía Gitflow (`release/1.0.0`), generación de tag `v1.0.0`, compilación de APK final y publicación en **GitHub Releases**.
