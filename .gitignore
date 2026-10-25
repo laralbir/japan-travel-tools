@@ -1,0 +1,29 @@
+# Android Files
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+local.properties
+
+# Keystore files
+*.jks
+*.keystore
+
+# Fastlane / Release artifacts
+*.apk
+*.aab
+*.ap_
+*.aab_
+
+# Kotlin
+.kotlin/
+
+# OS & Editor
+*.swp
+*~
+.vscode/

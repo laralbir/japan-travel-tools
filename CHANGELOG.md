@@ -1,0 +1,20 @@
+# Changelog
+
+Todos los cambios notables en este proyecto serán documentados en este archivo.
+
+El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/),
+y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html) y [Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/).
+
+## [Unreleased]
+
+### Added
+- Inicialización del repositorio orientado a Agentes de IA (`AGENTS.md`, `.gitignore`, `README.md`, `CHANGELOG.md`).
+- Configuración de ramas **Gitflow** (`main` y `develop`).
+- Documentación completa de **Fase 1: Especificación (SDD)** en `/docs/specs/`:
+  - `00-core-configuration-spec.md`: Requisitos de internacionalización (ES/EN con fallback a EN), tema claro/oscuro/sistema, persistencia y arquitectura offline-first.
+  - `01-world-clock-spec.md`: Especificación de relojes duales/múltiples con detección de ubicación y país de origen.
+  - `02-currency-converter-spec.md`: Especificación de conversor de divisas (`EUR <-> JPY` por defecto) con **Frankfurter API** y caché offline persistente.
+  - `03-documents-and-id-vault-spec.md`: Especificación de bóveda de Pasaporte/DNI (con bloqueo biométrico opcional) y repositorio offline de documentos de viaje (vuelos, hoteles, etc.).
+- Documentación de **Fase 2: Análisis Técnico** en `/docs/analysis/architecture-and-tech-stack.md`.
+- Documentación de **Fase 3: Plan de Tareas (TDD)** en `/docs/tasks/backlog.md`.
+- Guía de usuario en español (`docs/user-guide.md`) y guía de flujo de trabajo Gitflow/Releases (`docs/development-workflow.md`).
