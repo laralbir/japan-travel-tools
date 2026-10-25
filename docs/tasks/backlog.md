@@ -9,10 +9,11 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 ## Hito 1: Inicialización SDD y Base del Proyecto (`v0.0.1-beta.1`)
 
 - [x] **TASK-001**: Inicializar repositorio para agentes de IA (`AGENTS.md`, `.gitignore`, `README.md`, `CHANGELOG.md`).
-- [x] **TASK-002**: Redactar especificaciones funcionales completas en `/docs/specs/` (`SPEC-00` a `SPEC-03`), análisis técnico en `/docs/analysis/` y guía de usuario en `/docs/user-guide.md`.
+- [x] **TASK-002**: Redactar especificaciones funcionales completas en `/docs/specs/` (`SPEC-00` a `SPEC-04`), análisis técnico en `/docs/analysis/` y guía de usuario en `/docs/user-guide.md`.
 - [x] **TASK-003**: Configurar ramas **Gitflow** (`main` y `develop`) con el commit fundacional de especificación.
-- [ ] **TASK-004**: Crear esqueleto del proyecto Android (Kotlin + Jetpack Compose + Gradle Version Catalog + Room + DataStore + Ktor/Retrofit + Testing dependencies) en rama `feature/project-scaffolding`.
-- [ ] **TASK-005**: Configurar numeración de versión `0.0.1-beta.1` en `app/build.gradle.kts` y verificar compilación de APK (`./gradlew testDebugUnitTest assembleDebug`).
+- [ ] **TASK-004 (TODO Prioritario)**: Buscar, evaluar y seleccionar un **template / sistema de diseño moderno y útil** para la app Android (Jetpack Compose Material 3 Expressive, dashboard de viaje con tarjetas rápidas, navegación adaptativa moderna y estética cuidada inspirada en Japón en modo Claro/Oscuro) antes de generar el scaffolding base.
+- [ ] **TASK-005**: Crear esqueleto del proyecto Android basado en el template seleccionado (Kotlin + Jetpack Compose + Gradle Version Catalog + Room + DataStore + Ktor/Retrofit + Testing dependencies) en rama `feature/project-scaffolding`.
+- [ ] **TASK-006**: Configurar numeración de versión `0.0.1-beta.1` en `app/build.gradle.kts` y verificar compilación de APK (`./gradlew testDebugUnitTest assembleDebug`).
 
 ---
 

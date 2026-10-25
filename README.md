@@ -73,6 +73,11 @@ Toda la documentación técnica y funcional se encuentra en español dentro del 
 
 ---
 
+## Próximos Pasos (TODO Inmediato)
+- [ ] **Buscar un template moderno y útil para la app** (`TASK-004` en [`docs/tasks/backlog.md`](docs/tasks/backlog.md)): Evaluar y elegir una plantilla de UI/arquitectura en Jetpack Compose + Material 3 moderna, limpia y orientada a utilidades de viaje antes de iniciar el scaffolding del código Android.
+
+---
+
 ## Historial de Cambios
 
 Consulta el archivo [`CHANGELOG.md`](CHANGELOG.md) para ver el detalle de cada versión.
