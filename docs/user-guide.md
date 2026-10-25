@@ -21,6 +21,14 @@ Al abrir **Japan Travel Tools** por primera vez:
 2. Verás el número de versión exacto instalado (ej. `v0.0.1-beta.1` o `v0.0.1`) y las fuentes de datos abiertas empleadas.
 3. Toca en **"Librerías Open Source de terceros"** para consultar la lista completa de todas las bibliotecas de código abierto utilizadas en la app junto con sus autores, versiones y textos de licencia (disponible sin conexión a internet).
 
+### Experiencia Optimizada en Smartphones Grandes y Tablets (Pixel 9/10 Pro XL y TCL NXTPAPER 11 Plus)
+- **En Google Pixel 10 Pro XL y Pixel 9 Pro XL**:
+  - La interfaz aprovecha la pantalla completa (*Edge-to-Edge*) a 120 Hz y sitúa los botones principales, el teclado rápido de yenes y la barra de navegación en la parte inferior para que puedas usarla cómodamente con una sola mano mientras caminas o llevas equipaje.
+- **En Tablet TCL NXTPAPER 11 Plus (11.5", formato 3:2)**:
+  - La navegación se transforma automáticamente en una **barra lateral (`Navigation Rail`)**.
+  - En el **Planificador de Viaje**, verás simultáneamente tu **horario a la izquierda y el mapa de Google Maps a la derecha** (doble panel).
+  - En **Documentos y Guías de Viaje**, tendrás la lista a la izquierda y el lector de PDF/Guías a gran tamaño a la derecha, con bordes y tipografía de alto contraste pensados específicamente para los modos de lectura *Ink Paper* y *Color Paper* de la pantalla NXTPAPER.
+
 ---
 
 ## 2. Herramienta: Relojes de Viaje (Hora Local, Japón y País de Origen)

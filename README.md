@@ -12,6 +12,9 @@ Aplicación Android **offline-first** con herramientas esenciales para viajar a 
 - **Multiidioma**: Español e Inglés. Selecciona automáticamente el idioma del sistema (con **Inglés** como idioma por defecto si el sistema usa otro idioma) y permite cambiarlo manualmente dentro de la app.
 - **Tema Personalizable**: Modo Claro, Modo Oscuro o Automático según el sistema (opción por defecto).
 - **100% Persistente y Offline-First**: Todas las preferencias, cachés de datos externos y documentos del viajero se persisten localmente en el dispositivo para funcionar sin conexión a internet en cualquier momento del viaje.
+- **Optimización para Dispositivos Objetivo (Smartphones Pro XL y Tablet NXTPAPER)**:
+  - **Google Pixel 10 Pro XL y Pixel 9 Pro XL (6.8" 20:9 LTPO OLED 120Hz)**: Diseño *Edge-to-Edge*, ergonomía a una mano con controles principales en la zona inferior y modo oscuro OLED de alto rendimiento.
+  - **Tablet TCL NXTPAPER 11 Plus (11.5" 2.2K ratio 3:2 120Hz)**: Interfaz adaptativa con barra lateral (`NavigationRail`), vista de doble panel en el Planificador (Horario + Mapa de Google Maps lado a lado), vista Maestro-Detalle para lectura de Guías/PDFs y contraste nítido optimizado para los modos *Ink Paper* y *Color Paper*.
 - **Transparencia y Open Source ("Acerca de")**: Apartado integrado que muestra la versión exacta de la aplicación (`0.0.1-beta.X` / `0.0.1`), las fuentes de datos abiertas utilizadas y el listado completo de todas las librerías open source de terceros con sus respectivas licencias accesibles offline.
 
 ### Herramientas Incluidas en la Especificación (v0.0.1)
