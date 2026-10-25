@@ -7,6 +7,7 @@ import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,9 +17,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -29,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -41,6 +47,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.laralbir.japantraveltools.core.preferences.DefaultUserPreferencesRepository
 import com.laralbir.japantraveltools.core.preferences.UserPreferences
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun GeminiApiKeySetupCard(
@@ -51,6 +60,7 @@ fun GeminiApiKeySetupCard(
     onKeyDeleted: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val currentSavedKey = prefs.geminiApiKey
     val hasKey = !currentSavedKey.isNullOrBlank()
 
@@ -60,6 +70,8 @@ fun GeminiApiKeySetupCard(
     var isKeyVisible by rememberSaveable { mutableStateOf(false) }
     var showGuideSteps by rememberSaveable { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf<String?>(null) }
+    var isTestingConnection by remember { mutableStateOf(false) }
+    var testConnectionResult by remember { mutableStateOf<GeminiConnectionResult?>(null) }
 
     val guideSteps = remember(isEs) {
         GeminiApiKeyHelper.getSetupGuideSteps(isEs)
@@ -257,12 +269,74 @@ fun GeminiApiKeySetupCard(
                 }
             }
 
+            // Model Selector Section
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (isEs) "🤖 Modelo de Gemini Cloud" else "🤖 Gemini Cloud Model",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = GeminiApiKeyHelper.resolveModelName(prefs.geminiModelId),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val availableModels = remember { GeminiApiKeyHelper.getAvailableModels() }
+                    availableModels.forEach { model ->
+                        val isSelected = prefs.geminiModelId == model.id
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                prefsRepository.setGeminiModelId(model.id)
+                                testConnectionResult = null
+                            },
+                            label = {
+                                Text(
+                                    text = if (model.isRecommended) "⭐ ${model.displayName}" else model.displayName,
+                                    fontSize = 12.sp
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        )
+                    }
+                }
+                val selectedModelOption = remember(prefs.geminiModelId) {
+                    GeminiApiKeyHelper.getAvailableModels().firstOrNull { it.id == prefs.geminiModelId }
+                }
+                if (selectedModelOption != null) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = if (isEs) selectedModelOption.descriptionEs else selectedModelOption.descriptionEn,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
             // Input Field with Show/Hide password toggle
             OutlinedTextField(
                 value = apiKeyInput,
                 onValueChange = {
                     apiKeyInput = it
                     statusMessage = null
+                    testConnectionResult = null
                 },
                 label = { Text(if (isEs) "Pega tu Gemini API Key" else "Paste your Gemini API Key") },
                 placeholder = { Text("AIzaSy...") },
@@ -352,6 +426,7 @@ fun GeminiApiKeySetupCard(
                             apiKeyInput = ""
                             prefsRepository.setGeminiApiKey(null)
                             statusMessage = if (isEs) "🗑️ Clave eliminada (Modo 100% offline activo)" else "🗑️ Key removed (100% offline active)"
+                            testConnectionResult = null
                             onKeyDeleted?.invoke()
                         },
                         colors = ButtonDefaults.outlinedButtonColors(
@@ -360,6 +435,89 @@ fun GeminiApiKeySetupCard(
                         modifier = Modifier.weight(0.9f)
                     ) {
                         Text(if (isEs) "🗑️ Borrar" else "🗑️ Clear", fontSize = 13.sp)
+                    }
+                }
+            }
+
+            // Test Connection Button
+            OutlinedButton(
+                onClick = {
+                    if (apiKeyInput.isNotBlank() && !isTestingConnection) {
+                        isTestingConnection = true
+                        testConnectionResult = null
+                        coroutineScope.launch(Dispatchers.IO) {
+                            val res = GeminiApiKeyHelper.testApiKeyConnection(
+                                apiKey = apiKeyInput,
+                                modelId = prefs.geminiModelId,
+                                isEs = isEs
+                            )
+                            withContext(Dispatchers.Main) {
+                                testConnectionResult = res
+                                isTestingConnection = false
+                            }
+                        }
+                    }
+                },
+                enabled = apiKeyInput.isNotBlank() && !isTestingConnection,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (isTestingConnection) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.size(8.dp))
+                    Text(if (isEs) "Verificando con Google..." else "Testing with Google...", fontSize = 13.sp)
+                } else {
+                    Text(if (isEs) "⚡ Probar Conexión con Gemini" else "⚡ Test Gemini Connection", fontSize = 13.sp)
+                }
+            }
+
+            // Connection Test Result Banner
+            if (testConnectionResult != null) {
+                val res = testConnectionResult!!
+                val isSuccess = res is GeminiConnectionResult.Success
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (isSuccess) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(if (isSuccess) "✅" else "❌", fontSize = 16.sp)
+                            Text(
+                                text = if (isSuccess) {
+                                    if (isEs) "Conexión Verificada" else "Connection Verified"
+                                } else {
+                                    if (isEs) "Error de Verificación" else "Verification Error"
+                                },
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                color = if (isSuccess) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = when (res) {
+                                is GeminiConnectionResult.Success -> res.message
+                                is GeminiConnectionResult.Error -> res.message
+                            },
+                            fontSize = 12.sp,
+                            color = if (isSuccess) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        if (res is GeminiConnectionResult.Error && res.isFormatIssue) {
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                text = if (isEs) {
+                                    "💡 Consejo: Abre aistudio.google.com/app/apikey, pulsa «Create API key», elige un proyecto y copia la clave generada (empieza por «AIzaSy...»)."
+                                } else {
+                                    "💡 Tip: Open aistudio.google.com/app/apikey, click «Create API key», select a project and copy the generated key (starts with «AIzaSy...»)."
+                                },
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
                     }
                 }
             }
