@@ -7,6 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.2] - 2026-10-25
+
+### Added
+- **Exportación e Importación de Planes de Viaje y Transporte en JSON Legible (`SPEC-04 RF-04.6` & `SPEC-05 RF-05.4`)**:
+  - `TravelPlanJsonCodec` y `PortableTravelPlanBundle` (`schemaVersion = "japan-travel-plan.v1"`) con formato JSON indentado (pretty-printed) 100% legible por humanos para preparar itinerarios, calendarios, vuelos, trenes Shinkansen, metros y autobuses desde aplicaciones externas e importarlos mediante **Fusión (`Merge`)** o **Reemplazo (`Replace`)**.
+  - `JsonPortabilityModalSheet` integrada en el Planificador de Viaje, Planificador de Transporte y pestaña de IA para exportar/compartir JSON o pegar/importar planes externos en tiempo real.
+- **Creación y Mejora de Planes de Viaje con IA Gemini (`SPEC-06 RF-06.2`)**:
+  - `AiPlanBuilderEngine` y `SharedTravelPlanStore` para que la IA integrada pueda crear nuevos planes de viaje y optimizar los planes existentes en la app (resolución automática de solapamientos horarios y adición de Día 3 en Osaka con paradas + conexión en Shinkansen Nozomi Kioto ➔ Shin-Osaka).
+
 ## [0.0.1-beta.1] - 2026-10-25
 
 ### Added

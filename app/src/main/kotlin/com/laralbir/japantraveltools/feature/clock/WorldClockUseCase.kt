@@ -122,3 +122,4 @@ object CalculateClockComparisonUseCase {
         else -> DayPeriod.EVENING
     }
 }
+

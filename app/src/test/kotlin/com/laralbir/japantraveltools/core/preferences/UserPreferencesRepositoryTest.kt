@@ -60,3 +60,4 @@ class UserPreferencesRepositoryTest {
         assertEquals(1730000000000L, restored.lastCloudSyncEpochMillis)
     }
 }
+

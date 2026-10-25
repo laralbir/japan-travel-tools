@@ -64,6 +64,14 @@ if [[ ! -f "${APK_PATH}" ]]; then
   exit 1
 fi
 
+# Intentar reconectar automáticamente entradas Wi-Fi Debugging (IP:puerto)
+for auth_serial in "${(@k)AUTHORIZED_DEVICES}"; do
+  if [[ "$auth_serial" == *:* ]]; then
+    echo "📡 Conectando por ADB Wi-Fi a ${AUTHORIZED_DEVICES[$auth_serial]} (${auth_serial})..."
+    "${ADB_BIN}" connect "${auth_serial}" || true
+  fi
+done
+
 # Obtener dispositivos conectados en estado 'device'
 CONNECTED_SERIALS=($("${ADB_BIN}" devices | awk 'NR>1 && $2=="device" {print $1}'))
 

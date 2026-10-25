@@ -1,0 +1,134 @@
+package com.laralbir.japantraveltools.core.portability
+
+import com.laralbir.japantraveltools.feature.planner.ItineraryStopItem
+import com.laralbir.japantraveltools.feature.planner.StopCategory
+import com.laralbir.japantraveltools.feature.planner.TripPlannerUseCase
+import com.laralbir.japantraveltools.feature.transport.TransportMode
+import com.laralbir.japantraveltools.feature.transport.TransportSegmentItem
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class TravelPlanJsonPortabilityTest {
+
+    @Test
+    fun `exportToJson and importFromJson preserve itinerary stops and multimodal transport segments`() {
+        val stops = listOf(
+            ItineraryStopItem(
+                id = "stop-10",
+                dayNumber = 1,
+                dateIso = "2026-11-11",
+                startTime = "09:00",
+                endTime = "11:00",
+                title = "Meiji Jingu Shrine",
+                category = StopCategory.SIGHTSEEING,
+                placeNameJapanese = "明治神宮",
+                latitude = 35.6764,
+                longitude = 139.6993,
+                notes = "Harajuku Exit"
+            )
+        )
+        val segments = listOf(
+            TransportSegmentItem(
+                id = "seg-99",
+                order = 1,
+                type = TransportMode.TRAIN_SHINKANSEN,
+                operatorName = "JR Central",
+                lineOrNumber = "Hikari #509",
+                departureCode = "TYO",
+                departureName = "Tokyo Station",
+                departureZoneId = "Asia/Tokyo",
+                departureTerminalOrPlatform = "Track 17",
+                checkInTime = "2026-11-14T08:10",
+                boardingTime = "2026-11-14T08:25",
+                departureTimeIso = "2026-11-14T08:33",
+                arrivalCode = "KYO",
+                arrivalName = "Kyoto Station",
+                arrivalZoneId = "Asia/Tokyo",
+                arrivalTerminalOrPlatform = "Track 14",
+                arrivalTimeIso = "2026-11-14T11:10",
+                seatOrCarInfo = "Car 5 Seat 4E",
+                stationExitOrBelt = "Central Exit",
+                passOrPaymentBadge = "JR Pass"
+            )
+        )
+
+        val bundle = PortableTravelPlanBundle(
+            schemaVersion = 1,
+            tripTitle = "Japón Otoño 2026",
+            itineraryStops = stops,
+            transportSegments = segments
+        )
+
+        val jsonText = TravelPlanJsonCodec.exportToPrettyJson(bundle)
+        assertTrue(jsonText.contains("\"schemaVersion\": 1"))
+        assertTrue(jsonText.contains("\"Meiji Jingu Shrine\""))
+        assertTrue(jsonText.contains("\"Hikari #509\""))
+
+        val imported = TravelPlanJsonCodec.importFromJson(jsonText)
+        assertEquals("Japón Otoño 2026", imported.tripTitle)
+        assertEquals(1, imported.itineraryStops.size)
+        assertEquals("Meiji Jingu Shrine", imported.itineraryStops.first().title)
+        assertEquals("明治神宮", imported.itineraryStops.first().placeNameJapanese)
+        assertEquals(1, imported.transportSegments.size)
+        assertEquals("Hikari #509", imported.transportSegments.first().lineOrNumber)
+        assertEquals(TransportMode.TRAIN_SHINKANSEN, imported.transportSegments.first().type)
+    }
+
+    @Test
+    fun `AiPlanBuilderAndOptimizer resolves schedule conflicts and adds new AI itinerary and transport`() {
+        val overlappingStops = listOf(
+            ItineraryStopItem(
+                id = "s1",
+                dayNumber = 1,
+                dateIso = "2026-11-11",
+                startTime = "09:00",
+                endTime = "11:00",
+                title = "Senso-ji Temple",
+                category = StopCategory.SIGHTSEEING,
+                placeNameJapanese = "浅草寺",
+                latitude = 35.7147,
+                longitude = 139.7966
+            ),
+            ItineraryStopItem(
+                id = "s2",
+                dayNumber = 1,
+                dateIso = "2026-11-11",
+                startTime = "10:15",
+                endTime = "12:00",
+                title = "Tokyo Skytree",
+                category = StopCategory.ACTIVITY,
+                placeNameJapanese = "東京スカイツリー",
+                latitude = 35.7100,
+                longitude = 139.8107
+            )
+        )
+
+        // Verify initial conflict exists
+        val initialAnalysis = TripPlannerUseCase.sortAndDetectConflicts(overlappingStops)
+        assertTrue(initialAnalysis.any { it.hasTimeConflict })
+
+        // Let AI optimize and expand the plan (e.g., adding Day 3 Osaka + Shinkansen)
+        val initialBundle = PortableTravelPlanBundle(
+            schemaVersion = 1,
+            tripTitle = "Japón 2026",
+            itineraryStops = overlappingStops,
+            transportSegments = emptyList()
+        )
+        val improvedBundle = AiPlanBuilderEngine.improveAndExpandPlan(
+            currentPlan = initialBundle,
+            userInstruction = "Resolver solapamientos horarios y crear Día 3 en Osaka con Shinkansen"
+        )
+
+        // Verify conflicts in Day 1 are resolved!
+        val day1AfterAi = TripPlannerUseCase.sortAndDetectConflicts(
+            improvedBundle.itineraryStops.filter { it.dayNumber == 1 }
+        )
+        assertFalse(day1AfterAi.any { it.hasTimeConflict })
+
+        // Verify AI created Day 3 stops and transport segment
+        assertTrue(improvedBundle.itineraryStops.any { it.dayNumber == 3 })
+        assertTrue(improvedBundle.transportSegments.isNotEmpty())
+    }
+}

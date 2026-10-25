@@ -146,3 +146,4 @@ object DocumentsFilterUseCase {
             .sortedByDescending { it.isPinned }
     }
 }
+

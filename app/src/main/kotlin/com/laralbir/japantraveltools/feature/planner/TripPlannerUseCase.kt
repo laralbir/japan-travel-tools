@@ -159,3 +159,4 @@ object TripPlannerUseCase {
         return h * 60 + m
     }
 }
+

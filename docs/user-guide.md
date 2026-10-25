@@ -145,6 +145,11 @@ Organiza tu itinerario día por día y hora por hora en un solo lugar conectado 
 - **Vincular Documentos y Guías**: Enlaza directamente el PDF de tu reserva de hotel, entrada de museo o guía de barrio a la actividad correspondiente del horario para abrirlo con un toque.
 - **Exportar a Google Calendar / Calendario del Sistema**: Pulsa **"Añadir al Calendario"** para exportar una actividad o todo tu itinerario al calendario de tu teléfono con la zona horaria de Japón (`Asia/Tokyo`) configurada automáticamente.
 
+### 5.5. Exportar e Importar Planes de Viaje y Transporte en JSON Legible
+- Pulsa **"📥/📤 Exportar / Importar JSON"** en el Planificador de Viaje o en el Planificador de Transporte para ver, copiar o compartir tu plan completo (itinerarios por días/horarios + vuelos, Shinkansen, metro y autobuses) en un archivo **`.json` legible por humanos (`japan-travel-plan.v1`)**.
+- Puedes preparar o editar tus planes desde una aplicación externa en tu ordenador o con un asistente de IA externo y luego pulsar **"📥 Importar (Fusionar)"** o **"🔄 Importar (Reemplazar)"** para cargarlos al instante en la app.
+- Además, puedes pulsar **"✨ Mejorar / Ampliar Plan con Gemini IA"** para que la IA integrada optimice solapamientos horarios y añada nuevas jornadas y conexiones de Shinkansen automáticamente.
+
 ---
 
 ## 6. Herramienta: Planificador de Vuelos, Trenes, Metros y Autobuses

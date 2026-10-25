@@ -112,3 +112,4 @@ class TransportPlannerUseCaseTest {
         assertTrue(transfer.isTightConnection)
     }
 }
+

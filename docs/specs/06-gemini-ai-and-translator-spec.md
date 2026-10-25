@@ -40,7 +40,14 @@ Dotar a **Japan Travel Tools** de capacidades de Inteligencia Artificial mediant
      - Todas las respuestas, explicaciones culturales, traducciones de menús y rutas generadas por Gemini se guardan automáticamente en la base de datos local (`Room`) para poder consultarlas después en el metro o avión sin conexión, e incluso **exportarlas con un toque como una nueva Guía de Viaje (`SPEC-03`) o como paradas del Planificador (`SPEC-04`)**.
 2. **Funciones Contextuales de Gemini en la App**:
    - **Asistente de Menús y Productos Japoneses (Visión)**: Haz una foto a la carta de un *Izakaya* en japonés o a un producto de farmacia/supermercado y Gemini te explica cada plato, ingredientes, precios convertidos a `EUR` (usando la tasa cacheada de `SPEC-02`) y cómo pedirlo.
-   - **Optimizador Inteligente de Itinerario y Transporte**: Le puedes pedir a Gemini *"Organízame una tarde lluviosa en Kioto cerca de Gion"* y guardar sus paradas propuestas directamente en el **Planificador de Viaje (`SPEC-04`)**.
+   - **Creación y Mejora Directa de Planes de Viaje y Transporte en la App (`AI Plan Builder & Optimizer`)**:
+     - La IA integrada (**Gemini**) tiene acceso de lectura y escritura (bajo confirmación del usuario) sobre los planes de viaje (`SPEC-04`) y planes de transporte (`SPEC-05`) almacenados en la app:
+       1. **Crear Nuevos Planes desde Cero con IA**: El usuario puede pedir *"Créame un plan de día completo en Kioto (Arashiyama + Kinkaku-ji + Gion) con sus trenes/autobuses"* y Gemini genera directamente las paradas horarias (`ItineraryStopItem` con coordenadas y nombre en japonés) y los tramos de transporte (`TransportSegmentItem`), inyectándolos en el Planificador.
+       2. **Analizar y Mejorar Planes Existentes (`AI Optimize Plan`)**: Gemini lee el itinerario actual de la app y:
+          - Detecta y resuelve automáticamente **solapamientos horarios** o desplazamientos geográficos ineficientes.
+          - Añade paradas complementarias cercanas (ej. lugares recomendados para comer cerca del templo programado a mediodía).
+          - Sugiere o inserta los **tramos óptimos de Shinkansen, Metro o Autobús** (con su línea, código de estación y salida recomendada) entre dos actividades del planificador.
+          - Puede generar y modificar directamente el **JSON legible del plan de viaje** para aplicar mejoras en bloque.
    - **Consultor de Etiqueta, Trenes y Costumbres en Japón**: Respuestas rápidas contextualizadas para el viajero.
 
 ---
@@ -57,8 +64,8 @@ Dotar a **Japan Travel Tools** de capacidades de Inteligencia Artificial mediant
 - **Cuando** Gemini analiza la imagen
 - **Entonces** devuelve los platos traducidos al idioma del usuario con sus precios convertidos a `EUR` y toda la respuesta queda persistida localmente en el historial offline.
 
-### Escenario 3: Generar recomendaciones con Gemini y enviarlas al Planificador o Guías
-- **Dado** que el usuario consulta a Gemini qué ver en 4 horas en Uji
-- **Cuando** recibe la respuesta estructurada y pulsa *"Guardar como Guía de Viaje"* o *"Añadir al Planificador"*
-- **Entonces** la información se guarda en la base de datos local de Guías (`SPEC-03`) o de Horarios (`SPEC-04`) disponible 100% offline.
+### Escenario 3: Crear y mejorar planes de viaje y transporte directamente con Gemini
+- **Dado** que el usuario tiene un plan en la app con horarios solapados o quiere añadir un nuevo día en Kioto/Osaka
+- **Cuando** pulsa *"Crear / Mejorar Plan con Gemini IA"*
+- **Entonces** Gemini analiza el plan actual de la app, corrige los solapamientos horarios, añade las paradas óptimas con sus coordenadas/nombres en japonés y sus tramos de tren/metro, y actualiza el Planificador de Viaje (`SPEC-04`) y de Transporte (`SPEC-05`) dejándolo persistido 100% offline.
 
