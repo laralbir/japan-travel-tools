@@ -15,9 +15,10 @@ EXAMPLE_FILE="${PROJECT_ROOT}/authorized-devices.example.conf"
 APP_ID="com.laralbir.japantraveltools"
 MAIN_ACTIVITY="${APP_ID}/.MainActivity"
 
-# Evitar crash de mDNS auto-connect en platform-tools 37.0.0 en macOS arm64
+# Evitar crash de mDNS auto-connect y fallo de libusb en platform-tools 37.0.0 en macOS arm64
 export ADB_MDNS=0
 export ADB_MDNS_AUTO_CONNECT=0
+export ADB_LIBUSB=0
 
 # Localizar binario adb
 if command -v adb >/dev/null 2>&1; then
@@ -90,6 +91,13 @@ if [ -n "${UNAUTHORIZED_SERIALS}" ]; then
 fi
 
 CONNECTED_SERIALS="$("${ADB_BIN}" devices | awk 'NR>1 && $2=="device" {print $1}')"
+if [ -z "${CONNECTED_SERIALS}" ]; then
+  # Si el demonio ADB previo se inició con libusb=1 por Android Studio, reiniciarlo con ADB_LIBUSB=0
+  "${ADB_BIN}" kill-server >/dev/null 2>&1 || true
+  "${ADB_BIN}" start-server >/dev/null 2>&1 || true
+  CONNECTED_SERIALS="$("${ADB_BIN}" devices | awk 'NR>1 && $2=="device" {print $1}')"
+fi
+
 if [ -z "${CONNECTED_SERIALS}" ]; then
   echo "⚠️  No hay ningún dispositivo Android conectado en estado 'device' por ADB en este momento."
   echo "👉 Asegúrate de tener activada la 'Depuración por USB' en Opciones para desarrolladores y aceptar el diálogo RSA en el teléfono."

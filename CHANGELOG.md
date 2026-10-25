@@ -7,6 +7,13 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [0.0.1-beta.4] - 2026-10-25
+
+### Changed
+- **Eliminación de etiquetas `BETA` de toda la interfaz (`SPEC-00 RF-00.5`)**:
+  - Se eliminaron todas las píldoras/etiquetas `BETA` y de versión en cabeceras y tarjetas para maximizar el espacio útil de pantalla en los Pixel 10/9 Pro XL y Tablet TCL NXTPAPER 11 Plus.
+  - Mejora de compatibilidad POSIX `sh` y detección automática `ADB_LIBUSB=0` en `scripts/deploy-authorized-devices.sh`.
+
 ## [0.0.1-beta.3] - 2026-10-25
 
 ### Added

@@ -1,6 +1,7 @@
 package com.laralbir.japantraveltools.core.preferences
 
 import com.laralbir.japantraveltools.core.i18n.AppLanguagePreference
+import com.laralbir.japantraveltools.feature.settings.OpenSourceLibrariesCatalog
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -58,6 +59,11 @@ class UserPreferencesRepositoryTest {
         assertTrue(restored.forceOfflineMode)
         assertEquals("traveler@gmail.com", restored.googleAccountEmail)
         assertEquals(1730000000000L, restored.lastCloudSyncEpochMillis)
+    }
+
+    @Test
+    fun `app version string in UI never contains beta label per SPEC-00 RF-00_5`() {
+        assertFalse(OpenSourceLibrariesCatalog.APP_VERSION_NAME.contains("beta", ignoreCase = true))
     }
 }
 
