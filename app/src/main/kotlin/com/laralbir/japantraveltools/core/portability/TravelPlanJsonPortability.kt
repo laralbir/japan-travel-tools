@@ -1,5 +1,6 @@
 package com.laralbir.japantraveltools.core.portability
 
+import android.content.Context
 import com.laralbir.japantraveltools.feature.planner.ItineraryStopItem
 import com.laralbir.japantraveltools.feature.planner.StopCategory
 import com.laralbir.japantraveltools.feature.planner.TripPlannerUseCase
@@ -11,6 +12,7 @@ import com.laralbir.japantraveltools.feature.weather.WeatherDayForecast
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.io.File
 import java.util.Locale
 
 data class PortableTravelPlanBundle(
@@ -18,7 +20,10 @@ data class PortableTravelPlanBundle(
     val tripTitle: String = "Japón Otoño 2026",
     val itineraryStops: List<ItineraryStopItem>,
     val transportSegments: List<TransportSegmentItem>,
-    val aiOptimizationSummary: String = ""
+    val aiOptimizationSummary: String = "",
+    val id: String = "plan-autumn-2026",
+    val startDateIso: String = "2026-11-11",
+    val totalDays: Int = 14
 )
 
 /**
@@ -26,31 +31,161 @@ data class PortableTravelPlanBundle(
  * JSON Import/Export and Gemini AI Plan Builder operate on the same live offline-first plan.
  */
 object SharedTravelPlanStore {
+    private var storageContext: Context? = null
+    private const val PLANS_FILE_NAME = "saved_travel_plans.json"
+
     private fun defaultSeedBundle() = PortableTravelPlanBundle(
         schemaVersion = 1,
         tripTitle = "Japón Otoño 2026",
         itineraryStops = TripPlannerUseCase.defaultSampleStops(),
-        transportSegments = TransportPlannerUseCase.defaultSampleSegments()
+        transportSegments = TransportPlannerUseCase.defaultSampleSegments(),
+        id = "plan-autumn-2026",
+        startDateIso = "2026-11-11",
+        totalDays = 14
     )
+
+    private val _allPlansState = MutableStateFlow<List<PortableTravelPlanBundle>>(listOf(defaultSeedBundle()))
+    val allPlansState: StateFlow<List<PortableTravelPlanBundle>> = _allPlansState.asStateFlow()
 
     private val _planState = MutableStateFlow(defaultSeedBundle())
     val planState: StateFlow<PortableTravelPlanBundle> = _planState.asStateFlow()
 
+    fun init(context: Context) {
+        if (storageContext != null) return
+        storageContext = context.applicationContext
+        loadFromDisk()
+    }
+
+    private fun saveToDisk() {
+        val ctx = storageContext ?: return
+        runCatching {
+            val file = File(ctx.filesDir, PLANS_FILE_NAME)
+            val json = TravelPlanJsonCodec.exportMultiPlanJson(_allPlansState.value, _planState.value.id)
+            file.writeText(json)
+        }
+    }
+
+    private fun loadFromDisk() {
+        val ctx = storageContext ?: return
+        runCatching {
+            val file = File(ctx.filesDir, PLANS_FILE_NAME)
+            if (file.exists() && file.length() > 0) {
+                val json = file.readText()
+                val (plans, activeId) = TravelPlanJsonCodec.importMultiPlanJson(json)
+                if (plans.isNotEmpty()) {
+                    _allPlansState.value = plans
+                    val active = plans.firstOrNull { it.id == activeId } ?: plans.first()
+                    _planState.value = active
+                    return
+                }
+            }
+        }
+        val seed = defaultSeedBundle()
+        _allPlansState.value = listOf(seed)
+        _planState.value = seed
+        saveToDisk()
+    }
+
+    fun createPlan(title: String, startDateIso: String = "2026-11-11", daysCount: Int = 7): PortableTravelPlanBundle {
+        val newId = "plan-${System.currentTimeMillis()}"
+        val initialStops = (1..daysCount.coerceIn(1, 30)).map { day ->
+            ItineraryStopItem(
+                id = "stop-$newId-$day-1",
+                dayNumber = day,
+                dateIso = String.format(Locale.US, "2026-11-%02d", (10 + day).coerceAtMost(30)),
+                startTime = "10:00",
+                endTime = "12:00",
+                title = if (day == 1) "Llegada y check-in" else "Exploración Día $day",
+                category = StopCategory.SIGHTSEEING,
+                placeNameJapanese = if (day == 1) "東京" else "",
+                latitude = 35.6762,
+                longitude = 139.6503,
+                notes = "Día $day"
+            )
+        }
+        val newPlan = PortableTravelPlanBundle(
+            schemaVersion = 1,
+            tripTitle = title.ifBlank { "Mi Viaje a Japón" },
+            itineraryStops = initialStops,
+            transportSegments = emptyList(),
+            id = newId,
+            startDateIso = startDateIso.ifBlank { "2026-11-11" },
+            totalDays = daysCount.coerceIn(1, 30)
+        )
+        val updatedPlans = _allPlansState.value.toMutableList()
+        updatedPlans.add(0, newPlan)
+        _allPlansState.value = updatedPlans
+        _planState.value = newPlan
+        saveToDisk()
+        return newPlan
+    }
+
+    fun switchPlan(planId: String) {
+        val target = _allPlansState.value.firstOrNull { it.id == planId } ?: return
+        _planState.value = target
+        saveToDisk()
+    }
+
+    fun editCurrentPlan(newTitle: String, newStartDateIso: String = "", newTotalDays: Int = 0) {
+        val current = _planState.value
+        val updated = current.copy(
+            tripTitle = newTitle.ifBlank { current.tripTitle },
+            startDateIso = if (newStartDateIso.isNotBlank()) newStartDateIso else current.startDateIso,
+            totalDays = if (newTotalDays > 0) newTotalDays else current.totalDays
+        )
+        _planState.value = updated
+        updatePlanInList(updated)
+    }
+
+    fun deleteCurrentPlan() {
+        val currentList = _allPlansState.value
+        if (currentList.size > 1) {
+            val remaining = currentList.filterNot { it.id == _planState.value.id }
+            _allPlansState.value = remaining
+            _planState.value = remaining.first()
+        } else {
+            val cleared = _planState.value.copy(
+                tripTitle = "Mi Viaje a Japón",
+                itineraryStops = emptyList(),
+                transportSegments = emptyList()
+            )
+            _planState.value = cleared
+            _allPlansState.value = listOf(cleared)
+        }
+        saveToDisk()
+    }
+
+    private fun updatePlanInList(updated: PortableTravelPlanBundle) {
+        val list = _allPlansState.value.toMutableList()
+        val idx = list.indexOfFirst { it.id == updated.id }
+        if (idx >= 0) {
+            list[idx] = updated
+        } else {
+            list.add(0, updated)
+        }
+        _allPlansState.value = list
+        saveToDisk()
+    }
+
     fun updatePlan(newPlan: PortableTravelPlanBundle) {
         _planState.value = newPlan
+        updatePlanInList(newPlan)
     }
 
     fun resetToDefaults() {
-        _planState.value = defaultSeedBundle()
+        val seed = defaultSeedBundle()
+        _planState.value = seed
+        _allPlansState.value = listOf(seed)
+        saveToDisk()
     }
 
     fun clearAll() {
-        _planState.value = PortableTravelPlanBundle(
-            schemaVersion = 1,
-            tripTitle = "Mi Viaje a Japón",
+        val cleared = _planState.value.copy(
             itineraryStops = emptyList(),
             transportSegments = emptyList()
         )
+        _planState.value = cleared
+        updatePlanInList(cleared)
     }
 
     fun upsertStop(stop: ItineraryStopItem) {
@@ -62,21 +197,27 @@ object SharedTravelPlanStore {
         } else {
             updatedStops.add(stop)
         }
-        _planState.value = current.copy(itineraryStops = updatedStops)
+        val updated = current.copy(itineraryStops = updatedStops)
+        _planState.value = updated
+        updatePlanInList(updated)
     }
 
     fun deleteStop(stopId: String) {
         val current = _planState.value
-        _planState.value = current.copy(
+        val updated = current.copy(
             itineraryStops = current.itineraryStops.filterNot { it.id == stopId }
         )
+        _planState.value = updated
+        updatePlanInList(updated)
     }
 
     fun deleteDay(dayNumber: Int) {
         val current = _planState.value
-        _planState.value = current.copy(
+        val updated = current.copy(
             itineraryStops = current.itineraryStops.filterNot { it.dayNumber == dayNumber }
         )
+        _planState.value = updated
+        updatePlanInList(updated)
     }
 
     fun upsertTransportSegment(segment: TransportSegmentItem) {
@@ -88,14 +229,18 @@ object SharedTravelPlanStore {
         } else {
             updatedSegments.add(segment)
         }
-        _planState.value = current.copy(transportSegments = updatedSegments)
+        val updated = current.copy(transportSegments = updatedSegments)
+        _planState.value = updated
+        updatePlanInList(updated)
     }
 
     fun deleteTransportSegment(segmentId: String) {
         val current = _planState.value
-        _planState.value = current.copy(
+        val updated = current.copy(
             transportSegments = current.transportSegments.filterNot { it.id == segmentId }
         )
+        _planState.value = updated
+        updatePlanInList(updated)
     }
 
     fun exportCurrentJson(): String = TravelPlanJsonCodec.exportToPrettyJson(_planState.value)
@@ -111,12 +256,16 @@ object SharedTravelPlanStore {
                     schemaVersion = parsed.schemaVersion,
                     tripTitle = parsed.tripTitle.ifBlank { current.tripTitle },
                     itineraryStops = mergedStops,
-                    transportSegments = mergedTransport
+                    transportSegments = mergedTransport,
+                    id = current.id,
+                    startDateIso = current.startDateIso,
+                    totalDays = current.totalDays
                 )
             } else {
                 parsed
             }
             _planState.value = updated
+            updatePlanInList(updated)
             updated
         }
     }
@@ -128,11 +277,43 @@ object SharedTravelPlanStore {
  */
 object TravelPlanJsonCodec {
 
+    fun exportMultiPlanJson(plans: List<PortableTravelPlanBundle>, activePlanId: String): String {
+        val sb = StringBuilder()
+        sb.appendLine("{")
+        sb.appendLine("  \"activePlanId\": \"${escape(activePlanId)}\",")
+        sb.appendLine("  \"plans\": [")
+        plans.forEachIndexed { index, plan ->
+            val comma = if (index < plans.lastIndex) "," else ""
+            sb.appendLine(exportToPrettyJson(plan).prependIndent("    ") + comma)
+        }
+        sb.appendLine("  ]")
+        sb.appendLine("}")
+        return sb.toString()
+    }
+
+    fun importMultiPlanJson(json: String): Pair<List<PortableTravelPlanBundle>, String> {
+        if (!json.contains("\"plans\"")) {
+            val single = importFromJson(json)
+            return Pair(listOf(single), single.id)
+        }
+        val activeId = extractString(json, "activePlanId") ?: "plan-autumn-2026"
+        val plansBlock = extractArrayBlock(json, "plans")
+        val planObjects = splitJsonObjects(plansBlock)
+        val parsedPlans = planObjects.map { importFromJson(it) }
+        return Pair(
+            parsedPlans.ifEmpty { listOf(PortableTravelPlanBundle(itineraryStops = emptyList(), transportSegments = emptyList())) },
+            activeId
+        )
+    }
+
     fun exportToPrettyJson(bundle: PortableTravelPlanBundle): String {
         val sb = StringBuilder()
         sb.appendLine("{")
         sb.appendLine("  \"schemaVersion\": ${bundle.schemaVersion},")
+        sb.appendLine("  \"id\": \"${escape(bundle.id)}\",")
         sb.appendLine("  \"tripTitle\": \"${escape(bundle.tripTitle)}\",")
+        sb.appendLine("  \"startDateIso\": \"${escape(bundle.startDateIso)}\",")
+        sb.appendLine("  \"totalDays\": ${bundle.totalDays},")
         sb.appendLine("  \"itineraryStops\": [")
         bundle.itineraryStops.forEachIndexed { index, stop ->
             val comma = if (index < bundle.itineraryStops.lastIndex) "," else ""
@@ -185,6 +366,9 @@ object TravelPlanJsonCodec {
     fun importFromJson(json: String): PortableTravelPlanBundle {
         val schemaVersion = extractInt(json, "schemaVersion") ?: 1
         val tripTitle = extractString(json, "tripTitle") ?: "Japón 2026"
+        val id = extractString(json, "id") ?: "plan-${System.currentTimeMillis()}"
+        val startDateIso = extractString(json, "startDateIso") ?: "2026-11-11"
+        val totalDays = extractInt(json, "totalDays") ?: 14
 
         val stopsBlock = extractArrayBlock(json, "itineraryStops")
         val segmentsBlock = extractArrayBlock(json, "transportSegments")
@@ -236,7 +420,10 @@ object TravelPlanJsonCodec {
             schemaVersion = schemaVersion,
             tripTitle = tripTitle,
             itineraryStops = parsedStops,
-            transportSegments = parsedSegments
+            transportSegments = parsedSegments,
+            id = id,
+            startDateIso = startDateIso,
+            totalDays = totalDays
         )
     }
 

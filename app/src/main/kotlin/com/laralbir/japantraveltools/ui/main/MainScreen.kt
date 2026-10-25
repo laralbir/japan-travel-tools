@@ -112,6 +112,8 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import java.io.File
 import androidx.fragment.app.FragmentActivity
 import com.laralbir.japantraveltools.feature.documents.SharedDocumentsAndGuidesStore
 import com.laralbir.japantraveltools.feature.documents.TravelDocumentItem
@@ -410,6 +412,10 @@ fun JapanTravelToolsAppContent(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        SharedTravelPlanStore.init(context)
+        SharedDocumentsAndGuidesStore.init(context)
+    }
     val configuration = LocalConfiguration.current
     val isTabletExpanded = configuration.screenWidthDp >= 720
 
@@ -1261,6 +1267,7 @@ private fun TripPlannerTabScreen(
     onOpenJsonPortability: () -> Unit
 ) {
     val context = LocalContext.current
+    val allPlans by SharedTravelPlanStore.allPlansState.collectAsState()
     val portablePlan by SharedTravelPlanStore.planState.collectAsState()
     val weatherForecasts by SharedWeatherForecastStore.forecastsState.collectAsState()
     val allStops = portablePlan.itineraryStops
@@ -1274,6 +1281,9 @@ private fun TripPlannerTabScreen(
 
     var editingStop by remember { mutableStateOf<ItineraryStopItem?>(null) }
     var isCreatingStop by remember { mutableStateOf(false) }
+    var isCreatingPlan by remember { mutableStateOf(false) }
+    var isEditingPlan by remember { mutableStateOf(false) }
+    var isSwitchingPlan by remember { mutableStateOf(false) }
 
     val dayStops = remember(allStops, selectedDay) {
         TripPlannerUseCase.sortAndDetectConflicts(
@@ -1282,6 +1292,44 @@ private fun TripPlannerTabScreen(
     }
     val dayWeather = remember(weatherForecasts, selectedDay) {
         SharedWeatherForecastStore.forecastForDayNumber(selectedDay)
+    }
+
+    if (isCreatingPlan || isEditingPlan) {
+        PlanEditorModalSheet(
+            isEs = isEs,
+            initialTitle = if (isEditingPlan) portablePlan.tripTitle else "",
+            initialStartDate = if (isEditingPlan) portablePlan.startDateIso else "2026-11-11",
+            initialDays = if (isEditingPlan) portablePlan.totalDays else 7,
+            isNew = isCreatingPlan,
+            onDismiss = {
+                isCreatingPlan = false
+                isEditingPlan = false
+            },
+            onSave = { title, startDate, days ->
+                if (isCreatingPlan) {
+                    SharedTravelPlanStore.createPlan(title, startDate, days)
+                    selectedDay = 1
+                } else {
+                    SharedTravelPlanStore.editCurrentPlan(title, startDate, days)
+                }
+                isCreatingPlan = false
+                isEditingPlan = false
+            }
+        )
+    }
+
+    if (isSwitchingPlan) {
+        PlanSwitcherModalSheet(
+            isEs = isEs,
+            plans = allPlans,
+            activePlanId = portablePlan.id,
+            onDismiss = { isSwitchingPlan = false },
+            onSelectPlan = { planId ->
+                SharedTravelPlanStore.switchPlan(planId)
+                selectedDay = 1
+                isSwitchingPlan = false
+            }
+        )
     }
 
     if (isCreatingStop || editingStop != null) {
@@ -1325,6 +1373,74 @@ private fun TripPlannerTabScreen(
             .fillMaxSize()
             .padding(16.dp)
     ) {
+        // TOP CARD: ACTIVE TRAVEL PLAN & MULTI-PLAN MANAGEMENT
+        KotlinConfCard {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "🗓️ ${portablePlan.tripTitle}",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = "Inicio: ${portablePlan.startDateIso} · ${availableDays.size} días · ${allStops.size} paradas",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (allPlans.size > 1) {
+                    AppOptionButton(
+                        text = "📑 ${allPlans.size} planes",
+                        selected = false,
+                        onClick = { isSwitchingPlan = true },
+                        modifier = Modifier.width(110.dp)
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                AppOptionButton(
+                    text = if (isEs) "➕ Nuevo Plan" else "➕ New Plan",
+                    selected = false,
+                    onClick = { isCreatingPlan = true },
+                    modifier = Modifier.weight(1f)
+                )
+                AppOptionButton(
+                    text = if (isEs) "✏️ Editar Plan" else "✏️ Edit Plan",
+                    selected = false,
+                    onClick = { isEditingPlan = true },
+                    modifier = Modifier.weight(1f)
+                )
+                if (allPlans.size > 1) {
+                    AppOptionButton(
+                        text = if (isEs) "📑 Cambiar" else "📑 Switch",
+                        selected = false,
+                        onClick = { isSwitchingPlan = true },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                AppOptionButton(
+                    text = if (isEs) "🗑️ Borrar Plan" else "🗑️ Delete Plan",
+                    selected = false,
+                    onClick = { SharedTravelPlanStore.deleteCurrentPlan() },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
         // Day selector row + Add Day button
         Row(
             modifier = Modifier
@@ -1679,6 +1795,162 @@ private fun ItineraryStopEditorModalSheet(
                     if (isNew) onDismiss() else onDelete(initialStop.id)
                 }
             )
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlanEditorModalSheet(
+    isEs: Boolean,
+    initialTitle: String,
+    initialStartDate: String,
+    initialDays: Int,
+    isNew: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (title: String, startDate: String, days: Int) -> Unit
+) {
+    var titleText by rememberSaveable { mutableStateOf(initialTitle) }
+    var startDateText by rememberSaveable { mutableStateOf(initialStartDate) }
+    var daysText by rememberSaveable { mutableStateOf(initialDays.toString()) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 18.dp, vertical = 10.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Text(
+                text = if (isNew) {
+                    if (isEs) "➕ Crear Nuevo Plan de Viaje" else "➕ Create New Travel Plan"
+                } else {
+                    if (isEs) "✏️ Editar Plan de Viaje" else "✏️ Edit Travel Plan"
+                },
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            OutlinedTextField(
+                value = titleText,
+                onValueChange = { titleText = it },
+                label = { Text(if (isEs) "Nombre del Viaje (ej. Primavera Kioto 2027)" else "Trip Title") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(
+                    value = startDateText,
+                    onValueChange = { startDateText = it },
+                    label = { Text(if (isEs) "Fecha Inicio (YYYY-MM-DD)" else "Start Date") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1.3f)
+                )
+                OutlinedTextField(
+                    value = daysText,
+                    onValueChange = { daysText = it.filter { ch -> ch.isDigit() } },
+                    label = { Text(if (isEs) "Días" else "Days") },
+                    singleLine = true,
+                    modifier = Modifier.weight(0.7f)
+                )
+            }
+
+            AppButtonRow(
+                primaryText = if (isNew) {
+                    if (isEs) "🚀 Crear Plan" else "🚀 Create Plan"
+                } else {
+                    if (isEs) "💾 Guardar" else "💾 Save"
+                },
+                onPrimaryClick = {
+                    val daysInt = daysText.toIntOrNull()?.coerceIn(1, 45) ?: 7
+                    onSave(
+                        titleText.ifBlank { if (isEs) "Nuevo Viaje a Japón" else "New Japan Trip" },
+                        startDateText.ifBlank { "2026-11-11" },
+                        daysInt
+                    )
+                },
+                secondaryText = if (isEs) "Cancelar" else "Cancel",
+                onSecondaryClick = onDismiss
+            )
+
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlanSwitcherModalSheet(
+    isEs: Boolean,
+    plans: List<PortableTravelPlanBundle>,
+    activePlanId: String,
+    onDismiss: () -> Unit,
+    onSelectPlan: (String) -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 18.dp, vertical = 10.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = if (isEs) "📑 Mis Planes de Viaje Guardados" else "📑 Saved Travel Plans",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            plans.forEach { plan ->
+                val isSelected = plan.id == activePlanId
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                    border = BorderStroke(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelectPlan(plan.id) }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = plan.tripTitle,
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = "📅 ${plan.startDateIso} · ${plan.totalDays} días · ${plan.itineraryStops.size} paradas",
+                                fontSize = 13.sp,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (isSelected) {
+                            Text("✓ Activo", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
+            }
+
             Spacer(Modifier.height(16.dp))
         }
     }
@@ -3144,8 +3416,33 @@ private fun IdDocumentPhotoSection(
 // ============================================================================
 // 9. BOOKINGS & TICKETS SCREEN (WITH TICKETS CATEGORY & FULL CRUD)
 // ============================================================================
+
+private fun openDocumentFile(context: android.content.Context, filePath: String) {
+    runCatching {
+        val file = File(filePath)
+        if (!file.exists()) return
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+        val mimeType = when {
+            filePath.endsWith(".pdf", ignoreCase = true) -> "application/pdf"
+            filePath.endsWith(".png", ignoreCase = true) -> "image/png"
+            filePath.endsWith(".jpg", ignoreCase = true) || filePath.endsWith(".jpeg", ignoreCase = true) -> "image/jpeg"
+            else -> "*/*"
+        }
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, mimeType)
+            flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        context.startActivity(intent)
+    }
+}
+
 @Composable
 private fun BookingsVaultScreen(isEs: Boolean) {
+    val context = LocalContext.current
     val allDocuments by SharedDocumentsAndGuidesStore.documentsState.collectAsState()
     var selectedCategory by rememberSaveable { mutableStateOf<DocumentCategory?>(null) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
@@ -3293,6 +3590,36 @@ private fun BookingsVaultScreen(isEs: Boolean) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
+                    val attachedPath = doc.fileUri ?: doc.internalUriPath
+                    if (attachedPath != null) {
+                        Spacer(Modifier.height(8.dp))
+                        val isImage = attachedPath.endsWith(".png", ignoreCase = true) ||
+                                      attachedPath.endsWith(".jpg", ignoreCase = true) ||
+                                      attachedPath.endsWith(".jpeg", ignoreCase = true)
+                        if (isImage) {
+                            val bitmap = remember(attachedPath) {
+                                runCatching { BitmapFactory.decodeFile(attachedPath)?.asImageBitmap() }.getOrNull()
+                            }
+                            if (bitmap != null) {
+                                Image(
+                                    bitmap = bitmap,
+                                    contentDescription = doc.title,
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(130.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                )
+                                Spacer(Modifier.height(6.dp))
+                            }
+                        }
+                        AppSecondaryButton(
+                            text = if (isEs) "📄 Abrir Documento / PDF" else "📄 Open Attached Document / PDF",
+                            onClick = { openDocumentFile(context, attachedPath) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
                     Spacer(Modifier.height(12.dp))
                     AppButtonRow(
                         primaryText = if (isEs) "✏️ Editar" else "✏️ Edit",
@@ -3321,10 +3648,23 @@ private fun DocumentEditorModalSheet(
     onSave: (TravelDocumentItem) -> Unit,
     onDelete: (String) -> Unit
 ) {
+    val context = LocalContext.current
     var titleText by rememberSaveable { mutableStateOf(initialDoc.title) }
     var notesText by rememberSaveable { mutableStateOf(initialDoc.referenceOrNotes) }
     var selectedCategory by rememberSaveable { mutableStateOf(initialDoc.category) }
     var isPinned by rememberSaveable { mutableStateOf(initialDoc.isPinned) }
+    var attachedFilePath by rememberSaveable { mutableStateOf(initialDoc.fileUri ?: initialDoc.internalUriPath) }
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val saved = SharedDocumentsAndGuidesStore.saveDocumentAttachment(context, uri, uri.lastPathSegment)
+            if (saved != null) {
+                attachedFilePath = saved
+            }
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -3408,6 +3748,45 @@ private fun DocumentEditorModalSheet(
                 Switch(checked = isPinned, onCheckedChange = { isPinned = it })
             }
 
+            Text(
+                text = if (isEs) "Archivo o Billete Adjunto (PDF o Foto):" else "Attached Ticket/File (PDF or Photo):",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            if (attachedFilePath != null) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "📎 ${File(attachedFilePath!!).name}",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.weight(1f)
+                        )
+                        AppOptionButton(
+                            text = if (isEs) "🗑️ Quitar" else "🗑️ Remove",
+                            selected = false,
+                            onClick = { attachedFilePath = null },
+                            modifier = Modifier.width(80.dp)
+                        )
+                    }
+                }
+            } else {
+                AppSecondaryButton(
+                    text = if (isEs) "📎 Adjuntar PDF o Foto" else "📎 Attach PDF or Photo",
+                    onClick = { filePickerLauncher.launch("*/*") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
             AppButtonRow(
                 primaryText = if (isEs) "💾 Guardar" else "💾 Save",
                 onPrimaryClick = {
@@ -3415,7 +3794,9 @@ private fun DocumentEditorModalSheet(
                         title = titleText.ifBlank { if (isEs) "Documento" else "Document" },
                         referenceOrNotes = notesText,
                         category = selectedCategory,
-                        isPinned = isPinned
+                        isPinned = isPinned,
+                        fileUri = attachedFilePath,
+                        internalUriPath = attachedFilePath
                     )
                     onSave(updated)
                 },

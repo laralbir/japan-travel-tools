@@ -70,6 +70,7 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 - [x] **TASK-505 (TDD)**: Implementar integración dual con **Google Maps** (`EmbeddedRouteMapCard` con marcadores numerados + apertura directa en Google Maps) y vista de doble panel 50/50 en la tablet **TCL NXTPAPER 11 Plus**.
 - [x] **TASK-506 (TDD)**: Implementar exportación de paradas al Calendario de Android / Google Calendar con zona horaria `Asia/Tokyo`.
 - [x] **TASK-507 (TDD)**: Implementar exportación e importación de planes de viaje y transporte en formato **JSON legible (`TravelPlanJsonCodec` + `JsonPortabilityModalSheet`)** con soporte de fusión (`Merge`) y reemplazo (`Replace`) para preparar viajes desde apps externas.
+- [x] **TASK-508 (TDD)**: Persistencia real offline-first en almacenamiento local (`context.filesDir`) para planes, transportes, documentos, guías y reservas + soporte completo de gestión de múltiples planes (Crear / Editar / Cambiar / Borrar planes de viaje) + adjuntos de archivos y PDFs a documentos y reservas.
 
 ---
 

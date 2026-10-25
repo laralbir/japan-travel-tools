@@ -212,4 +212,77 @@ class TravelPlanJsonPortabilityTest {
         // Restore defaults for other tests
         SharedTravelPlanStore.resetToDefaults()
     }
+
+    @Test
+    fun `SharedTravelPlanStore supports creating new travel plans, switching plans, editing metadata and deleting plans`() {
+        SharedTravelPlanStore.resetToDefaults()
+        val initialPlanCount = SharedTravelPlanStore.allPlansState.value.size
+        assertTrue(initialPlanCount >= 1)
+
+        // 1. Create a brand new travel plan
+        val newPlan = SharedTravelPlanStore.createPlan(
+            title = "Viaje a Kioto y Alpes 2027",
+            startDateIso = "2027-04-10",
+            daysCount = 5
+        )
+        assertEquals("Viaje a Kioto y Alpes 2027", newPlan.tripTitle)
+        assertEquals("2027-04-10", newPlan.startDateIso)
+        assertEquals(5, newPlan.totalDays)
+        assertEquals(initialPlanCount + 1, SharedTravelPlanStore.allPlansState.value.size)
+        assertEquals(newPlan.id, SharedTravelPlanStore.planState.value.id)
+
+        // 2. Edit metadata of the active plan
+        SharedTravelPlanStore.editCurrentPlan(
+            newTitle = "Viaje a Kioto, Takayama y Shirakawago",
+            newStartDateIso = "2027-04-12",
+            newTotalDays = 7
+        )
+        assertEquals("Viaje a Kioto, Takayama y Shirakawago", SharedTravelPlanStore.planState.value.tripTitle)
+        assertEquals("2027-04-12", SharedTravelPlanStore.planState.value.startDateIso)
+        assertEquals(7, SharedTravelPlanStore.planState.value.totalDays)
+
+        // 3. Switch back to first plan
+        val firstPlan = SharedTravelPlanStore.allPlansState.value.last()
+        SharedTravelPlanStore.switchPlan(firstPlan.id)
+        assertEquals(firstPlan.id, SharedTravelPlanStore.planState.value.id)
+
+        // 4. Switch to new plan and delete it
+        SharedTravelPlanStore.switchPlan(newPlan.id)
+        SharedTravelPlanStore.deleteCurrentPlan()
+        assertEquals(initialPlanCount, SharedTravelPlanStore.allPlansState.value.size)
+        assertFalse(SharedTravelPlanStore.allPlansState.value.any { it.id == newPlan.id })
+
+        SharedTravelPlanStore.resetToDefaults()
+    }
+
+    @Test
+    fun `TravelPlanJsonCodec serializes and deserializes multi-plan collections with active plan tracking`() {
+        val plan1 = PortableTravelPlanBundle(
+            id = "plan-1",
+            tripTitle = "Plan Tokio 2026",
+            startDateIso = "2026-11-01",
+            totalDays = 7,
+            itineraryStops = emptyList(),
+            transportSegments = emptyList()
+        )
+        val plan2 = PortableTravelPlanBundle(
+            id = "plan-2",
+            tripTitle = "Plan Kioto 2027",
+            startDateIso = "2027-03-20",
+            totalDays = 5,
+            itineraryStops = emptyList(),
+            transportSegments = emptyList()
+        )
+
+        val json = TravelPlanJsonCodec.exportMultiPlanJson(listOf(plan1, plan2), activePlanId = "plan-2")
+        assertTrue(json.contains("\"activePlanId\": \"plan-2\""))
+        assertTrue(json.contains("Plan Tokio 2026"))
+        assertTrue(json.contains("Plan Kioto 2027"))
+
+        val (importedPlans, activeId) = TravelPlanJsonCodec.importMultiPlanJson(json)
+        assertEquals(2, importedPlans.size)
+        assertEquals("plan-2", activeId)
+        assertEquals("Plan Tokio 2026", importedPlans[0].tripTitle)
+        assertEquals("Plan Kioto 2027", importedPlans[1].tripTitle)
+    }
 }
