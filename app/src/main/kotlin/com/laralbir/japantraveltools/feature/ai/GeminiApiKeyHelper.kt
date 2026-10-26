@@ -21,50 +21,44 @@ sealed class GeminiConnectionResult {
 
 object GeminiApiKeyHelper {
     const val AI_STUDIO_API_KEY_URL = "https://aistudio.google.com/app/apikey"
-    const val DEFAULT_MODEL_ID = "gemini-2.0-flash"
-    const val FLASH_DEFAULT_MODEL_ID = "gemini-2.0-flash"
-    const val PRO_DEFAULT_MODEL_ID = "gemini-1.5-pro"
+    const val DEFAULT_MODEL_ID = "gemini-flash-latest"
+    const val FLASH_DEFAULT_MODEL_ID = "gemini-flash-latest"
+    const val PRO_DEFAULT_MODEL_ID = "gemini-pro-latest"
 
     fun isProModel(modelId: String?): Boolean =
         !modelId.isNullOrBlank() && modelId.contains("pro", ignoreCase = true)
 
     fun getAvailableModels(): List<GeminiModelOption> = listOf(
         GeminiModelOption(
-            id = "gemini-2.0-flash",
-            displayName = "Gemini 2.0 Flash",
-            descriptionEs = "Recomendado. Rápido, multimodal y gratuito",
-            descriptionEn = "Recommended. Fast, multimodal and free",
+            id = "gemini-flash-latest",
+            displayName = "Gemini Flash (Latest)",
+            descriptionEs = "Recomendado. Versión oficial de Flash siempre actualizada",
+            descriptionEn = "Recommended. Always latest official Flash version",
             isRecommended = true
         ),
         GeminiModelOption(
-            id = "gemini-1.5-pro",
-            displayName = "Gemini 1.5 Pro",
+            id = "gemini-pro-latest",
+            displayName = "Gemini Pro (Latest)",
             descriptionEs = "Razonamiento profundo para itinerarios y consultas complejas",
             descriptionEn = "Deep reasoning for complex plans and itineraries"
         ),
         GeminiModelOption(
-            id = "gemini-2.5-pro",
-            displayName = "Gemini 2.5 Pro",
-            descriptionEs = "Última generación Pro con razonamiento avanzado de Google",
-            descriptionEn = "Latest Pro generation with advanced reasoning from Google"
-        ),
-        GeminiModelOption(
-            id = "gemini-2.0-flash-lite",
-            displayName = "Gemini 2.0 Flash Lite",
-            descriptionEs = "Máxima velocidad y menor latencia",
-            descriptionEn = "Maximum speed and lower latency"
-        ),
-        GeminiModelOption(
             id = "gemini-2.5-flash",
             displayName = "Gemini 2.5 Flash",
-            descriptionEs = "Última versión 2.5 preview de Google",
-            descriptionEn = "Latest 2.5 Flash preview from Google"
+            descriptionEs = "Versión estable de Gemini 2.5 Flash",
+            descriptionEn = "Stable release of Gemini 2.5 Flash"
         ),
         GeminiModelOption(
-            id = "gemini-1.5-flash",
-            displayName = "Gemini 1.5 Flash",
-            descriptionEs = "Generación previa estable",
-            descriptionEn = "Stable previous generation"
+            id = "gemini-2.5-pro",
+            displayName = "Gemini 2.5 Pro",
+            descriptionEs = "Última generación Pro con razonamiento avanzado",
+            descriptionEn = "Latest Pro generation with advanced reasoning"
+        ),
+        GeminiModelOption(
+            id = "gemini-flash-lite-latest",
+            displayName = "Gemini Flash-Lite",
+            descriptionEs = "Máxima velocidad y menor latencia",
+            descriptionEn = "Maximum speed and lower latency"
         )
     )
 
@@ -111,9 +105,9 @@ object GeminiApiKeyHelper {
             }
             404 -> {
                 if (isEs) {
-                    "Error 404 (Modelo no Encontrado): El modelo de Gemini seleccionado no existe o no está habilitado para esta clave."
+                    "Error 404 (Modelo no Encontrado): El modelo de Gemini seleccionado ha sido deprecado o no está disponible en la API de Google. Se recomienda seleccionar «Gemini Flash (Latest)» o «Gemini Pro (Latest)»."
                 } else {
-                    "Error 404 (Not Found): Selected Gemini model does not exist or is not enabled for this key."
+                    "Error 404 (Not Found): The selected Gemini model has been deprecated or is unavailable in Google's API. Please select «Gemini Flash (Latest)» or «Gemini Pro (Latest)»."
                 }
             }
             429 -> {

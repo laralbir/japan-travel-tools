@@ -36,12 +36,13 @@ Dotar a **Japan Travel Tools** de capacidades de Inteligencia Artificial mediant
        5. **Detección Automática de Idioma Bidireccional (`Smart Language Routing`)**: Si se detectan caracteres japoneses en el micrófono del viajero, la app reconoce que se habló en japonés y locuta la traducción en español. A la inversa, si se habla en español o inglés en el micrófono del interlocutor, lo traduce y locuta en japonés.
        6. **Controles de Reproducción de Voz Directa (`🔊 Escuchar en Japonés` / `🔊 Escuchar en Español`) y Auto-Locución**: Cualquier frase seleccionada o traducida puede reproducirse por altavoz con un toque (y cuenta con interruptor de locución automática activado por defecto).
 3. **Traducción Visual con Cámara (Menús, Carteles e Ingredientes — OCR Offline)**:
-   - **Captura directa y selección de fotos**: Botones para tomar foto instantánea con la cámara (`TakePicturePreview`) o importar fotos desde la galería/Drive (`GetContent("image/*")`).
+   - **Permisos en Tiempo de Ejecución y Captura Robusta**: Manejo de permiso de cámara `CAMERA` en runtime con `rememberLauncherForActivityResult(RequestPermission)` antes de invocar la captura.
+   - **Captura directa y selección de fotos**: Botones para abrir la cámara y tomar foto instantánea en alta resolución mediante `FileProvider` en caché (`ActivityResultContracts.TakePicture`) con fallback a `TakePicturePreview`, o importar fotos desde la galería/archivos (`GetContent("image/*")`).
    - **Reconocimiento de Texto Japonés (Kanji / Kana)**: Procesamiento mediante **Google ML Kit Text Recognition v2 (Japanese)** (`JapaneseTextRecognizerOptions`) sobre la imagen, extrayendo los caracteres japoneses.
    - **Traducción Inmediata y Pronunciación**: Desglose línea por línea del cartel o menú en español/inglés, con pronunciación fonética en Romaji, detección de precios en yenes (`¥`) y botón para escuchar la locución por voz (`🔊`).
    - **Carteles de Prueba Rápida**: Muestras representativas de carteles y menús comunes en Japón (*Ramen 1000円*, *Zona de no fumadores*, *Completo/Sold out*, *Andén Shinkansen*, *Aseos*, *Salida*, *Solo efectivo*) para pruebas inmediatas.
-4. **Lanzador Directo a Google Translate / Intérprete Nativo de Pixel**:
-   - Botón directo (`Deep Link / Intent`) hacia la **Cámara de Google Translate** (`com.google.android.apps.translate`) o selector web como alternativa adicional.
+4. **Lanzador Directo a Google Lens / Google Translate / Cámara del Sistema**:
+   - Tarjeta dedicada con selector dual: `🌐 Abrir Google Lens` (abre directamente la experiencia de realidad aumentada de Lens con detección de texto y paquetes declarados en `<queries>`) y `🌐 Google Traductor` con fallback automático a la cámara nativa del sistema (`MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA`) o selector web.
 5. **Tarjetas de Frases Esenciales y Alergias 100% Offline**:
    - Tarjetas pre-cargadas de emergencia/supervivencia (alergias alimentarias, pedir la cuenta, ¿dónde está el baño/andén?, *Tax-Free*) con texto japonés a gran tamaño y audio offline.
 
@@ -100,20 +101,20 @@ Dotar a **Japan Travel Tools** de capacidades de Inteligencia Artificial mediant
 8. **Transparencia y Alertas Visibles de Error Cloud (Fin del Fallback Silencioso)**:
    - Cuando el usuario tiene una API Key configurada pero la llamada a Gemini Cloud falla, el resultado de `queryAssistant` expone `cloudErrorDetail` (código HTTP y causa).
    - En la interfaz del Asistente IA se muestra un aviso prominente informando de que Gemini Cloud falló y que se ofrece la respuesta del Motor Experto Offline como respaldo, erradicando cualquier confusión del viajero.
-9. **Selector de Modelos de Gemini (`pref_gemini_model_id`)**:
-   - Selector en Ajustes para alternar entre modelos oficiales:
-     - `Gemini 2.0 Flash` (`gemini-2.0-flash`, recomendado por defecto).
-     - `Gemini 1.5 Pro` (`gemini-1.5-pro`, razonamiento profundo para itinerarios complejos).
+9. **Selector de Modelos Canónicos de Gemini y Prevención de Errores 404 (`pref_gemini_model_id`)**:
+   - Selector en Ajustes para alternar entre modelos oficiales canónicos respaldados por la API de Google AI Studio:
+     - `Gemini Flash (Latest)` (`gemini-flash-latest`, alias canónico oficial siempre actualizado, recomendado por defecto).
+     - `Gemini Pro (Latest)` (`gemini-pro-latest`, alias canónico oficial para razonamiento profundo).
+     - `Gemini 2.5 Flash` (`gemini-2.5-flash`, versión estable de Gemini 2.5).
      - `Gemini 2.5 Pro` (`gemini-2.5-pro`, última generación Pro con razonamiento avanzado).
-     - `Gemini 2.0 Flash Lite` (`gemini-2.0-flash-lite`, ultrarrápido de baja latencia).
-     - `Gemini 2.5 Flash` (`gemini-2.5-flash`).
-     - `Gemini 1.5 Flash` (`gemini-1.5-flash`).
+     - `Gemini Flash-Lite` (`gemini-flash-lite-latest`, ultrarrápido de mínima latencia).
      - Opción de modelo personalizado libre.
+   - **Migración Automática de Modelos Deprecados**: El repositorio `UserPreferencesRepository` detecta identificadores deprecados por Google en la API v1beta (`gemini-1.5-flash`, `gemini-2.0-flash`, `gemini-1.5-pro`) y los migra de forma transparente e inmediata a `gemini-flash-latest` o `gemini-pro-latest`, eliminando el error HTTP 404 (*Model Not Found*).
    - Parseo de respuesta con `org.json.JSONObject` nativo de Android extrayendo de forma segura `candidates[0].content.parts[0].text`.
 10. **Selector Rápido de Modelo PRO vs FLASH en el Asistente IA**:
    - Selector directo y conmutador táctil integrado en la cabecera del Asistente IA (`AiAssistantScreen`):
-     - `⚡ Flash (Rápido)`: Conmuta en 1 toque a `gemini-2.0-flash` para respuestas instantáneas de consultas habituales.
-     - `🧠 PRO (Razonamiento)`: Conmuta en 1 toque al modelo Pro (`gemini-1.5-pro` / `gemini-2.5-pro`) para análisis profundos, optimización de itinerarios y resolución de conflictos de agenda.
+     - `⚡ Flash (Rápido)`: Conmuta en 1 toque a `gemini-flash-latest` para respuestas instantáneas de consultas habituales.
+     - `🧠 PRO (Razonamiento)`: Conmuta en 1 toque al modelo Pro (`gemini-pro-latest` / `gemini-2.5-pro`) para análisis profundos, optimización de itinerarios y resolución de conflictos de agenda.
    - Sincronización bidireccional reactiva con la persistencia en `UserPreferencesRepository`.
 
 ---

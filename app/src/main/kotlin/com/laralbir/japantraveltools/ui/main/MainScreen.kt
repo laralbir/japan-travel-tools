@@ -1,12 +1,15 @@
 package com.laralbir.japantraveltools.ui.main
 
 import android.app.Activity
+import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.CalendarContract
+import android.provider.MediaStore
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -3408,12 +3411,77 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
             }
     }
 
-    val takePhotoLauncher = rememberLauncherForActivityResult(
+    var tempCameraImageUri by remember { mutableStateOf<Uri?>(null) }
+
+    val takePictureLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            val uri = tempCameraImageUri
+            if (uri != null) {
+                val decodedBitmap = runCatching {
+                    context.contentResolver.openInputStream(uri)?.use { stream ->
+                        BitmapFactory.decodeStream(stream)
+                    }
+                }.getOrNull()
+                if (decodedBitmap != null) {
+                    val inputImage = InputImage.fromBitmap(decodedBitmap, 0)
+                    processOcrImage(inputImage, decodedBitmap)
+                }
+            }
+        }
+    }
+
+    val takePhotoPreviewLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicturePreview()
     ) { bitmap ->
         if (bitmap != null) {
             val inputImage = InputImage.fromBitmap(bitmap, 0)
             processOcrImage(inputImage, bitmap)
+        }
+    }
+
+    fun launchNativeCamera() {
+        runCatching {
+            val photoFile = File(context.cacheDir, "camera_ocr_capture_${System.currentTimeMillis()}.jpg")
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                photoFile
+            )
+            tempCameraImageUri = uri
+            takePictureLauncher.launch(uri)
+        }.onFailure {
+            runCatching {
+                takePhotoPreviewLauncher.launch(null)
+            }
+        }
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            launchNativeCamera()
+        } else {
+            ocrErrorMessage = if (isEs) {
+                "Permiso de cámara no concedido. Puedes habilitarlo en Ajustes o seleccionar una foto de la galería."
+            } else {
+                "Camera permission not granted. You can enable it in Settings or select a photo from gallery."
+            }
+        }
+    }
+
+    fun checkAndLaunchCamera() {
+        val hasPermission = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (hasPermission) {
+            launchNativeCamera()
+        } else {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
 
@@ -3794,11 +3862,9 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
                     Spacer(Modifier.height(14.dp))
 
                     AppButtonRow(
-                        primaryText = if (isEs) "📷 Tomar Foto" else "📷 Take Photo",
+                        primaryText = if (isEs) "📷 Abrir Cámara" else "📷 Open Camera",
                         onPrimaryClick = {
-                            runCatching {
-                                takePhotoLauncher.launch(null)
-                            }
+                            checkAndLaunchCamera()
                         },
                         secondaryText = if (isEs) "🖼️ Elegir Imagen" else "🖼️ Pick Image",
                         onSecondaryClick = {
@@ -4045,9 +4111,9 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
                     Spacer(Modifier.height(6.dp))
                     Text(
                         text = if (isEs) {
-                            "Para realidad aumentada con superposición en tiempo real, puedes abrir directamente la cámara de Google Traductor o Google Lens:"
+                            "Para realidad aumentada con superposición en tiempo real, puedes abrir directamente Google Lens, Google Traductor o la cámara del sistema:"
                         } else {
-                            "For live augmented reality overlay translation, you can directly launch Google Translate or Lens:"
+                            "For live augmented reality overlay translation, you can directly launch Google Lens, Google Translate, or the system camera:"
                         },
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -4055,26 +4121,50 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
 
                     Spacer(Modifier.height(12.dp))
 
-                    AppPrimaryButton(
-                        text = if (isEs) "🌐 Abrir Cámara Google Traductor" else "🌐 Open Google Translate Camera",
-                        onClick = {
-                            val gTranslateIntent = Intent(Intent.ACTION_VIEW).apply {
-                                setPackage("com.google.android.apps.translate")
-                                data = Uri.parse("googletranslate://camera")
-                            }
+                    AppButtonRow(
+                        primaryText = if (isEs) "🌐 Abrir Google Lens" else "🌐 Open Google Lens",
+                        onPrimaryClick = {
+                            val lensIntent = context.packageManager.getLaunchIntentForPackage("com.google.ar.lens")
+                                ?: Intent(Intent.ACTION_VIEW).apply {
+                                    setPackage("com.google.ar.lens")
+                                    data = Uri.parse("googlelens://v1")
+                                }
                             runCatching {
-                                context.startActivity(gTranslateIntent)
+                                context.startActivity(lensIntent)
                             }.onFailure {
-                                runCatching {
-                                    val webIntent = Intent(
-                                        Intent.ACTION_VIEW,
-                                        Uri.parse("https://translate.google.com/?sl=ja&tl=es&op=images")
-                                    )
-                                    context.startActivity(webIntent)
+                                val gTranslateIntent = context.packageManager.getLaunchIntentForPackage("com.google.android.apps.translate")
+                                if (gTranslateIntent != null) {
+                                    runCatching { context.startActivity(gTranslateIntent) }
+                                } else {
+                                    runCatching {
+                                        context.startActivity(Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA))
+                                    }.onFailure {
+                                        val webIntent = Intent(
+                                            Intent.ACTION_VIEW,
+                                            Uri.parse("https://translate.google.com/?sl=ja&tl=es&op=images")
+                                        )
+                                        runCatching { context.startActivity(webIntent) }
+                                    }
                                 }
                             }
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        secondaryText = if (isEs) "🌐 Google Traductor" else "🌐 Google Translate",
+                        onSecondaryClick = {
+                            val gTranslateIntent = context.packageManager.getLaunchIntentForPackage("com.google.android.apps.translate")
+                                ?: Intent(Intent.ACTION_VIEW).apply {
+                                    setPackage("com.google.android.apps.translate")
+                                    data = Uri.parse("https://translate.google.com")
+                                }
+                            runCatching {
+                                context.startActivity(gTranslateIntent)
+                            }.onFailure {
+                                val webIntent = Intent(
+                                    Intent.ACTION_VIEW,
+                                    Uri.parse("https://translate.google.com/?sl=ja&tl=es&op=images")
+                                )
+                                runCatching { context.startActivity(webIntent) }
+                            }
+                        }
                     )
                 }
             }

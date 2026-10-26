@@ -7,6 +7,30 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-26
+
+### Parche Oficial de Corrección y Firma para Google Play Store — Japan Travel Tools 1.0.1 🇯🇵📱
+
+#### 🧠 Corrección de Error 404 en Modelos Gemini (Alias Canónicos de Google):
+- **Diagnóstico y Causa Raíz**: Google retiró e invalidó los endpoints de versión previos de `gemini-1.5-flash`, `gemini-2.0-flash` y `gemini-1.5-pro` en la API pública `v1beta`, devolviendo un error HTTP 404 (*Model Not Found*).
+- **Adopción de Alias Canónicos Oficiales**:
+  - `gemini-flash-latest`: Apunta siempre a la versión activa más reciente de Gemini Flash recomendada por Google (por defecto).
+  - `gemini-pro-latest`: Apunta siempre a la versión activa más reciente de Gemini Pro para razonamiento profundo de itinerarios.
+  - Inclusión de versiones fijas estables: `gemini-2.5-flash`, `gemini-2.5-pro` y `gemini-flash-lite-latest`.
+- **Migración Automática de Preferencias en Dispositivos**: `UserPreferencesRepository` intercepta de manera transparente cualquier clave de modelo deprecada almacenada previamente en el terminal del usuario y la actualiza en tiempo real a su alias canónico correspondiente, eliminando cualquier intervención manual por parte del viajero.
+
+#### 📷 Reparación Integral del Botón de Cámara en Traducción Visual (OCR de Carteles):
+- **Permisos en Tiempo de Ejecución**: Integración del launcher de permisos `ActivityResultContracts.RequestPermission()` para solicitar `android.permission.CAMERA` de forma interactiva y amigable antes de abrir la cámara, evitando excepciones de seguridad silenciosas.
+- **Captura en Alta Resolución vía FileProvider**: Configuración de `FileProvider` con directorio caché (`file_paths.xml`) para tomar fotografías a resolución completa (`ActivityResultContracts.TakePicture()`) con fallback a vista previa, garantizando una nitidez óptima para el reconocimiento óptico de caracteres de kanji y kana japoneses por Google ML Kit.
+- **Acceso Directo a Google Lens y Google Traductor**: Renovación de la tarjeta de Realidad Aumentada con botones dedicados `🌐 Abrir Google Lens` y `🌐 Google Traductor`, con declaración de paquetes en `<queries>` (`com.google.ar.lens`, `com.google.android.apps.translate`) y fallback automático a la cámara nativa del sistema (`MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA`) o navegador.
+
+#### 📦 Compilación Completa y Firma para Google Play Store:
+- **Configuración de Firma Release (`signingConfigs.release`)**: Soporte en `app/build.gradle.kts` para firmas automáticas con `release.keystore`, plantilla `keystore.properties.example` y variables de entorno del pipeline de CI/CD.
+- **Generación Dual de Artefactos de Publicación**:
+  - **Android App Bundle firmado (`app-release.aab`)**: Paquete completo listo para subir a Google Play Console.
+  - **APK firmado (`app-release.apk`)**: Paquete para instalación directa en dispositivos.
+  - **APK Debug (`app-debug.apk`)**: Paquete para desarrollo y pruebas en dispositivos autorizados vía ADB.
+
 ## [1.0.0] - 2026-10-25
 
 ### Release Oficial Estable — Japan Travel Tools 1.0.0 🇯🇵✈️
