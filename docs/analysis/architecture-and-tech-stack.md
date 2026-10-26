@@ -368,6 +368,25 @@ data class UserPreferences(
     - **APK firmado (`app-release.apk`)**: Paquete independiente para instalación directa en dispositivos de viajeros o distribución sin Play Store.
     - **APK Debug (`app-debug.apk`)**: Para validación en dispositivos autorizados vía ADB.
 
+### 3.14. Experiencia de Usuario y Renderizado del Asistente IA (Markdown, Input Multilínea y Cancelación)
+- **Parser y Renderizado de Markdown (`MarkdownTextParser` & `MarkdownText`)**:
+  - Parser desacoplado de UI (fácilmente testeable mediante TDD unitario con JUnit) que tokeniza la respuesta textual de Gemini o del Experto Offline.
+  - Soporta bloques y estilos en línea:
+    - Encabezados H1, H2, H3 (`#`, `##`, `###`) con mayor peso tipográfico y tamaño (`headlineSmall`, `titleLarge`, `titleMedium`).
+    - Negrita (`**texto**`) y Cursiva (`*texto*`).
+    - Elementos de lista con viñeta (`•`) y numerados con sangrado adecuado.
+    - Bloques de código y términos inline con fuente monoespaciada (`FontFamily.Monospace`) y fondo translúcido diferenciado.
+  - Construcción de `AnnotatedString` con `SpanStyle` nativo de Compose sin dependencias externas pesadas, asegurando fluidez a 120Hz en pantallas de Pixel 9/10 Pro XL y Tablet TCL.
+- **Input Multilínea, IME Padding y Cierre de Teclado**:
+  - Reconfiguración del campo de texto de consulta con `singleLine = false`, `minLines = 2`, `maxLines = 5` para redacción cómoda.
+  - Contenedor con `Modifier.imePadding()` para desplazar dinámicamente la vista al abrir el teclado virtual y evitar que se solape con el botón de envío.
+  - Integración de `KeyboardOptions(imeAction = ImeAction.Send)` y `KeyboardActions(onSend = { ... })` para lanzar la consulta pulsando la tecla de envío del teclado.
+  - Invocación de `LocalSoftwareKeyboardController.current?.hide()` y `focusManager.clearFocus()` inmediatamente al enviar la consulta.
+- **Cancelación Reactiva de Consultas**:
+  - Asignación de la corrutina de consulta a un `Job` almacenable (`var activeQueryJob: Job?`).
+  - Exposición en UI del botón `❌ Cancelar consulta` mientras `isLoading == true`.
+  - Invocación de `activeQueryJob?.cancel()` restableciendo de forma instantánea el estado de carga y emitiendo el mensaje de estado correspondiente.
+
 ---
 
 ## 4. Estrategia de Testing (TDD)
