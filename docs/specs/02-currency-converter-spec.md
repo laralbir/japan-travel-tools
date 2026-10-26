@@ -40,6 +40,12 @@ Ofrecer un conversor de moneda rápido, bidireccional y **100% funcional offline
 4. **Tasa personalizada manual (Override opcional)**:
    - El usuario podrá introducir manualmente un tipo de cambio personalizado si desea usar el cambio exacto al que compró efectivo o el de su tarjeta bancaria, pudiendo volver al cambio oficial cacheado en cualquier momento.
 
+### RF-02.4: Sincronización Periódica en Segundo Plano (`WorkManager`)
+1. **Actualización Automática Desatendida**:
+   - Integración de `CurrencySyncWorker` mediante **Android Jetpack WorkManager** (`PeriodicWorkRequestBuilder`) con periodicidad de 24 horas para mantener los ratios actualizados automáticamente.
+   - Restricción estricta de red (`NetworkType.CONNECTED`) para evitar consumo de batería o llamadas innecesarias en Modo Avión o sin red.
+   - Persistencia automática de las nuevas tasas en `SharedCurrencyRateStore` (`saved_currency_rates.json`), garantizando que al abrir la app tras días de viaje las tasas se mantengan actualizadas de forma desatendida.
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin / BDD)
@@ -54,7 +60,12 @@ Ofrecer un conversor de moneda rápido, bidireccional y **100% funcional offline
 - **Cuando** el usuario pulsa "Actualizar tasas" o abre el conversor con caché expirada
 - **Entonces** la app descarga las tasas desde `api.frankfurter.dev`, las persiste en el almacenamiento local, actualiza la fecha de última sincronización y recalcula el importe en pantalla.
 
-### Escenario 3: Uso posterior sin conexión tras haber sincronizado
+### Escenario 3: Uso posterior sin conexión tras haber sincronizado (Persistencia entre reinicios)
 - **Dado** que la app descargó previamente un cambio de `1 EUR = 163.50 JPY`
 - **Cuando** el usuario activa el Modo Avión, cierra la app, la vuelve a abrir y convierte `10 EUR`
-- **Entonces** obtiene `1,635 JPY` usando la tasa persistida localmente.
+- **Entonces** la app carga inmediatamente la tasa persistida de `163.50 JPY` desde disco (sin volver a la semilla inicial) y obtiene `1,635 JPY`.
+
+### Escenario 4: Sincronización periódica automática en segundo plano
+- **Dado** que el dispositivo se conecta a una red Wi-Fi o móvil
+- **Cuando** WorkManager ejecuta la tarea programada `CurrencySyncWorker`
+- **Entonces** se descargan las últimas tasas del BCE, se guardan en el archivo persistente y al abrir la app la fecha de sincronización refleja el último ratio actualizado sin intervención del usuario.

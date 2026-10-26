@@ -387,6 +387,16 @@ data class UserPreferences(
   - Exposición en UI del botón `❌ Cancelar consulta` mientras `isLoading == true`.
   - Invocación de `activeQueryJob?.cancel()` restableciendo de forma instantánea el estado de carga y emitiendo el mensaje de estado correspondiente.
 
+### 3.15. Persistencia de Tipos de Cambio y Actualización Periódica con WorkManager (Issue #2)
+- **Persistencia Reactiva en Disco (`SharedCurrencyRateStore` & `ExchangeRateJsonCodec`)**:
+  - `SharedCurrencyRateStore` gestiona de forma centralizada el estado reactivo (`StateFlow<ExchangeRateSnapshot>`).
+  - Serialización y deserialización completa de `ExchangeRateSnapshot` (divisa base, fecha del BCE, mapa de tasas, flag de datos semilla y epoch millis de sincronización) hacia el almacenamiento privado `saved_currency_rates.json` en `context.filesDir`.
+  - Al abrir la app, se restaura inmediatamente el último snapshot guardado en disco con su fecha real, evitando el reseteo a la semilla predeterminada.
+- **Worker Periódico Desatendido (`CurrencySyncWorker` & `CurrencySyncScheduler`)**:
+  - Implementación con `androidx.work.CoroutineWorker`.
+  - Configuración de `PeriodicWorkRequest` con periodicidad de 24 horas y `Constraints` con `NetworkType.CONNECTED`.
+  - Encolado con política `ExistingPeriodicWorkPolicy.KEEP` para no reiniciar innecesariamente el ciclo de sincronización en cada inicio.
+
 ---
 
 ## 4. Estrategia de Testing (TDD)

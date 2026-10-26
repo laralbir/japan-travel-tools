@@ -129,6 +129,7 @@ import com.laralbir.japantraveltools.feature.clock.OfflineTimeZoneResolver
 import com.laralbir.japantraveltools.feature.currency.ConvertCurrencyUseCase
 import com.laralbir.japantraveltools.feature.currency.FrankfurterJsonParser
 import com.laralbir.japantraveltools.feature.currency.SeedExchangeRates
+import com.laralbir.japantraveltools.feature.currency.SharedCurrencyRateStore
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.biometric.BiometricManager
@@ -855,13 +856,19 @@ private fun CurrencyToolScreen(
     prefsRepository: DefaultUserPreferencesRepository
 ) {
     val coroutineScope = rememberCoroutineScope()
-    var rateSnapshot by remember { mutableStateOf(SeedExchangeRates.defaultSnapshot()) }
+    val rateSnapshot by SharedCurrencyRateStore.rateState.collectAsState()
     var isSyncingRates by remember { mutableStateOf(false) }
-    var syncStatusMessage by remember {
-        mutableStateOf(
-            if (isEs) "Fuente: Frankfurter API (BCE) · Offline listo"
-            else "Source: Frankfurter API (ECB) · Offline ready"
-        )
+    var syncStatusMessage by remember { mutableStateOf<String?>(null) }
+
+    val displayStatusMessage = syncStatusMessage ?: run {
+        val jpyRate = rateSnapshot.rates["JPY"] ?: 164.80
+        if (rateSnapshot.isSeedData) {
+            if (isEs) "Fuente: Datos Base Offline (1 EUR = $jpyRate JPY)"
+            else "Source: Baseline Offline Rates (1 EUR = $jpyRate JPY)"
+        } else {
+            if (isEs) "1 EUR = $jpyRate JPY (BCE · ${rateSnapshot.rateDate})"
+            else "1 EUR = $jpyRate JPY (ECB · ${rateSnapshot.rateDate})"
+        }
     }
 
     var inputAmountText by rememberSaveable { mutableStateOf("1000") }
@@ -1007,9 +1014,8 @@ private fun CurrencyToolScreen(
                     onPrimaryClick = {
                         isSyncingRates = true
                         coroutineScope.launch {
-                            FrankfurterJsonParser.fetchFromFrankfurterApi()
+                            SharedCurrencyRateStore.syncRatesOnline()
                                 .onSuccess { fresh ->
-                                    rateSnapshot = fresh
                                     val jpyRate = fresh.rates["JPY"] ?: 164.80
                                     syncStatusMessage = "1 EUR = $jpyRate JPY (${fresh.rateDate})"
                                 }
@@ -1026,7 +1032,7 @@ private fun CurrencyToolScreen(
 
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    text = syncStatusMessage,
+                    text = displayStatusMessage,
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

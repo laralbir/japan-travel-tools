@@ -156,3 +156,14 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
   - Controlar la corrutina de consulta mediante `activeQueryJob: Job?`.
   - Mostrar botón `❌ Cancelar consulta` visible y accesible mientras `isLoading == true`.
   - Cancelar la petición inmediatamente al hacer click, restaurando la UI y mostrando mensaje de estado informativo.
+
+### Issue #2: Ratio de Divisas no se Persiste y Actualización Periódica
+- [x] **TASK-123 (TDD)**: Serialización y Persistencia de Tasas de Cambio (`Issue #2 / SPEC-02 RF-02.3`):
+  - Escribir tests unitarios en `ExchangeRatePersistenceTest.kt` validando `ExchangeRateJsonCodec.exportToJson` e `importFromJson` (preservando fecha, divisa base, mapa de tasas, isSeedData y timestamp).
+  - Implementar `ExchangeRateJsonCodec` y `SharedCurrencyRateStore` con métodos `init`, `loadFromDisk`, `saveToDisk`, `updateSnapshot` y `syncRatesOnline`.
+- [x] **TASK-124 (TDD)**: Tarea Periódica en Segundo Plano con WorkManager (`Issue #2 / SPEC-02 RF-02.4`):
+  - Implementar `CurrencySyncWorker` (`CoroutineWorker`) y `CurrencySyncScheduler` con periodicidad de 24 horas y restricción de red conectada.
+  - Escribir tests unitarios para `CurrencySyncWorker` verificando ejecución exitosa y actualización de `SharedCurrencyRateStore`.
+- [x] **TASK-125 (TDD)**: Integración en la Pantalla del Conversor de Divisas (`Issue #2 / SPEC-02 RF-02.3`):
+  - Conectar `CurrencyToolScreen` en `MainScreen.kt` con `SharedCurrencyRateStore.rateState.collectAsState()`.
+  - Asegurar que al pulsar "🔄 Actualizar BCE", se invoque `syncRatesOnline()` y se mantenga persistido el resultado en disco.
