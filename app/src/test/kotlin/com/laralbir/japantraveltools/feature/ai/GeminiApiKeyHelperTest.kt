@@ -9,9 +9,10 @@ class GeminiApiKeyHelperTest {
 
     @Test
     fun `isValidApiKeyFormat validates correct Google API keys and rejects invalid ones`() {
-        // Valid keys
+        // Valid keys (standard AIzaSy and modern AQ. formats)
         assertTrue(GeminiApiKeyHelper.isValidApiKeyFormat("AIzaSyD-1234567890abcdefghijklmnopqrstuv"))
         assertTrue(GeminiApiKeyHelper.isValidApiKeyFormat("AIzaSyA_BcDeFgHiJkLmNoPqRsTuVwXyZ0123456"))
+        assertTrue(GeminiApiKeyHelper.isValidApiKeyFormat("AQ.MockDummyTestKey1234567890abcdefghijklm"))
 
         // Invalid keys
         assertFalse(GeminiApiKeyHelper.isValidApiKeyFormat(null))
@@ -31,6 +32,10 @@ class GeminiApiKeyHelperTest {
         val realKey = "AIzaSyD-1234567890abcdefghijklmnopqr7B9x"
         val masked = GeminiApiKeyHelper.maskApiKey(realKey)
         assertEquals("AIzaSy...7B9x", masked)
+
+        val aqKey = "AQ.MockDummyTestKey1234567890abcdefghijklm"
+        val maskedAq = GeminiApiKeyHelper.maskApiKey(aqKey)
+        assertEquals("AQ....jklm", maskedAq)
     }
 
     @Test
@@ -54,21 +59,22 @@ class GeminiApiKeyHelperTest {
     }
 
     @Test
-    fun `getAvailableModels returns comprehensive list including flash-latest as default recommended`() {
+    fun `getAvailableModels returns comprehensive list including flash-lite as default recommended`() {
         val models = GeminiApiKeyHelper.getAvailableModels()
         assertTrue(models.isNotEmpty())
         val defaultModel = models.first { it.isRecommended }
-        assertEquals("gemini-flash-latest", defaultModel.id)
+        assertEquals("gemini-flash-lite-latest", defaultModel.id)
+        assertTrue(models.any { it.id == "gemini-3.5-flash" })
+        assertTrue(models.any { it.id == "gemini-flash-latest" })
         assertTrue(models.any { it.id == "gemini-pro-latest" })
-        assertTrue(models.any { it.id == "gemini-2.5-flash" })
-        assertTrue(models.any { it.id == "gemini-2.5-pro" })
+        assertTrue(models.any { it.id == "gemini-3.1-pro-preview" })
     }
 
     @Test
     fun `buildGenerateContentUrl constructs valid API endpoint with model and key`() {
         val urlDefault = GeminiApiKeyHelper.buildGenerateContentUrl("AIzaSyTestKey123")
         assertEquals(
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=AIzaSyTestKey123",
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=AIzaSyTestKey123",
             urlDefault
         )
 
@@ -80,17 +86,16 @@ class GeminiApiKeyHelperTest {
     }
 
     @Test
-    fun `evaluateHttpError provides clear diagnostics for 403 400 404 429 with key prefix check`() {
-        // 403 with non-AIzaSy prefix (e.g. AQ. prefix user pasted)
+    fun `evaluateHttpError provides clear diagnostics for 403 400 404 429 503 with key prefix check`() {
+        // 403 with unknown non-Google prefix
         val err403NonGoogle = GeminiApiKeyHelper.evaluateHttpError(
             httpCode = 403,
             responseBody = "PERMISSION_DENIED",
-            keyPrefix = "AQ.Ab8",
+            keyPrefix = "sk-proj",
             isEs = true
         )
         assertTrue(err403NonGoogle.contains("403"))
-        assertTrue(err403NonGoogle.contains("AIzaSy"))
-        assertTrue(err403NonGoogle.contains("AQ.Ab8"))
+        assertTrue(err403NonGoogle.contains("sk-proj"))
 
         // 403 with valid prefix but disabled key
         val err403ValidPrefix = GeminiApiKeyHelper.evaluateHttpError(
@@ -110,26 +115,35 @@ class GeminiApiKeyHelperTest {
         )
         assertTrue(err404.contains("404"))
 
-        // 429
-        val err429 = GeminiApiKeyHelper.evaluateHttpError(
+        // 429 with Pro model (Free tier explanation)
+        val err429Pro = GeminiApiKeyHelper.evaluateHttpError(
             httpCode = 429,
             responseBody = "Quota exceeded",
-            keyPrefix = "AIzaSy",
+            keyPrefix = "AQ.Moc",
+            isEs = true,
+            modelId = "gemini-pro-latest"
+        )
+        assertTrue(err429Pro.contains("429"))
+        assertTrue(err429Pro.contains("PRO"))
+
+        // 503 Google overloaded
+        val err503 = GeminiApiKeyHelper.evaluateHttpError(
+            httpCode = 503,
+            responseBody = "High demand",
+            keyPrefix = "AQ.Moc",
             isEs = true
         )
-        assertTrue(err429.contains("429"))
+        assertTrue(err503.contains("503"))
     }
 
     @Test
     fun `isProModel correctly detects pro models and rejects flash and lite models`() {
         assertTrue(GeminiApiKeyHelper.isProModel("gemini-pro-latest"))
+        assertTrue(GeminiApiKeyHelper.isProModel("gemini-3.1-pro-preview"))
         assertTrue(GeminiApiKeyHelper.isProModel("gemini-1.5-pro"))
-        assertTrue(GeminiApiKeyHelper.isProModel("gemini-2.5-pro"))
-        assertTrue(GeminiApiKeyHelper.isProModel("gemini-2.0-pro-exp"))
-        assertFalse(GeminiApiKeyHelper.isProModel("gemini-flash-latest"))
-        assertFalse(GeminiApiKeyHelper.isProModel("gemini-2.5-flash"))
-        assertFalse(GeminiApiKeyHelper.isProModel("gemini-2.0-flash"))
         assertFalse(GeminiApiKeyHelper.isProModel("gemini-flash-lite-latest"))
+        assertFalse(GeminiApiKeyHelper.isProModel("gemini-3.5-flash"))
+        assertFalse(GeminiApiKeyHelper.isProModel("gemini-flash-latest"))
         assertFalse(GeminiApiKeyHelper.isProModel(null))
         assertFalse(GeminiApiKeyHelper.isProModel(""))
     }
@@ -137,10 +151,10 @@ class GeminiApiKeyHelperTest {
     @Test
     fun `getProModels and pro constants are properly defined`() {
         assertEquals("gemini-pro-latest", GeminiApiKeyHelper.PRO_DEFAULT_MODEL_ID)
-        assertEquals("gemini-flash-latest", GeminiApiKeyHelper.FLASH_DEFAULT_MODEL_ID)
+        assertEquals("gemini-flash-lite-latest", GeminiApiKeyHelper.FLASH_DEFAULT_MODEL_ID)
         val proModels = GeminiApiKeyHelper.getProModels()
         assertTrue(proModels.any { it.id == "gemini-pro-latest" })
-        assertTrue(proModels.any { it.id == "gemini-2.5-pro" })
+        assertTrue(proModels.any { it.id == "gemini-3.1-pro-preview" })
     }
 
     @Test
@@ -148,17 +162,17 @@ class GeminiApiKeyHelperTest {
         // Mock successful 200 response
         val successResult = GeminiApiKeyHelper.testApiKeyConnection(
             apiKey = "AIzaSyValidKey",
-            modelId = "gemini-flash-latest",
+            modelId = "gemini-flash-lite-latest",
             isEs = true,
             networkClient = { 200 to """{"candidates":[{"content":{"parts":[{"text":"pong"}]}}]}""" }
         )
         assertTrue(successResult is GeminiConnectionResult.Success)
-        assertEquals("gemini-flash-latest", (successResult as GeminiConnectionResult.Success).modelUsed)
+        assertEquals("gemini-flash-lite-latest", (successResult as GeminiConnectionResult.Success).modelUsed)
 
         // Mock 403 error response
         val errorResult = GeminiApiKeyHelper.testApiKeyConnection(
-            apiKey = "AQ.Ab8Invalid",
-            modelId = "gemini-flash-latest",
+            apiKey = "sk-proj-invalid",
+            modelId = "gemini-flash-lite-latest",
             isEs = true,
             networkClient = { 403 to """{"error":{"code":403,"message":"Permission Denied"}}""" }
         )
@@ -166,6 +180,6 @@ class GeminiApiKeyHelperTest {
         val err = errorResult as GeminiConnectionResult.Error
         assertEquals(403, err.httpCode)
         assertTrue(err.isFormatIssue)
-        assertTrue(err.message.contains("AQ.Ab8"))
+        assertTrue(err.message.contains("sk-pro"))
     }
 }

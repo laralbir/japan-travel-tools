@@ -21,8 +21,8 @@ sealed class GeminiConnectionResult {
 
 object GeminiApiKeyHelper {
     const val AI_STUDIO_API_KEY_URL = "https://aistudio.google.com/app/apikey"
-    const val DEFAULT_MODEL_ID = "gemini-flash-latest"
-    const val FLASH_DEFAULT_MODEL_ID = "gemini-flash-latest"
+    const val DEFAULT_MODEL_ID = "gemini-flash-lite-latest"
+    const val FLASH_DEFAULT_MODEL_ID = "gemini-flash-lite-latest"
     const val PRO_DEFAULT_MODEL_ID = "gemini-pro-latest"
 
     fun isProModel(modelId: String?): Boolean =
@@ -30,35 +30,35 @@ object GeminiApiKeyHelper {
 
     fun getAvailableModels(): List<GeminiModelOption> = listOf(
         GeminiModelOption(
+            id = "gemini-flash-lite-latest",
+            displayName = "Gemini Flash-Lite",
+            descriptionEs = "Recomendado. Respuesta ultra-rápida (<1s), gratuito y sin límites de cuota",
+            descriptionEn = "Recommended. Ultra-fast response (<1s), free and without rate limits",
+            isRecommended = true
+        ),
+        GeminiModelOption(
+            id = "gemini-3.5-flash",
+            displayName = "Gemini 3.5 Flash",
+            descriptionEs = "Excelente equilibrio entre velocidad y calidad (gratuito)",
+            descriptionEn = "Great balance between speed and quality (free)"
+        ),
+        GeminiModelOption(
             id = "gemini-flash-latest",
             displayName = "Gemini Flash (Latest)",
-            descriptionEs = "Recomendado. Versión oficial de Flash siempre actualizada",
-            descriptionEn = "Recommended. Always latest official Flash version",
-            isRecommended = true
+            descriptionEs = "Última versión de Flash (alta demanda en servidores de Google)",
+            descriptionEn = "Latest Flash version (high demand on Google servers)"
         ),
         GeminiModelOption(
             id = "gemini-pro-latest",
             displayName = "Gemini Pro (Latest)",
-            descriptionEs = "Razonamiento profundo para itinerarios y consultas complejas",
-            descriptionEn = "Deep reasoning for complex plans and itineraries"
+            descriptionEs = "Razonamiento avanzado (requiere facturación en Google Cloud; en plan gratis da 429)",
+            descriptionEn = "Advanced reasoning (requires Google Cloud billing; returns 429 on free tier)"
         ),
         GeminiModelOption(
-            id = "gemini-2.5-flash",
-            displayName = "Gemini 2.5 Flash",
-            descriptionEs = "Versión estable de Gemini 2.5 Flash",
-            descriptionEn = "Stable release of Gemini 2.5 Flash"
-        ),
-        GeminiModelOption(
-            id = "gemini-2.5-pro",
-            displayName = "Gemini 2.5 Pro",
-            descriptionEs = "Última generación Pro con razonamiento avanzado",
-            descriptionEn = "Latest Pro generation with advanced reasoning"
-        ),
-        GeminiModelOption(
-            id = "gemini-flash-lite-latest",
-            displayName = "Gemini Flash-Lite",
-            descriptionEs = "Máxima velocidad y menor latencia",
-            descriptionEn = "Maximum speed and lower latency"
+            id = "gemini-3.1-pro-preview",
+            displayName = "Gemini 3.1 Pro Preview",
+            descriptionEs = "Última preview de Pro (requiere facturación en Google Cloud)",
+            descriptionEn = "Latest Pro preview (requires Google Cloud billing)"
         )
     )
 
@@ -78,15 +78,21 @@ object GeminiApiKeyHelper {
         return "https://generativelanguage.googleapis.com/v1beta/models/$resolved:generateContent?key=${apiKey.trim()}"
     }
 
-    fun evaluateHttpError(httpCode: Int, responseBody: String?, keyPrefix: String?, isEs: Boolean): String {
+    fun evaluateHttpError(
+        httpCode: Int,
+        responseBody: String?,
+        keyPrefix: String?,
+        isEs: Boolean,
+        modelId: String? = null
+    ): String {
         val prefix = keyPrefix ?: ""
         return when (httpCode) {
             403 -> {
-                if (prefix.isNotBlank() && !prefix.startsWith("AIzaSy")) {
+                if (prefix.isNotBlank() && !prefix.startsWith("AIzaSy") && !prefix.startsWith("AQ.")) {
                     if (isEs) {
-                        "Error 403 (Permiso Denegado): La clave proporcionada no es una clave de Google AI Studio válida. Las claves de Google empiezan siempre por «AIzaSy...» (la introducida empieza por «$prefix»). Por favor, crea y copia la clave correcta en aistudio.google.com/app/apikey"
+                        "Error 403 (Permiso Denegado): La clave proporcionada no parece ser una clave de Google AI Studio válida. Las claves de Google empiezan por «AIzaSy...» o «AQ...» (la introducida empieza por «$prefix»). Por favor, crea y copia la clave correcta en aistudio.google.com/app/apikey"
                     } else {
-                        "Error 403 (Permission Denied): The provided key is not a valid Google AI Studio key. Google keys always start with «AIzaSy...» (the entered one starts with «$prefix»). Please copy the correct key at aistudio.google.com/app/apikey"
+                        "Error 403 (Permission Denied): The provided key is not a valid Google AI Studio key. Google keys start with «AIzaSy...» or «AQ...» (the entered one starts with «$prefix»). Please copy the correct key at aistudio.google.com/app/apikey"
                     }
                 } else {
                     if (isEs) {
@@ -105,16 +111,32 @@ object GeminiApiKeyHelper {
             }
             404 -> {
                 if (isEs) {
-                    "Error 404 (Modelo no Encontrado): El modelo de Gemini seleccionado ha sido deprecado o no está disponible en la API de Google. Se recomienda seleccionar «Gemini Flash (Latest)» o «Gemini Pro (Latest)»."
+                    "Error 404 (Modelo no Disponible): Google ha retirado este modelo de su API. Por favor, selecciona «Gemini Flash-Lite» o «Gemini 3.5 Flash» en Ajustes."
                 } else {
-                    "Error 404 (Not Found): The selected Gemini model has been deprecated or is unavailable in Google's API. Please select «Gemini Flash (Latest)» or «Gemini Pro (Latest)»."
+                    "Error 404 (Model Unavailable): Google has deprecated this model. Please select «Gemini Flash-Lite» or «Gemini 3.5 Flash» in Settings."
                 }
             }
             429 -> {
+                val isPro = isProModel(modelId)
                 if (isEs) {
-                    "Error 429 (Cuota Agotada): Se ha alcanzado temporalmente el límite de solicitudes gratuitas por minuto en Google AI Studio. Espera un momento antes de reintentar."
+                    if (isPro) {
+                        "Error 429 (Límite en Plan Gratuito): Google AI Studio restringe los modelos PRO a 0 peticiones/min en cuentas gratuitas (requiere activar facturación en Google Cloud). Para uso gratuito e ilimitado, selecciona «Gemini Flash-Lite» o «Gemini 3.5 Flash»."
+                    } else {
+                        "Error 429 (Cuota Agotada): Se ha alcanzado temporalmente el límite de solicitudes por minuto en Google AI Studio. Espera un momento antes de reintentar o selecciona «Gemini Flash-Lite»."
+                    }
                 } else {
-                    "Error 429 (Quota Exceeded): Free tier rate limit exceeded temporarily in Google AI Studio. Please wait a moment before retrying."
+                    if (isPro) {
+                        "Error 429 (Free Tier Limit): Google AI Studio restricts PRO models to 0 req/min on the free tier (requires Google Cloud billing). For 100% free usage without rate limits, select «Gemini Flash-Lite» or «Gemini 3.5 Flash»."
+                    } else {
+                        "Error 429 (Quota Exceeded): Rate limit exceeded in Google AI Studio. Please wait a moment before retrying or select «Gemini Flash-Lite»."
+                    }
+                }
+            }
+            503 -> {
+                if (isEs) {
+                    "Error 503 (Servidores de Google Saturados): El modelo de Google seleccionado está experimentando alta demanda. Se recomienda cambiar a «Gemini Flash-Lite», que responde en menos de 1 segundo."
+                } else {
+                    "Error 503 (Google Overloaded): The selected model is experiencing temporary high demand. Switching to «Gemini Flash-Lite» is recommended for sub-second responses."
                 }
             }
             else -> {
@@ -149,8 +171,8 @@ object GeminiApiKeyHelper {
                     requestMethod = "POST"
                     setRequestProperty("Content-Type", "application/json; charset=UTF-8")
                     setRequestProperty("Accept", "application/json")
-                    connectTimeout = 6000
-                    readTimeout = 8000
+                    connectTimeout = 10000
+                    readTimeout = 25000
                     doOutput = true
                 }
                 val testPayload = """{"contents":[{"parts":[{"text":"ping"}]}]}"""
@@ -177,14 +199,24 @@ object GeminiApiKeyHelper {
                     }
                 )
             } else {
-                val isFormatErr = responseCode == 403 && !cleanKey.startsWith("AIzaSy")
-                val explanation = evaluateHttpError(responseCode, responseBody, prefix, isEs)
+                val isFormatErr = responseCode == 403 && !cleanKey.startsWith("AIzaSy") && !cleanKey.startsWith("AQ.")
+                val explanation = evaluateHttpError(responseCode, responseBody, prefix, isEs, resolvedModel)
                 GeminiConnectionResult.Error(
                     httpCode = responseCode,
                     message = explanation,
                     isFormatIssue = isFormatErr
                 )
             }
+        } catch (e: java.net.SocketTimeoutException) {
+            GeminiConnectionResult.Error(
+                httpCode = 408,
+                message = if (isEs) {
+                    "⏱️ Tiempo de espera agotado (Timeout): El modelo $resolvedModel tardó más de 25 segundos en responder. Se recomienda seleccionar «Gemini Flash-Lite», que responde en menos de 1 segundo."
+                } else {
+                    "⏱️ Request Timeout: Model $resolvedModel took more than 25 seconds to respond. Select «Gemini Flash-Lite» for sub-second responses."
+                },
+                isFormatIssue = false
+            )
         } catch (e: Exception) {
             GeminiConnectionResult.Error(
                 httpCode = null,
@@ -202,14 +234,14 @@ object GeminiApiKeyHelper {
         if (key.isNullOrBlank()) return false
         val trimmed = key.trim()
         if (trimmed.length < 20) return false
-        return trimmed.startsWith("AIzaSy")
+        return trimmed.startsWith("AIzaSy") || trimmed.startsWith("AQ.")
     }
 
     fun maskApiKey(key: String?): String {
         if (key.isNullOrBlank()) return ""
         val trimmed = key.trim()
         if (trimmed.length <= 8) return "••••••••"
-        val prefix = trimmed.take(6)
+        val prefix = if (trimmed.startsWith("AIzaSy")) "AIzaSy" else if (trimmed.startsWith("AQ.")) "AQ." else trimmed.take(6)
         val suffix = trimmed.takeLast(4)
         return "$prefix...$suffix"
     }

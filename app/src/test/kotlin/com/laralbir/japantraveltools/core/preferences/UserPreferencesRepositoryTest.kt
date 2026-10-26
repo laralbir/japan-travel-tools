@@ -70,27 +70,27 @@ class UserPreferencesRepositoryTest {
     fun `gemini model defaults to canonical flash and automatically migrates deprecated model names`() = runTest {
         val store = InMemoryKeyValueStore()
         val repository = DefaultUserPreferencesRepository(store)
-        assertEquals("gemini-flash-latest", repository.current.geminiModelId)
+        assertEquals("gemini-flash-lite-latest", repository.current.geminiModelId)
 
         // Store deprecated 2.0-flash
         store.putString("pref_gemini_model_id", "gemini-2.0-flash")
         val repoAfter20Flash = DefaultUserPreferencesRepository(store)
-        assertEquals("gemini-flash-latest", repoAfter20Flash.current.geminiModelId)
+        assertEquals("gemini-flash-lite-latest", repoAfter20Flash.current.geminiModelId)
 
         // Store deprecated 1.5-flash
         store.putString("pref_gemini_model_id", "gemini-1.5-flash")
         val repoAfter15Flash = DefaultUserPreferencesRepository(store)
-        assertEquals("gemini-flash-latest", repoAfter15Flash.current.geminiModelId)
+        assertEquals("gemini-flash-lite-latest", repoAfter15Flash.current.geminiModelId)
 
         // Store deprecated 1.5-pro
         store.putString("pref_gemini_model_id", "gemini-1.5-pro")
         val repoAfter15Pro = DefaultUserPreferencesRepository(store)
         assertEquals("gemini-pro-latest", repoAfter15Pro.current.geminiModelId)
 
-        // Store valid 2.5-pro
+        // Store deprecated 2.5-pro -> migrates to pro-latest
         store.putString("pref_gemini_model_id", "gemini-2.5-pro")
         val repo25Pro = DefaultUserPreferencesRepository(store)
-        assertEquals("gemini-2.5-pro", repo25Pro.current.geminiModelId)
+        assertEquals("gemini-pro-latest", repo25Pro.current.geminiModelId)
     }
 }
 
