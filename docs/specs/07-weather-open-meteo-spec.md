@@ -109,6 +109,14 @@ Proporcionar una herramienta de **Previsión Meteorológica y Planificación Cli
    - El sistema consulta el proveedor geográfico de Google Maps en Android (`android.location.Geocoder`) con fallback a la API de geocodificación de Open-Meteo para resolver la latitud y longitud exactas sin que el usuario tenga que buscarlas ni introducirlas a mano.
    - En caso de operar en modo offline sin conexión, el catálogo local resuelve de forma inmediata decenas de ciudades japonesas e internacionales sin requerir red.
 
+### RF-07.7: Persistencia en Disco de Previsiones y Sincronización Periódica (`WorkManager`)
+1. **Persistencia Completa de Previsiones (`saved_weather_forecasts.json`)**:
+   - Cada vez que se descargan previsiones de Open-Meteo para una ciudad (manualmente o en segundo plano), la lista completa de `WeatherDayForecast` se guarda inmediatamente en disco (`saved_weather_forecasts.json`).
+   - Al reiniciar o abrir la app, se restauran todas las previsiones guardadas, impidiendo que desaparezcan o se restablezcan a los datos semilla iniciales.
+2. **Actualización Automática Desatendida (`WeatherSyncWorker`)**:
+   - Tarea periódica cada 6 horas programada con Android Jetpack `WorkManager` (`PeriodicWorkRequestBuilder<WeatherSyncWorker>`) con restricción de red (`NetworkType.CONNECTED`).
+   - Itera sobre las ciudades registradas en `SharedWeatherForecastStore` y actualiza sus pronósticos meteorológicos en segundo plano.
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin)
@@ -141,3 +149,13 @@ Proporcionar una herramienta de **Previsión Meteorológica y Planificación Cli
 - **Entonces** aparece un listado predictivo reactivo con las ciudades y regiones coincidentes
 - **Y** al pulsar sobre una de ellas, se rellenan automáticamente los nombres (ES/EN) y las coordenadas de latitud y longitud
 - **Y** si escribe una ciudad arbitraria y pulsa "Obtener coordenadas de Google Maps", el servicio de geocodificación resuelve y rellena automáticamente su latitud y longitud con éxito.
+
+### Escenario 8: Persistencia de predicciones meteorológicas entre reinicios de la app
+- **Dado** que la app descargó previsiones actualizadas para Tokio, Kioto y Osaka desde Open-Meteo
+- **Cuando** el usuario cierra completamente la app, apaga o reinicia el dispositivo, activa el Modo Avión y vuelve a abrir la app
+- **Entonces** las predicciones meteorológicas descargadas se mantienen intactas en la pantalla sin desaparecer ni reiniciarse a los datos semilla iniciales.
+
+### Escenario 9: Sincronización periódica automática del tiempo en segundo plano
+- **Dado** que el dispositivo tiene conexión a internet y la app está en segundo plano o cerrada
+- **Cuando** transcurren 6 horas y WorkManager ejecuta `WeatherSyncWorker`
+- **Entonces** se actualizan las previsiones de todas las ciudades registradas y se guardan en el archivo persistente, de modo que al abrir la app la información climática ya está al día.

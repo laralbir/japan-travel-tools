@@ -17,6 +17,7 @@ import com.laralbir.japantraveltools.feature.currency.SharedCurrencyRateStore
 import com.laralbir.japantraveltools.feature.documents.SharedDocumentsAndGuidesStore
 import com.laralbir.japantraveltools.feature.transport.TransportAlertNotificationHelper
 import com.laralbir.japantraveltools.feature.weather.SharedWeatherForecastStore
+import com.laralbir.japantraveltools.feature.weather.WeatherSyncScheduler
 import com.laralbir.japantraveltools.ui.theme.JapanTravelToolsTheme
 
 class MainActivity : FragmentActivity() {
@@ -28,6 +29,7 @@ class MainActivity : FragmentActivity() {
     SharedWeatherForecastStore.init(this)
     SharedCurrencyRateStore.init(this)
     CurrencySyncScheduler.schedule(this)
+    WeatherSyncScheduler.schedule(this)
     TransportAlertNotificationHelper.ensureChannelCreated(this)
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
