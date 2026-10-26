@@ -7,6 +7,11 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Conversor de Divisas (Persistencia Offline y Actualización Periódica — Issue #2)
+- **Persistencia en Disco de Tasas (`SharedCurrencyRateStore` & `ExchangeRateJsonCodec`)**: Almacenamiento automático y reactivo de las tasas actualizadas del BCE en el almacenamiento interno privado (`saved_currency_rates.json`), garantizando que al reiniciar la app se conserven las tasas cacheadas sin revertir a datos semilla (#2).
+- **Actualización Automática Desatendida (`CurrencySyncWorker` & `WorkManager`)**: Programación periódica cada 24 horas con restricciones de red conectada para sincronizar las tasas de cambio de Frankfurter API en segundo plano (#2).
+- **Indicador Dinámico de Sincronización**: Visualización de la fecha real del tipo de cambio cacheado o del modo offline en la tarjeta principal del conversor (#2).
+
 ### Asistente de IA (UX, Markdown, Input y Cancelación — Issue #1)
 - **Renderizado Nativo de Markdown (`MarkdownText` & `MarkdownTextParser`)**: Procesamiento y visualización con estilos enriquecidos para encabezados (`#`, `##`, `###`), negritas (`**texto**`), cursivas (`*texto*`), viñetas (`•`), listas numeradas y bloques/términos en código monoespaciado, eliminando la exposición de caracteres Markdown en crudo (#1).
 - **Entrada Multilínea Ergonómica**: Ampliación del campo de texto a multilínea (`minLines = 2`, `maxLines = 5`) con `imePadding()` para evitar solapamientos visuales con el teclado virtual (#1).

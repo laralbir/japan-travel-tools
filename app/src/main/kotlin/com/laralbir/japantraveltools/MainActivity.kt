@@ -12,6 +12,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.fragment.app.FragmentActivity
 import com.laralbir.japantraveltools.core.portability.SharedTravelPlanStore
+import com.laralbir.japantraveltools.feature.currency.CurrencySyncScheduler
+import com.laralbir.japantraveltools.feature.currency.SharedCurrencyRateStore
 import com.laralbir.japantraveltools.feature.documents.SharedDocumentsAndGuidesStore
 import com.laralbir.japantraveltools.feature.transport.TransportAlertNotificationHelper
 import com.laralbir.japantraveltools.feature.weather.SharedWeatherForecastStore
@@ -24,6 +26,8 @@ class MainActivity : FragmentActivity() {
     SharedTravelPlanStore.init(this)
     SharedDocumentsAndGuidesStore.init(this)
     SharedWeatherForecastStore.init(this)
+    SharedCurrencyRateStore.init(this)
+    CurrencySyncScheduler.schedule(this)
     TransportAlertNotificationHelper.ensureChannelCreated(this)
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

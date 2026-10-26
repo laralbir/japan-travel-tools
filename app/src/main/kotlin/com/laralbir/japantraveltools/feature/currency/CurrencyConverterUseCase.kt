@@ -1,7 +1,12 @@
 package com.laralbir.japantraveltools.feature.currency
 
+import android.content.Context
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
@@ -131,4 +136,109 @@ object FrankfurterJsonParser {
         }
     }
 }
+
+object ExchangeRateJsonCodec {
+    fun exportToJson(snapshot: ExchangeRateSnapshot): String {
+        val ratesEntries = snapshot.rates.entries.joinToString(",") { (k, v) ->
+            "\"$k\":$v"
+        }
+        return """
+            {
+              "baseCurrency": "${snapshot.baseCurrency}",
+              "rateDate": "${snapshot.rateDate}",
+              "rates": {$ratesEntries},
+              "isSeedData": ${snapshot.isSeedData},
+              "lastSyncedEpochMillis": ${snapshot.lastSyncedEpochMillis}
+            }
+        """.trimIndent()
+    }
+
+    fun importFromJson(json: String): ExchangeRateSnapshot {
+        if (json.isBlank()) return SeedExchangeRates.defaultSnapshot()
+        return try {
+            val baseRegex = """"baseCurrency"\s*:\s*"([A-Z]{3})"""".toRegex()
+            val dateRegex = """"rateDate"\s*:\s*"([^"]+)"""".toRegex()
+            val ratesBlockRegex = """"rates"\s*:\s*\{([^}]+)\}""".toRegex()
+            val isSeedRegex = """"isSeedData"\s*:\s*(true|false)""".toRegex()
+            val syncedRegex = """"lastSyncedEpochMillis"\s*:\s*(\d+)""".toRegex()
+            val rateEntryRegex = """"([A-Z]{3})"\s*:\s*([0-9.]+)""".toRegex()
+
+            val base = baseRegex.find(json)?.groupValues?.get(1) ?: return SeedExchangeRates.defaultSnapshot()
+            val date = dateRegex.find(json)?.groupValues?.get(1) ?: return SeedExchangeRates.defaultSnapshot()
+            val isSeed = isSeedRegex.find(json)?.groupValues?.get(1)?.toBooleanStrictOrNull() ?: false
+            val synced = syncedRegex.find(json)?.groupValues?.get(1)?.toLongOrNull() ?: 0L
+
+            val ratesContent = ratesBlockRegex.find(json)?.groupValues?.get(1) ?: ""
+            val parsedRates = mutableMapOf<String, Double>()
+            rateEntryRegex.findAll(ratesContent).forEach { match ->
+                val code = match.groupValues[1]
+                val value = match.groupValues[2].toDoubleOrNull()
+                if (value != null) {
+                    parsedRates[code] = value
+                }
+            }
+
+            if (parsedRates.isEmpty()) return SeedExchangeRates.defaultSnapshot()
+
+            ExchangeRateSnapshot(
+                baseCurrency = base,
+                rateDate = date,
+                rates = parsedRates,
+                isSeedData = isSeed,
+                lastSyncedEpochMillis = synced
+            )
+        } catch (_: Exception) {
+            SeedExchangeRates.defaultSnapshot()
+        }
+    }
+}
+
+object SharedCurrencyRateStore {
+    private var appContext: Context? = null
+    private const val RATES_FILE_NAME = "saved_currency_rates.json"
+
+    private val _rateState = MutableStateFlow(SeedExchangeRates.defaultSnapshot())
+    val rateState: StateFlow<ExchangeRateSnapshot> = _rateState.asStateFlow()
+
+    fun init(context: Context) {
+        if (appContext == null) {
+            appContext = context.applicationContext
+            loadFromDisk()
+        }
+    }
+
+    fun loadFromDisk() {
+        val ctx = appContext ?: return
+        try {
+            val file = File(ctx.filesDir, RATES_FILE_NAME)
+            if (file.exists() && file.length() > 0) {
+                val json = file.readText()
+                val snapshot = ExchangeRateJsonCodec.importFromJson(json)
+                _rateState.value = snapshot
+            }
+        } catch (_: Exception) {}
+    }
+
+    fun saveToDisk() {
+        val ctx = appContext ?: return
+        try {
+            val file = File(ctx.filesDir, RATES_FILE_NAME)
+            file.writeText(ExchangeRateJsonCodec.exportToJson(_rateState.value))
+        } catch (_: Exception) {}
+    }
+
+    fun updateSnapshot(fresh: ExchangeRateSnapshot) {
+        _rateState.value = fresh
+        saveToDisk()
+    }
+
+    suspend fun syncRatesOnline(): Result<ExchangeRateSnapshot> {
+        val result = FrankfurterJsonParser.fetchFromFrankfurterApi()
+        result.onSuccess { fresh ->
+            updateSnapshot(fresh)
+        }
+        return result
+    }
+}
+
 
