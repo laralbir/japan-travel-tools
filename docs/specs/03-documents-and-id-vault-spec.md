@@ -52,24 +52,17 @@ Permitir al viajero llevar siempre a mano y **100% offline**:
    - Todas las imágenes de Pasaporte, DNI y Documentos Personalizados se copian al directorio interno privado de la app (`Context.filesDir/id_vault/`, `custom_id_docs.json`).
    - **Nunca** se exponen en la galería pública de fotos del teléfono ni son accesibles por otras aplicaciones.
    - Si el usuario borra el archivo original de su galería o descargas, la copia dentro de **Japan Travel Tools** permanece intacta y disponible offline.
-2. **Tarjeta de Seguridad Clara y Desacoplada**:
-   - El conmutador de seguridad se presenta en una tarjeta dedicada e identificable: `🔒 Bloqueo Biométrico / PIN` con subtítulo explicativo claro ("Exigir huella, rostro o PIN para acceder a las fotos de pasaporte y documentos"), evitando confusiones sobre si activa o desactiva la sección de documentos.
-3. **Bloqueo Biométrico / Credencial del Dispositivo (`BiometricPrompt`)**:
-   - La aplicación verifica la capacidad biométrica o de credenciales del dispositivo (`BiometricManager.from(context).canAuthenticate(BIOMETRIC_STRONG or DEVICE_CREDENTIAL)`).
-   - **Valor por defecto seguro**: `biometricLockEnabled` tiene valor predeterminado `true`. Si el dispositivo dispone de biometría o credencial configurada, la bóveda requiere autenticación para su apertura y el conmutador aparece encendido (`checked = true`).
-   - Si el dispositivo dispone de huella dactilar, desbloqueo facial o PIN/patrón/contraseña configurado y el bloqueo está activo, la sección de Identificación requiere **autenticación real mediante `BiometricPrompt`** para visualizar o editar las fotografías de los documentos.
-   - Si el dispositivo no tiene ningún método de seguridad configurado, se permite el acceso directo mostrando una advertencia de seguridad recomendando configurar un PIN en el sistema.
-4. **Protección Anti-Bypass y Transiciones de Estado Seguras**:
-   - Ningún cambio de estado del conmutador puede persistirse ni desbloquear la vista sin una autenticación biométrica satisfactoria.
-   - Si la bóveda está bloqueada y el usuario pulsa el switch para desactivar el bloqueo, se solicita obligatoriamente autenticación biométrica previa. Si el usuario cancela la autenticación, el switch se mantiene activado (`checked = true`) y los documentos continúan bloqueados (`vaultUnlocked = false`).
-   - Si el bloqueo estaba desactivado y el usuario desea activarlo, se valida la credencial biométrica antes de persistir la activación.
-5. **Estado Bloqueado Obligatorio por Defecto (Efímero en Memoria)**:
+2. **Bloqueo Biométrico Obligatorio por Diseño (Sin Conmutador ni Bypass)**:
+   - La protección biométrica para documentos confidenciales (Pasaporte, DNI y documentos personalizados) es **estrictamente obligatoria** cuando el dispositivo tiene configurada huella dactilar, reconocimiento facial o PIN/patrón/contraseña (`BiometricManager.from(context).canAuthenticate(BIOMETRIC_STRONG or DEVICE_CREDENTIAL) == BIOMETRIC_SUCCESS`).
+   - **Eliminación del Conmutador (Toggle)**: No existe toggle para desactivar la seguridad, eliminando cualquier riesgo de desprotección involuntaria o bypass. La tarjeta de cabecera informa el estado de protección activa obligatoria.
+   - Si el dispositivo carece de método biométrico o PIN configurado en los ajustes de Android, se permite el acceso directo mostrando un aviso de advertencia de seguridad recomendando configurar una clave en el sistema operativo.
+3. **Estado Bloqueado Obligatorio por Defecto (Efímero en Memoria)**:
    - Cada vez que el usuario accede a la sección de Identificación, la vista nace **siempre bloqueada por defecto** (`vaultUnlocked = false`) mostrando la tarjeta `"🔒 Identificación Bloqueada"`.
    - El estado de desbloqueo es estrictamente efímero en memoria (`remember`) y **nunca** se persiste en el `savedInstanceState` (`rememberSaveable`), obligando siempre a una nueva verificación de biometría en cada entrada o reinicio.
-6. **Auto-Bloqueo por Tiempo de Seguridad y Ciclo de Vida**:
+4. **Auto-Bloqueo por Tiempo de Seguridad y Ciclo de Vida**:
    - Al desbloquearse la bóveda, se inicia un temporizador de seguridad de **120 segundos** (2 minutos); superado dicho tiempo, la bóveda se bloquea automáticamente (`vaultUnlocked = false`) ocultando los documentos.
    - Si la aplicación o la pantalla pasa a segundo plano (`Lifecycle.Event.ON_STOP` / `ON_PAUSE`), la bóveda se bloquea inmediatamente por seguridad.
-7. **Botón de Bloqueo Manual ("Bloquear")**:
+5. **Botón de Bloqueo Manual ("Bloquear")**:
    - Mientras los documentos estén visibles (`vaultUnlocked = true`), se muestra un botón con el texto conciso **"Bloquear"** (`🔒 Bloquear`), que permite al usuario forzar el bloqueo inmediato en cualquier instante con un solo toque.
 
 ### RF-03.4: Repositorio de Documentos y Entradas de Viaje (Vuelos, Hoteles, Entradas y Museos)

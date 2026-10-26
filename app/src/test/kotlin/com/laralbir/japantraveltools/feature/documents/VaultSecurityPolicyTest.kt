@@ -8,28 +8,21 @@ import org.junit.Test
 class VaultSecurityPolicyTest {
 
     @Test
-    fun `vault starts locked by default when biometric lock is enabled and available on device`() {
-        // Issue #5: Bóveda debe nacer bloqueada por defecto si la biometría está activa
-        val shouldStartUnlocked = VaultSecurityPolicy.shouldStartUnlocked(
-            biometricLockEnabled = true,
-            biometricAvailable = true
-        )
-        assertFalse("La bóveda debe nacer bloqueada (false) por defecto", shouldStartUnlocked)
+    fun `biometric protection is strictly mandatory when biometric or pin is available on device`() {
+        assertTrue(VaultSecurityPolicy.isLockMandatory(biometricAvailable = true))
+        assertFalse(VaultSecurityPolicy.isLockMandatory(biometricAvailable = false))
     }
 
     @Test
-    fun `vault starts unlocked only when biometric lock is disabled or device lacks biometrics`() {
-        val whenDisabled = VaultSecurityPolicy.shouldStartUnlocked(
-            biometricLockEnabled = false,
-            biometricAvailable = true
-        )
-        assertTrue(whenDisabled)
+    fun `vault starts locked by default when biometric is available on device without toggle`() {
+        val shouldStartUnlocked = VaultSecurityPolicy.shouldStartUnlocked(biometricAvailable = true)
+        assertFalse("La bóveda debe nacer bloqueada (false) por defecto si hay biometría disponible", shouldStartUnlocked)
+    }
 
-        val whenNotAvailable = VaultSecurityPolicy.shouldStartUnlocked(
-            biometricLockEnabled = true,
-            biometricAvailable = false
-        )
-        assertTrue(whenNotAvailable)
+    @Test
+    fun `vault starts unlocked only when device lacks biometrics or lock credentials`() {
+        val shouldStartUnlocked = VaultSecurityPolicy.shouldStartUnlocked(biometricAvailable = false)
+        assertTrue(shouldStartUnlocked)
     }
 
     @Test

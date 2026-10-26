@@ -4792,20 +4792,20 @@ private fun PassportAndCustomsScreen(
         canAuth == BiometricManager.BIOMETRIC_SUCCESS
     }
 
-    val isLockActive = prefs.biometricLockEnabled && biometricAvailable
+    val isLockMandatory = VaultSecurityPolicy.isLockMandatory(biometricAvailable)
 
     // Estado efímero en memoria (nunca en rememberSaveable) para obligar a autenticar en cada visita
     var vaultUnlocked by remember {
-        mutableStateOf(VaultSecurityPolicy.shouldStartUnlocked(prefs.biometricLockEnabled, biometricAvailable))
+        mutableStateOf(VaultSecurityPolicy.shouldStartUnlocked(biometricAvailable))
     }
     var authErrorText by remember { mutableStateOf<String?>(null) }
     var refreshPhotoCounter by remember { mutableIntStateOf(0) }
 
     val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner, isLockActive) {
+    DisposableEffect(lifecycleOwner, isLockMandatory) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP || event == Lifecycle.Event.ON_PAUSE) {
-                if (isLockActive) {
+                if (isLockMandatory) {
                     vaultUnlocked = false
                 }
             }
@@ -4813,15 +4813,15 @@ private fun PassportAndCustomsScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-            if (isLockActive) {
+            if (isLockMandatory) {
                 vaultUnlocked = false
             }
         }
     }
 
     // Auto-bloqueo por tiempo prudencial de seguridad (120 segundos)
-    LaunchedEffect(vaultUnlocked, isLockActive) {
-        if (vaultUnlocked && isLockActive) {
+    LaunchedEffect(vaultUnlocked, isLockMandatory) {
+        if (vaultUnlocked && isLockMandatory) {
             delay(VaultSecurityPolicy.AUTO_LOCK_TIMEOUT_MILLIS)
             vaultUnlocked = false
         }
@@ -4874,8 +4874,8 @@ private fun PassportAndCustomsScreen(
         prompt.authenticate(promptInfo)
     }
 
-    LaunchedEffect(isLockActive) {
-        if (isLockActive && !vaultUnlocked) {
+    LaunchedEffect(isLockMandatory) {
+        if (isLockMandatory && !vaultUnlocked) {
             launchRealBiometricPrompt()
         }
     }
@@ -4952,98 +4952,109 @@ private fun PassportAndCustomsScreen(
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("🔒", fontSize = 16.sp)
+                                Spacer(Modifier.width(8.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = if (isEs) "Protección Biométrica Obligatoria" else "Mandatory Biometric Protection",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        text = if (isEs) {
+                                            "Huella, rostro o PIN requerido para acceder a tus documentos confidenciales"
+                                        } else {
+                                            "Fingerprint, face or PIN required to access your sensitive documents"
+                                        },
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            if (vaultUnlocked) {
+                                Spacer(Modifier.height(10.dp))
+                                HorizontalDivider(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    thickness = 0.5.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                )
+                                Spacer(Modifier.height(10.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = if (isEs) "Bóveda desbloqueada (auto-bloqueo en 2 min)" else "Vault unlocked (auto-lock in 2 min)",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    OutlinedButton(
+                                        onClick = {
+                                            vaultUnlocked = false
+                                        },
+                                        shape = RoundedCornerShape(8.dp),
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                    ) {
+                                        Text(
+                                            text = if (isEs) "🔒 Bloquear" else "🔒 Lock",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 14.dp, vertical = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("🔒", fontSize = 15.sp)
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(
-                                        text = if (isEs) "Bloqueo Biométrico / PIN" else "Biometric / PIN Lock",
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                                Spacer(Modifier.height(3.dp))
+                            Text("⚠️", fontSize = 16.sp)
+                            Spacer(Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = if (isEs) "Sin Bloqueo de Pantalla Configurado" else "No Device Screen Lock Set",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                                Spacer(Modifier.height(2.dp))
                                 Text(
                                     text = if (isEs) {
-                                        "Exigir huella, rostro o PIN para acceder a las fotos de pasaporte y documentos"
+                                        "Configura huella o PIN en tu dispositivo para proteger tus documentos de viaje."
                                     } else {
-                                        "Require fingerprint, face or PIN to access passport and document photos"
+                                        "Set up fingerprint or PIN on your device to protect your travel documents."
                                     },
                                     fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Switch(
-                                checked = prefs.biometricLockEnabled,
-                                onCheckedChange = { targetEnabled ->
-                                    if (targetEnabled) {
-                                        if (vaultUnlocked) {
-                                            prefsRepository.setBiometricLockEnabled(true)
-                                        } else {
-                                            launchRealBiometricPrompt(
-                                                onSuccess = {
-                                                    prefsRepository.setBiometricLockEnabled(true)
-                                                    vaultUnlocked = true
-                                                }
-                                            )
-                                        }
-                                    } else {
-                                        if (vaultUnlocked) {
-                                            prefsRepository.setBiometricLockEnabled(false)
-                                        } else {
-                                            launchRealBiometricPrompt(
-                                                onSuccess = {
-                                                    prefsRepository.setBiometricLockEnabled(false)
-                                                    vaultUnlocked = true
-                                                },
-                                                onError = {
-                                                    vaultUnlocked = false
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-                            )
-                        }
-                    }
-
-                    if (isLockActive && vaultUnlocked) {
-                        Spacer(Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = if (isEs) "Bóveda desbloqueada (auto-bloqueo en 2 min)" else "Vault unlocked (auto-lock in 2 min)",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            OutlinedButton(
-                                onClick = {
-                                    vaultUnlocked = false
-                                },
-                                shape = RoundedCornerShape(8.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                            ) {
-                                Text(
-                                    text = if (isEs) "🔒 Bloquear" else "🔒 Lock",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold
+                                    color = MaterialTheme.colorScheme.onErrorContainer
                                 )
                             }
                         }
                     }
                 }
 
-                if (!vaultUnlocked && isLockActive) {
+                if (!vaultUnlocked && isLockMandatory) {
                     Spacer(Modifier.height(14.dp))
                     Surface(
                         shape = RoundedCornerShape(14.dp),
