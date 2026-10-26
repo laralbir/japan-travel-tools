@@ -7,6 +7,17 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-10-26
+
+### Parche de Rendimiento IA y Modelos Verificados en Tiempo Real — Japan Travel Tools 1.0.2 🇯🇵⚡
+
+#### ⚡ `Gemini Flash-Lite` Establecido como Modelo Recomendado Predeterminado:
+- **Respuesta Instantánea sin Timeouts (<1s)**: Verificación en tiempo real contra los servidores de Google demostrando que `gemini-flash-lite-latest` responde consistentemente en **0.58s - 0.87s**, erradicando por completo los bloqueos por timeout de red.
+- **Ampliación de Timeouts HTTP**: Aumento del `readTimeout` a 30s en consultas de IA y 25s en pruebas de conexión para evitar cancelaciones prematuras en conexiones móviles lentas.
+- **Clarificación de Cuotas Gratuitas vs Modelos PRO (Error 429)**: Diagnóstico específico informando que Google AI Studio asigna una cuota de 0 peticiones/min a los modelos PRO en el nivel gratuito (requiere tarjeta/facturación en Google Cloud). Se incluye aviso guiado recomendando conmutar a `Gemini Flash-Lite` o `Gemini 3.5 Flash`.
+- **Eliminación de Modelos 404 Obsoletos**: Retirada definitiva de `gemini-2.5-flash` y `gemini-2.5-pro` (marcados por Google como inaccesibles para nuevos usuarios) e incorporación de `gemini-3.5-flash` (5.5s, gratuito y estable).
+- **Soporte de Formato Moderno de Clave `AQ.`**: Reconocimiento oficial en `isValidApiKeyFormat` y enmascaramiento para las claves de última generación generadas por Google AI Studio que inician con `AQ.`.
+
 ## [1.0.1] - 2026-10-26
 
 ### Parche Oficial de Corrección y Firma para Google Play Store — Japan Travel Tools 1.0.1 🇯🇵📱

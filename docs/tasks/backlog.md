@@ -134,3 +134,8 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 - [x] **TASK-117 (TDD)**: Reparación del flujo de apertura de cámara y permisos en runtime en el traductor visual de carteles (`SPEC-06`), verificación previa de `CAMERA` con launcher de permisos, captura en alta resolución mediante `FileProvider` con fallback a vista previa, y selector robusto para Google Lens (`com.google.ar.lens`), Google Traductor y cámara del sistema con soporte en `<queries>`.
 - [x] **TASK-118 (DevOps)**: Pipeline completo de firma y generación de artefactos para Google Play Store (`signingConfigs.release`), creación de plantilla `keystore.properties.example`, generación dual de Android App Bundle firmado (`app-release.aab`) y APK firmado (`app-release.apk`).
 - [x] **TASK-804**: Publicación de release `v1.0.1` en GitHub Releases con notas de cambio completas y adjuntos de `.aab` firmado para Google Play Store y APKs firmados.
+
+## Hito 11: Optimización de Rendimiento IA y Modelos Verificados `v1.0.2`
+
+- [x] **TASK-119 (TDD)**: Adopción de `Gemini Flash-Lite` (`gemini-flash-lite-latest`) como modelo recomendado predeterminado (<1s de latencia), ampliación de `readTimeout` a 30s en peticiones HTTP y 25s en pruebas de conexión, soporte nativo de claves con prefijo `AQ.`, clarificación de 429 para modelos PRO en el nivel gratuito y retirada de modelos 404 deprecados por Google.
+- [x] **TASK-805**: Publicación de release `v1.0.2` en GitHub Releases con compilación completa firmada para Google Play Store (`.aab` y `.apk`).
