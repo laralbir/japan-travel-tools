@@ -1150,8 +1150,8 @@ object GeminiAssistantEngine {
                 requestMethod = "POST"
                 setRequestProperty("Content-Type", "application/json; charset=UTF-8")
                 setRequestProperty("Accept", "application/json")
-                connectTimeout = 8000
-                readTimeout = 14000
+                connectTimeout = 12000
+                readTimeout = 30000
                 doOutput = true
             }
 
@@ -1189,9 +1189,16 @@ object GeminiAssistantEngine {
                 text to null
             } else {
                 val errorBody = connection.errorStream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
-                val errorMsg = GeminiApiKeyHelper.evaluateHttpError(responseCode, errorBody, prefix, isEs)
+                val errorMsg = GeminiApiKeyHelper.evaluateHttpError(responseCode, errorBody, prefix, isEs, resolvedModel)
                 null to errorMsg
             }
+        } catch (e: java.net.SocketTimeoutException) {
+            val msg = if (isEs) {
+                "⏱️ Tiempo de espera agotado (Timeout): El modelo tardó más de 30 segundos en responder. Se recomienda seleccionar «Gemini Flash-Lite», que responde en menos de 1 segundo."
+            } else {
+                "⏱️ Request Timeout: Model took more than 30 seconds to respond. Select «Gemini Flash-Lite» for sub-second responses."
+            }
+            null to msg
         } catch (e: Exception) {
             val msg = if (isEs) {
                 "📶 Error de conexión con Gemini Cloud (${e.localizedMessage ?: "timeout"})."
