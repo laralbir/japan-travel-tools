@@ -139,3 +139,20 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 
 - [x] **TASK-119 (TDD)**: Adopción de `Gemini Flash-Lite` (`gemini-flash-lite-latest`) como modelo recomendado predeterminado (<1s de latencia), ampliación de `readTimeout` a 30s en peticiones HTTP y 25s en pruebas de conexión, soporte nativo de claves con prefijo `AQ.`, clarificación de 429 para modelos PRO en el nivel gratuito y retirada de modelos 404 deprecados por Google.
 - [x] **TASK-805**: Publicación de release `v1.0.2` en GitHub Releases con compilación completa firmada para Google Play Store (`.aab` y `.apk`).
+
+## Hito 12: Resolución de Issues de GitHub (#1, #2, #3)
+
+### Issue #1: Asistente de IA (Markdown, Input Multilínea, Teclado y Cancelación)
+- [x] **TASK-120 (TDD)**: Parser y Renderizado de Markdown en Respuestas de IA (`Issue #1 / SPEC-06 RF-06.4`):
+  - Escribir tests unitarios en `MarkdownTextParserTest.kt` validando la tokenización y estructuración de encabezados (`#`, `##`, `###`), texto en negrita (`**...**`), cursiva (`*...*`), viñetas (`* `, `- `, `• `), bloques de código inline/fenced y párrafos limpios.
+  - Implementar `MarkdownTextParser.kt` y componente composable `MarkdownText.kt` con soporte de `AnnotatedString` y estilos tipográficos Material 3.
+  - Integrar `MarkdownText` en la tarjeta de respuesta del Asistente IA (`MainScreen.kt`), sustituyendo el `Text` plano anterior.
+- [x] **TASK-121 (TDD)**: UX de Entrada, Input Multilínea, Teclado e IME Padding (`Issue #1 / SPEC-06 RF-06.4`):
+  - Modificar el campo de consulta a `singleLine = false`, `minLines = 2`, `maxLines = 5` para redacción ergonómica.
+  - Añadir soporte para envío rápido desde el teclado mediante `KeyboardOptions(imeAction = ImeAction.Send)` y `KeyboardActions(onSend = { ... })`.
+  - Integrar `imePadding()` y gestión de scroll para que el teclado no tape el campo de entrada.
+  - Implementar cierre automático del teclado virtual (`LocalSoftwareKeyboardController.current?.hide()`) y deselección de foco al enviar la consulta.
+- [x] **TASK-122 (TDD)**: Cancelación Reactiva de Consulta en Progreso (`Issue #1 / SPEC-06 RF-06.4`):
+  - Controlar la corrutina de consulta mediante `activeQueryJob: Job?`.
+  - Mostrar botón `❌ Cancelar consulta` visible y accesible mientras `isLoading == true`.
+  - Cancelar la petición inmediatamente al hacer click, restaurando la UI y mostrando mensaje de estado informativo.

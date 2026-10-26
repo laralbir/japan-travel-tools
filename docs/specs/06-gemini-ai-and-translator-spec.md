@@ -117,6 +117,21 @@ Dotar a **Japan Travel Tools** de capacidades de Inteligencia Artificial mediant
      - `🧠 PRO (Razonamiento)`: Conmuta en 1 toque al modelo Pro (`gemini-pro-latest` / `gemini-2.5-pro`) para análisis profundos, optimización de itinerarios y resolución de conflictos de agenda.
    - Sincronización bidireccional reactiva con la persistencia en `UserPreferencesRepository`.
 
+### RF-06.4: Experiencia de Usuario y Renderizado del Asistente IA (Markdown, Input Multilínea, Teclado y Cancelación)
+1. **Renderizado de Markdown Rico en Respuestas**:
+   - Las respuestas generadas por los modelos de Gemini o el Experto Offline suelen incluir formato Markdown (`## Encabezados`, `**negrita**`, `*cursiva*`, `- listas con viñetas`, `` `código o términos en romaji/japonés` ``).
+   - La interfaz no debe volcar texto en crudo con símbolos Markdown sin interpretar. Debe utilizar un componente de renderizado nativo (`MarkdownText` / `AnnotatedString`) con tipografía Material 3 que destaque encabezados en negrita y mayor escala, palabras en negrita/cursiva, viñetas indentadas y términos destacados con tipografía monoespaciada sobre fondo sutil.
+2. **Entrada de Texto Multilínea Ergonómica**:
+   - El campo de texto de consulta a la IA debe soportar multilínea (`singleLine = false`, `minLines = 2`, `maxLines = 5`) para que el usuario pueda redactar y revisar consultas largas o itinerarios complejos sin desplazamientos horizontales incómodos.
+   - Debe integrar `Modifier.imePadding()` en la jerarquía del contenedor para que el teclado virtual del sistema no tape el campo de entrada.
+   - Debe incorporar opción de envío rápido mediante la acción IME del teclado (`ImeAction.Send` / `onSend`).
+3. **Gestión Automática del Teclado Virtual**:
+   - Al enviar una consulta (ya sea pulsando el botón `✨ Consultar IA` o la acción de envío del teclado virtual), el teclado debe cerrarse automáticamente (`LocalSoftwareKeyboardController.current?.hide()`) y liberar el foco para ofrecer una vista despejada del progreso y la respuesta.
+4. **Cancelación Inmediata de Consultas en Progreso**:
+   - Toda consulta en curso debe estar ligada a un `Job` de corrutina cancelable.
+   - Mientras `isLoading == true`, la interfaz debe proporcionar un botón prominente `❌ Cancelar consulta`.
+   - Al pulsar el botón de cancelar, la petición en curso debe abortarse de inmediato, restableciendo el estado a `isLoading = false` e indicando un mensaje de estado amigable (*"Consulta cancelada"*).
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin / BDD)
@@ -147,4 +162,19 @@ Dotar a **Japan Travel Tools** de capacidades de Inteligencia Artificial mediant
 - **Entonces** la app captura el texto en japonés, lo traduce directamente al español (*"¿Cuánto cuesta esto?"*, *"Disculpe / Perdón"*, *"Agua"* sin inventar respuestas conversacionales ni mensajes meta de chatbot), muestra el texto japonés, su fonética en Romaji y la traducción fiel en español, y locuta el texto traducido al español.
 - **Y cuando** el viajero habla en español (ej. *"¿Dónde está la estación?"*)
 - **Entonces** la app captura el texto en español, lo traduce fielmente al japonés (`駅はどこですか？`), muestra el texto en español, el texto en japonés y el Romaji (`Eki wa doko desu ka?`), y lo locuta en voz alta en japonés.
+
+### Escenario 6: Renderizado formateado de respuestas con Markdown
+- **Dado** que la IA devuelve una respuesta con títulos `## Shinkansen`, viñetas `* Maletas grandes`, negritas `**reserva obligatoria**` o términos destacados `` `Tokaido Shinkansen` ``
+- **Cuando** se muestra en la pantalla del Asistente
+- **Entonces** la vista formatea los títulos con mayor peso tipográfico y tamaño, renderiza las viñetas indentadas, las negritas destacadas y los términos en código con fuente monoespaciada, sin exhibir asteriscos ni almohadillas en crudo.
+
+### Escenario 7: Experiencia fluida de teclado e input multilínea
+- **Dado** que el usuario escribe una consulta extensa en el Asistente IA
+- **Cuando** escribe varias líneas y pulsa la tecla de envío del teclado virtual
+- **Entonces** el campo se expande dinámicamente hasta 5 líneas sin ser tapado por el teclado (mediante padding IME), se lanza automáticamente la consulta a la IA y el teclado virtual se oculta liberando la pantalla.
+
+### Escenario 8: Cancelación de una consulta en progreso
+- **Dado** que el usuario pulsa *"Consultar IA"* y la petición entra en estado de carga (`isLoading = true`)
+- **Cuando** el usuario pulsa *"Cancelar consulta"*
+- **Entonces** la corrutina en curso se cancela de forma inmediata, el indicador de carga desaparece y el sistema muestra un mensaje informativo indicando que la consulta ha sido cancelada.
 

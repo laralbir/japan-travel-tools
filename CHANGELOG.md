@@ -7,6 +7,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Asistente de IA (UX, Markdown, Input y Cancelación — Issue #1)
+- **Renderizado Nativo de Markdown (`MarkdownText` & `MarkdownTextParser`)**: Procesamiento y visualización con estilos enriquecidos para encabezados (`#`, `##`, `###`), negritas (`**texto**`), cursivas (`*texto*`), viñetas (`•`), listas numeradas y bloques/términos en código monoespaciado, eliminando la exposición de caracteres Markdown en crudo (#1).
+- **Entrada Multilínea Ergonómica**: Ampliación del campo de texto a multilínea (`minLines = 2`, `maxLines = 5`) con `imePadding()` para evitar solapamientos visuales con el teclado virtual (#1).
+- **Acción IME y Cierre Automático del Teclado**: Soporte para disparar consultas directamente desde la tecla de envío del teclado (`ImeAction.Send`) y ocultamiento inmediato del teclado virtual con deselección de foco al consultar (#1).
+- **Cancelación Reactiva de Consultas**: Incorporación de botón `❌ Cancelar consulta` durante la carga que cancela de forma inmediata la corrutina en progreso (#1).
+
 ## [1.0.2] - 2026-10-26
 
 ### Parche de Rendimiento IA y Modelos Verificados en Tiempo Real — Japan Travel Tools 1.0.2 🇯🇵⚡

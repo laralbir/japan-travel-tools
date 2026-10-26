@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -39,6 +40,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -85,8 +87,11 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -114,7 +119,9 @@ import com.laralbir.japantraveltools.feature.ai.OfflineTranslatorEngine
 import com.laralbir.japantraveltools.feature.ai.OnlineTranslatorClient
 import com.laralbir.japantraveltools.feature.ai.GeminiApiKeySetupCard
 import com.laralbir.japantraveltools.feature.ai.GeminiApiKeyHelper
+import com.laralbir.japantraveltools.feature.ai.MarkdownText
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.laralbir.japantraveltools.feature.clock.CalculateClockComparisonUseCase
@@ -4186,6 +4193,8 @@ private fun AiAssistantScreen(
     val portablePlan by SharedTravelPlanStore.planState.collectAsState()
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
 
     var geminiPrompt by rememberSaveable { mutableStateOf("") }
     var assistantAnswer by rememberSaveable { mutableStateOf<String?>(null) }
@@ -4194,28 +4203,42 @@ private fun AiAssistantScreen(
     var assistantTime by rememberSaveable { mutableStateOf<String?>(null) }
     var isLoading by rememberSaveable { mutableStateOf(false) }
     var actionStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var activeQueryJob by remember { mutableStateOf<Job?>(null) }
 
     fun performQuery(promptToQuery: String) {
         val clean = promptToQuery.trim()
         if (clean.isBlank() || isLoading) return
+        keyboardController?.hide()
+        focusManager.clearFocus()
         isLoading = true
         actionStatusMessage = null
         assistantErrorDetail = null
-        coroutineScope.launch {
-            val result = GeminiAssistantEngine.queryAssistant(
-                prompt = clean,
-                apiKey = prefs.geminiApiKey,
-                eurToJpyRate = 164.80,
-                currentPlan = portablePlan,
-                modelId = prefs.geminiModelId,
-                isEs = isEs
-            )
-            assistantAnswer = result.answer
-            assistantSource = result.source.name
-            assistantErrorDetail = result.cloudErrorDetail
-            assistantTime = result.timestampFormatted
-            isLoading = false
+        activeQueryJob?.cancel()
+        activeQueryJob = coroutineScope.launch {
+            try {
+                val result = GeminiAssistantEngine.queryAssistant(
+                    prompt = clean,
+                    apiKey = prefs.geminiApiKey,
+                    eurToJpyRate = 164.80,
+                    currentPlan = portablePlan,
+                    modelId = prefs.geminiModelId,
+                    isEs = isEs
+                )
+                assistantAnswer = result.answer
+                assistantSource = result.source.name
+                assistantErrorDetail = result.cloudErrorDetail
+                assistantTime = result.timestampFormatted
+            } finally {
+                isLoading = false
+            }
         }
+    }
+
+    fun cancelQuery() {
+        activeQueryJob?.cancel()
+        activeQueryJob = null
+        isLoading = false
+        actionStatusMessage = if (isEs) "🛑 Consulta cancelada por el usuario" else "🛑 Query cancelled by user"
     }
 
     val quickTopics = listOf(
@@ -4234,7 +4257,9 @@ private fun AiAssistantScreen(
     )
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .imePadding(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -4440,52 +4465,72 @@ private fun AiAssistantScreen(
                             }
                         }
                     },
-                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        imeAction = ImeAction.Send,
+                        keyboardType = KeyboardType.Text
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onSend = {
+                            if (geminiPrompt.isNotBlank() && !isLoading) {
+                                performQuery(geminiPrompt)
+                            }
+                        }
+                    ),
+                    singleLine = false,
+                    minLines = 2,
+                    maxLines = 5,
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Spacer(Modifier.height(14.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Button(
-                        onClick = { performQuery(geminiPrompt) },
-                        enabled = !isLoading && geminiPrompt.isNotBlank(),
-                        modifier = Modifier.weight(1.3f)
+                if (isLoading) {
+                    OutlinedButton(
+                        onClick = { cancelQuery() },
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(if (isEs) "Consultando..." else "Consulting...", fontSize = 14.sp)
-                        } else {
+                        Text(
+                            text = if (isEs) "❌ Cancelar consulta en curso" else "❌ Cancel query in progress",
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Button(
+                            onClick = { performQuery(geminiPrompt) },
+                            enabled = geminiPrompt.isNotBlank(),
+                            modifier = Modifier.weight(1.3f)
+                        ) {
                             Text(if (isEs) "✨ Consultar IA" else "✨ Ask AI", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                         }
-                    }
 
-                    OutlinedButton(
-                        onClick = {
-                            if (geminiPrompt.isNotBlank()) {
-                                val updated = AiPlanBuilderEngine.improveAndExpandPlan(
-                                    currentPlan = portablePlan,
-                                    userInstruction = geminiPrompt
-                                )
-                                SharedTravelPlanStore.updatePlan(updated)
-                                assistantAnswer = updated.aiOptimizationSummary
-                                assistantSource = AssistantSource.OFFLINE_EXPERT.name
-                                assistantTime = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
-                                actionStatusMessage = if (isEs) "🗓️ Itinerario actualizado con paradas" else "🗓️ Route updated with stops"
-                            }
-                        },
-                        enabled = !isLoading && geminiPrompt.isNotBlank(),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(if (isEs) "🗓️ Aplicar" else "🗓️ Apply", fontSize = 14.sp)
+                        OutlinedButton(
+                            onClick = {
+                                if (geminiPrompt.isNotBlank()) {
+                                    keyboardController?.hide()
+                                    focusManager.clearFocus()
+                                    val updated = AiPlanBuilderEngine.improveAndExpandPlan(
+                                        currentPlan = portablePlan,
+                                        userInstruction = geminiPrompt
+                                    )
+                                    SharedTravelPlanStore.updatePlan(updated)
+                                    assistantAnswer = updated.aiOptimizationSummary
+                                    assistantSource = AssistantSource.OFFLINE_EXPERT.name
+                                    assistantTime = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+                                    actionStatusMessage = if (isEs) "🗓️ Itinerario actualizado con paradas" else "🗓️ Route updated with stops"
+                                }
+                            },
+                            enabled = geminiPrompt.isNotBlank(),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(if (isEs) "🗓️ Aplicar" else "🗓️ Apply", fontSize = 14.sp)
+                        }
                     }
                 }
 
@@ -4508,27 +4553,39 @@ private fun AiAssistantScreen(
                         color = MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.5.dp)
-                            Column {
-                                Text(
-                                    text = if (isEs) "Consultando al Asistente IA..." else "Consulting AI Assistant...",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                )
-                                Text(
-                                    text = if (prefs.geminiApiKey.isNullOrBlank()) {
-                                        if (isEs) "Consultando motor experto de viaje a Japón (100% offline)..." else "Querying offline Japan expert engine..."
-                                    } else {
-                                        if (isEs) "Conectando con Google Gemini Cloud..." else "Connecting to Google Gemini Cloud..."
-                                    },
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.5.dp)
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = if (isEs) "Consultando al Asistente IA..." else "Consulting AI Assistant...",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    )
+                                    Text(
+                                        text = if (prefs.geminiApiKey.isNullOrBlank()) {
+                                            if (isEs) "Consultando motor experto de viaje a Japón (100% offline)..." else "Querying offline Japan expert engine..."
+                                        } else {
+                                            if (isEs) "Conectando con Google Gemini Cloud..." else "Connecting to Google Gemini Cloud..."
+                                        },
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.height(12.dp))
+                            OutlinedButton(
+                                onClick = { cancelQuery() },
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.error
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(if (isEs) "❌ Cancelar consulta" else "❌ Cancel query", fontSize = 13.sp)
                             }
                         }
                     }
@@ -4622,10 +4679,9 @@ private fun AiAssistantScreen(
 
                             Spacer(Modifier.height(10.dp))
 
-                            Text(
-                                text = currentAnswer,
-                                fontSize = 15.sp,
-                                lineHeight = 22.sp
+                            MarkdownText(
+                                markdown = currentAnswer,
+                                modifier = Modifier.fillMaxWidth()
                             )
 
                             Spacer(Modifier.height(14.dp))
