@@ -26,7 +26,7 @@ data class UserPreferences(
     val googleAccountEmail: String? = null,
     val lastCloudSyncEpochMillis: Long? = null,
     val geminiApiKey: String? = null,
-    val geminiModelId: String = "gemini-2.0-flash"
+    val geminiModelId: String = "gemini-flash-latest"
 )
 
 interface KeyValueStore {
@@ -113,7 +113,16 @@ class DefaultUserPreferencesRepository(
         val email = store.getString(KEY_GOOGLE_EMAIL, null)
         val syncTime = store.getLong(KEY_LAST_SYNC, -1L).takeIf { it > 0L }
         val apiKey = store.getString(KEY_GEMINI_API_KEY, null)
-        val modelId = store.getString(KEY_GEMINI_MODEL, "gemini-2.0-flash") ?: "gemini-2.0-flash"
+        val rawModelId = store.getString(KEY_GEMINI_MODEL, "gemini-flash-latest") ?: "gemini-flash-latest"
+        val modelId = when (rawModelId.trim()) {
+            "gemini-1.5-pro" -> "gemini-pro-latest"
+            "gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite" -> "gemini-flash-latest"
+            "" -> "gemini-flash-latest"
+            else -> rawModelId.trim()
+        }
+        if (modelId != rawModelId) {
+            store.putString(KEY_GEMINI_MODEL, modelId)
+        }
 
         return UserPreferences(
             themeMode = runCatching { AppThemeMode.valueOf(themeStr) }.getOrDefault(AppThemeMode.SYSTEM),
@@ -190,7 +199,7 @@ class DefaultUserPreferencesRepository(
     }
 
     fun setGeminiModelId(modelId: String) {
-        val safeModel = modelId.trim().ifBlank { "gemini-2.0-flash" }
+        val safeModel = modelId.trim().ifBlank { "gemini-flash-latest" }
         store.putString(KEY_GEMINI_MODEL, safeModel)
         refresh()
     }

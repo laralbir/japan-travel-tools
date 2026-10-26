@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.compose.compiler)
@@ -12,13 +15,47 @@ android {
     applicationId = "com.laralbir.japantraveltools"
     minSdk = 26
     targetSdk = 36
-    versionCode = 31
-    versionName = "1.0.0"
+    versionCode = 32
+    versionName = "1.0.1"
+  }
+
+  signingConfigs {
+    create("release") {
+      val keystorePropsFile = rootProject.file("keystore.properties")
+      if (keystorePropsFile.exists()) {
+        val properties = Properties().apply {
+          FileInputStream(keystorePropsFile).use { stream ->
+            load(stream)
+          }
+        }
+        storeFile = file(properties.getProperty("storeFile") ?: "${rootProject.projectDir}/release.keystore")
+        storePassword = properties.getProperty("storePassword") ?: System.getenv("KEYSTORE_PASSWORD") ?: "japantraveltools"
+        keyAlias = properties.getProperty("keyAlias") ?: System.getenv("KEY_ALIAS") ?: "japantraveltools"
+        keyPassword = properties.getProperty("keyPassword") ?: System.getenv("KEY_PASSWORD") ?: "japantraveltools"
+      } else {
+        val defaultReleaseKeystore = rootProject.file("release.keystore")
+        if (defaultReleaseKeystore.exists()) {
+          storeFile = defaultReleaseKeystore
+          storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "japantraveltools"
+          keyAlias = System.getenv("KEY_ALIAS") ?: "japantraveltools"
+          keyPassword = System.getenv("KEY_PASSWORD") ?: "japantraveltools"
+        } else {
+          val debugKeystore = file("${System.getProperty("user.home")}/.android/debug.keystore")
+          if (debugKeystore.exists()) {
+            storeFile = debugKeystore
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+          }
+        }
+      }
+    }
   }
 
   buildTypes {
     release {
       isMinifyEnabled = false
+      signingConfig = signingConfigs.getByName("release")
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
     }
   }
