@@ -7,6 +7,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Bóveda de Documentos e Identidad (Bloqueo Estricto por Defecto y Auto-Bloqueo — Issue #5)
+- **Estado Bloqueado Obligatorio por Defecto (`VaultSecurityPolicy`)**: Eliminación del uso de `rememberSaveable` para el estado de desbloqueo. Cada vez que el usuario accede a la pantalla de Identificación/Pasaporte, la vista nace obligatoriamente bloqueada mostrando la tarjeta `"Identificación Bloqueada"`, garantizando que los documentos nunca se expongan sin verificación biométrica previa (#5).
+- **Auto-Bloqueo de Seguridad (Temporizador de 120s)**: Incorporación de cierre automático de sesión de visualización tras 120 segundos (2 minutos) continuos de desbloqueo para proteger la privacidad ante descuidos (#5).
+- **Auto-Bloqueo en Segundo Plano (`LifecycleEventObserver`)**: Bloqueo automático e inmediato de la bóveda al pausar, minimizar la aplicación o apagar la pantalla del dispositivo (#5).
+- **Botón Unificado "Bloquear"**: Estandarización del botón de re-bloqueo con el texto conciso `"🔒 Bloquear"` visible siempre que los documentos estén desbloqueados (#5).
+
 ### Bóveda de Documentos e Identidad (Seguridad Biometría y Anti-Bypass — Issue #4)
 - **Corrección de Estado del Switch de Biometría**: Ajuste del valor por defecto de `biometricLockEnabled` a `true` (activo) para dispositivos con soporte biométrico/PIN, asegurando que tras autenticarse con huella o PIN el interruptor se muestre encendido (`checked = true`) (#4).
 - **Protección Anti-Bypass Estricta**: Eliminación de la vulnerabilidad por la cual cambiar el conmutador de estado o cancelar el diálogo de autenticación permitía saltarse el control de biometría y acceder a los documentos privados. Ninguna transición hacia estado desactivado o desbloqueado puede realizarse sin autenticación exitosa previa (#4).

@@ -146,7 +146,11 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import java.io.File
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.laralbir.japantraveltools.feature.documents.SharedDocumentsAndGuidesStore
+import com.laralbir.japantraveltools.feature.documents.VaultSecurityPolicy
 import com.laralbir.japantraveltools.feature.documents.TravelDocumentItem
 import com.laralbir.japantraveltools.feature.documents.TravelGuideArticle
 import com.laralbir.japantraveltools.feature.documents.DocumentCategory
@@ -4790,12 +4794,38 @@ private fun PassportAndCustomsScreen(
 
     val isLockActive = prefs.biometricLockEnabled && biometricAvailable
 
-    // Vault is unlocked if biometric lock is turned off by user or device doesn't support lock
-    var vaultUnlocked by rememberSaveable {
-        mutableStateOf(!isLockActive)
+    // Estado efímero en memoria (nunca en rememberSaveable) para obligar a autenticar en cada visita
+    var vaultUnlocked by remember {
+        mutableStateOf(VaultSecurityPolicy.shouldStartUnlocked(prefs.biometricLockEnabled, biometricAvailable))
     }
     var authErrorText by remember { mutableStateOf<String?>(null) }
     var refreshPhotoCounter by remember { mutableIntStateOf(0) }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, isLockActive) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP || event == Lifecycle.Event.ON_PAUSE) {
+                if (isLockActive) {
+                    vaultUnlocked = false
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            if (isLockActive) {
+                vaultUnlocked = false
+            }
+        }
+    }
+
+    // Auto-bloqueo por tiempo prudencial de seguridad (120 segundos)
+    LaunchedEffect(vaultUnlocked, isLockActive) {
+        if (vaultUnlocked && isLockActive) {
+            delay(VaultSecurityPolicy.AUTO_LOCK_TIMEOUT_MILLIS)
+            vaultUnlocked = false
+        }
+    }
 
     val customDocs by SharedDocumentsAndGuidesStore.customIdDocsState.collectAsState()
     var editingCustomDoc by remember { mutableStateOf<CustomIdDocumentItem?>(null) }
@@ -4984,12 +5014,18 @@ private fun PassportAndCustomsScreen(
                         }
                     }
 
-                    if (prefs.biometricLockEnabled && vaultUnlocked) {
+                    if (isLockActive && vaultUnlocked) {
                         Spacer(Modifier.height(8.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Text(
+                                text = if (isEs) "Bóveda desbloqueada (auto-bloqueo en 2 min)" else "Vault unlocked (auto-lock in 2 min)",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
                             OutlinedButton(
                                 onClick = {
                                     vaultUnlocked = false
@@ -4998,8 +5034,9 @@ private fun PassportAndCustomsScreen(
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                             ) {
                                 Text(
-                                    text = if (isEs) "🔒 Bloquear bóveda" else "🔒 Lock vault",
-                                    fontSize = 12.sp
+                                    text = if (isEs) "🔒 Bloquear" else "🔒 Lock",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
                         }

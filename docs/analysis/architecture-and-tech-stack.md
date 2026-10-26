@@ -132,17 +132,22 @@ data class UserPreferences(
 ```
 
 #### Máquina de Estados de Autenticación de Bóveda y Anti-Bypass
-- **Estado Inicial**:
+- **Estado Inicial (Efímero en Memoria)**:
   - `isLockActive = prefs.biometricLockEnabled && biometricAvailable`
-  - `vaultUnlocked = !isLockActive` (si `isLockActive` es true, nace bloqueado).
+  - `vaultUnlocked = remember { mutableStateOf(!isLockActive) }`: estado **efímero** (sin `rememberSaveable`). Si `isLockActive` es `true`, **siempre nace bloqueado (`false`)** mostrando la tarjeta "Identificación Bloqueada".
 - **Apertura de Pantalla (`LaunchedEffect(isLockActive)`)**:
   - Si `isLockActive && !vaultUnlocked`: dispara `BiometricPrompt`.
   - Éxito: `vaultUnlocked = true`, `authErrorText = null`.
   - Fallo/Cancelación: `vaultUnlocked = false`, `authErrorText = errString`.
+- **Auto-Bloqueo por Temporizador y Ciclo de Vida**:
+  - **Temporizador de Sesión**: Cuando `vaultUnlocked == true` e `isLockActive == true`, una corrutina en `LaunchedEffect(vaultUnlocked)` espera 120 segundos (`120_000L`); al transcurrir el tiempo, ejecuta `vaultUnlocked = false`.
+  - **Ciclo de Vida (Background)**: Mediante `LifecycleEventEffect(Lifecycle.Event.ON_STOP)` (o `DisposableEffect`), si el usuario sale de la app o bloquea el dispositivo, `vaultUnlocked` se conmuta inmediatamente a `false`.
 - **Transición del Conmutador (`onCheckedChange`)**:
   - **Desactivar (`enabled = false`) cuando la bóveda está bloqueada**: Exige autenticación previa con `BiometricPrompt`. Solo si la autenticación es exitosa se ejecuta `prefsRepository.setBiometricLockEnabled(false)` y `vaultUnlocked = true`. En caso de cancelación o fallo, no se modifica la preferencia y la bóveda permanece bloqueada.
   - **Desactivar (`enabled = false`) cuando la bóveda ya está desbloqueada**: Como la sesión actual ya validó la identidad del usuario, se persiste `setBiometricLockEnabled(false)` directamente.
   - **Activar (`enabled = true`)**: Valida la biometría mediante prompt de confirmación; solo al superar la autenticación se persiste `setBiometricLockEnabled(true)`. Si se cancela, la preferencia no se activa.
+- **Botón "Bloquear"**:
+  - Mientras `vaultUnlocked == true`, se muestra de forma fija el botón de acción rápida `🔒 Bloquear`, permitiendo al usuario revocar el acceso y bloquear la pantalla de inmediato.
 
 ### 3.2. Caché de Divisas (`CurrencyRateEntity` & `ExchangeRateSnapshot`)
 - **Tabla Room `exchange_rates`**:

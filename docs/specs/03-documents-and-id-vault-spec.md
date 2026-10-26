@@ -63,7 +63,14 @@ Permitir al viajero llevar siempre a mano y **100% offline**:
    - Ningún cambio de estado del conmutador puede persistirse ni desbloquear la vista sin una autenticación biométrica satisfactoria.
    - Si la bóveda está bloqueada y el usuario pulsa el switch para desactivar el bloqueo, se solicita obligatoriamente autenticación biométrica previa. Si el usuario cancela la autenticación, el switch se mantiene activado (`checked = true`) y los documentos continúan bloqueados (`vaultUnlocked = false`).
    - Si el bloqueo estaba desactivado y el usuario desea activarlo, se valida la credencial biométrica antes de persistir la activación.
-   - La sesión permite al usuario re-bloquear la bóveda en cualquier momento mediante una acción explícita ("🔒 Bloquear Bóveda") una vez visualizados los documentos.
+5. **Estado Bloqueado Obligatorio por Defecto (Efímero en Memoria)**:
+   - Cada vez que el usuario accede a la sección de Identificación, la vista nace **siempre bloqueada por defecto** (`vaultUnlocked = false`) mostrando la tarjeta `"🔒 Identificación Bloqueada"`.
+   - El estado de desbloqueo es estrictamente efímero en memoria (`remember`) y **nunca** se persiste en el `savedInstanceState` (`rememberSaveable`), obligando siempre a una nueva verificación de biometría en cada entrada o reinicio.
+6. **Auto-Bloqueo por Tiempo de Seguridad y Ciclo de Vida**:
+   - Al desbloquearse la bóveda, se inicia un temporizador de seguridad de **120 segundos** (2 minutos); superado dicho tiempo, la bóveda se bloquea automáticamente (`vaultUnlocked = false`) ocultando los documentos.
+   - Si la aplicación o la pantalla pasa a segundo plano (`Lifecycle.Event.ON_STOP` / `ON_PAUSE`), la bóveda se bloquea inmediatamente por seguridad.
+7. **Botón de Bloqueo Manual ("Bloquear")**:
+   - Mientras los documentos estén visibles (`vaultUnlocked = true`), se muestra un botón con el texto conciso **"Bloquear"** (`🔒 Bloquear`), que permite al usuario forzar el bloqueo inmediato en cualquier instante con un solo toque.
 
 ### RF-03.4: Repositorio de Documentos y Entradas de Viaje (Vuelos, Hoteles, Entradas y Museos)
 1. El usuario puede añadir, organizar, visualizar, editar y eliminar documentos y entradas de su viaje en formato **PDF** (`application/pdf`) o **Imagen** (`image/jpeg`, `image/png`, `image/webp`).
