@@ -7,6 +7,11 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Bóveda de Documentos e Identidad (Seguridad Biometría y Anti-Bypass — Issue #4)
+- **Corrección de Estado del Switch de Biometría**: Ajuste del valor por defecto de `biometricLockEnabled` a `true` (activo) para dispositivos con soporte biométrico/PIN, asegurando que tras autenticarse con huella o PIN el interruptor se muestre encendido (`checked = true`) (#4).
+- **Protección Anti-Bypass Estricta**: Eliminación de la vulnerabilidad por la cual cambiar el conmutador de estado o cancelar el diálogo de autenticación permitía saltarse el control de biometría y acceder a los documentos privados. Ninguna transición hacia estado desactivado o desbloqueado puede realizarse sin autenticación exitosa previa (#4).
+- **Acción Rápida de Re-bloqueo**: Incorporación del botón `🔒 Bloquear bóveda` que permite al usuario volver a bloquear al instante la vista de documentos confidenciales sin salir de la pantalla (#4).
+
 ### Previsión Meteorológica (Persistencia Offline y Actualización Periódica — Issue #3)
 - **Persistencia en Disco de Pronósticos (`SharedWeatherForecastStore` & `WeatherForecastJsonCodec`)**: Serialización y almacenamiento de la lista de pronósticos de 7 días (`WeatherDayForecast`) por ciudad en `saved_weather_forecasts.json`. Al reiniciar la app se cargan inmediatamente las predicciones meteorológicas previamente descargadas sin perderse ni reiniciarse a las semillas (#3).
 - **Actualización Automática Desatendida (`WeatherSyncWorker` & `WorkManager`)**: Programación periódica cada 6 horas con restricciones de red conectada para actualizar los pronósticos de todas las ciudades del itinerario en segundo plano (#3).

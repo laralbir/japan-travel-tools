@@ -56,8 +56,14 @@ Permitir al viajero llevar siempre a mano y **100% offline**:
    - El conmutador de seguridad se presenta en una tarjeta dedicada e identificable: `🔒 Bloqueo Biométrico / PIN` con subtítulo explicativo claro ("Exigir huella, rostro o PIN para acceder a las fotos de pasaporte y documentos"), evitando confusiones sobre si activa o desactiva la sección de documentos.
 3. **Bloqueo Biométrico / Credencial del Dispositivo (`BiometricPrompt`)**:
    - La aplicación verifica la capacidad biométrica o de credenciales del dispositivo (`BiometricManager.from(context).canAuthenticate(BIOMETRIC_STRONG or DEVICE_CREDENTIAL)`).
+   - **Valor por defecto seguro**: `biometricLockEnabled` tiene valor predeterminado `true`. Si el dispositivo dispone de biometría o credencial configurada, la bóveda requiere autenticación para su apertura y el conmutador aparece encendido (`checked = true`).
    - Si el dispositivo dispone de huella dactilar, desbloqueo facial o PIN/patrón/contraseña configurado y el bloqueo está activo, la sección de Identificación requiere **autenticación real mediante `BiometricPrompt`** para visualizar o editar las fotografías de los documentos.
    - Si el dispositivo no tiene ningún método de seguridad configurado, se permite el acceso directo mostrando una advertencia de seguridad recomendando configurar un PIN en el sistema.
+4. **Protección Anti-Bypass y Transiciones de Estado Seguras**:
+   - Ningún cambio de estado del conmutador puede persistirse ni desbloquear la vista sin una autenticación biométrica satisfactoria.
+   - Si la bóveda está bloqueada y el usuario pulsa el switch para desactivar el bloqueo, se solicita obligatoriamente autenticación biométrica previa. Si el usuario cancela la autenticación, el switch se mantiene activado (`checked = true`) y los documentos continúan bloqueados (`vaultUnlocked = false`).
+   - Si el bloqueo estaba desactivado y el usuario desea activarlo, se valida la credencial biométrica antes de persistir la activación.
+   - La sesión permite al usuario re-bloquear la bóveda en cualquier momento mediante una acción explícita ("🔒 Bloquear Bóveda") una vez visualizados los documentos.
 
 ### RF-03.4: Repositorio de Documentos y Entradas de Viaje (Vuelos, Hoteles, Entradas y Museos)
 1. El usuario puede añadir, organizar, visualizar, editar y eliminar documentos y entradas de su viaje en formato **PDF** (`application/pdf`) o **Imagen** (`image/jpeg`, `image/png`, `image/webp`).

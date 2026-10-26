@@ -4788,9 +4788,11 @@ private fun PassportAndCustomsScreen(
         canAuth == BiometricManager.BIOMETRIC_SUCCESS
     }
 
+    val isLockActive = prefs.biometricLockEnabled && biometricAvailable
+
     // Vault is unlocked if biometric lock is turned off by user or device doesn't support lock
     var vaultUnlocked by rememberSaveable {
-        mutableStateOf(!prefs.biometricLockEnabled && !biometricAvailable)
+        mutableStateOf(!isLockActive)
     }
     var authErrorText by remember { mutableStateOf<String?>(null) }
     var refreshPhotoCounter by remember { mutableIntStateOf(0) }
@@ -4799,9 +4801,15 @@ private fun PassportAndCustomsScreen(
     var editingCustomDoc by remember { mutableStateOf<CustomIdDocumentItem?>(null) }
     var isCreatingCustomDoc by remember { mutableStateOf(false) }
 
-    fun launchRealBiometricPrompt() {
-        if (activity == null) {
+    fun launchRealBiometricPrompt(
+        onSuccess: () -> Unit = {
             vaultUnlocked = true
+            authErrorText = null
+        },
+        onError: ((String) -> Unit)? = null
+    ) {
+        if (activity == null) {
+            onSuccess()
             return
         }
         val executor = ContextCompat.getMainExecutor(context)
@@ -4811,13 +4819,14 @@ private fun PassportAndCustomsScreen(
             object : BiometricPrompt.AuthenticationCallback() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     super.onAuthenticationSucceeded(result)
-                    vaultUnlocked = true
                     authErrorText = null
+                    onSuccess()
                 }
 
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                     super.onAuthenticationError(errorCode, errString)
                     authErrorText = errString.toString()
+                    onError?.invoke(errString.toString())
                 }
             }
         )
@@ -4835,8 +4844,8 @@ private fun PassportAndCustomsScreen(
         prompt.authenticate(promptInfo)
     }
 
-    LaunchedEffect(biometricAvailable, prefs.biometricLockEnabled) {
-        if (biometricAvailable && !vaultUnlocked) {
+    LaunchedEffect(isLockActive) {
+        if (isLockActive && !vaultUnlocked) {
             launchRealBiometricPrompt()
         }
     }
@@ -4943,21 +4952,61 @@ private fun PassportAndCustomsScreen(
                             }
                             Switch(
                                 checked = prefs.biometricLockEnabled,
-                                onCheckedChange = { enabled ->
-                                    prefsRepository.setBiometricLockEnabled(enabled)
-                                    if (enabled) {
-                                        vaultUnlocked = false
-                                        launchRealBiometricPrompt()
+                                onCheckedChange = { targetEnabled ->
+                                    if (targetEnabled) {
+                                        if (vaultUnlocked) {
+                                            prefsRepository.setBiometricLockEnabled(true)
+                                        } else {
+                                            launchRealBiometricPrompt(
+                                                onSuccess = {
+                                                    prefsRepository.setBiometricLockEnabled(true)
+                                                    vaultUnlocked = true
+                                                }
+                                            )
+                                        }
                                     } else {
-                                        vaultUnlocked = true
+                                        if (vaultUnlocked) {
+                                            prefsRepository.setBiometricLockEnabled(false)
+                                        } else {
+                                            launchRealBiometricPrompt(
+                                                onSuccess = {
+                                                    prefsRepository.setBiometricLockEnabled(false)
+                                                    vaultUnlocked = true
+                                                },
+                                                onError = {
+                                                    vaultUnlocked = false
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                             )
                         }
                     }
+
+                    if (prefs.biometricLockEnabled && vaultUnlocked) {
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    vaultUnlocked = false
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = if (isEs) "🔒 Bloquear bóveda" else "🔒 Lock vault",
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                    }
                 }
 
-                if (!vaultUnlocked && biometricAvailable) {
+                if (!vaultUnlocked && isLockActive) {
                     Spacer(Modifier.height(14.dp))
                     Surface(
                         shape = RoundedCornerShape(14.dp),

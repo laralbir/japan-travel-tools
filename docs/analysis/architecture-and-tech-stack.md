@@ -127,9 +127,22 @@ data class UserPreferences(
     val baseCurrency: String = "EUR",
     val targetCurrency: String = "JPY",
     val customExchangeRate: Double? = null,
-    val biometricLockEnabled: Boolean = false
+    val biometricLockEnabled: Boolean = true
 )
 ```
+
+#### Máquina de Estados de Autenticación de Bóveda y Anti-Bypass
+- **Estado Inicial**:
+  - `isLockActive = prefs.biometricLockEnabled && biometricAvailable`
+  - `vaultUnlocked = !isLockActive` (si `isLockActive` es true, nace bloqueado).
+- **Apertura de Pantalla (`LaunchedEffect(isLockActive)`)**:
+  - Si `isLockActive && !vaultUnlocked`: dispara `BiometricPrompt`.
+  - Éxito: `vaultUnlocked = true`, `authErrorText = null`.
+  - Fallo/Cancelación: `vaultUnlocked = false`, `authErrorText = errString`.
+- **Transición del Conmutador (`onCheckedChange`)**:
+  - **Desactivar (`enabled = false`) cuando la bóveda está bloqueada**: Exige autenticación previa con `BiometricPrompt`. Solo si la autenticación es exitosa se ejecuta `prefsRepository.setBiometricLockEnabled(false)` y `vaultUnlocked = true`. En caso de cancelación o fallo, no se modifica la preferencia y la bóveda permanece bloqueada.
+  - **Desactivar (`enabled = false`) cuando la bóveda ya está desbloqueada**: Como la sesión actual ya validó la identidad del usuario, se persiste `setBiometricLockEnabled(false)` directamente.
+  - **Activar (`enabled = true`)**: Valida la biometría mediante prompt de confirmación; solo al superar la autenticación se persiste `setBiometricLockEnabled(true)`. Si se cancela, la preferencia no se activa.
 
 ### 3.2. Caché de Divisas (`CurrencyRateEntity` & `ExchangeRateSnapshot`)
 - **Tabla Room `exchange_rates`**:
