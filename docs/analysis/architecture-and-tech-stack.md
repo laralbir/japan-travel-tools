@@ -317,25 +317,56 @@ data class UserPreferences(
     - `importCloudBackupJson(...)`: Deserializa y valida el paquete, fusionando los datos en los almacenes correspondientes sin pérdida de paradas ni documentos.
     - `saveCloudBackupToDrive(...)` & `restoreCloudBackupFromDrive(...)`: Gestión con Storage Access Framework de Android (`Intent.ACTION_CREATE_DOCUMENT` / `Intent.ACTION_OPEN_DOCUMENT`) para guardar en la carpeta de Google Drive del usuario y restaurar en cualquier otro dispositivo.
 
-### 3.11. Diagnóstico de Gemini Cloud, Selector de Modelos y Alertas de Conexión
+### 3.11. Diagnóstico de Gemini Cloud, Selector de Modelos Canónicos y Prevención de Errores 404
 - **Gestor de Verificación de Clave (`GeminiApiKeyHelper.testApiKeyConnection`)**:
   - Función suspendida que ejecuta una petición de prueba controlada contra `https://generativelanguage.googleapis.com/v1beta/models/{modelId}:generateContent?key=$apiKey`.
   - Evalúa la respuesta HTTP de Google:
     - `200 OK`: Éxito confirmado.
     - `403 FORBIDDEN` / `PERMISSION_DENIED`: Error de permisos o clave inválida (destacando que las claves de Google AI Studio inician siempre con `AIzaSy`).
     - `400 BAD_REQUEST`: Parámetros no válidos.
-    - `404 NOT_FOUND`: Modelo no encontrado o no habilitado.
+    - `404 NOT_FOUND`: Modelo deprecado o no disponible en Google GenAI (sugiriendo la conmutación a alias canónicos).
     - `429 TOO_MANY_REQUESTS`: Cuota excedida.
 - **Transparencia en Asistente (`AiTravelAssistantResult.cloudErrorDetail`)**:
   - Si la llamada a Gemini Cloud falla teniendo el usuario una API Key configurada, no se produce un fallback silencioso.
   - La respuesta registra `source = OFFLINE_EXPERT` y añade `cloudErrorDetail: String` explicando la causa (ej. `HTTP 403: Permiso Denegado / Clave no válida`).
   - La UI muestra una tarjeta de advertencia visible para que el viajero comprenda exactamente por qué se recurrió al motor offline.
-- **Catálogo y Selector de Modelos (`GeminiModelCatalog` & Selector Rápido PRO/Flash)**:
-  - Modelos soportados: `gemini-2.0-flash` (por defecto/recomendado), `gemini-1.5-pro` (PRO principal), `gemini-2.5-pro` (PRO avanzado), `gemini-2.0-flash-lite`, `gemini-2.5-flash`, `gemini-1.5-flash` y modelos personalizados.
-  - Métodos de conveniencia: `GeminiApiKeyHelper.isProModel(modelId)`, `PRO_DEFAULT_MODEL_ID = "gemini-1.5-pro"` y `FLASH_DEFAULT_MODEL_ID = "gemini-2.0-flash"`.
+- **Catálogo de Modelos Canónicos (`GeminiModelCatalog` & Selector Rápido PRO/Flash)**:
+  - Modelos soportados:
+    - `gemini-flash-latest`: Alias canónico oficial siempre mapeado a la última generación Flash activa de Google (por defecto/recomendado).
+    - `gemini-pro-latest`: Alias canónico oficial siempre mapeado a la última generación Pro activa para razonamiento profundo (PRO principal).
+    - `gemini-2.5-flash`: Versión estable de Gemini 2.5 Flash.
+    - `gemini-2.5-pro`: Versión avanzada de Gemini 2.5 Pro.
+    - `gemini-flash-lite-latest`: Ultrarrápido de mínima latencia.
+    - Modelos personalizados.
+  - Métodos de conveniencia: `GeminiApiKeyHelper.isProModel(modelId)`, `PRO_DEFAULT_MODEL_ID = "gemini-pro-latest"` y `FLASH_DEFAULT_MODEL_ID = "gemini-flash-latest"`.
+  - **Migración Automática de Preferencias Locales**: `UserPreferencesRepository` intercepta valores antiguos o deprecados (`gemini-1.5-flash`, `gemini-2.0-flash`, `gemini-1.5-pro`) y los migra de forma reactiva y permanente en almacenamiento a los alias canónicos equivalentes, erradicando el error HTTP 404.
   - Componente de conmutación rápida `[ ⚡ Flash ]` vs `[ 🧠 PRO ]` en `AiAssistantScreen` para alternar modelos directamente con un toque sin ir a Ajustes.
   - Persistido reactivamente en `UserPreferencesRepository` (`pref_gemini_model_id`).
   - Parseo seguro de respuesta JSON usando `org.json.JSONObject` para extraer `candidates[0].content.parts[0].text`.
+
+### 3.12. Captura Robusta de Cámara, Permisos en Runtime y Enlaces a Google Lens
+- **Gestión de Permiso de Cámara en Runtime**:
+  - Declaración de `<uses-permission android:name="android.permission.CAMERA" />` en `AndroidManifest.xml`.
+  - Launcher reactivo en Jetpack Compose con `ActivityResultContracts.RequestPermission()` que comprueba `ContextCompat.checkSelfPermission` antes de invocar el visor de captura.
+- **Captura en Alta Resolución vía `FileProvider`**:
+  - Generación de URIs seguras en directorio caché (`FileProvider.getUriForFile` con `file_paths.xml` incluyendo `<cache-path name="internal_cache" path="." />`).
+  - Uso de `ActivityResultContracts.TakePicture()` para captura de resolución completa optimizada para el OCR de kanji y caracteres japoneses pequeños, con fallback a `TakePicturePreview`.
+- **Integración con Google Lens, Google Traductor y Cámara del Sistema**:
+  - Declaración explícita de visibilidad de paquetes en `<queries>` (`com.google.ar.lens`, `com.google.android.apps.translate`, `android.media.action.IMAGE_CAPTURE`, `android.media.action.STILL_IMAGE_CAMERA`).
+  - Enlaces robustos que invocan el lanzador nativo de Google Lens (`googlelens://v1` / paquete `com.google.ar.lens`), Google Traductor o la cámara nativa del sistema ante cualquier contingencia.
+
+### 3.13. Compilación Completa y Firma para Google Play Store (`AAB + APK`)
+- **Firma Release Automatizada (`signingConfigs.release`)**:
+  - Configuración en `app/build.gradle.kts` con soporte para:
+    - Archivo de propiedades local `keystore.properties` (ignorado por Git).
+    - Keystore de release del proyecto `release.keystore` (ignorado por Git).
+    - Variables de entorno del CI/CD (`KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`).
+    - Fallback seguro a keystore local de desarrollo.
+- **Artefactos de Release Duales**:
+  - Generación obligatoria en cada release de:
+    - **Android App Bundle firmado (`app-release.aab`)**: Paquete optimizado de producción para subida directa a Google Play Console.
+    - **APK firmado (`app-release.apk`)**: Paquete independiente para instalación directa en dispositivos de viajeros o distribución sin Play Store.
+    - **APK Debug (`app-debug.apk`)**: Para validación en dispositivos autorizados vía ADB.
 
 ---
 

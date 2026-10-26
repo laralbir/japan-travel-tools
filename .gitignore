@@ -13,6 +13,7 @@ local.properties
 # Keystore files
 *.jks
 *.keystore
+keystore.properties
 
 # Fastlane / Release artifacts
 *.apk

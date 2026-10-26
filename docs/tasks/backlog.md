@@ -127,3 +127,10 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 - [x] **TASK-801**: Ejecutar batería completa de tests unitarios e instrumentados y validar uso 100% en Modo Avión.
 - [x] **TASK-802**: Revisión y aprobación del usuario para pase a producción y publicación de la versión 1.0.0 estable.
 - [x] **TASK-803**: Merge a `main` vía Gitflow (`release/1.0.0`), generación de tag `v1.0.0`, compilación de APK final y publicación en **GitHub Releases**.
+
+## Hito 10: Hotfix y Robustez `v1.0.1` (Modelos Canónicos IA sin 404, Cámara OCR y Firma Play Store)
+
+- [x] **TASK-116 (TDD)**: Corrección de error 404 en llamadas a Gemini Cloud mediante alias canónicos oficiales (`gemini-flash-latest`, `gemini-pro-latest`, `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-flash-lite-latest`), migración automática reactiva de identificadores deprecados en `UserPreferencesRepository` y tests unitarios de migración y endpoints.
+- [x] **TASK-117 (TDD)**: Reparación del flujo de apertura de cámara y permisos en runtime en el traductor visual de carteles (`SPEC-06`), verificación previa de `CAMERA` con launcher de permisos, captura en alta resolución mediante `FileProvider` con fallback a vista previa, y selector robusto para Google Lens (`com.google.ar.lens`), Google Traductor y cámara del sistema con soporte en `<queries>`.
+- [x] **TASK-118 (DevOps)**: Pipeline completo de firma y generación de artefactos para Google Play Store (`signingConfigs.release`), creación de plantilla `keystore.properties.example`, generación dual de Android App Bundle firmado (`app-release.aab`) y APK firmado (`app-release.apk`).
+- [x] **TASK-804**: Publicación de release `v1.0.1` en GitHub Releases con notas de cambio completas y adjuntos de `.aab` firmado para Google Play Store y APKs firmados.
