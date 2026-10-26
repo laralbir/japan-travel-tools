@@ -50,6 +50,11 @@ Todos los mensajes de commit deben seguir el estándar [Conventional Commits v1.
 - `chore`: Configuración de build, Gradle, dependencias o CI/CD.
 - `style`: Formato de código, linting.
 
+### Formato de Archivos y Regla POSIX EOF Newline
+- **Salto de línea final obligatorio (POSIX EOF newline)**: Todo archivo de código fuente (`.kt`, `.kts`), recursos (`.xml`), scripts (`.sh`, `.py`), configuración (`.properties`, `.conf`, `.toml`) y documentación (`.md`, `.json`) **debe finalizar obligatoriamente con un salto de línea estándar (`\n`)**.
+- Queda prohibido dejar archivos sin salto de línea final (`No newline at end of file`) para evitar diffs espurios de formato en Git al ser abiertos o guardados por editores de código e IDEs.
+- El proyecto estandariza esta regla mediante `.editorconfig` en la raíz con `insert_final_newline = true`, `end_of_line = lf` y `trim_trailing_whitespace = true`.
+
 ---
 
 ## 3. Versionado Semántico, Regla Beta y Releases (GitHub + APK)

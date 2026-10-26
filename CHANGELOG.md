@@ -7,6 +7,9 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Reglas Generales de Estilo y Formato de Código
+- **Regla POSIX EOF Newline Obligatoria (`.editorconfig`)**: Creación de la configuración estándar de proyecto `.editorconfig` (`insert_final_newline = true`, `end_of_line = lf`, `trim_trailing_whitespace = true`) e incorporación de la regla obligatoria en `AGENTS.md` para garantizar que todos los archivos finalicen con salto de línea estándar y evitar diffs espurios de formateo en Git.
+
 ### Bóveda de Documentos e Identidad (Bloqueo Biométrico Obligatorio sin Toggle)
 - **Bloqueo Biométrico Obligatorio por Diseño**: La verificación biométrica (huella, rostro o PIN) es estrictamente obligatoria si el hardware dispone de credenciales configuradas. Se retiró por completo el conmutador (toggle) de la interfaz para evitar riesgos de desprotección accidental o deliberada de documentos confidenciales (Pasaporte y DNI).
 - **Tarjeta de Protección Activa y Bloqueo Inmediato**: Se reemplazó el conmutador por una tarjeta informativa de protección activa que presenta el botón `"🔒 Bloquear"` mientras los documentos están visibles, manteniendo el auto-bloqueo tras 120s y en segundo plano.
