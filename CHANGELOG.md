@@ -7,6 +7,11 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Previsión Meteorológica (Persistencia Offline y Actualización Periódica — Issue #3)
+- **Persistencia en Disco de Pronósticos (`SharedWeatherForecastStore` & `WeatherForecastJsonCodec`)**: Serialización y almacenamiento de la lista de pronósticos de 7 días (`WeatherDayForecast`) por ciudad en `saved_weather_forecasts.json`. Al reiniciar la app se cargan inmediatamente las predicciones meteorológicas previamente descargadas sin perderse ni reiniciarse a las semillas (#3).
+- **Actualización Automática Desatendida (`WeatherSyncWorker` & `WorkManager`)**: Programación periódica cada 6 horas con restricciones de red conectada para actualizar los pronósticos de todas las ciudades del itinerario en segundo plano (#3).
+- **Persistencia Inmediata al Actualizar**: Sincronización automática a disco en cada actualización manual o de itinerario (#3).
+
 ### Conversor de Divisas (Persistencia Offline y Actualización Periódica — Issue #2)
 - **Persistencia en Disco de Tasas (`SharedCurrencyRateStore` & `ExchangeRateJsonCodec`)**: Almacenamiento automático y reactivo de las tasas actualizadas del BCE en el almacenamiento interno privado (`saved_currency_rates.json`), garantizando que al reiniciar la app se conserven las tasas cacheadas sin revertir a datos semilla (#2).
 - **Actualización Automática Desatendida (`CurrencySyncWorker` & `WorkManager`)**: Programación periódica cada 24 horas con restricciones de red conectada para sincronizar las tasas de cambio de Frankfurter API en segundo plano (#2).

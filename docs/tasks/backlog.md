@@ -167,3 +167,13 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 - [x] **TASK-125 (TDD)**: Integración en la Pantalla del Conversor de Divisas (`Issue #2 / SPEC-02 RF-02.3`):
   - Conectar `CurrencyToolScreen` en `MainScreen.kt` con `SharedCurrencyRateStore.rateState.collectAsState()`.
   - Asegurar que al pulsar "🔄 Actualizar BCE", se invoque `syncRatesOnline()` y se mantenga persistido el resultado en disco.
+
+### Issue #3: Predicciones Meteorológicas no se Persisten y Actualización Periódica
+- [x] **TASK-126 (TDD)**: Serialización y Persistencia de Pronósticos Meteorológicos (`Issue #3 / SPEC-07 RF-07.7`):
+  - Escribir tests unitarios en `WeatherForecastPersistenceTest.kt` validando `WeatherForecastJsonCodec.exportForecastsJson` e `importForecastsJson` (preservando días, temperaturas, WMO, idoneidad, fuji visibility y consejos).
+  - Implementar `WeatherForecastJsonCodec` y actualizar `SharedWeatherForecastStore` para persistir `_forecastsState` en `saved_weather_forecasts.json` al guardar y cargar.
+- [x] **TASK-127 (TDD)**: Tarea Periódica en Segundo Plano con WorkManager (`Issue #3 / SPEC-07 RF-07.7`):
+  - Implementar `WeatherSyncWorker` (`CoroutineWorker`) y `WeatherSyncScheduler` con periodicidad de 6 horas y restricción de red conectada.
+  - Registrar la inicialización de `WeatherSyncScheduler.schedule(this)` en `MainActivity.kt`.
+- [x] **TASK-128 (TDD)**: Persistencia Inmediata en Actualizaciones Manuales y de Itinerario (`Issue #3 / SPEC-07 RF-07.7`):
+  - Asegurar que `SharedWeatherForecastStore.updateCityForecasts` invoque inmediatamente `saveToDisk()`.

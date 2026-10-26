@@ -397,6 +397,15 @@ data class UserPreferences(
   - Configuración de `PeriodicWorkRequest` con periodicidad de 24 horas y `Constraints` con `NetworkType.CONNECTED`.
   - Encolado con política `ExistingPeriodicWorkPolicy.KEEP` para no reiniciar innecesariamente el ciclo de sincronización en cada inicio.
 
+### 3.16. Persistencia de Pronósticos Meteorológicos y Sincronización con WorkManager (Issue #3)
+- **Persistencia Reactiva en Disco (`SharedWeatherForecastStore` & `WeatherForecastJsonCodec`)**:
+  - `SharedWeatherForecastStore` gestiona tanto el catálogo de ciudades (`saved_weather_cities.json`) como el conjunto completo de pronósticos diarios de 7 días por ciudad (`saved_weather_forecasts.json`).
+  - Serialización y deserialización de `List<WeatherDayForecast>` garantizando persistencia entre reinicios completos de la app.
+  - Al actualizar el clima de una ciudad (online u offline), se guarda inmediatamente en disco.
+- **Worker Periódico de Previsión Meteorológica (`WeatherSyncWorker` & `WeatherSyncScheduler`)**:
+  - Implementación mediante `CoroutineWorker` con periodicidad de 6 horas.
+  - Ejecuta la descarga de previsiones de Open-Meteo para todas las ciudades configuradas cuando el dispositivo tiene conexión a internet, manteniendo la información climática siempre al día para el usuario y para el motor de planificación con IA.
+
 ---
 
 ## 4. Estrategia de Testing (TDD)
