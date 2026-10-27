@@ -7,55 +7,51 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
-### Portabilidad JSON en Ajustes (Local / Google Drive SAF) y Detección Automática Inteligente
+## [1.1.0] - 2026-10-27
+
+### Portabilidad JSON Unificada, Zonas Horarias ISO UTC, Sincronización en Segundo Plano y Bóveda Biométrica — Japan Travel Tools 1.1.0 🇯🇵🚀
+
+#### 📦 Portabilidad JSON en Ajustes (Local / Google Drive SAF) y Detección Automática Inteligente:
 - **Tarjeta Centralizada en Ajustes (`JsonDataPortabilityCard`)**: Acceso directo y unificado desde `SettingsPreferencesScreen` para importar y exportar datos mediante Storage Access Framework (SAF) nativo de Android, permitiendo leer y guardar archivos `.json` en almacenamiento local (Descargas, Documentos) o en Google Drive.
 - **Portabilidad de Guías de Viaje (`TravelGuideArticle`) y Reservas/Billetes (`TravelDocumentItem`)**: Exportación e importación completa en formato JSON legible con opciones de reemplazo total o fusión inteligente sin sobrescribir registros existentes (`SharedDocumentsAndGuidesStore.importGuides`, `SharedDocumentsAndGuidesStore.importDocuments`).
 - **Detector de Contenido JSON Inteligente (`JsonContentDetector`)**: Inspección y tipado automático de cualquier archivo JSON seleccionado (`TRAVEL_PLAN`, `TRAVEL_GUIDES`, `TRAVEL_DOCUMENTS`, `FULL_BACKUP`) con presentación de resumen de elementos encontrados y confirmación guiada antes de importar.
 
-### Formateo Regional de Fechas, Horas con Zona Horaria Local y Persistencia en ISO UTC (`TravelDateTimeFormatter`)
+#### 🕒 Formateo Regional de Fechas, Horas con Zona Horaria Local y Persistencia en ISO UTC (`TravelDateTimeFormatter`):
 - **Fecha Completa en Formato Regional del Sistema**: Visualización localizada de la fecha completa con `FormatStyle.FULL` (`Locale.getDefault()`, ej. *"Lunes, 15 de marzo de 2027"* / *"Monday, March 15, 2027"*) en las tarjetas de itinerario y transporte.
 - **Zona Horaria Local Explícita con Desfase UTC**: Indicación clara de la hora local de cada ciudad o parada junto con su huso y desfase UTC (ej. Múnich = `UTC+1 · CET`, Osaka/Tokio = `UTC+9 · JST`) tanto en `ItineraryStopCard` como en `TransportSegmentCard`.
 - **Persistencia Canónica en ISO UTC**: Cálculo y almacenamiento estándar en formato ISO UTC (`Instant.toString()`, ej. `2027-03-15T11:25:00Z`) para actividades e hitos de transporte (`startTimeUtcIso`, `endTimeUtcIso`, `departureTimeUtcIso`, `arrivalTimeUtcIso`) con compatibilidad retroactiva total en `TravelPlanJsonCodec`.
 - **Selector y Detección de Zona Horaria en Editor**: Incorporación de chips rápidos en `ItineraryStopEditorModalSheet` para asignar zona horaria (Japón `UTC+9`, Múnich `UTC+1`, Madrid `UTC+1`) e inferencia automática mediante coordenadas o nombre de lugar (`inferZoneIdFromCoordinatesOrLocation`).
 
-### Rediseño Ergonómico y Compacto de Botones en Tarjetas
+#### 🎴 Rediseño Ergonómico y Compacto de Botones en Tarjetas:
 - **Rediseño No Invasivo en `ItineraryStopCard`**: Sustitución de dos bloques masivos apilados (`AppButtonRow` de 120dp) por una fila única, limpia y estilizada de 34dp de altura con botones proporcionados para `🗺️ Mapa`, `📅 Cal.`, `✏️ Editar` y `🗑️`, reduciendo la invasividad visual en más del 70%.
 - **Rediseño Compacto en `TransportSegmentCard`**: Sustitución del botón masivo por una fila compacta de acción (`✏️ Editar`, `🗑️ Eliminar`).
 
-
-### Reglas Generales de Estilo y Formato de Código
-- **Regla POSIX EOF Newline Obligatoria (`.editorconfig`)**: Creación de la configuración estándar de proyecto `.editorconfig` (`insert_final_newline = true`, `end_of_line = lf`, `trim_trailing_whitespace = true`) e incorporación de la regla obligatoria en `AGENTS.md` para garantizar que todos los archivos finalicen con salto de línea estándar y evitar diffs espurios de formateo en Git.
-
-### Bóveda de Documentos e Identidad (Bloqueo Biométrico Obligatorio sin Toggle)
+#### 🔒 Bóveda de Documentos e Identidad (Bloqueo Biométrico Obligatorio sin Toggle y Auto-Bloqueo — Issues #4 y #5):
 - **Bloqueo Biométrico Obligatorio por Diseño**: La verificación biométrica (huella, rostro o PIN) es estrictamente obligatoria si el hardware dispone de credenciales configuradas. Se retiró por completo el conmutador (toggle) de la interfaz para evitar riesgos de desprotección accidental o deliberada de documentos confidenciales (Pasaporte y DNI).
-- **Tarjeta de Protección Activa y Bloqueo Inmediato**: Se reemplazó el conmutador por una tarjeta informativa de protección activa que presenta el botón `"🔒 Bloquear"` mientras los documentos están visibles, manteniendo el auto-bloqueo tras 120s y en segundo plano.
-
-### Bóveda de Documentos e Identidad (Bloqueo Estricto por Defecto y Auto-Bloqueo — Issue #5)
 - **Estado Bloqueado Obligatorio por Defecto (`VaultSecurityPolicy`)**: Eliminación del uso de `rememberSaveable` para el estado de desbloqueo. Cada vez que el usuario accede a la pantalla de Identificación/Pasaporte, la vista nace obligatoriamente bloqueada mostrando la tarjeta `"Identificación Bloqueada"`, garantizando que los documentos nunca se expongan sin verificación biométrica previa (#5).
 - **Auto-Bloqueo de Seguridad (Temporizador de 120s)**: Incorporación de cierre automático de sesión de visualización tras 120 segundos (2 minutos) continuos de desbloqueo para proteger la privacidad ante descuidos (#5).
 - **Auto-Bloqueo en Segundo Plano (`LifecycleEventObserver`)**: Bloqueo automático e inmediato de la bóveda al pausar, minimizar la aplicación o apagar la pantalla del dispositivo (#5).
-- **Botón Unificado "Bloquear"**: Estandarización del botón de re-bloqueo con el texto conciso `"🔒 Bloquear"` visible siempre que los documentos estén desbloqueados (#5).
+- **Protección Anti-Bypass Estricta**: Eliminación de cualquier riesgo por el cual cancelar el diálogo de autenticación pudiera saltarse el control de biometría (#4).
+- **Tarjeta de Protección Activa y Botón Unificado "Bloquear"**: Estandarización de la tarjeta informativa con el botón directo `"🔒 Bloquear"` visible siempre que los documentos estén desbloqueados (#4, #5).
 
-### Bóveda de Documentos e Identidad (Seguridad Biometría y Anti-Bypass — Issue #4)
-- **Corrección de Estado del Switch de Biometría**: Ajuste del valor por defecto de `biometricLockEnabled` a `true` (activo) para dispositivos con soporte biométrico/PIN, asegurando que tras autenticarse con huella o PIN el interruptor se muestre encendido (`checked = true`) (#4).
-- **Protección Anti-Bypass Estricta**: Eliminación de la vulnerabilidad por la cual cambiar el conmutador de estado o cancelar el diálogo de autenticación permitía saltarse el control de biometría y acceder a los documentos privados. Ninguna transición hacia estado desactivado o desbloqueado puede realizarse sin autenticación exitosa previa (#4).
-- **Acción Rápida de Re-bloqueo**: Incorporación del botón `🔒 Bloquear bóveda` que permite al usuario volver a bloquear al instante la vista de documentos confidenciales sin salir de la pantalla (#4).
-
-### Previsión Meteorológica (Persistencia Offline y Actualización Periódica — Issue #3)
-- **Persistencia en Disco de Pronósticos (`SharedWeatherForecastStore` & `WeatherForecastJsonCodec`)**: Serialización y almacenamiento de la lista de pronósticos de 7 días (`WeatherDayForecast`) por ciudad en `saved_weather_forecasts.json`. Al reiniciar la app se cargan inmediatamente las predicciones meteorológicas previamente descargadas sin perderse ni reiniciarse a las semillas (#3).
+#### ⛅ Previsión Meteorológica (Persistencia Offline y Actualización Periódica en Segundo Plano — Issue #3):
+- **Persistencia en Disco de Pronósticos (`SharedWeatherForecastStore` & `WeatherForecastJsonCodec`)**: Serialización y almacenamiento de la lista de pronósticos de 7 días (`WeatherDayForecast`) por ciudad en `saved_weather_forecasts.json`. Al reiniciar la app se cargan inmediatamente las predicciones previamente descargadas (#3).
 - **Actualización Automática Desatendida (`WeatherSyncWorker` & `WorkManager`)**: Programación periódica cada 6 horas con restricciones de red conectada para actualizar los pronósticos de todas las ciudades del itinerario en segundo plano (#3).
 - **Persistencia Inmediata al Actualizar**: Sincronización automática a disco en cada actualización manual o de itinerario (#3).
 
-### Conversor de Divisas (Persistencia Offline y Actualización Periódica — Issue #2)
+#### 💱 Conversor de Divisas (Persistencia Offline y Actualización Periódica en Segundo Plano — Issue #2):
 - **Persistencia en Disco de Tasas (`SharedCurrencyRateStore` & `ExchangeRateJsonCodec`)**: Almacenamiento automático y reactivo de las tasas actualizadas del BCE en el almacenamiento interno privado (`saved_currency_rates.json`), garantizando que al reiniciar la app se conserven las tasas cacheadas sin revertir a datos semilla (#2).
 - **Actualización Automática Desatendida (`CurrencySyncWorker` & `WorkManager`)**: Programación periódica cada 24 horas con restricciones de red conectada para sincronizar las tasas de cambio de Frankfurter API en segundo plano (#2).
 - **Indicador Dinámico de Sincronización**: Visualización de la fecha real del tipo de cambio cacheado o del modo offline en la tarjeta principal del conversor (#2).
 
-### Asistente de IA (UX, Markdown, Input y Cancelación — Issue #1)
+#### 🤖 Asistente de IA (Renderizado Markdown Nativo, Entrada Multilínea y Cancelación — Issue #1):
 - **Renderizado Nativo de Markdown (`MarkdownText` & `MarkdownTextParser`)**: Procesamiento y visualización con estilos enriquecidos para encabezados (`#`, `##`, `###`), negritas (`**texto**`), cursivas (`*texto*`), viñetas (`•`), listas numeradas y bloques/términos en código monoespaciado, eliminando la exposición de caracteres Markdown en crudo (#1).
 - **Entrada Multilínea Ergonómica**: Ampliación del campo de texto a multilínea (`minLines = 2`, `maxLines = 5`) con `imePadding()` para evitar solapamientos visuales con el teclado virtual (#1).
 - **Acción IME y Cierre Automático del Teclado**: Soporte para disparar consultas directamente desde la tecla de envío del teclado (`ImeAction.Send`) y ocultamiento inmediato del teclado virtual con deselección de foco al consultar (#1).
 - **Cancelación Reactiva de Consultas**: Incorporación de botón `❌ Cancelar consulta` durante la carga que cancela de forma inmediata la corrutina en progreso (#1).
+
+#### 📐 Reglas Generales de Estilo y Formato de Código:
+- **Regla POSIX EOF Newline Obligatoria (`.editorconfig`)**: Creación de la configuración estándar de proyecto `.editorconfig` (`insert_final_newline = true`, `end_of_line = lf`, `trim_trailing_whitespace = true`) e incorporación de la regla obligatoria en `AGENTS.md` para garantizar que todos los archivos finalicen con salto de línea estándar y evitar diffs espurios de formateo en Git.
 
 ## [1.0.2] - 2026-10-26
 
