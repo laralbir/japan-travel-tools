@@ -251,8 +251,28 @@ object SharedDocumentsAndGuidesStore {
         saveToDisk()
     }
 
+    fun importDocuments(docs: List<TravelDocumentItem>, merge: Boolean = false) {
+        val updated = if (merge) {
+            (_documentsState.value + docs).distinctBy { it.id }
+        } else {
+            docs
+        }
+        _documentsState.value = updated
+        saveToDisk()
+    }
+
     fun replaceAllGuides(guides: List<TravelGuideArticle>) {
         _guidesState.value = guides
+        saveToDisk()
+    }
+
+    fun importGuides(guides: List<TravelGuideArticle>, merge: Boolean = false) {
+        val updated = if (merge) {
+            (_guidesState.value + guides).distinctBy { it.id }
+        } else {
+            guides
+        }
+        _guidesState.value = updated
         saveToDisk()
     }
 

@@ -244,7 +244,7 @@ object CityGeocodingHelper {
                 connectTimeout = 3000
                 readTimeout = 3000
                 requestMethod = "GET"
-                setRequestProperty("User-Agent", "JapanTravelTools/1.0.2")
+                setRequestProperty("User-Agent", "JapanTravelTools/1.1.0")
             }
             if (conn.responseCode == 200) {
                 val response = conn.inputStream.bufferedReader().use { it.readText() }
@@ -290,7 +290,7 @@ object CityGeocodingHelper {
                 connectTimeout = 3000
                 readTimeout = 3000
                 requestMethod = "GET"
-                setRequestProperty("User-Agent", "JapanTravelTools/1.0.2")
+                setRequestProperty("User-Agent", "JapanTravelTools/1.1.0")
             }
             if (conn.responseCode == 200) {
                 val response = conn.inputStream.bufferedReader().use { it.readText() }
@@ -411,4 +411,3 @@ object CityGeocodingHelper {
         return pattern.find(json)?.groupValues?.get(1)?.toDoubleOrNull()
     }
 }
-

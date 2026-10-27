@@ -45,7 +45,41 @@ trim_string() {
   echo "$1" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
 }
 
-# Verificar que exista al menos un serial válido en CONFIG_FILE y conectar entradas Wi-Fi (IP:puerto)
+# Auto-descubrimiento mDNS (Wireless Debugging) para dispositivos autorizados
+MDNS_DISCOVERY_SCRIPT="${PROJECT_ROOT}/scripts/discover-adb-mdns.py"
+MDNS_CACHE_FILE="/tmp/japan_travel_tools_mdns_devices.tmp"
+rm -f "${MDNS_CACHE_FILE}"
+
+if [ -x "${MDNS_DISCOVERY_SCRIPT}" ] && command -v python3 >/dev/null 2>&1; then
+  python3 "${MDNS_DISCOVERY_SCRIPT}" > "${MDNS_CACHE_FILE}" 2>/dev/null || true
+  if [ -s "${MDNS_CACHE_FILE}" ]; then
+    while IFS= read -r mdns_line || [ -n "$mdns_line" ]; do
+      disc_serial="$(echo "$mdns_line" | cut -d'|' -f1)"
+      disc_endpoint="$(echo "$mdns_line" | cut -d'|' -f2)"
+      disc_name="$(echo "$mdns_line" | cut -d'|' -f3)"
+      disc_service="$(echo "$mdns_line" | cut -d'|' -f4)"
+
+      # Comprobar si el dispositivo descubierto está en la lista de autorizados
+      is_authorized=0
+      while IFS= read -r conf_line || [ -n "$conf_line" ]; do
+        trimmed="$(trim_string "$conf_line")"
+        case "$trimmed" in ""|\#*) continue ;; esac
+        auth_id="$(trim_string "${trimmed%%|*}")"
+        if [ "$auth_id" = "$disc_serial" ] || [ "$auth_id" = "$disc_service" ] || [ "$auth_id" = "$disc_endpoint" ]; then
+          is_authorized=1
+          break
+        fi
+      done < "${CONFIG_FILE}"
+
+      if [ "$is_authorized" -eq 1 ]; then
+        echo "📡 [mDNS] Dispositivo autorizado detectado en red Wi-Fi: ${disc_name:-Android} (${disc_serial}) en ${disc_endpoint}"
+        "${ADB_BIN}" connect "${disc_endpoint}" >/dev/null 2>&1 || true
+      fi
+    done < "${MDNS_CACHE_FILE}"
+  fi
+fi
+
+# Verificar que exista al menos un serial válido en CONFIG_FILE y conectar entradas Wi-Fi estáticas (IP:puerto)
 AUTH_COUNT=0
 while IFS= read -r line || [ -n "$line" ]; do
   trimmed="$(trim_string "$line")"
@@ -107,6 +141,27 @@ fi
 # Función para buscar si un serial está autorizado en CONFIG_FILE y devolver su alias
 find_authorized_alias() {
   target_serial="$1"
+
+  # Si el target es IP:puerto, consultar su número de serie de hardware real
+  hw_serial=""
+  case "$target_serial" in
+    *:*)
+      hw_serial="$("${ADB_BIN}" -s "${target_serial}" shell getprop ro.serialno 2>/dev/null | tr -d '\r\n' || true)"
+      ;;
+  esac
+
+  # Comprobar también en la caché mDNS si target_serial coincide con algún endpoint
+  mdns_serial=""
+  if [ -s "${MDNS_CACHE_FILE}" ]; then
+    while IFS= read -r mdns_line || [ -n "$mdns_line" ]; do
+      endpoint="$(echo "$mdns_line" | cut -d'|' -f2)"
+      if [ "$endpoint" = "$target_serial" ]; then
+        mdns_serial="$(echo "$mdns_line" | cut -d'|' -f1)"
+        break
+      fi
+    done < "${MDNS_CACHE_FILE}"
+  fi
+
   while IFS= read -r line || [ -n "$line" ]; do
     trimmed="$(trim_string "$line")"
     case "$trimmed" in
@@ -116,7 +171,9 @@ find_authorized_alias() {
     serial="$(trim_string "$raw_serial")"
     raw_alias="${trimmed#*|}"
     alias_name="$(trim_string "$raw_alias")"
-    if [ "$serial" = "$target_serial" ]; then
+    if [ "$serial" = "$target_serial" ] || \
+       { [ -n "$hw_serial" ] && [ "$serial" = "$hw_serial" ]; } || \
+       { [ -n "$mdns_serial" ] && [ "$serial" = "$mdns_serial" ]; }; then
       echo "${alias_name:-$serial}"
       return 0
     fi

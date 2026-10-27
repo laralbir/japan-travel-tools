@@ -20,7 +20,7 @@ data class UserPreferences(
     val baseCurrency: String = "EUR",
     val targetCurrency: String = "JPY",
     val customExchangeRate: Double? = null,
-    val biometricLockEnabled: Boolean = false,
+    val biometricLockEnabled: Boolean = true,
     val forceOfflineMode: Boolean = false,
     val syncOnlyOnWifi: Boolean = true,
     val googleAccountEmail: String? = null,
@@ -107,7 +107,7 @@ class DefaultUserPreferencesRepository(
         val baseCurr = store.getString(KEY_BASE_CURRENCY, "EUR") ?: "EUR"
         val targetCurr = store.getString(KEY_TARGET_CURRENCY, "JPY") ?: "JPY"
         val customRateStr = store.getString(KEY_CUSTOM_RATE, null)
-        val biometric = store.getBoolean(KEY_BIOMETRIC, false)
+        val biometric = store.getBoolean(KEY_BIOMETRIC, true)
         val forceOffline = store.getBoolean(KEY_FORCE_OFFLINE, false)
         val syncWifi = store.getBoolean(KEY_SYNC_WIFI_ONLY, true)
         val email = store.getString(KEY_GOOGLE_EMAIL, null)

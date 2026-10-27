@@ -127,9 +127,24 @@ data class UserPreferences(
     val baseCurrency: String = "EUR",
     val targetCurrency: String = "JPY",
     val customExchangeRate: Double? = null,
-    val biometricLockEnabled: Boolean = false
+    val biometricLockEnabled: Boolean = true
 )
 ```
+
+#### Máquina de Estados de Autenticación de Bóveda (Bloqueo Obligatorio sin Toggle)
+- **Bloqueo Obligatorio por Hardware**:
+  - `isLockMandatory = VaultSecurityPolicy.isLockMandatory(biometricAvailable)`
+  - Si el dispositivo soporta biometría/PIN (`biometricAvailable == true`), el bloqueo es **obligatorio y no deshabilitable**. No se expone ningún conmutador (toggle) en la UI.
+  - `vaultUnlocked = remember { mutableStateOf(!isLockMandatory) }`: estado **efímero** (sin `rememberSaveable`). Si `isLockMandatory` es `true`, **siempre nace bloqueado (`false`)** mostrando la tarjeta "Identificación Bloqueada".
+- **Apertura de Pantalla (`LaunchedEffect(isLockMandatory)`)**:
+  - Si `isLockMandatory && !vaultUnlocked`: dispara `BiometricPrompt`.
+  - Éxito: `vaultUnlocked = true`, `authErrorText = null`.
+  - Fallo/Cancelación: `vaultUnlocked = false`, `authErrorText = errString`.
+- **Auto-Bloqueo por Temporizador y Ciclo de Vida**:
+  - **Temporizador de Sesión**: Cuando `vaultUnlocked == true` e `isLockMandatory == true`, una corrutina en `LaunchedEffect(vaultUnlocked)` espera 120 segundos (`120_000L`); al transcurrir el tiempo, ejecuta `vaultUnlocked = false`.
+  - **Ciclo de Vida (Background)**: Mediante `DisposableEffect` con `LifecycleEventObserver`, si el usuario sale de la app (`ON_STOP`/`ON_PAUSE`), apaga la pantalla o cambia de pantalla, `vaultUnlocked` se conmuta inmediatamente a `false`.
+- **Botón "Bloquear"**:
+  - Mientras `vaultUnlocked == true`, se muestra de forma fija el botón de acción rápida `🔒 Bloquear`, permitiendo al usuario revocar el acceso y bloquear la pantalla de inmediato.
 
 ### 3.2. Caché de Divisas (`CurrencyRateEntity` & `ExchangeRateSnapshot`)
 - **Tabla Room `exchange_rates`**:
@@ -283,6 +298,35 @@ data class UserPreferences(
     - `parseHourAndMinute(timeStr: String): Pair<Int, Int>`: Parsea de forma segura horas en formato `"HH:mm"`, `"H:m"` o devuelve valores por defecto fiables (`09:00` o la hora actual) ante cadenas vacías o malformadas.
     - `formatTime(hour: Int, minute: Int): String`: Formatea valores numéricos en cadena canónica de 24 horas `"HH:mm"`.
     - `formatDisplayTime(timeStr: String, isEs: Boolean): String`: Proporciona la representación legible del horario con soporte opcional de borrado para campos no obligatorios (como facturación o embarque en transportes).
+
+### 3.10. Formateador Internacional de Fecha y Zona Horaria Local con ISO UTC (`TravelDateTimeFormatter`)
+- **Propósito**:
+  - Resolver la presentación y el almacenamiento de fechas y horas para viajeros internacionales respetando el formato regional del sistema operativo y mostrando con claridad la zona horaria local de cada destino.
+- **Responsabilidades de `TravelDateTimeFormatter`**:
+  1. **Formato Regional del Sistema (`formatFullLocalDate`)**:
+     - Convierte una fecha ISO `"YYYY-MM-DD"` en la representación completa oficial del sistema operativo mediante `DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(locale)`.
+     - Capitaliza adecuadamente la primera letra en idiomas romance (ej. `"lunes"` -> `"Lunes, 15 de marzo de 2027"`).
+  2. **Formato de Zona Horaria Local (`formatLocalTimeWithZone`)**:
+     - A partir de una hora `"HH:mm"`, fecha `"YYYY-MM-DD"`, identificador de zona IANA (`"Europe/Berlin"`, `"Asia/Tokyo"`, `"Europe/Madrid"`, etc.) y nombre de la ciudad o lugar.
+     - Obtiene el desfase exacto respecto a UTC (ej. `UTC+1`, `UTC+9`) y el nombre corto del huso (ej. `CET`, `JST`).
+     - Produce cadenas informativas legibles:
+       - Español: `12:25 (Múnich · UTC+1 · CET)`
+       - Inglés: `12:25 (Munich · UTC+1 · CET)`
+  3. **Persistencia y Conversión a ISO UTC (`toUtcIso` / `fromUtcIso`)**:
+     - `localToUtcIso(dateIso: String, timeHhMm: String, zoneId: String): String`: Convierte el par fecha/hora en la zona dada a un instante ISO UTC canónico `"YYYY-MM-DDTHH:mm:ssZ"`.
+     - `utcIsoToLocal(utcIso: String, targetZoneId: String): Pair<String, String>`: Convierte un instante UTC a fecha `"YYYY-MM-DD"` y hora `"HH:mm"` en el huso especificado.
+  4. **Inferencia Automática de Zona Horaria (`inferZoneIdFromCoordinatesOrLocation`)**:
+     - Cuando una parada o destino no tiene zona asignada explícitamente, infiere `Asia/Tokyo`, `Europe/Madrid`, `Europe/Berlin`, etc. analizando coordenadas geográficas o palabras clave de ciudad en título y notas.
+
+### 3.11. Tarjeta Centralizada de Portabilidad e Importación/Exportación JSON en Ajustes (`JsonDataPortabilityCard`)
+- **Propósito**:
+  - Ubicar en Ajustes (`SettingsPreferencesScreen`) el punto de control único para guardar y restaurar datos en formato JSON mediante Storage Access Framework (SAF), permitiendo seleccionar o guardar archivos tanto en almacenamiento local (Descargas, Documentos, etc.) como en Google Drive.
+- **Secciones Soportadas**:
+  1. **Planes de Viaje (Itinerario y Transporte)**: Exportar e importar `PortableTravelPlanBundle` vía `TravelPlanJsonCodec`.
+  2. **Guías de Viaje (`Travel Guides`)**: Exportar e importar `List<TravelGuideArticle>` vía `DocumentsAndGuidesJsonCodec`.
+  3. **Billetes y Reservas (`Documents`)**: Exportar e importar `List<TravelDocumentItem>` vía `DocumentsAndGuidesJsonCodec`.
+  4. **Copia de Seguridad Completa**: Exportar e importar el paquete de sincronización completo (`TravelSyncDataBundle`) con `GoogleDriveSyncHelper`.
+  5. **Importador Inteligente Multifunción**: Analiza cualquier archivo JSON seleccionado con `OpenDocument`, detecta automáticamente qué entidades contiene (`plans`, `guides`, `documents`, `cloudBackupVersion`) y abre un diálogo modal de confirmación informando al usuario sobre las entidades encontradas antes de importar.
   - **Componente `AppTimePickerField`**:
     - Muestra icono de reloj `🕒` o indicador de limpieza `✕`.
     - Al pulsar el campo o el icono, despliega el diálogo interactivo de horas en formato de 24 horas, eliminando la necesidad de teclear dígitos o caracteres separadores.
@@ -367,6 +411,44 @@ data class UserPreferences(
     - **Android App Bundle firmado (`app-release.aab`)**: Paquete optimizado de producción para subida directa a Google Play Console.
     - **APK firmado (`app-release.apk`)**: Paquete independiente para instalación directa en dispositivos de viajeros o distribución sin Play Store.
     - **APK Debug (`app-debug.apk`)**: Para validación en dispositivos autorizados vía ADB.
+
+### 3.14. Experiencia de Usuario y Renderizado del Asistente IA (Markdown, Input Multilínea y Cancelación)
+- **Parser y Renderizado de Markdown (`MarkdownTextParser` & `MarkdownText`)**:
+  - Parser desacoplado de UI (fácilmente testeable mediante TDD unitario con JUnit) que tokeniza la respuesta textual de Gemini o del Experto Offline.
+  - Soporta bloques y estilos en línea:
+    - Encabezados H1, H2, H3 (`#`, `##`, `###`) con mayor peso tipográfico y tamaño (`headlineSmall`, `titleLarge`, `titleMedium`).
+    - Negrita (`**texto**`) y Cursiva (`*texto*`).
+    - Elementos de lista con viñeta (`•`) y numerados con sangrado adecuado.
+    - Bloques de código y términos inline con fuente monoespaciada (`FontFamily.Monospace`) y fondo translúcido diferenciado.
+  - Construcción de `AnnotatedString` con `SpanStyle` nativo de Compose sin dependencias externas pesadas, asegurando fluidez a 120Hz en pantallas de Pixel 9/10 Pro XL y Tablet TCL.
+- **Input Multilínea, IME Padding y Cierre de Teclado**:
+  - Reconfiguración del campo de texto de consulta con `singleLine = false`, `minLines = 2`, `maxLines = 5` para redacción cómoda.
+  - Contenedor con `Modifier.imePadding()` para desplazar dinámicamente la vista al abrir el teclado virtual y evitar que se solape con el botón de envío.
+  - Integración de `KeyboardOptions(imeAction = ImeAction.Send)` y `KeyboardActions(onSend = { ... })` para lanzar la consulta pulsando la tecla de envío del teclado.
+  - Invocación de `LocalSoftwareKeyboardController.current?.hide()` y `focusManager.clearFocus()` inmediatamente al enviar la consulta.
+- **Cancelación Reactiva de Consultas**:
+  - Asignación de la corrutina de consulta a un `Job` almacenable (`var activeQueryJob: Job?`).
+  - Exposición en UI del botón `❌ Cancelar consulta` mientras `isLoading == true`.
+  - Invocación de `activeQueryJob?.cancel()` restableciendo de forma instantánea el estado de carga y emitiendo el mensaje de estado correspondiente.
+
+### 3.15. Persistencia de Tipos de Cambio y Actualización Periódica con WorkManager (Issue #2)
+- **Persistencia Reactiva en Disco (`SharedCurrencyRateStore` & `ExchangeRateJsonCodec`)**:
+  - `SharedCurrencyRateStore` gestiona de forma centralizada el estado reactivo (`StateFlow<ExchangeRateSnapshot>`).
+  - Serialización y deserialización completa de `ExchangeRateSnapshot` (divisa base, fecha del BCE, mapa de tasas, flag de datos semilla y epoch millis de sincronización) hacia el almacenamiento privado `saved_currency_rates.json` en `context.filesDir`.
+  - Al abrir la app, se restaura inmediatamente el último snapshot guardado en disco con su fecha real, evitando el reseteo a la semilla predeterminada.
+- **Worker Periódico Desatendido (`CurrencySyncWorker` & `CurrencySyncScheduler`)**:
+  - Implementación con `androidx.work.CoroutineWorker`.
+  - Configuración de `PeriodicWorkRequest` con periodicidad de 24 horas y `Constraints` con `NetworkType.CONNECTED`.
+  - Encolado con política `ExistingPeriodicWorkPolicy.KEEP` para no reiniciar innecesariamente el ciclo de sincronización en cada inicio.
+
+### 3.16. Persistencia de Pronósticos Meteorológicos y Sincronización con WorkManager (Issue #3)
+- **Persistencia Reactiva en Disco (`SharedWeatherForecastStore` & `WeatherForecastJsonCodec`)**:
+  - `SharedWeatherForecastStore` gestiona tanto el catálogo de ciudades (`saved_weather_cities.json`) como el conjunto completo de pronósticos diarios de 7 días por ciudad (`saved_weather_forecasts.json`).
+  - Serialización y deserialización de `List<WeatherDayForecast>` garantizando persistencia entre reinicios completos de la app.
+  - Al actualizar el clima de una ciudad (online u offline), se guarda inmediatamente en disco.
+- **Worker Periódico de Previsión Meteorológica (`WeatherSyncWorker` & `WeatherSyncScheduler`)**:
+  - Implementación mediante `CoroutineWorker` con periodicidad de 6 horas.
+  - Ejecuta la descarga de previsiones de Open-Meteo para todas las ciudades configuradas cuando el dispositivo tiene conexión a internet, manteniendo la información climática siempre al día para el usuario y para el motor de planificación con IA.
 
 ---
 

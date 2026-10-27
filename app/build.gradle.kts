@@ -15,8 +15,8 @@ android {
     applicationId = "com.laralbir.japantraveltools"
     minSdk = 26
     targetSdk = 36
-    versionCode = 33
-    versionName = "1.0.2"
+    versionCode = 34
+    versionName = "1.1.0"
   }
 
   signingConfigs {
@@ -125,6 +125,10 @@ dependencies {
 
   // ML Kit Japanese Text Recognition (OCR) for Camera Translation
   implementation(libs.mlkit.text.japanese)
+
+  // WorkManager for Periodic Background Sync (Currency & Weather)
+  implementation(libs.androidx.work.runtime.ktx)
+  testImplementation(libs.androidx.work.testing)
 }
 
 tasks.register<Exec>("installAuthorizedDebug") {

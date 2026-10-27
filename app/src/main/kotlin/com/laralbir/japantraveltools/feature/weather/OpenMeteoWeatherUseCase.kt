@@ -238,9 +238,169 @@ data class WeatherDayForecast(
     val aiPromptContextSummary: String
 )
 
+object WeatherForecastJsonCodec {
+    private fun escape(s: String): String = s
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t")
+
+    fun exportForecastsJson(forecasts: List<WeatherDayForecast>): String {
+        val sb = StringBuilder()
+        sb.appendLine("{")
+        sb.appendLine("  \"forecasts\": [")
+        forecasts.forEachIndexed { index, f ->
+            val comma = if (index < forecasts.lastIndex) "," else ""
+            sb.appendLine("    {")
+            sb.appendLine("      \"cityKey\": \"${escape(f.cityKey)}\",")
+            sb.appendLine("      \"dateIso\": \"${escape(f.dateIso)}\",")
+            sb.appendLine("      \"wmoCode\": ${f.wmoCode},")
+            sb.appendLine("      \"tempMaxC\": ${f.tempMaxC},")
+            sb.appendLine("      \"tempMinC\": ${f.tempMinC},")
+            sb.appendLine("      \"precipitationProbabilityMax\": ${f.precipitationProbabilityMax},")
+            sb.appendLine("      \"condition\": \"${f.condition.name}\",")
+            sb.appendLine("      \"suitability\": \"${f.suitability.name}\",")
+            sb.appendLine("      \"fujiVisibilityPercent\": ${f.fujiVisibilityPercent},")
+            sb.appendLine("      \"userPlanningAdviceEs\": \"${escape(f.userPlanningAdviceEs)}\",")
+            sb.appendLine("      \"userPlanningAdviceEn\": \"${escape(f.userPlanningAdviceEn)}\",")
+            sb.appendLine("      \"aiPromptContextSummary\": \"${escape(f.aiPromptContextSummary)}\"")
+            sb.appendLine("    }$comma")
+        }
+        sb.appendLine("  ]")
+        sb.append("}")
+        return sb.toString()
+    }
+
+    fun importForecastsJson(json: String): List<WeatherDayForecast> {
+        val block = extractArrayBlock(json, "forecasts")
+        if (block.isBlank()) return emptyList()
+        val objects = splitJsonObjects(block)
+        return objects.mapNotNull { obj ->
+            val cityKey = extractJsonString(obj, "cityKey") ?: return@mapNotNull null
+            val dateIso = extractJsonString(obj, "dateIso") ?: return@mapNotNull null
+            val wmoCode = extractJsonInt(obj, "wmoCode") ?: 0
+            val tempMaxC = extractJsonDouble(obj, "tempMaxC") ?: 20.0
+            val tempMinC = extractJsonDouble(obj, "tempMinC") ?: 12.0
+            val precip = extractJsonInt(obj, "precipitationProbabilityMax") ?: 10
+            val conditionStr = extractJsonString(obj, "condition") ?: WeatherConditionKind.CLEAR_SUNNY.name
+            val condition = runCatching { WeatherConditionKind.valueOf(conditionStr) }.getOrDefault(WeatherConditionKind.CLEAR_SUNNY)
+            val suitabilityStr = extractJsonString(obj, "suitability") ?: PlanningSuitability.OUTDOOR_OPTIMAL.name
+            val suitability = runCatching { PlanningSuitability.valueOf(suitabilityStr) }.getOrDefault(PlanningSuitability.OUTDOOR_OPTIMAL)
+            val fujiVis = extractJsonInt(obj, "fujiVisibilityPercent") ?: 50
+            val adviceEs = extractJsonString(obj, "userPlanningAdviceEs") ?: ""
+            val adviceEn = extractJsonString(obj, "userPlanningAdviceEn") ?: ""
+            val aiSummary = extractJsonString(obj, "aiPromptContextSummary") ?: ""
+
+            WeatherDayForecast(
+                cityKey = cityKey,
+                dateIso = dateIso,
+                wmoCode = wmoCode,
+                tempMaxC = tempMaxC,
+                tempMinC = tempMinC,
+                precipitationProbabilityMax = precip,
+                condition = condition,
+                suitability = suitability,
+                fujiVisibilityPercent = fujiVis,
+                userPlanningAdviceEs = adviceEs,
+                userPlanningAdviceEn = adviceEn,
+                aiPromptContextSummary = aiSummary
+            )
+        }
+    }
+
+    private fun extractArrayBlock(json: String, arrayName: String): String {
+        val search = "\"$arrayName\""
+        val idx = json.indexOf(search)
+        if (idx < 0) return ""
+        val startBracket = json.indexOf('[', idx)
+        if (startBracket < 0) return ""
+        var depth = 0
+        var inQuotes = false
+        var isEscaped = false
+        for (i in startBracket until json.length) {
+            val char = json[i]
+            if (isEscaped) {
+                isEscaped = false
+                continue
+            }
+            if (char == '\\' && inQuotes) {
+                isEscaped = true
+                continue
+            }
+            if (char == '"') {
+                inQuotes = !inQuotes
+                continue
+            }
+            if (!inQuotes) {
+                if (char == '[') depth++
+                else if (char == ']') {
+                    depth--
+                    if (depth == 0) {
+                        return json.substring(startBracket + 1, i).trim()
+                    }
+                }
+            }
+        }
+        return ""
+    }
+
+    private fun splitJsonObjects(arrayBlock: String): List<String> {
+        val result = mutableListOf<String>()
+        var depth = 0
+        var inQuotes = false
+        var isEscaped = false
+        var start = -1
+        for (i in arrayBlock.indices) {
+            val char = arrayBlock[i]
+            if (isEscaped) {
+                isEscaped = false
+                continue
+            }
+            if (char == '\\' && inQuotes) {
+                isEscaped = true
+                continue
+            }
+            if (char == '"') {
+                inQuotes = !inQuotes
+                continue
+            }
+            if (!inQuotes) {
+                if (char == '{') {
+                    if (depth == 0) start = i
+                    depth++
+                } else if (char == '}') {
+                    depth--
+                    if (depth == 0 && start != -1) {
+                        result.add(arrayBlock.substring(start, i + 1))
+                        start = -1
+                    }
+                }
+            }
+        }
+        return result
+    }
+
+    private fun extractJsonString(obj: String, key: String): String? {
+        val regex = Regex("\"$key\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"")
+        return regex.find(obj)?.groupValues?.get(1)?.replace("\\\"", "\"")?.replace("\\n", "\n")?.replace("\\\\", "\\")
+    }
+
+    private fun extractJsonDouble(obj: String, key: String): Double? {
+        val regex = Regex("\"$key\"\\s*:\\s*([0-9.-]+)")
+        return regex.find(obj)?.groupValues?.get(1)?.toDoubleOrNull()
+    }
+
+    private fun extractJsonInt(obj: String, key: String): Int? {
+        val regex = Regex("\"$key\"\\s*:\\s*([0-9-]+)")
+        return regex.find(obj)?.groupValues?.get(1)?.toIntOrNull()
+    }
+}
+
 object SharedWeatherForecastStore {
     private var appContext: Context? = null
     private const val CITIES_FILE_NAME = "saved_weather_cities.json"
+    private const val FORECASTS_FILE_NAME = "saved_weather_forecasts.json"
 
     private val _citiesState = MutableStateFlow(WeatherCityCatalog.defaultCities())
     val citiesState: StateFlow<List<WeatherCityItem>> = _citiesState.asStateFlow()
@@ -262,6 +422,9 @@ object SharedWeatherForecastStore {
         try {
             val file = File(ctx.filesDir, CITIES_FILE_NAME)
             file.writeText(WeatherCityJsonCodec.exportCitiesJson(_citiesState.value, _deletedCityIds))
+
+            val forecastsFile = File(ctx.filesDir, FORECASTS_FILE_NAME)
+            forecastsFile.writeText(WeatherForecastJsonCodec.exportForecastsJson(_forecastsState.value))
         } catch (_: Exception) {}
     }
 
@@ -278,6 +441,14 @@ object SharedWeatherForecastStore {
                 val deleted = WeatherCityJsonCodec.importDeletedIds(json)
                 _deletedCityIds.clear()
                 _deletedCityIds.addAll(deleted)
+            }
+
+            val forecastsFile = File(ctx.filesDir, FORECASTS_FILE_NAME)
+            if (forecastsFile.exists() && forecastsFile.length() > 0) {
+                val loadedForecasts = WeatherForecastJsonCodec.importForecastsJson(forecastsFile.readText())
+                if (loadedForecasts.isNotEmpty()) {
+                    _forecastsState.value = loadedForecasts
+                }
             }
         } catch (_: Exception) {}
     }
@@ -357,6 +528,7 @@ object SharedWeatherForecastStore {
         if (updatedDays.isEmpty()) return
         val others = _forecastsState.value.filterNot { it.cityKey == cityKey }
         _forecastsState.value = others + updatedDays
+        saveToDisk()
     }
 
     fun forecastForDayNumber(dayNumber: Int): WeatherDayForecast {

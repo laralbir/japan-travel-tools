@@ -25,7 +25,7 @@ class UserPreferencesRepositoryTest {
         assertEquals("EUR", prefs.baseCurrency)
         assertEquals("JPY", prefs.targetCurrency)
         assertNull(prefs.customExchangeRate)
-        assertFalse(prefs.biometricLockEnabled)
+        assertTrue(prefs.biometricLockEnabled)
         assertFalse(prefs.forceOfflineMode)
         assertTrue(prefs.syncOnlyOnWifi)
         assertNull(prefs.googleAccountEmail)
@@ -59,6 +59,23 @@ class UserPreferencesRepositoryTest {
         assertTrue(restored.forceOfflineMode)
         assertEquals("traveler@gmail.com", restored.googleAccountEmail)
         assertEquals(1730000000000L, restored.lastCloudSyncEpochMillis)
+    }
+
+    @Test
+    fun `biometric lock defaults to true and can be disabled and re-enabled persistently`() = runTest {
+        val store = InMemoryKeyValueStore()
+        val repository = DefaultUserPreferencesRepository(store)
+
+        assertTrue(repository.current.biometricLockEnabled)
+
+        repository.setBiometricLockEnabled(false)
+        assertFalse(repository.current.biometricLockEnabled)
+
+        val restartedRepo = DefaultUserPreferencesRepository(store)
+        assertFalse(restartedRepo.current.biometricLockEnabled)
+
+        restartedRepo.setBiometricLockEnabled(true)
+        assertTrue(restartedRepo.current.biometricLockEnabled)
     }
 
     @Test

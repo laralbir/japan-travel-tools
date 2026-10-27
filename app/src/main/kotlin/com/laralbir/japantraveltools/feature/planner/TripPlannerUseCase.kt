@@ -22,7 +22,10 @@ data class ItineraryStopItem(
     val longitude: Double,
     val notes: String = "",
     val photoLabels: List<String> = emptyList(),
-    val linkedDocumentTitle: String? = null
+    val linkedDocumentTitle: String? = null,
+    val timeZoneId: String = "Asia/Tokyo",
+    val startTimeUtcIso: String? = null,
+    val endTimeUtcIso: String? = null
 )
 
 data class AnalyzedItineraryStop(

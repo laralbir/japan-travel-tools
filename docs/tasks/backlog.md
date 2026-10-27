@@ -139,3 +139,66 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 
 - [x] **TASK-119 (TDD)**: Adopción de `Gemini Flash-Lite` (`gemini-flash-lite-latest`) como modelo recomendado predeterminado (<1s de latencia), ampliación de `readTimeout` a 30s en peticiones HTTP y 25s en pruebas de conexión, soporte nativo de claves con prefijo `AQ.`, clarificación de 429 para modelos PRO en el nivel gratuito y retirada de modelos 404 deprecados por Google.
 - [x] **TASK-805**: Publicación de release `v1.0.2` en GitHub Releases con compilación completa firmada para Google Play Store (`.aab` y `.apk`).
+
+## Hito 12: Resolución de Issues de GitHub (#1, #2, #3)
+
+### Issue #1: Asistente de IA (Markdown, Input Multilínea, Teclado y Cancelación)
+- [x] **TASK-120 (TDD)**: Parser y Renderizado de Markdown en Respuestas de IA (`Issue #1 / SPEC-06 RF-06.4`):
+  - Escribir tests unitarios en `MarkdownTextParserTest.kt` validando la tokenización y estructuración de encabezados (`#`, `##`, `###`), texto en negrita (`**...**`), cursiva (`*...*`), viñetas (`* `, `- `, `• `), bloques de código inline/fenced y párrafos limpios.
+  - Implementar `MarkdownTextParser.kt` y componente composable `MarkdownText.kt` con soporte de `AnnotatedString` y estilos tipográficos Material 3.
+  - Integrar `MarkdownText` en la tarjeta de respuesta del Asistente IA (`MainScreen.kt`), sustituyendo el `Text` plano anterior.
+- [x] **TASK-121 (TDD)**: UX de Entrada, Input Multilínea, Teclado e IME Padding (`Issue #1 / SPEC-06 RF-06.4`):
+  - Modificar el campo de consulta a `singleLine = false`, `minLines = 2`, `maxLines = 5` para redacción ergonómica.
+  - Añadir soporte para envío rápido desde el teclado mediante `KeyboardOptions(imeAction = ImeAction.Send)` y `KeyboardActions(onSend = { ... })`.
+  - Integrar `imePadding()` y gestión de scroll para que el teclado no tape el campo de entrada.
+  - Implementar cierre automático del teclado virtual (`LocalSoftwareKeyboardController.current?.hide()`) y deselección de foco al enviar la consulta.
+- [x] **TASK-122 (TDD)**: Cancelación Reactiva de Consulta en Progreso (`Issue #1 / SPEC-06 RF-06.4`):
+  - Controlar la corrutina de consulta mediante `activeQueryJob: Job?`.
+  - Mostrar botón `❌ Cancelar consulta` visible y accesible mientras `isLoading == true`.
+  - Cancelar la petición inmediatamente al hacer click, restaurando la UI y mostrando mensaje de estado informativo.
+
+### Issue #2: Ratio de Divisas no se Persiste y Actualización Periódica
+- [x] **TASK-123 (TDD)**: Serialización y Persistencia de Tasas de Cambio (`Issue #2 / SPEC-02 RF-02.3`):
+  - Escribir tests unitarios en `ExchangeRatePersistenceTest.kt` validando `ExchangeRateJsonCodec.exportToJson` e `importFromJson` (preservando fecha, divisa base, mapa de tasas, isSeedData y timestamp).
+  - Implementar `ExchangeRateJsonCodec` y `SharedCurrencyRateStore` con métodos `init`, `loadFromDisk`, `saveToDisk`, `updateSnapshot` y `syncRatesOnline`.
+- [x] **TASK-124 (TDD)**: Tarea Periódica en Segundo Plano con WorkManager (`Issue #2 / SPEC-02 RF-02.4`):
+  - Implementar `CurrencySyncWorker` (`CoroutineWorker`) y `CurrencySyncScheduler` con periodicidad de 24 horas y restricción de red conectada.
+  - Escribir tests unitarios para `CurrencySyncWorker` verificando ejecución exitosa y actualización de `SharedCurrencyRateStore`.
+- [x] **TASK-125 (TDD)**: Integración en la Pantalla del Conversor de Divisas (`Issue #2 / SPEC-02 RF-02.3`):
+  - Conectar `CurrencyToolScreen` en `MainScreen.kt` con `SharedCurrencyRateStore.rateState.collectAsState()`.
+  - Asegurar que al pulsar "🔄 Actualizar BCE", se invoque `syncRatesOnline()` y se mantenga persistido el resultado en disco.
+
+### Issue #3: Predicciones Meteorológicas no se Persisten y Actualización Periódica
+- [x] **TASK-126 (TDD)**: Serialización y Persistencia de Pronósticos Meteorológicos (`Issue #3 / SPEC-07 RF-07.7`):
+  - Escribir tests unitarios en `WeatherForecastPersistenceTest.kt` validando `WeatherForecastJsonCodec.exportForecastsJson` e `importForecastsJson` (preservando días, temperaturas, WMO, idoneidad, fuji visibility y consejos).
+  - Implementar `WeatherForecastJsonCodec` y actualizar `SharedWeatherForecastStore` para persistir `_forecastsState` en `saved_weather_forecasts.json` al guardar y cargar.
+- [x] **TASK-127 (TDD)**: Tarea Periódica en Segundo Plano con WorkManager (`Issue #3 / SPEC-07 RF-07.7`):
+  - Implementar `WeatherSyncWorker` (`CoroutineWorker`) y `WeatherSyncScheduler` con periodicidad de 6 horas y restricción de red conectada.
+  - Registrar la inicialización de `WeatherSyncScheduler.schedule(this)` en `MainActivity.kt`.
+- [x] **TASK-128 (TDD)**: Persistencia Inmediata en Actualizaciones Manuales y de Itinerario (`Issue #3 / SPEC-07 RF-07.7`):
+  - Asegurar que `SharedWeatherForecastStore.updateCityForecasts` invoque inmediatamente `saveToDisk()`.
+
+---
+
+## Hito 12: Portabilidad JSON en Ajustes, Zonas Horarias ISO UTC, Sincronización en Segundo Plano y Bóveda Biométrica `v1.1.0`
+
+### Bóveda de Documentos e Identidad (Seguridad Biometría y Bloqueo Estricto)
+- [x] **TASK-129 (TDD)**: Seguridad Biometría y Anti-Bypass (`Issue #4 / SPEC-03 RF-03.2`):
+  - Ajustar estado por defecto de `biometricLockEnabled` a `true` y prevenir bypass por cancelación de diálogo.
+  - Añadir botón rápido de re-bloqueo.
+- [x] **TASK-130 (TDD)**: Bloqueo Estricto por Defecto y Auto-Bloqueo (`Issue #5 / SPEC-03 RF-03.2`):
+  - Implementar `VaultSecurityPolicy` con vista bloqueada por defecto sin persistencia en sesión.
+  - Implementar temporizador de auto-bloqueo de 120s y bloqueo en background (`LifecycleEventObserver`).
+- [x] **TASK-131 (TDD)**: Bloqueo Biométrico Obligatorio por Diseño (`SPEC-03 RF-03.2`):
+  - Eliminar conmutador toggle de la UI para garantizar que no pueda desactivarse deliberada o accidentalmente.
+
+### Portabilidad JSON en Ajustes, Zonas Horarias y Rediseño de Tarjetas
+- [x] **TASK-132 (TDD)**: Formateo Regional de Fechas, Horas con Zona Horaria Local y Persistencia en ISO UTC (`SPEC-00`, `SPEC-04`, `SPEC-05`):
+  - Implementar `TravelDateTimeFormatter` con formato regional `FormatStyle.FULL` y cálculo ISO UTC estándar.
+  - Serialización con compatibilidad hacia atrás en `TravelPlanJsonCodec`.
+- [x] **TASK-133 (TDD)**: Portabilidad JSON en Ajustes y Detector Inteligente de Contenido (`SPEC-00`, `SPEC-03`, `SPEC-04`):
+  - Implementar `JsonContentDetector` para clasificar e inspeccionar planes, guías, billetes y backups completos.
+  - Implementar `JsonDataPortabilityCard` integrado en Ajustes con Storage Access Framework (SAF).
+- [x] **TASK-134 (UI)**: Rediseño Ergonómico de Botones en Tarjetas:
+  - Rediseñar botones en `ItineraryStopCard` y `TransportSegmentCard` con altura reducida y disposición limpia.
+- [x] **TASK-135**: Publicación de release `v1.1.0` en GitHub Releases con compilación completa firmada para Google Play Store (`.aab` y `.apk`) y APK debug.

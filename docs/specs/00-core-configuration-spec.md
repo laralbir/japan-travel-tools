@@ -59,6 +59,31 @@ Establecer los cimientos funcionales y de experiencia de usuario de **Japan Trav
 1. Toda configuración modificada por el usuario en la app o en cualquiera de sus herramientas (idioma, tema, país de origen en relojes, divisas seleccionadas, bloqueo biométrico, etc.) se guardará automáticamente en almacenamiento local persistente.
 2. Al cerrar y volver a abrir la app (o reiniciar el dispositivo), se restaurará exactamente el último estado configurado.
 
+### RF-00.4: Portabilidad Universal de Datos JSON desde Ajustes (SAF Local / Google Drive)
+1. Desde la pantalla de **Ajustes (`SettingsPreferencesScreen`)**, el usuario dispondrá de un panel unificado de **Portabilidad e Importación / Exportación JSON**:
+   - **Planes de Viaje (Itinerario y Transporte)**: Exportar a archivo JSON y restaurar/importar desde archivo JSON con opción de Reemplazo o Fusión.
+   - **Guías de Viaje (`Travel Guides`)**: Exportar a archivo JSON y restaurar/importar guías de viaje creadas o guardadas.
+   - **Billetes y Reservas (`Documents / Tickets`)**: Exportar a archivo JSON e importar billetes, vuelos, hoteles y reservas de museos/atracciones.
+   - **Copia de Seguridad Completa (Todo en Uno)**: Exportar o importar el paquete completo de la aplicación (planes + guías + documentos + ciudades y preferencias).
+2. **Lectura y Escritura de Ficheros Nativos con Storage Access Framework (SAF)**:
+   - Se utilizarán contratos nativos de Android `ActivityResultContracts.CreateDocument("application/json")` y `ActivityResultContracts.OpenDocument()`.
+   - El usuario podrá seleccionar o guardar los archivos directamente en el almacenamiento local del dispositivo (Descargas, Documentos, almacenamiento interno, tarjeta SD) o en **Google Drive** y cualquier proveedor en la nube configurado en el selector del sistema Android.
+3. **Detección Automática Inteligente**:
+   - Al seleccionar cualquier archivo JSON genérico, la aplicación inspeccionará automáticamente su estructura (`itineraryStops`, `guides`, `documents`, `cloudBackupVersion`) para identificar su contenido y ofrecer una importación guiada con confirmación y diálogo de progreso.
+
+### RF-00.5: Formato Regional de Fecha del Sistema y Zonas Horarias Locales (ISO UTC)
+1. **Fecha Completa en Formato Regional**:
+   - Toda tarjeta de itinerario o transporte mostrará la fecha completa respetando el formato regional y localización del sistema operativo del viajero (ej. *"Lunes, 15 de marzo de 2027"* en español o *"Monday, March 15, 2027"* en inglés US), utilizando `FormatStyle.FULL` y `Locale.getDefault()`.
+2. **Horas con Zona Horaria Local del Lugar**:
+   - Las horas de actividades, visitas y transportes se mostrarán en la hora local del lugar donde ocurren (ej. Múnich = UTC+1, Osaka/Tokio = UTC+9), indicando explícitamente la hora local, la ciudad/lugar y el desfase horario respecto a UTC (ej. `12:25 (Múnich · UTC+1 · CET)` o `07:55 (Osaka · UTC+9 · JST)`).
+3. **Persistencia Estándar en Formato ISO UTC**:
+   - Las horas se persistirán internamente y en exportaciones JSON en formato estándar ISO UTC (`Instant.toString()`, ej. `2027-03-15T11:25:00Z`), garantizando total interoperabilidad con calendarios externos, zonas horarias y sincronización en la nube.
+
+### RF-00.6: Ergonomía de Acciones en Tarjetas (Botones Compactos y No Invasivos)
+1. Las tarjetas de parada de itinerario (`ItineraryStopCard`) y de tramos de transporte (`TransportSegmentCard`) evitarán bloques masivos de botones gigantes (`AppButtonRow` apilados).
+2. Se sustituirán por una fila única, limpia y elegante de botones compactos (`height` de 32dp a 36dp) con iconos y texto sutil (`🗺️ Mapa`, `📅 Calendario`, `✏️ Editar`, `🗑️`), optimizando drásticamente la densidad de información y reduciendo la invasividad visual en pantallas de smartphones y tablets.
+
+
 ### RF-00.4: Funcionamiento 100% Offline-First
 1. La aplicación nunca bloqueará su uso ni mostrará pantallas vacías por falta de conexión a internet.
 2. Cualquier dato proveniente de fuentes externas (como tasas de cambio de divisas o geocodificación de zona horaria) deberá:
