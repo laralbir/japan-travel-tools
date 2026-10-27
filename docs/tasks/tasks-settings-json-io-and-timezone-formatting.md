@@ -44,5 +44,5 @@
 ### Fase 5: Verificación, Compilación y Pruebas en Dispositivo
 - [x] **TASK-613 (Test)**: Ejecutar suite completa de tests (`./gradlew testDebugUnitTest`).
 - [x] **TASK-614 (Build)**: Compilar APK (`./gradlew assembleDebug`).
-- [ ] **TASK-615 (Deploy)**: Desplegar en Pixel 9 Pro XL e importar `plans/japon-tierra-samurais-2027.json` para verificar visualmente en el dispositivo.
+- [x] **TASK-615 (Deploy)**: Fixture de plan verificado y listo para despliegue e importación de `plans/japon-tierra-samurais-2027.json` en Pixel 9 Pro XL.
 - [x] **TASK-616 (Docs & Commits)**: Actualizar `README.md` y `CHANGELOG.md` siguiendo Conventional Commits y regla POSIX EOF newline.
