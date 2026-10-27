@@ -96,6 +96,16 @@ Permitir al viajero llevar siempre a mano y **100% offline**:
      - **Galería de fotos adjuntas offline** (capturas de pantalla, fotos de platos, mapas o lugares de referencia).
      - **Vínculo opcional con ubicaciones o actividades del Planificador de Viaje (`SPEC-04`)** para saltar de la guía al mapa o al itinerario.
 
+### RF-03.5: Portabilidad JSON de Guías y Reservas de Billetes (SAF Local / Drive)
+1. **Exportación e Importación de Guías de Viaje (`TravelGuideArticle`)**:
+   - Posibilidad de exportar todas las guías de viaje a un fichero JSON estándar legible (`japan-travel-guides.json`) guardándolo en el almacenamiento local o Google Drive mediante el selector nativo del sistema.
+   - Posibilidad de importar guías desde un fichero JSON en local o Google Drive, ofreciendo modo de reemplazo o modo fusión (incorporando guías nuevas sin borrar las existentes).
+2. **Exportación e Importación de Billetes y Reservas (`TravelDocumentItem`)**:
+   - Posibilidad de exportar la lista y metadatos de reservas de vuelos, hoteles, trenes, seguros y entradas a un fichero JSON estándar (`japan-travel-documents.json`).
+   - Posibilidad de importar reservas y billetes desde ficheros JSON de almacenamiento local o Google Drive.
+3. **Acceso Centralizado desde Ajustes**:
+   - Estas funciones están integradas en la pantalla de Ajustes para garantizar un punto de control unificado junto con la portabilidad del itinerario.
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin / BDD)

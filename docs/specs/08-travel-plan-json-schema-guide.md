@@ -36,6 +36,9 @@ El objeto raíz contiene:
   - `dateIso` (cadena, obligatorio): Fecha en formato `"YYYY-MM-DD"` (ej. `"2026-11-11"`).
   - `startTime` (cadena, obligatorio): Hora de inicio en formato `"HH:mm"` (ej. `"09:00"`).
   - `endTime` (cadena, obligatorio): Hora de finalización en formato `"HH:mm"` (ej. `"10:30"`).
+  - `timeZoneId` (cadena, opcional, por defecto `"Asia/Tokyo"`): Identificador de zona horaria IANA del lugar (ej. `"Europe/Madrid"`, `"Europe/Berlin"`, `"Asia/Tokyo"`).
+  - `startTimeUtcIso` (cadena ISO UTC, opcional): Momento exacto de inicio en UTC con formato `"YYYY-MM-DDTHH:mm:ssZ"` (ej. `"2027-03-15T08:00:00Z"`).
+  - `endTimeUtcIso` (cadena ISO UTC, opcional): Momento exacto de finalización en UTC con formato `"YYYY-MM-DDTHH:mm:ssZ"`.
   - `title` (cadena, obligatorio): Nombre del lugar o actividad.
   - `category` (cadena, obligatorio): Una de las siguientes categorías válidas:
     - `"SIGHTSEEING"` (Templos, miradores, parques, monumentos)
@@ -63,11 +66,13 @@ El objeto raíz contiene:
   - `departureZoneId` (cadena): Zona horaria (ej. `"Asia/Tokyo"`).
   - `departureTerminalOrPlatform` (cadena): Andén o terminal (ej. `"Andén 16"`, `"Terminal 4S"`).
   - `departureTimeIso` (cadena ISO): Fecha y hora de salida `"YYYY-MM-DDTHH:mm"`.
+  - `departureTimeUtcIso` (cadena ISO UTC, opcional): Fecha y hora exacta de salida en UTC `"YYYY-MM-DDTHH:mm:ssZ"`.
   - `arrivalCode` (cadena): Código de 3 letras de llegada (ej. `"KYO"`, `"HND"`).
   - `arrivalName` (cadena): Nombre de la estación de llegada (ej. `"Kyoto Station"`).
   - `arrivalZoneId` (cadena): Zona horaria de llegada (ej. `"Asia/Tokyo"`).
   - `arrivalTerminalOrPlatform` (cadena): Andén o terminal de llegada (ej. `"Andén 13"`).
   - `arrivalTimeIso` (cadena ISO): Fecha y hora de llegada `"YYYY-MM-DDTHH:mm"`.
+  - `arrivalTimeUtcIso` (cadena ISO UTC, opcional): Fecha y hora exacta de llegada en UTC `"YYYY-MM-DDTHH:mm:ssZ"`.
   - `seatOrCarInfo` (cadena): Vagón y asiento o clase (ej. `"Vagón 7 · Asiento 12E"`).
   - `stationExitOrBelt` (cadena): Salida de estación o cinta de equipajes (ej. `"Salida Central"`).
   - `passOrPaymentBadge` (cadena): Cobertura o método de pago (ej. `"JR Pass"`, `"Suica"`, `"Billete"`).

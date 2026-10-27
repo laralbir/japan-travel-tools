@@ -99,6 +99,16 @@ Proporcionar una herramienta integral y **100% funcional offline** para planific
 2. **Teclado Numérico Directo**:
    - El campo central permite la introducción directa del número desplegando exclusivamente el teclado numérico (`KeyboardType.Number`), filtrando cualquier carácter no numérico.
 
+### RF-04.5: Visualización de Fechas Regionales, Zonas Horarias Locales, ISO UTC y Botones Ergonómicos
+1. **Fecha Completa en Formato Regional**:
+   - Cada tarjeta del itinerario (`ItineraryStopCard`) muestra la fecha completa respetando el formato regional del dispositivo (`FormatStyle.FULL`, ej. *"Lunes, 15 de marzo de 2027"* o *"Monday, March 15, 2027"*).
+2. **Hora con Zona Horaria Local Explícita**:
+   - Se muestra la hora de inicio y fin junto con la indicación clara del huso horario local del destino y la ciudad (ej. `10:00 – 12:25 (Múnich · UTC+1 · CET)` o `07:55 – 09:30 (Osaka · UTC+9 · JST)`).
+3. **Persistencia ISO UTC**:
+   - Toda hora se guarda y calcula en formato estándar ISO UTC (`Instant.toString()`, ej. `2027-03-15T11:25:00Z`).
+4. **Botones Compactos y No Invasivos**:
+   - Se reemplazan los bloques masivos apilados (`AppButtonRow` de 120dp) por una única fila compacta de botones (`height` 32-36dp) con acceso rápido a `🗺️ Mapa`, `📅 Calendario`, `✏️ Editar` y `🗑️ Eliminar`.
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin / BDD)

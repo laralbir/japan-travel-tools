@@ -298,6 +298,35 @@ data class UserPreferences(
     - `parseHourAndMinute(timeStr: String): Pair<Int, Int>`: Parsea de forma segura horas en formato `"HH:mm"`, `"H:m"` o devuelve valores por defecto fiables (`09:00` o la hora actual) ante cadenas vacías o malformadas.
     - `formatTime(hour: Int, minute: Int): String`: Formatea valores numéricos en cadena canónica de 24 horas `"HH:mm"`.
     - `formatDisplayTime(timeStr: String, isEs: Boolean): String`: Proporciona la representación legible del horario con soporte opcional de borrado para campos no obligatorios (como facturación o embarque en transportes).
+
+### 3.10. Formateador Internacional de Fecha y Zona Horaria Local con ISO UTC (`TravelDateTimeFormatter`)
+- **Propósito**:
+  - Resolver la presentación y el almacenamiento de fechas y horas para viajeros internacionales respetando el formato regional del sistema operativo y mostrando con claridad la zona horaria local de cada destino.
+- **Responsabilidades de `TravelDateTimeFormatter`**:
+  1. **Formato Regional del Sistema (`formatFullLocalDate`)**:
+     - Convierte una fecha ISO `"YYYY-MM-DD"` en la representación completa oficial del sistema operativo mediante `DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(locale)`.
+     - Capitaliza adecuadamente la primera letra en idiomas romance (ej. `"lunes"` -> `"Lunes, 15 de marzo de 2027"`).
+  2. **Formato de Zona Horaria Local (`formatLocalTimeWithZone`)**:
+     - A partir de una hora `"HH:mm"`, fecha `"YYYY-MM-DD"`, identificador de zona IANA (`"Europe/Berlin"`, `"Asia/Tokyo"`, `"Europe/Madrid"`, etc.) y nombre de la ciudad o lugar.
+     - Obtiene el desfase exacto respecto a UTC (ej. `UTC+1`, `UTC+9`) y el nombre corto del huso (ej. `CET`, `JST`).
+     - Produce cadenas informativas legibles:
+       - Español: `12:25 (Múnich · UTC+1 · CET)`
+       - Inglés: `12:25 (Munich · UTC+1 · CET)`
+  3. **Persistencia y Conversión a ISO UTC (`toUtcIso` / `fromUtcIso`)**:
+     - `localToUtcIso(dateIso: String, timeHhMm: String, zoneId: String): String`: Convierte el par fecha/hora en la zona dada a un instante ISO UTC canónico `"YYYY-MM-DDTHH:mm:ssZ"`.
+     - `utcIsoToLocal(utcIso: String, targetZoneId: String): Pair<String, String>`: Convierte un instante UTC a fecha `"YYYY-MM-DD"` y hora `"HH:mm"` en el huso especificado.
+  4. **Inferencia Automática de Zona Horaria (`inferZoneIdFromCoordinatesOrLocation`)**:
+     - Cuando una parada o destino no tiene zona asignada explícitamente, infiere `Asia/Tokyo`, `Europe/Madrid`, `Europe/Berlin`, etc. analizando coordenadas geográficas o palabras clave de ciudad en título y notas.
+
+### 3.11. Tarjeta Centralizada de Portabilidad e Importación/Exportación JSON en Ajustes (`JsonDataPortabilityCard`)
+- **Propósito**:
+  - Ubicar en Ajustes (`SettingsPreferencesScreen`) el punto de control único para guardar y restaurar datos en formato JSON mediante Storage Access Framework (SAF), permitiendo seleccionar o guardar archivos tanto en almacenamiento local (Descargas, Documentos, etc.) como en Google Drive.
+- **Secciones Soportadas**:
+  1. **Planes de Viaje (Itinerario y Transporte)**: Exportar e importar `PortableTravelPlanBundle` vía `TravelPlanJsonCodec`.
+  2. **Guías de Viaje (`Travel Guides`)**: Exportar e importar `List<TravelGuideArticle>` vía `DocumentsAndGuidesJsonCodec`.
+  3. **Billetes y Reservas (`Documents`)**: Exportar e importar `List<TravelDocumentItem>` vía `DocumentsAndGuidesJsonCodec`.
+  4. **Copia de Seguridad Completa**: Exportar e importar el paquete de sincronización completo (`TravelSyncDataBundle`) con `GoogleDriveSyncHelper`.
+  5. **Importador Inteligente Multifunción**: Analiza cualquier archivo JSON seleccionado con `OpenDocument`, detecta automáticamente qué entidades contiene (`plans`, `guides`, `documents`, `cloudBackupVersion`) y abre un diálogo modal de confirmación informando al usuario sobre las entidades encontradas antes de importar.
   - **Componente `AppTimePickerField`**:
     - Muestra icono de reloj `🕒` o indicador de limpieza `✕`.
     - Al pulsar el campo o el icono, despliega el diálogo interactivo de horas en formato de 24 horas, eliminando la necesidad de teclear dígitos o caracteres separadores.
