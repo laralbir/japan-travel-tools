@@ -15,8 +15,8 @@ android {
     applicationId = "com.laralbir.japantraveltools"
     minSdk = 26
     targetSdk = 36
-    versionCode = 33
-    versionName = "1.0.2"
+    versionCode = 34
+    versionName = "1.1.0"
   }
 
   signingConfigs {

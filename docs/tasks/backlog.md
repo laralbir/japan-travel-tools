@@ -177,3 +177,28 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
   - Registrar la inicialización de `WeatherSyncScheduler.schedule(this)` en `MainActivity.kt`.
 - [x] **TASK-128 (TDD)**: Persistencia Inmediata en Actualizaciones Manuales y de Itinerario (`Issue #3 / SPEC-07 RF-07.7`):
   - Asegurar que `SharedWeatherForecastStore.updateCityForecasts` invoque inmediatamente `saveToDisk()`.
+
+---
+
+## Hito 12: Portabilidad JSON en Ajustes, Zonas Horarias ISO UTC, Sincronización en Segundo Plano y Bóveda Biométrica `v1.1.0`
+
+### Bóveda de Documentos e Identidad (Seguridad Biometría y Bloqueo Estricto)
+- [x] **TASK-129 (TDD)**: Seguridad Biometría y Anti-Bypass (`Issue #4 / SPEC-03 RF-03.2`):
+  - Ajustar estado por defecto de `biometricLockEnabled` a `true` y prevenir bypass por cancelación de diálogo.
+  - Añadir botón rápido de re-bloqueo.
+- [x] **TASK-130 (TDD)**: Bloqueo Estricto por Defecto y Auto-Bloqueo (`Issue #5 / SPEC-03 RF-03.2`):
+  - Implementar `VaultSecurityPolicy` con vista bloqueada por defecto sin persistencia en sesión.
+  - Implementar temporizador de auto-bloqueo de 120s y bloqueo en background (`LifecycleEventObserver`).
+- [x] **TASK-131 (TDD)**: Bloqueo Biométrico Obligatorio por Diseño (`SPEC-03 RF-03.2`):
+  - Eliminar conmutador toggle de la UI para garantizar que no pueda desactivarse deliberada o accidentalmente.
+
+### Portabilidad JSON en Ajustes, Zonas Horarias y Rediseño de Tarjetas
+- [x] **TASK-132 (TDD)**: Formateo Regional de Fechas, Horas con Zona Horaria Local y Persistencia en ISO UTC (`SPEC-00`, `SPEC-04`, `SPEC-05`):
+  - Implementar `TravelDateTimeFormatter` con formato regional `FormatStyle.FULL` y cálculo ISO UTC estándar.
+  - Serialización con compatibilidad hacia atrás en `TravelPlanJsonCodec`.
+- [x] **TASK-133 (TDD)**: Portabilidad JSON en Ajustes y Detector Inteligente de Contenido (`SPEC-00`, `SPEC-03`, `SPEC-04`):
+  - Implementar `JsonContentDetector` para clasificar e inspeccionar planes, guías, billetes y backups completos.
+  - Implementar `JsonDataPortabilityCard` integrado en Ajustes con Storage Access Framework (SAF).
+- [x] **TASK-134 (UI)**: Rediseño Ergonómico de Botones en Tarjetas:
+  - Rediseñar botones en `ItineraryStopCard` y `TransportSegmentCard` con altura reducida y disposición limpia.
+- [x] **TASK-135**: Publicación de release `v1.1.0` en GitHub Releases con compilación completa firmada para Google Play Store (`.aab` y `.apk`) y APK debug.
