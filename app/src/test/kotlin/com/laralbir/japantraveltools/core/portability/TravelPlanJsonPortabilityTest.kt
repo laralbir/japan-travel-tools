@@ -7,6 +7,7 @@ import com.laralbir.japantraveltools.feature.transport.TransportMode
 import com.laralbir.japantraveltools.feature.transport.TransportSegmentItem
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -284,5 +285,100 @@ class TravelPlanJsonPortabilityTest {
         assertEquals("plan-2", activeId)
         assertEquals("Plan Tokio 2026", importedPlans[0].tripTitle)
         assertEquals("Plan Kioto 2027", importedPlans[1].tripTitle)
+    }
+
+    @Test
+    fun `TravelPlanJsonCodec serializes and deserializes timeZoneId and UTC ISO times`() {
+        val stop = ItineraryStopItem(
+            id = "stop-muc-1",
+            dayNumber = 1,
+            dateIso = "2027-03-15",
+            startTime = "10:00",
+            endTime = "12:25",
+            title = "Aeropuerto Múnich T2",
+            category = StopCategory.TRANSPORT,
+            placeNameJapanese = "ミュンヘン国際空港",
+            latitude = 48.3537,
+            longitude = 11.775,
+            notes = "Escala hacia Osaka",
+            timeZoneId = "Europe/Berlin",
+            startTimeUtcIso = "2027-03-15T09:00:00Z",
+            endTimeUtcIso = "2027-03-15T11:25:00Z"
+        )
+        val segment = TransportSegmentItem(
+            id = "seg-lh742",
+            order = 1,
+            type = TransportMode.FLIGHT,
+            operatorName = "Lufthansa",
+            lineOrNumber = "LH 742",
+            departureCode = "MUC",
+            departureName = "Múnich",
+            departureZoneId = "Europe/Berlin",
+            departureTerminalOrPlatform = "T2",
+            departureTimeIso = "2027-03-15T12:25",
+            arrivalCode = "KIX",
+            arrivalName = "Osaka Kansai",
+            arrivalZoneId = "Asia/Tokyo",
+            arrivalTerminalOrPlatform = "T1",
+            arrivalTimeIso = "2027-03-16T07:55",
+            seatOrCarInfo = "Airbus A350",
+            departureTimeUtcIso = "2027-03-15T11:25:00Z",
+            arrivalTimeUtcIso = "2027-03-15T22:55:00Z"
+        )
+        val bundle = PortableTravelPlanBundle(
+            schemaVersion = 1,
+            tripTitle = "Japón 2027",
+            itineraryStops = listOf(stop),
+            transportSegments = listOf(segment)
+        )
+
+        val json = TravelPlanJsonCodec.exportToPrettyJson(bundle)
+        assertTrue(json.contains("\"timeZoneId\": \"Europe/Berlin\""))
+        assertTrue(json.contains("\"startTimeUtcIso\": \"2027-03-15T09:00:00Z\""))
+        assertTrue(json.contains("\"departureTimeUtcIso\": \"2027-03-15T11:25:00Z\""))
+
+        val parsed = TravelPlanJsonCodec.importFromJson(json)
+        val importedStop = parsed.itineraryStops.first()
+        assertEquals("Europe/Berlin", importedStop.timeZoneId)
+        assertEquals("2027-03-15T09:00:00Z", importedStop.startTimeUtcIso)
+        assertEquals("2027-03-15T11:25:00Z", importedStop.endTimeUtcIso)
+
+        val importedSeg = parsed.transportSegments.first()
+        assertEquals("2027-03-15T11:25:00Z", importedSeg.departureTimeUtcIso)
+        assertEquals("2027-03-15T22:55:00Z", importedSeg.arrivalTimeUtcIso)
+    }
+
+    @Test
+    fun `TravelPlanJsonCodec imports sample plan file without breaking and infers timezones and UTC ISO`() {
+        val planFile = java.io.File("../plans/japon-tierra-samurais-2027.json").takeIf { it.exists() }
+            ?: java.io.File("plans/japon-tierra-samurais-2027.json")
+        assertTrue("Sample plan file must exist", planFile.exists())
+
+        val planJson = planFile.readText()
+        val parsed = TravelPlanJsonCodec.importFromJson(planJson)
+
+        assertEquals("Japón, Tierra de Samurais 2027", parsed.tripTitle)
+        assertEquals(37, parsed.itineraryStops.size)
+        assertEquals(9, parsed.transportSegments.size)
+
+        // Stop 1 is Madrid Airport: should infer or contain Europe/Madrid and UTC ISO
+        val madStop = parsed.itineraryStops[0]
+        assertEquals("Europe/Madrid", madStop.timeZoneId)
+        assertNotNull(madStop.startTimeUtcIso)
+        assertTrue("Madrid UTC time should end in Z", madStop.startTimeUtcIso!!.endsWith("Z"))
+
+        // Stop 2 is Munich Airport: should infer or contain Europe/Berlin and UTC ISO
+        val mucStop = parsed.itineraryStops[1]
+        assertEquals("Europe/Berlin", mucStop.timeZoneId)
+        assertNotNull(mucStop.startTimeUtcIso)
+
+        // Stop 3 is Osaka KIX: should infer or contain Asia/Tokyo
+        val kixStop = parsed.itineraryStops[2]
+        assertEquals("Asia/Tokyo", kixStop.timeZoneId)
+
+        // Flight segment 1: MAD -> MUC should calculate departureTimeUtcIso and arrivalTimeUtcIso
+        val seg1 = parsed.transportSegments[0]
+        assertNotNull(seg1.departureTimeUtcIso)
+        assertEquals("2027-03-15T06:25:00Z", seg1.departureTimeUtcIso) // 07:25 CET in Madrid is 06:25 UTC
     }
 }

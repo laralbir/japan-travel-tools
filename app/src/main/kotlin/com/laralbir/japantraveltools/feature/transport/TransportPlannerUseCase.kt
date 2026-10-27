@@ -32,7 +32,9 @@ data class TransportSegmentItem(
     val arrivalTimeIso: String,
     val seatOrCarInfo: String,
     val stationExitOrBelt: String = "",
-    val passOrPaymentBadge: String = "Included"
+    val passOrPaymentBadge: String = "Included",
+    val departureTimeUtcIso: String? = null,
+    val arrivalTimeUtcIso: String? = null
 )
 
 data class ConnectionCalculation(

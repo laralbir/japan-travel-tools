@@ -1,6 +1,7 @@
 package com.laralbir.japantraveltools.core.portability
 
 import android.content.Context
+import com.laralbir.japantraveltools.core.datetime.TravelDateTimeFormatter
 import com.laralbir.japantraveltools.feature.planner.ItineraryStopItem
 import com.laralbir.japantraveltools.feature.planner.StopCategory
 import com.laralbir.japantraveltools.feature.planner.TripPlannerUseCase
@@ -340,7 +341,12 @@ object TravelPlanJsonCodec {
             sb.appendLine("      \"placeNameJapanese\": \"${escape(stop.placeNameJapanese)}\",")
             sb.appendLine("      \"latitude\": ${stop.latitude},")
             sb.appendLine("      \"longitude\": ${stop.longitude},")
-            sb.appendLine("      \"notes\": \"${escape(stop.notes)}\"")
+            sb.appendLine("      \"notes\": \"${escape(stop.notes)}\",")
+            sb.appendLine("      \"timeZoneId\": \"${escape(stop.timeZoneId)}\",")
+            val startUtc = stop.startTimeUtcIso ?: TravelDateTimeFormatter.localToUtcIso(stop.dateIso, stop.startTime, stop.timeZoneId)
+            val endUtc = stop.endTimeUtcIso ?: TravelDateTimeFormatter.localToUtcIso(stop.dateIso, stop.endTime, stop.timeZoneId)
+            sb.appendLine("      \"startTimeUtcIso\": \"${escape(startUtc)}\",")
+            sb.appendLine("      \"endTimeUtcIso\": \"${escape(endUtc)}\"")
             sb.appendLine("    }$comma")
         }
         sb.appendLine("  ],")
@@ -367,7 +373,17 @@ object TravelPlanJsonCodec {
             sb.appendLine("      \"arrivalTimeIso\": \"${escape(seg.arrivalTimeIso)}\",")
             sb.appendLine("      \"seatOrCarInfo\": \"${escape(seg.seatOrCarInfo)}\",")
             sb.appendLine("      \"stationExitOrBelt\": \"${escape(seg.stationExitOrBelt)}\",")
-            sb.appendLine("      \"passOrPaymentBadge\": \"${escape(seg.passOrPaymentBadge)}\"")
+            sb.appendLine("      \"passOrPaymentBadge\": \"${escape(seg.passOrPaymentBadge)}\",")
+            val depUtc = seg.departureTimeUtcIso ?: runCatching {
+                val parts = seg.departureTimeIso.split('T')
+                TravelDateTimeFormatter.localToUtcIso(parts[0], parts[1], seg.departureZoneId)
+            }.getOrDefault(seg.departureTimeIso + ":00Z")
+            val arrUtc = seg.arrivalTimeUtcIso ?: runCatching {
+                val parts = seg.arrivalTimeIso.split('T')
+                TravelDateTimeFormatter.localToUtcIso(parts[0], parts[1], seg.arrivalZoneId)
+            }.getOrDefault(seg.arrivalTimeIso + ":00Z")
+            sb.appendLine("      \"departureTimeUtcIso\": \"${escape(depUtc)}\",")
+            sb.appendLine("      \"arrivalTimeUtcIso\": \"${escape(arrUtc)}\"")
             sb.appendLine("    }$comma")
         }
         sb.appendLine("  ]")
@@ -387,23 +403,51 @@ object TravelPlanJsonCodec {
 
         val parsedStops = splitJsonObjects(stopsBlock).mapIndexed { idx, obj ->
             val catStr = extractString(obj, "category") ?: StopCategory.SIGHTSEEING.name
+            val lat = extractDouble(obj, "latitude") ?: 35.6762
+            val lng = extractDouble(obj, "longitude") ?: 139.6503
+            val title = extractString(obj, "title") ?: "Parada #${idx + 1}"
+            val notes = extractString(obj, "notes") ?: ""
+            val explicitZone = extractString(obj, "timeZoneId")
+            val timeZoneId = explicitZone ?: TravelDateTimeFormatter.inferZoneIdFromCoordinatesOrLocation(lat, lng, "$title $notes")
+            val dateIso = extractString(obj, "dateIso") ?: "2026-11-11"
+            val startTime = extractString(obj, "startTime") ?: "09:00"
+            val endTime = extractString(obj, "endTime") ?: "10:30"
+            val startTimeUtcIso = extractString(obj, "startTimeUtcIso") ?: TravelDateTimeFormatter.localToUtcIso(dateIso, startTime, timeZoneId)
+            val endTimeUtcIso = extractString(obj, "endTimeUtcIso") ?: TravelDateTimeFormatter.localToUtcIso(dateIso, endTime, timeZoneId)
+
             ItineraryStopItem(
                 id = extractString(obj, "id") ?: "stop-imp-$idx",
                 dayNumber = extractInt(obj, "dayNumber") ?: 1,
-                dateIso = extractString(obj, "dateIso") ?: "2026-11-11",
-                startTime = extractString(obj, "startTime") ?: "09:00",
-                endTime = extractString(obj, "endTime") ?: "10:30",
-                title = extractString(obj, "title") ?: "Parada #${idx + 1}",
+                dateIso = dateIso,
+                startTime = startTime,
+                endTime = endTime,
+                title = title,
                 category = runCatching { StopCategory.valueOf(catStr) }.getOrDefault(StopCategory.SIGHTSEEING),
                 placeNameJapanese = extractString(obj, "placeNameJapanese") ?: "",
-                latitude = extractDouble(obj, "latitude") ?: 35.6762,
-                longitude = extractDouble(obj, "longitude") ?: 139.6503,
-                notes = extractString(obj, "notes") ?: ""
+                latitude = lat,
+                longitude = lng,
+                notes = notes,
+                timeZoneId = timeZoneId,
+                startTimeUtcIso = startTimeUtcIso,
+                endTimeUtcIso = endTimeUtcIso
             )
         }
 
         val parsedSegments = splitJsonObjects(segmentsBlock).mapIndexed { idx, obj ->
             val typeStr = extractString(obj, "type") ?: TransportMode.TRAIN_SHINKANSEN.name
+            val depZone = extractString(obj, "departureZoneId") ?: "Asia/Tokyo"
+            val depTimeIso = extractString(obj, "departureTimeIso") ?: "2026-11-11T09:00"
+            val arrZone = extractString(obj, "arrivalZoneId") ?: "Asia/Tokyo"
+            val arrTimeIso = extractString(obj, "arrivalTimeIso") ?: "2026-11-11T11:15"
+            val depUtc = extractString(obj, "departureTimeUtcIso") ?: runCatching {
+                val parts = depTimeIso.split('T')
+                TravelDateTimeFormatter.localToUtcIso(parts[0], parts[1], depZone)
+            }.getOrDefault("${depTimeIso}:00Z")
+            val arrUtc = extractString(obj, "arrivalTimeUtcIso") ?: runCatching {
+                val parts = arrTimeIso.split('T')
+                TravelDateTimeFormatter.localToUtcIso(parts[0], parts[1], arrZone)
+            }.getOrDefault("${arrTimeIso}:00Z")
+
             TransportSegmentItem(
                 id = extractString(obj, "id") ?: "seg-imp-$idx",
                 order = extractInt(obj, "order") ?: (idx + 1),
@@ -412,19 +456,21 @@ object TravelPlanJsonCodec {
                 lineOrNumber = extractString(obj, "lineOrNumber") ?: "",
                 departureCode = extractString(obj, "departureCode") ?: "TYO",
                 departureName = extractString(obj, "departureName") ?: "Tokyo",
-                departureZoneId = extractString(obj, "departureZoneId") ?: "Asia/Tokyo",
+                departureZoneId = depZone,
                 departureTerminalOrPlatform = extractString(obj, "departureTerminalOrPlatform") ?: "",
                 checkInTime = extractString(obj, "checkInTime")?.takeIf { it.isNotBlank() },
                 boardingTime = extractString(obj, "boardingTime")?.takeIf { it.isNotBlank() },
-                departureTimeIso = extractString(obj, "departureTimeIso") ?: "2026-11-11T09:00",
+                departureTimeIso = depTimeIso,
                 arrivalCode = extractString(obj, "arrivalCode") ?: "KYO",
                 arrivalName = extractString(obj, "arrivalName") ?: "Kyoto",
-                arrivalZoneId = extractString(obj, "arrivalZoneId") ?: "Asia/Tokyo",
+                arrivalZoneId = arrZone,
                 arrivalTerminalOrPlatform = extractString(obj, "arrivalTerminalOrPlatform") ?: "",
-                arrivalTimeIso = extractString(obj, "arrivalTimeIso") ?: "2026-11-11T11:15",
+                arrivalTimeIso = arrTimeIso,
                 seatOrCarInfo = extractString(obj, "seatOrCarInfo") ?: "",
                 stationExitOrBelt = extractString(obj, "stationExitOrBelt") ?: "",
-                passOrPaymentBadge = extractString(obj, "passOrPaymentBadge") ?: "Included"
+                passOrPaymentBadge = extractString(obj, "passOrPaymentBadge") ?: "Included",
+                departureTimeUtcIso = depUtc,
+                arrivalTimeUtcIso = arrUtc
             )
         }
 
