@@ -37,14 +37,17 @@ Aplicación Android **offline-first** con herramientas esenciales para viajar a 
 4. **Repositorio de Documentos y Guías de Viaje [En Especificación - Beta]**
    - Gestión y visualización offline de PDFs e imágenes de billetes de vuelo, reservas de hotel, JR Pass, seguros de viaje y entradas.
    - **Gestor y Creador de Guías de Viaje**: Permite tanto importar guías externas (PDF con marcador de página, Markdown, mapas en imagen) como crear y editar guías propias por ciudad/región con texto enriquecido y fotos adjuntas offline.
+   - **Exportación e Importación JSON en Ajustes**: Exporta e importa colecciones de Guías de Viaje y Billetes/Reservas mediante archivos JSON legibles desde almacenamiento local o Google Drive.
 5. **Planificador de Viaje con Fotos, Google Maps, Calendario y Horarios [En Especificación - Beta]**
-   - Calendario de viaje por días y línea temporal de horarios (`Timeline` en zona horaria `Asia/Tokyo`) con detección de solapamientos.
+   - Calendario de viaje por días y línea temporal de horarios (`Timeline` en zona horaria local del destino y persistencia ISO UTC) con detección de solapamientos.
+   - **Fechas Regionales del Sistema y Zonas Horarias Locales**: Visualización de la fecha completa según la configuración regional del sistema (`FormatStyle.FULL`) y de las horas en el huso local de cada destino (ej. Múnich `UTC+1`, Osaka/Tokio `UTC+9`) indicando siempre el desfase y la ciudad.
+   - **Diseño Ergonómico de Botones**: Tarjetas de itinerario con botones compactos y sutiles (`🗺️ Mapa`, `📅 Cal.`, `✏️ Editar`, `🗑️`) que reducen la altura y el ruido visual.
    - Galería de fotos offline asociada a cada parada o actividad del itinerario.
    - **Integración dual con Google Maps**: Mapa interactivo embebido (`Maps Compose`) con marcadores numerados de la ruta del día + almacenamiento offline de coordenadas/direcciones en japonés y lanzamiento directo de rutas en la app de Google Maps.
-   - Sincronización/exportación opcional al Calendario del sistema / Google Calendar, vinculación directa con PDFs de reservas y guías de viaje, y **exportación/importación en formato `JSON` legible (`japan-travel-plan.v1`)** para preparar itinerarios desde aplicaciones externas.
+   - Sincronización/exportación opcional al Calendario del sistema / Google Calendar, vinculación directa con PDFs de reservas y guías de viaje, y **exportación/importación en formato `JSON` legible (`japan-travel-plan.v1`) desde Ajustes (Almacenamiento Local o Drive con SAF)**.
 6. **Planificador de Vuelos, Trenes, Metros y Autobuses [En Especificación - Beta]**
-   - Gestión de trayectos multimodales (vuelos internacionales/domésticos, trenes **Shinkansen / JR**, líneas de **Metro** y **Autobuses** interurbanos/urbanos) 100% offline e **importables/exportables en `JSON` legible**.
-   - **Vuelos**: Apertura de check-in online, hora de facturación en mostrador y cierre de equipaje, hora de embarque, puerta, asiento, salida, llegada (`+1`/`+2` días) y cálculo automático de duración real entre zonas horarias.
+   - Gestión de trayectos multimodales (vuelos internacionales/domésticos, trenes **Shinkansen / JR**, líneas de **Metro** y **Autobuses** interurbanos/urbanos) 100% offline e **importables/exportables en `JSON` legible desde Ajustes**.
+   - **Vuelos**: Apertura de check-in online, hora de facturación en mostrador y cierre de equipaje, hora de embarque, puerta, asiento, salida, llegada (`+1`/`+2` días), visualización de zonas horarias de origen y destino con desfases UTC, y cálculo automático de duración real entre zonas horarias.
    - **Trenes, Metros y Autobuses**: Línea y color oficial, códigos de estación (`G19` ➔ `G01`), nombres en japonés para paneles, andén (`Platform`), número de coche/vagón recomendado, asiento, reserva de maletas grandes en Shinkansen, cobertura **JR Pass / Suica**, **número exacto de salida de estación (`Exit`)** y dársena de autobús (`Bus Bay`).
    - **Calculador de Escalas y Transbordos (`Layovers & Transfers`)**: Tiempo total de conexión, margen hasta el siguiente embarque o cambio de andén/terminal, alerta de conexión ajustada y acceso directo a tarjetas de embarque o billetes QR (`SPEC-03`).
 7. **Asistente IA con Google Gemini y Acceso Directo a Traducción Simultánea [En Especificación - Beta]**

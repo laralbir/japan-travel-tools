@@ -7,6 +7,22 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Portabilidad JSON en Ajustes (Local / Google Drive SAF) y Detección Automática Inteligente
+- **Tarjeta Centralizada en Ajustes (`JsonDataPortabilityCard`)**: Acceso directo y unificado desde `SettingsPreferencesScreen` para importar y exportar datos mediante Storage Access Framework (SAF) nativo de Android, permitiendo leer y guardar archivos `.json` en almacenamiento local (Descargas, Documentos) o en Google Drive.
+- **Portabilidad de Guías de Viaje (`TravelGuideArticle`) y Reservas/Billetes (`TravelDocumentItem`)**: Exportación e importación completa en formato JSON legible con opciones de reemplazo total o fusión inteligente sin sobrescribir registros existentes (`SharedDocumentsAndGuidesStore.importGuides`, `SharedDocumentsAndGuidesStore.importDocuments`).
+- **Detector de Contenido JSON Inteligente (`JsonContentDetector`)**: Inspección y tipado automático de cualquier archivo JSON seleccionado (`TRAVEL_PLAN`, `TRAVEL_GUIDES`, `TRAVEL_DOCUMENTS`, `FULL_BACKUP`) con presentación de resumen de elementos encontrados y confirmación guiada antes de importar.
+
+### Formateo Regional de Fechas, Horas con Zona Horaria Local y Persistencia en ISO UTC (`TravelDateTimeFormatter`)
+- **Fecha Completa en Formato Regional del Sistema**: Visualización localizada de la fecha completa con `FormatStyle.FULL` (`Locale.getDefault()`, ej. *"Lunes, 15 de marzo de 2027"* / *"Monday, March 15, 2027"*) en las tarjetas de itinerario y transporte.
+- **Zona Horaria Local Explícita con Desfase UTC**: Indicación clara de la hora local de cada ciudad o parada junto con su huso y desfase UTC (ej. Múnich = `UTC+1 · CET`, Osaka/Tokio = `UTC+9 · JST`) tanto en `ItineraryStopCard` como en `TransportSegmentCard`.
+- **Persistencia Canónica en ISO UTC**: Cálculo y almacenamiento estándar en formato ISO UTC (`Instant.toString()`, ej. `2027-03-15T11:25:00Z`) para actividades e hitos de transporte (`startTimeUtcIso`, `endTimeUtcIso`, `departureTimeUtcIso`, `arrivalTimeUtcIso`) con compatibilidad retroactiva total en `TravelPlanJsonCodec`.
+- **Selector y Detección de Zona Horaria en Editor**: Incorporación de chips rápidos en `ItineraryStopEditorModalSheet` para asignar zona horaria (Japón `UTC+9`, Múnich `UTC+1`, Madrid `UTC+1`) e inferencia automática mediante coordenadas o nombre de lugar (`inferZoneIdFromCoordinatesOrLocation`).
+
+### Rediseño Ergonómico y Compacto de Botones en Tarjetas
+- **Rediseño No Invasivo en `ItineraryStopCard`**: Sustitución de dos bloques masivos apilados (`AppButtonRow` de 120dp) por una fila única, limpia y estilizada de 34dp de altura con botones proporcionados para `🗺️ Mapa`, `📅 Cal.`, `✏️ Editar` y `🗑️`, reduciendo la invasividad visual en más del 70%.
+- **Rediseño Compacto en `TransportSegmentCard`**: Sustitución del botón masivo por una fila compacta de acción (`✏️ Editar`, `🗑️ Eliminar`).
+
+
 ### Reglas Generales de Estilo y Formato de Código
 - **Regla POSIX EOF Newline Obligatoria (`.editorconfig`)**: Creación de la configuración estándar de proyecto `.editorconfig` (`insert_final_newline = true`, `end_of_line = lf`, `trim_trailing_whitespace = true`) e incorporación de la regla obligatoria en `AGENTS.md` para garantizar que todos los archivos finalicen con salto de línea estándar y evitar diffs espurios de formateo en Git.
 

@@ -100,6 +100,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavKey
 import com.laralbir.japantraveltools.core.cloud.GoogleDriveSyncCard
+import com.laralbir.japantraveltools.core.datetime.TravelDateTimeFormatter
+import com.laralbir.japantraveltools.core.portability.JsonDataPortabilityCard
 import com.laralbir.japantraveltools.core.i18n.AppLanguagePreference
 import com.laralbir.japantraveltools.core.i18n.EffectiveLanguage
 import com.laralbir.japantraveltools.core.i18n.LanguageResolver
@@ -2257,6 +2259,15 @@ private fun ItineraryStopCard(
     onExportCalendar: (ItineraryStopItem) -> Unit
 ) {
     KotlinConfCard {
+        val fullDate = TravelDateTimeFormatter.formatFullLocalDate(stop.dateIso)
+        Text(
+            text = "📅 $fullDate",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(Modifier.height(6.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -2279,45 +2290,91 @@ private fun ItineraryStopCard(
             }
         }
 
+        val offsetId = runCatching {
+            java.time.ZoneId.of(stop.timeZoneId).rules.getOffset(java.time.Instant.now()).id
+        }.getOrDefault("+09:00")
+        val utcOffset = TravelDateTimeFormatter.formatUtcOffsetString(offsetId)
+        val zoneCity = when (stop.timeZoneId) {
+            "Europe/Madrid" -> "Madrid"
+            "Europe/Berlin" -> "Múnich"
+            "Asia/Tokyo" -> "Japón"
+            else -> stop.timeZoneId.substringAfter('/')
+        }
+        val localZoneText = if (isEs) "🌍 Hora local de $zoneCity ($utcOffset)" else "🌍 Local time: $zoneCity ($utcOffset)"
+        Spacer(Modifier.height(3.dp))
+        Text(
+            text = localZoneText,
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.secondary,
+            fontWeight = FontWeight.Medium
+        )
+
         Spacer(Modifier.height(8.dp))
         Text(
             text = stop.title,
-            fontSize = 19.sp,
+            fontSize = 18.sp,
             fontWeight = FontWeight.Bold
         )
         if (stop.placeNameJapanese.isNotBlank()) {
             Text(
                 text = stop.placeNameJapanese,
-                fontSize = 15.sp,
+                fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.secondary,
                 fontWeight = FontWeight.SemiBold
             )
         }
 
         if (stop.notes.isNotBlank()) {
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(6.dp))
             Text(
                 text = stop.notes,
-                fontSize = 15.sp,
+                fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
-        Spacer(Modifier.height(14.dp))
-        AppButtonRow(
-            primaryText = if (isEs) "✏️ Editar" else "✏️ Edit",
-            onPrimaryClick = { onEditStop(stop) },
-            secondaryText = if (isEs) "🗑️ Eliminar" else "🗑️ Delete",
-            onSecondaryClick = { onDeleteStop(stop) }
-        )
-
-        Spacer(Modifier.height(10.dp))
-        AppButtonRow(
-            primaryText = if (isEs) "🗺️ Abrir Mapa" else "🗺️ Open Map",
-            onPrimaryClick = { onOpenGoogleMaps(stop) },
-            secondaryText = if (isEs) "📅 Al Calendario" else "📅 To Calendar",
-            onSecondaryClick = { onExportCalendar(stop) }
-        )
+        Spacer(Modifier.height(12.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedButton(
+                onClick = { onOpenGoogleMaps(stop) },
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                modifier = Modifier
+                    .height(34.dp)
+                    .weight(1.2f)
+            ) {
+                Text(if (isEs) "🗺️ Mapa" else "🗺️ Map", fontSize = 12.sp, maxLines = 1)
+            }
+            OutlinedButton(
+                onClick = { onExportCalendar(stop) },
+                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                modifier = Modifier
+                    .height(34.dp)
+                    .weight(1.1f)
+            ) {
+                Text(if (isEs) "📅 Cal." else "📅 Cal.", fontSize = 12.sp, maxLines = 1)
+            }
+            OutlinedButton(
+                onClick = { onEditStop(stop) },
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                modifier = Modifier
+                    .height(34.dp)
+                    .weight(1.1f)
+            ) {
+                Text(if (isEs) "✏️ Editar" else "✏️ Edit", fontSize = 12.sp, maxLines = 1)
+            }
+            OutlinedButton(
+                onClick = { onDeleteStop(stop) },
+                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                modifier = Modifier.height(34.dp)
+            ) {
+                Text("🗑️", fontSize = 13.sp)
+            }
+        }
     }
 }
 
@@ -2341,6 +2398,7 @@ private fun ItineraryStopEditorModalSheet(
     var japaneseNameText by rememberSaveable(initialStop.id) { mutableStateOf(if (isNew) "" else initialStop.placeNameJapanese) }
     var notesText by rememberSaveable(initialStop.id) { mutableStateOf(if (isNew) "" else initialStop.notes) }
     var selectedCategory by rememberSaveable(initialStop.id) { mutableStateOf(initialStop.category) }
+    var selectedZoneId by rememberSaveable(initialStop.id) { mutableStateOf(initialStop.timeZoneId) }
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
 
     AppConfirmationDialog(
@@ -2455,6 +2513,36 @@ private fun ItineraryStopEditorModalSheet(
                 }
             }
 
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = if (isEs) "Zona Horaria Local" else "Local Time Zone",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                AppOptionButton(
+                    text = "Japón (UTC+9)",
+                    selected = selectedZoneId == "Asia/Tokyo",
+                    onClick = { selectedZoneId = "Asia/Tokyo" },
+                    modifier = Modifier.weight(1f)
+                )
+                AppOptionButton(
+                    text = "Múnich (UTC+1)",
+                    selected = selectedZoneId == "Europe/Berlin",
+                    onClick = { selectedZoneId = "Europe/Berlin" },
+                    modifier = Modifier.weight(1f)
+                )
+                AppOptionButton(
+                    text = "Madrid (UTC+1)",
+                    selected = selectedZoneId == "Europe/Madrid",
+                    onClick = { selectedZoneId = "Europe/Madrid" },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
             AppButtonRow(
                 primaryText = if (isEs) "💾 Guardar Parada" else "💾 Save Stop",
                 onPrimaryClick = {
@@ -2462,15 +2550,29 @@ private fun ItineraryStopEditorModalSheet(
                     val finalDateIso = stopDateText.trim().ifBlank {
                         String.format(Locale.US, "2026-11-%02d", (10 + safeDay).coerceAtMost(30))
                     }
+                    val startClean = startTimeText.ifBlank { "10:00" }
+                    val endClean = endTimeText.ifBlank { "11:30" }
+                    val finalZoneId = selectedZoneId.ifBlank {
+                        TravelDateTimeFormatter.inferZoneIdFromCoordinatesOrLocation(
+                            initialStop.latitude,
+                            initialStop.longitude,
+                            "$titleText $notesText"
+                        )
+                    }
+                    val startUtc = TravelDateTimeFormatter.localToUtcIso(finalDateIso, startClean, finalZoneId)
+                    val endUtc = TravelDateTimeFormatter.localToUtcIso(finalDateIso, endClean, finalZoneId)
                     val updated = initialStop.copy(
                         dayNumber = safeDay,
                         dateIso = finalDateIso,
-                        startTime = startTimeText.ifBlank { "10:00" },
-                        endTime = endTimeText.ifBlank { "11:30" },
+                        startTime = startClean,
+                        endTime = endClean,
                         title = titleText.ifBlank { if (isEs) "Nueva Parada" else "New Stop" },
                         placeNameJapanese = japaneseNameText,
                         notes = notesText,
-                        category = selectedCategory
+                        category = selectedCategory,
+                        timeZoneId = finalZoneId,
+                        startTimeUtcIso = startUtc,
+                        endTimeUtcIso = endUtc
                     )
                     if (isNew) {
                         onSave(updated)
@@ -2989,6 +3091,17 @@ private fun TransportTabScreen(
                         Spacer(Modifier.height(8.dp))
                     }
 
+                    val depDate = seg.departureTimeIso.substringBefore('T')
+                    val arrDate = seg.arrivalTimeIso.substringBefore('T')
+                    val depFormattedDate = TravelDateTimeFormatter.formatFullLocalDate(depDate)
+                    Text(
+                        text = "📅 $depFormattedDate",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(Modifier.height(6.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -3003,7 +3116,7 @@ private fun TransportTabScreen(
                         InfoTagPill(text = seg.passOrPaymentBadge)
                     }
 
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(8.dp))
                     Text(
                         text = "${seg.departureCode} (${seg.departureName}) ➔ ${seg.arrivalCode} (${seg.arrivalName})",
                         fontSize = 16.sp,
@@ -3011,16 +3124,42 @@ private fun TransportTabScreen(
                         color = MaterialTheme.colorScheme.primary
                     )
 
-                    Spacer(Modifier.height(6.dp))
+                    val depOffsetId = runCatching {
+                        java.time.ZoneId.of(seg.departureZoneId).rules.getOffset(java.time.Instant.now()).id
+                    }.getOrDefault("+01:00")
+                    val arrOffsetId = runCatching {
+                        java.time.ZoneId.of(seg.arrivalZoneId).rules.getOffset(java.time.Instant.now()).id
+                    }.getOrDefault("+09:00")
+                    val depOffset = TravelDateTimeFormatter.formatUtcOffsetString(depOffsetId)
+                    val arrOffset = TravelDateTimeFormatter.formatUtcOffsetString(arrOffsetId)
+                    val isNextDay = depDate != arrDate
+                    val nextDaySuffix = if (isNextDay) " (+1d)" else ""
+
+                    Spacer(Modifier.height(4.dp))
                     Text(
-                        text = "🕒 ${seg.departureTimeIso.substringAfter('T')} ➔ ${seg.arrivalTimeIso.substringAfter('T')} (${TransportPlannerUseCase.formatDurationHoursMinutes(durationMins)})",
-                        fontSize = 15.sp,
+                        text = "🕒 ${seg.departureTimeIso.substringAfter('T')} ($depOffset) ➔ ${seg.arrivalTimeIso.substringAfter('T')}$nextDaySuffix ($arrOffset) · ${TransportPlannerUseCase.formatDurationHoursMinutes(durationMins)}",
+                        fontSize = 14.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold
                     )
 
+                    val depCity = seg.departureName.substringBefore('-').trim()
+                    val arrCity = seg.arrivalName.substringBefore('-').trim()
+                    val localZoneDesc = if (isEs) {
+                        "🌍 Salida: $depCity ($depOffset) · Llegada: $arrCity ($arrOffset)"
+                    } else {
+                        "🌍 Dep: $depCity ($depOffset) · Arr: $arrCity ($arrOffset)"
+                    }
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = localZoneDesc,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.secondary,
+                        fontWeight = FontWeight.Medium
+                    )
+
                     if (seg.checkInTime != null || seg.boardingTime != null) {
-                        Spacer(Modifier.height(4.dp))
+                        Spacer(Modifier.height(6.dp))
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -3041,26 +3180,43 @@ private fun TransportTabScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    Spacer(Modifier.height(14.dp))
-                    AppButtonRow(
-                        primaryText = if (isEs) "✏️ Editar" else "✏️ Edit",
-                        onPrimaryClick = {
-                            isCreatingSegment = false
-                            editingSegment = seg
-                        },
-                        secondaryText = if (isEs) "🗑️ Eliminar" else "🗑️ Delete",
-                        onSecondaryClick = {
-                            confirmationDialogState = ConfirmationDialogBuilder.buildDeleteConfirmation(
-                                itemName = "${seg.operatorName} ${seg.lineOrNumber}",
-                                itemTypeEs = "transporte",
-                                itemTypeEn = "transport",
-                                isEs = isEs,
-                                onConfirm = {
-                                    SharedTravelPlanStore.deleteTransportSegment(seg.id)
-                                }
-                            )
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                isCreatingSegment = false
+                                editingSegment = seg
+                            },
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+                            modifier = Modifier
+                                .height(34.dp)
+                                .weight(1f)
+                        ) {
+                            Text(if (isEs) "✏️ Editar" else "✏️ Edit", fontSize = 13.sp)
                         }
-                    )
+                        OutlinedButton(
+                            onClick = {
+                                confirmationDialogState = ConfirmationDialogBuilder.buildDeleteConfirmation(
+                                    itemName = "${seg.operatorName} ${seg.lineOrNumber}",
+                                    itemTypeEs = "transporte",
+                                    itemTypeEn = "transport",
+                                    isEs = isEs,
+                                    onConfirm = {
+                                        SharedTravelPlanStore.deleteTransportSegment(seg.id)
+                                    }
+                                )
+                            },
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                            modifier = Modifier.height(34.dp)
+                        ) {
+                            Text(if (isEs) "🗑️ Eliminar" else "🗑️ Delete", fontSize = 13.sp)
+                        }
+                    }
                 }
             }
         }
@@ -3280,6 +3436,12 @@ private fun TransportSegmentEditorModalSheet(
                     }
                     val depTimeClean = depTimeText.trim().ifBlank { "09:00" }
                     val arrTimeClean = arrTimeText.trim().ifBlank { "11:00" }
+                    val depUtc = runCatching {
+                        TravelDateTimeFormatter.localToUtcIso(baseDate, depTimeClean, initialSegment.departureZoneId)
+                    }.getOrDefault("${baseDate}T$depTimeClean:00Z")
+                    val arrUtc = runCatching {
+                        TravelDateTimeFormatter.localToUtcIso(baseDate, arrTimeClean, initialSegment.arrivalZoneId)
+                    }.getOrDefault("${baseDate}T$arrTimeClean:00Z")
                     val updated = initialSegment.copy(
                         type = selectedType,
                         operatorName = operatorText.trim().ifBlank { defaultOp },
@@ -3294,7 +3456,9 @@ private fun TransportSegmentEditorModalSheet(
                         arrivalTimeIso = "${baseDate}T$arrTimeClean",
                         departureTerminalOrPlatform = platformText.trim(),
                         seatOrCarInfo = seatText.trim(),
-                        passOrPaymentBadge = if (selectedType == TransportMode.FLIGHT) "Flight" else "IC Card / JR"
+                        passOrPaymentBadge = if (selectedType == TransportMode.FLIGHT) "Flight" else "IC Card / JR",
+                        departureTimeUtcIso = depUtc,
+                        arrivalTimeUtcIso = arrUtc
                     )
                     if (isNew) {
                         onSave(updated)
@@ -6471,6 +6635,14 @@ private fun SettingsPreferencesScreen(
 
         item {
             GoogleDriveSyncCard(
+                isEs = isEs,
+                prefs = prefs,
+                prefsRepository = prefsRepository
+            )
+        }
+
+        item {
+            JsonDataPortabilityCard(
                 isEs = isEs,
                 prefs = prefs,
                 prefsRepository = prefsRepository
