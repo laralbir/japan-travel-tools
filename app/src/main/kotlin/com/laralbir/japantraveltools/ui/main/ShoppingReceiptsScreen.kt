@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
+import android.graphics.pdf.PdfRenderer
 import android.media.ExifInterface
 import android.net.Uri
 import android.widget.Toast
@@ -21,6 +22,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -156,6 +158,7 @@ fun ShoppingReceiptsScreen(
     var editingReceipt by remember { mutableStateOf<ShoppingReceipt?>(null) }
     var confirmationState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
     var showReportDialog by rememberSaveable { mutableStateOf(false) }
+    var showScanSourceDialog by rememberSaveable { mutableStateOf(false) }
     var isScanning by rememberSaveable { mutableStateOf(false) }
     var scanResultNotice by remember { mutableStateOf<String?>(null) }
 
@@ -174,7 +177,7 @@ fun ShoppingReceiptsScreen(
         }
     }
 
-    // Manejador de escaneo (Cámara / Galería / Archivo)
+    // Manejador de escaneo (Cámara / Galería / Archivo / Drive con soporte de Imágenes y PDFs)
     fun processScannedImage(bitmap: Bitmap) {
         isScanning = true
         scanResultNotice = null
@@ -187,7 +190,7 @@ fun ShoppingReceiptsScreen(
                     stream.toByteArray()
                 }
 
-                // OCR local con ML Kit
+                // OCR con ML Kit (reconocimiento trilingüe robusto)
                 val rawOcrText = suspendCancellableCoroutine<String> { continuation ->
                     val recognizer = TextRecognition.getClient(JapaneseTextRecognizerOptions.Builder().build())
                     val inputImage = InputImage.fromBitmap(bitmap, 0)
@@ -233,7 +236,7 @@ fun ShoppingReceiptsScreen(
         }
     }
 
-    // Lanzadores de Cámara y Archivos
+    // Lanzadores de Cámara, Almacenamiento Local y Google Drive
     var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
 
     val takePictureLauncher = rememberLauncherForActivityResult(
@@ -241,18 +244,35 @@ fun ShoppingReceiptsScreen(
     ) { success ->
         if (success) {
             tempCameraUri?.let { uri ->
-                val bmp = decodeBitmapFromUri(context, uri)
+                val bmp = decodeBitmapOrPdfFromUri(context, uri)
                 if (bmp != null) processScannedImage(bmp)
             }
         }
     }
 
-    val pickImageLauncher = rememberLauncherForActivityResult(
+    val pickLocalImageLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) {
-            val bmp = decodeBitmapFromUri(context, uri)
+            val bmp = decodeBitmapOrPdfFromUri(context, uri)
             if (bmp != null) processScannedImage(bmp)
+        }
+    }
+
+    val openDriveDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            val bmp = decodeBitmapOrPdfFromUri(context, uri)
+            if (bmp != null) {
+                processScannedImage(bmp)
+            } else {
+                Toast.makeText(
+                    context,
+                    if (isEs) "No se pudo leer el archivo o imagen" else "Could not read file or image",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
         }
     }
 
@@ -326,58 +346,110 @@ fun ShoppingReceiptsScreen(
 
         Spacer(Modifier.height(10.dp))
 
-        // Barra de Acciones: Añadir Manual, Escanear IA, Informe Aduanas
-        Row(
+        // Filas de Acciones: Alturas estandarizadas (48.dp) y formato uniforme
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Button(
-                onClick = {
-                    editingReceipt = null
-                    isEditorOpen = true
-                },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(12.dp)
+            // Fila 1: Creación manual y Escáner con IA (con selector Cámara / Local / Drive)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = if (isEs) "➕ Ticket" else "➕ Add",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Button(
+                    onClick = {
+                        editingReceipt = null
+                        isEditorOpen = true
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                ) {
+                    Text(
+                        text = if (isEs) "➕ Ticket Manual" else "➕ Manual Receipt",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Button(
+                    onClick = { showScanSourceDialog = true },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                ) {
+                    Text(
+                        text = if (isEs) "✨ Escanear con IA" else "✨ Scan with AI",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
 
-            OutlinedButton(
-                onClick = { launchCameraScan() },
-                modifier = Modifier.weight(1.1f),
-                shape = RoundedCornerShape(12.dp)
+            // Fila 2: Acceso directo a Archivos (Local / Drive) e Informe Oficial de Aduanas
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = if (isEs) "📸 Escanear IA" else "📸 AI Scan",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
+                OutlinedButton(
+                    onClick = { openDriveDocumentLauncher.launch(arrayOf("image/*", "application/pdf")) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                ) {
+                    Text(
+                        text = if (isEs) "📁 Local / ☁️ Drive" else "📁 Local / ☁️ Drive",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
 
-            OutlinedButton(
-                onClick = { pickImageLauncher.launch("image/*") },
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text("🖼️", fontSize = 14.sp)
-            }
-
-            Button(
-                onClick = { showReportDialog = true },
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-            ) {
-                Text(
-                    text = if (isEs) "📄 Aduanas" else "📄 Report",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                OutlinedButton(
+                    onClick = { showReportDialog = true },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.7f),
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                ) {
+                    Text(
+                        text = if (isEs) "📄 Informe Aduanas" else "📄 Customs Report",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
 
@@ -397,7 +469,11 @@ fun ShoppingReceiptsScreen(
                 ) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                     Text(
-                        text = if (isEs) "Escaneando ticket con IA y extrayendo productos..." else "Scanning receipt with AI and extracting items...",
+                        text = if (isEs) {
+                            "Escaneando ticket con IA (japonés, inglés o español)..."
+                        } else {
+                            "Scanning receipt with AI (Japanese, English, or Spanish)..."
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
@@ -492,9 +568,9 @@ fun ShoppingReceiptsScreen(
                     )
                     Text(
                         text = if (isEs) {
-                            "Añade tus compras a mano o escanea fotos de tickets (cámara o galería) para controlar tus gastos y preparar el reembolso Tax-Free de aduanas."
+                            "Añade tus compras a mano o escanea fotos de tickets (cámara, galería o Google Drive) para controlar tus gastos y preparar el reembolso Tax-Free de aduanas.\n\nSoporta comprobantes en japonés (日本語), inglés y español."
                         } else {
-                            "Add purchases manually or scan receipt photos (camera or gallery) to track expenses and claim airport Tax-Free refunds."
+                            "Add purchases manually or scan receipt photos (camera, gallery or Google Drive) to track expenses and claim airport Tax-Free refunds.\n\nSupports receipts in Japanese (日本語), English, and Spanish."
                         },
                         style = MaterialTheme.typography.bodySmall,
                         textAlign = TextAlign.Center,
@@ -546,6 +622,17 @@ fun ShoppingReceiptsScreen(
         }
     }
 
+    // Modal Sheet de Selección de Origen de Escaneo (Cámara, Local o Google Drive)
+    if (showScanSourceDialog) {
+        ScanSourceSelectorDialog(
+            isEs = isEs,
+            onDismiss = { showScanSourceDialog = false },
+            onSelectCamera = { launchCameraScan() },
+            onSelectLocal = { pickLocalImageLauncher.launch("image/*") },
+            onSelectDrive = { openDriveDocumentLauncher.launch(arrayOf("image/*", "application/pdf")) }
+        )
+    }
+
     // Modal Sheet de Edición / Creación de Ticket
     if (isEditorOpen) {
         ShoppingReceiptEditorModalSheet(
@@ -579,6 +666,159 @@ fun ShoppingReceiptsScreen(
             eurToJpyRate = eurToJpyRate,
             onDismiss = { showReportDialog = false }
         )
+    }
+}
+
+@Composable
+private fun ScanSourceSelectorDialog(
+    isEs: Boolean,
+    onDismiss: () -> Unit,
+    onSelectCamera: () -> Unit,
+    onSelectLocal: () -> Unit,
+    onSelectDrive: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (isEs) "📸 Escanear Ticket con IA" else "📸 AI Receipt Scanner",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                        Text("✕", fontSize = 16.sp)
+                    }
+                }
+
+                Text(
+                    text = if (isEs) {
+                        "Elige de dónde tomar el comprobante para extraer fecha, tienda, productos, importes e IVA:"
+                    } else {
+                        "Choose where to get the receipt from to extract date, merchant, items, totals and tax:"
+                    },
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                // Opción 1: Cámara de fotos
+                ScanSourceItemCard(
+                    icon = "📷",
+                    title = if (isEs) "Cámara de Fotos" else "Photo Camera",
+                    subtitle = if (isEs) "Hacer foto instantánea al ticket físico" else "Take a live photo of physical receipt",
+                    onClick = {
+                        onDismiss()
+                        onSelectCamera()
+                    }
+                )
+
+                // Opción 2: Almacenamiento Local / Galería
+                ScanSourceItemCard(
+                    icon = "📁",
+                    title = if (isEs) "Almacenamiento Local / Galería" else "Local Storage / Gallery",
+                    subtitle = if (isEs) "Elegir foto (JPG, PNG) o PDF del móvil" else "Select photo (JPG, PNG) or PDF from phone",
+                    onClick = {
+                        onDismiss()
+                        onSelectLocal()
+                    }
+                )
+
+                // Opción 3: Google Drive
+                ScanSourceItemCard(
+                    icon = "☁️",
+                    title = if (isEs) "Google Drive" else "Google Drive",
+                    subtitle = if (isEs) "Seleccionar ticket o factura en PDF/imagen desde Drive" else "Select receipt or invoice PDF/image from Drive",
+                    onClick = {
+                        onDismiss()
+                        onSelectDrive()
+                    }
+                )
+
+                // Banner explicativo trilingüe
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = if (isEs) {
+                            "ℹ️ Compatible con tickets en japonés (日本語), inglés (English) y español."
+                        } else {
+                            "ℹ️ Compatible with receipts in Japanese (日本語), English, and Spanish."
+                        },
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScanSourceItemCard(
+    icon: String,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(58.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                modifier = Modifier.size(38.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(icon, fontSize = 18.sp)
+                }
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = subtitle,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Text("›", fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
@@ -958,19 +1198,25 @@ private fun ShoppingReceiptCard(
 
             Spacer(Modifier.height(8.dp))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(4.dp))
 
-            // Botones de acción: Editar / Eliminar
+            // Botones de acción: Editar / Eliminar con alturas estandarizadas
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(38.dp),
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = onEdit) {
+                TextButton(
+                    onClick = onEdit,
+                    modifier = Modifier.height(38.dp)
+                ) {
                     Text(if (isEs) "✏️ Editar" else "✏️ Edit", fontSize = 12.sp)
                 }
                 TextButton(
                     onClick = onDelete,
+                    modifier = Modifier.height(38.dp),
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) {
                     Text(if (isEs) "🗑️ Eliminar" else "🗑️ Delete", fontSize = 12.sp)
@@ -1390,15 +1636,19 @@ private fun ShoppingReceiptEditorModalSheet(
 
             Spacer(Modifier.height(16.dp))
 
-            // Botones Cancelar / Guardar
+            // Botones Cancelar / Guardar con altura estandarizada (48.dp)
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 OutlinedButton(
                     onClick = onDismiss,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp)
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(if (isEs) "Cancelar" else "Cancel")
                 }
@@ -1425,8 +1675,10 @@ private fun ShoppingReceiptEditorModalSheet(
                         )
                         onSave(receipt)
                     },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp)
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(if (isEs) "Guardar Ticket" else "Save Receipt")
                 }
@@ -1556,9 +1808,11 @@ private fun TaxFreeCustomsReportDialog(
 
                 Spacer(Modifier.height(14.dp))
 
-                // Botones de acción
+                // Botones de acción con altura estandarizada (48.dp)
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedButton(
@@ -1571,16 +1825,20 @@ private fun TaxFreeCustomsReportDialog(
                                 Toast.LENGTH_SHORT
                             ).show()
                         },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(if (isEs) "📋 Copiar Texto" else "📋 Copy Text", fontSize = 12.sp)
                     }
 
                     Button(
                         onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(if (isEs) "Entendido" else "Got it", fontSize = 12.sp)
                     }
@@ -1591,7 +1849,7 @@ private fun TaxFreeCustomsReportDialog(
 }
 
 // ============================================================================
-// HELPERS AUXILIARES DE IMAGEN Y FECHA
+// HELPERS AUXILIARES DE IMAGEN, PDF Y FECHA
 // ============================================================================
 
 private fun formatIsoToTokyo(iso: String): String {
@@ -1600,6 +1858,34 @@ private fun formatIsoToTokyo(iso: String): String {
         val zonedDateTime = instant.atZone(TOKYO_ZONE_ID)
         zonedDateTime.format(TOKYO_DISPLAY_FORMATTER)
     }.getOrElse { iso }
+}
+
+private fun renderPdfPageToBitmap(context: Context, uri: Uri): Bitmap? {
+    return runCatching {
+        context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
+            val renderer = PdfRenderer(pfd)
+            if (renderer.pageCount == 0) return null
+            val page = renderer.openPage(0)
+            val scale = (1400f / page.width.toFloat()).coerceAtLeast(1f)
+            val w = (page.width * scale).toInt()
+            val h = (page.height * scale).toInt()
+            val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+            page.close()
+            renderer.close()
+            bitmap
+        }
+    }.getOrNull()
+}
+
+private fun decodeBitmapOrPdfFromUri(context: Context, uri: Uri): Bitmap? {
+    val mimeType = runCatching { context.contentResolver.getType(uri) }.getOrNull()
+    val isPdf = mimeType == "application/pdf" || uri.toString().endsWith(".pdf", ignoreCase = true)
+    return if (isPdf) {
+        renderPdfPageToBitmap(context, uri) ?: decodeBitmapFromUri(context, uri)
+    } else {
+        decodeBitmapFromUri(context, uri) ?: renderPdfPageToBitmap(context, uri)
+    }
 }
 
 private fun decodeBitmapFromUri(context: Context, uri: Uri): Bitmap? {

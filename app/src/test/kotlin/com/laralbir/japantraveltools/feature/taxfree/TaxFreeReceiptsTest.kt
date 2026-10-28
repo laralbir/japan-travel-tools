@@ -254,6 +254,56 @@ class TaxFreeReceiptsTest {
         assertEquals(GoodsType.CONSUMABLES, parsed.goodsType)
     }
 
+    @Test
+    fun `test ocr parser extracts English Duty Free receipt`() {
+        val englishText = """
+            Narita Airport Duty Free Shop
+            Terminal 1 South Wing
+            2027-04-15 14:30
+            
+            Japanese Whisky Hibiki 21     15,000
+            Royce Chocolate Box           2,500
+            
+            SUBTOTAL: 17,500
+            CONSUMPTION TAX: 1,750
+            GRAND TOTAL: 19,250
+            TAX FREE SALE
+        """.trimIndent()
+
+        val parsed = JapaneseReceiptOcrParser.parse(englishText)
+        assertTrue(parsed.storeName.contains("Duty Free") || parsed.storeName.contains("Narita"))
+        assertEquals(17500.0, parsed.subtotalWithoutTaxYen, 0.1)
+        assertEquals(1750.0, parsed.totalTaxYen, 0.1)
+        assertEquals(19250.0, parsed.totalWithTaxYen, 0.1)
+        assertTrue(parsed.isTaxFreeEligible)
+        assertEquals(TaxFreeClaimStatus.PENDING, parsed.taxFreeStatus)
+    }
+
+    @Test
+    fun `test ocr parser extracts Spanish language receipt`() {
+        val spanishText = """
+            Tienda Don Quijote Shinjuku
+            Recibo de Compra Simplificado
+            22/03/2027 16:45
+            
+            Camiseta Japón Souvenir        2,000
+            Set Palillos Tradicionales    3,500
+            
+            BASE IMPONIBLE: 5,500
+            IVA 10%: 550
+            TOTAL A PAGAR: 6,050
+            DEVOLUCIÓN DE IVA TAX FREE
+        """.trimIndent()
+
+        val parsed = JapaneseReceiptOcrParser.parse(spanishText)
+        assertTrue(parsed.storeName.contains("Don Quijote") || parsed.storeName.contains("Tienda"))
+        assertEquals(5500.0, parsed.subtotalWithoutTaxYen, 0.1)
+        assertEquals(550.0, parsed.totalTaxYen, 0.1)
+        assertEquals(6050.0, parsed.totalWithTaxYen, 0.1)
+        assertTrue(parsed.isTaxFreeEligible)
+        assertEquals(TaxFreeClaimStatus.PENDING, parsed.taxFreeStatus)
+    }
+
     // -------------------------------------------------------------------------
     // 4. Generación de Informe Tax-Free Consolidado (Texto, Markdown y JSON)
     // -------------------------------------------------------------------------

@@ -62,8 +62,9 @@ Aplicación Android **offline-first** con herramientas esenciales para viajar a 
    - **Búsqueda Predictiva y Coordenadas de Google Maps**: Sugerencias predictivas instantáneas reactivas mientras se escribe el nombre de la ciudad y obtención automática de coordenadas geográficas de Google Maps y Open-Meteo con catálogo local (>50 ciudades y destinos turísticos) 100% offline.
    - **Útil para el Usuario**: Clasificación diaria (`⛩️ Ideal Exterior` vs. `🏛️ Recomendado Cubierto`), avisos de paraguas (`☔ %`), temperaturas máx/mín y **porcentaje de visibilidad del Monte Fuji (`🗻 %`)** integrado en cada día del Planificador de Viaje.
    - **Útil para la IA (`Weather-Aware AI Planner`)**: Inyecta la previsión de Open-Meteo en `AiPlanBuilderEngine` para que la IA adapte automáticamente las paradas del itinerario en días de lluvia añadiendo alternativas cubiertas (*mercados Nishiki/Kuromon*, *galerías Shotengai*, museos).
-9. **Tickets de Compra, Tax-Free y Control de Gastos del Viaje (`SPEC-08`) [En Especificación - Beta]**
-   - Digitalización manual y escaneo inteligente de tickets (cámara, almacenamiento o Google Drive) con motor híbrido: **ML Kit Japanese OCR offline** + **Gemini Cloud Vision API** multimodal.
+9. **Tickets de Compra, Tax-Free y Control de Gastos del Viaje (`SPEC-08`) [Implementado]**
+   - Digitalización manual y escaneo inteligente de tickets (cámara, almacenamiento local o Google Drive) con soporte para fotos y documentos PDF (`PdfRenderer`).
+   - Motor híbrido multimodal: **ML Kit OCR trilingüe offline** (Japonés, Inglés, Español) + **Gemini Cloud Vision API**.
    - Cálculo automático de elegibilidad para el régimen **Tax-Free** de Japón (umbral de 5.000 ¥ sin tasas, separación de consumibles al 8%, bienes generales al 10% y compras mixtas).
    - Generador de informes consolidados de Tax-Free por tienda y fecha, con desglose de impuestos recuperables en yenes y euros, y exportación en texto, Markdown y JSON.
    - Control integral de presupuesto de viaje con acumulados en ¥ y EUR, categorización (Compras, Comida, Transporte, Ocio, etc.) y balances analíticos por día y ciudad.
