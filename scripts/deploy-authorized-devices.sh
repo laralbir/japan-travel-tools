@@ -1,6 +1,9 @@
 #!/usr/bin/env sh
 set -eu
 
+# Compatibilidad con zsh (por ejemplo, si se invoca con zsh o vía Gradle)
+setopt SH_WORD_SPLIT 2>/dev/null || true
+
 # ==============================================================================
 # deploy-authorized-devices.sh
 # Compila el APK de Debug, valida la lista local de dispositivos autorizados
@@ -40,6 +43,25 @@ if [ ! -f "${CONFIG_FILE}" ]; then
   exit 1
 fi
 
+# Función auxiliar para ejecutar comandos con límite de tiempo (evita bloqueos de red ADB)
+run_with_timeout() {
+  timeout_secs="$1"
+  shift
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c "
+import subprocess, sys
+try:
+    sys.exit(subprocess.run(sys.argv[2:], timeout=float(sys.argv[1])).returncode)
+except subprocess.TimeoutExpired:
+    sys.exit(124)
+except Exception:
+    sys.exit(1)
+" "$timeout_secs" "$@"
+  else
+    "$@"
+  fi
+}
+
 # Función auxiliar para limpiar espacios al principio y al final
 trim_string() {
   echo "$1" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
@@ -73,7 +95,7 @@ if [ -x "${MDNS_DISCOVERY_SCRIPT}" ] && command -v python3 >/dev/null 2>&1; then
 
       if [ "$is_authorized" -eq 1 ]; then
         echo "📡 [mDNS] Dispositivo autorizado detectado en red Wi-Fi: ${disc_name:-Android} (${disc_serial}) en ${disc_endpoint}"
-        "${ADB_BIN}" connect "${disc_endpoint}" >/dev/null 2>&1 || true
+        run_with_timeout 3 "${ADB_BIN}" connect "${disc_endpoint}" >/dev/null 2>&1 || true
       fi
     done < "${MDNS_CACHE_FILE}"
   fi
@@ -94,8 +116,22 @@ while IFS= read -r line || [ -n "$line" ]; do
     AUTH_COUNT=$((AUTH_COUNT + 1))
     case "$serial" in
       *:*)
-        echo "📡 Conectando por ADB Wi-Fi a ${alias_name:-$serial} (${serial})..."
-        "${ADB_BIN}" connect "${serial}" >/dev/null 2>&1 || true
+        # Evitar reintentar conexiones que ya estén activas en 'adb devices'
+        already_connected=0
+        for conn in $("${ADB_BIN}" devices 2>/dev/null | awk 'NR>1 && $2=="device" {print $1}'); do
+          if [ "$conn" = "$serial" ]; then
+            already_connected=1
+            break
+          fi
+        done
+        if [ "$already_connected" -eq 1 ]; then
+          echo "📡 Dispositivo Wi-Fi ya conectado: ${alias_name:-$serial} (${serial})"
+        else
+          echo "📡 Conectando por ADB Wi-Fi a ${alias_name:-$serial} (${serial})..."
+          if ! run_with_timeout 3 "${ADB_BIN}" connect "${serial}" >/dev/null 2>&1; then
+            echo "⚠️  No se pudo conectar a ${serial} (tiempo de espera de 3s agotado o endpoint no disponible)"
+          fi
+        fi
         ;;
     esac
   fi
@@ -142,21 +178,23 @@ fi
 find_authorized_alias() {
   target_serial="$1"
 
-  # Si el target es IP:puerto, consultar su número de serie de hardware real
+  # Si el target es IP:puerto, consultar su número de serie de hardware real (con timeout de 3s)
   hw_serial=""
   case "$target_serial" in
     *:*)
-      hw_serial="$("${ADB_BIN}" -s "${target_serial}" shell getprop ro.serialno 2>/dev/null | tr -d '\r\n' || true)"
+      hw_serial="$(run_with_timeout 3 "${ADB_BIN}" -s "${target_serial}" shell getprop ro.serialno 2>/dev/null | tr -d '\r\n' || true)"
       ;;
   esac
 
   # Comprobar también en la caché mDNS si target_serial coincide con algún endpoint
   mdns_serial=""
+  mdns_service=""
   if [ -s "${MDNS_CACHE_FILE}" ]; then
     while IFS= read -r mdns_line || [ -n "$mdns_line" ]; do
       endpoint="$(echo "$mdns_line" | cut -d'|' -f2)"
       if [ "$endpoint" = "$target_serial" ]; then
         mdns_serial="$(echo "$mdns_line" | cut -d'|' -f1)"
+        mdns_service="$(echo "$mdns_line" | cut -d'|' -f4)"
         break
       fi
     done < "${MDNS_CACHE_FILE}"
@@ -173,7 +211,8 @@ find_authorized_alias() {
     alias_name="$(trim_string "$raw_alias")"
     if [ "$serial" = "$target_serial" ] || \
        { [ -n "$hw_serial" ] && [ "$serial" = "$hw_serial" ]; } || \
-       { [ -n "$mdns_serial" ] && [ "$serial" = "$mdns_serial" ]; }; then
+       { [ -n "$mdns_serial" ] && [ "$serial" = "$mdns_serial" ]; } || \
+       { [ -n "$mdns_service" ] && [ "$serial" = "$mdns_service" ]; }; then
       echo "${alias_name:-$serial}"
       return 0
     fi
@@ -185,8 +224,10 @@ INSTALLED_COUNT=0
 for serial in ${CONNECTED_SERIALS}; do
   if device_label="$(find_authorized_alias "$serial")"; then
     echo "📲 Instalando y lanzando en dispositivo autorizado: ${device_label} (${serial})..."
+    # Despertar pantalla si está en modo reposo/Doze para que la instalación no se congele por el OS
+    run_with_timeout 2 "${ADB_BIN}" -s "${serial}" shell input keyevent 224 >/dev/null 2>&1 || true
     if command -v android >/dev/null 2>&1; then
-      android install --device="${serial}" --apks="${APK_PATH}" || "${ADB_BIN}" -s "${serial}" install -r -t "${APK_PATH}"
+      run_with_timeout 60 android install --device="${serial}" --apks="${APK_PATH}" || "${ADB_BIN}" -s "${serial}" install -r -t "${APK_PATH}"
     else
       "${ADB_BIN}" -s "${serial}" install -r -t "${APK_PATH}"
     fi
