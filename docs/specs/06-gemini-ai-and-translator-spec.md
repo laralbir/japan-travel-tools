@@ -35,10 +35,16 @@ Dotar a **Japan Travel Tools** de capacidades de Inteligencia Artificial mediant
           - **Tarjeta 2 (Japonés ➔ Español)**: Muestra el texto japonés capturado (`Kanji/Kana`), su fonética en **Romaji** y la traducción fiel en español (o inglés), con botón para reproducir en audio español.
        5. **Detección Automática de Idioma Bidireccional (`Smart Language Routing`)**: Si se detectan caracteres japoneses en el micrófono del viajero, la app reconoce que se habló en japonés y locuta la traducción en español. A la inversa, si se habla en español o inglés en el micrófono del interlocutor, lo traduce y locuta en japonés.
        6. **Controles de Reproducción de Voz Directa (`🔊 Escuchar en Japonés` / `🔊 Escuchar en Español`) y Auto-Locución**: Cualquier frase seleccionada o traducida puede reproducirse por altavoz con un toque (y cuenta con interruptor de locución automática activado por defecto). En el apartado de frases habituales en japonés, la reproducción se realiza obligatoriamente en japonés (`Locale.JAPAN` / `ja-JP`) para que el viajero pueda escuchar cómo suena o mostrárselo a personas locales (#8).
-3. **Traductor de Texto Dedicado (Español / Inglés ➔ Japonés — Issue #8)**:
+3. **Traductor de Texto Dedicado en Sección de Pestaña Propia (Español / Inglés ➔ Japonés — Issue #8 / Hito 15)**:
+   - **Navegación por Pestañas Independientes (`TranslatorTabMode`)**:
+     - La pantalla de traducción estructura sus herramientas en **tres secciones principales independientes** seleccionables mediante botones de estilo pestaña (`AppOptionButton`) en la parte superior:
+       1. `🎙️ Voz` (`VOICE`): Modo conversación guiado por voz bidireccional (Japonés ➔ Español y Español ➔ Japonés con opción de volteo 180°) y frases habituales de viaje con locución inmediata.
+       2. `✍️ Texto` (`TEXT`): Sección dedicada y exclusiva para la traducción escrita de texto libre (Español/Inglés ➔ Japonés).
+       3. `📷 Cámara / Carteles` (`CAMERA`): Sección de traducción visual de menús y carteles mediante OCR offline y cámara en vivo.
    - **Tarjeta Independiente para Entrada de Texto**: Dispone de un `OutlinedTextField` multilínea para que el viajero pueda redactar cualquier consulta o frase libremente (ej. *"¿Dónde está el baño?"*, *"La cuenta, por favor"*, *"Una cerveza, por favor"*, etc.).
    - **Traducción Inmediata y Fonética**: Botón `🇯🇵 Traducir a Japonés` que genera al instante la traducción a caracteres japoneses (`Kanji/Kana`) junto con su fonética `Romaji` y categoría temática.
    - **Locución en Japonés por Voz (`ja-JP`)**: Botón prominente `🔊 Escuchar en Japonés` para reproducir la pronunciación exacta mediante Android TextToSpeech (`Locale.JAPAN`).
+   - **Inserción Rápida de Frases en Modo Texto**: En la pestaña de texto se proporciona acceso directo a las frases habituales de viaje para poder insertar cualquier consulta típica en el campo de texto con un toque y traducirla o escucharla al momento.
    - Las tarjetas individuales de traducción (Texto, Voz Japonés ➔ Español y Voz Español ➔ Japonés) se mantienen limpias y concisas, sin listas redundantes ni preguntas incrustadas en su interior.
 4. **Traducción Visual con Cámara (Menús, Carteles e Ingredientes — OCR Offline)**:
    - **Permisos en Tiempo de Ejecución y Captura Robusta**: Manejo de permiso de cámara `CAMERA` en runtime con `rememberLauncherForActivityResult(RequestPermission)` antes de invocar la captura.
