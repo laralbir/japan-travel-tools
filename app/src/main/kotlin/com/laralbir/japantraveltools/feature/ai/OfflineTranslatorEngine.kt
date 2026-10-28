@@ -61,6 +61,16 @@ data class CropBounds(
     val height: Int
 )
 
+data class OcrTextZone(
+    val id: String,
+    val labelEs: String,
+    val labelEn: String,
+    val leftFraction: Float,
+    val topFraction: Float,
+    val rightFraction: Float,
+    val bottomFraction: Float
+)
+
 enum class ImageCropPreset(
     val id: String,
     val labelEs: String,
@@ -74,10 +84,21 @@ enum class ImageCropPreset(
     TOP_HALF("top", "⬆️ Zona Superior", "⬆️ Top Half", 0f, 0f, 1f, 0.5f),
     CENTER("center", "↔️ Zona Central", "↔️ Center", 0.05f, 0.25f, 0.95f, 0.75f),
     BOTTOM_HALF("bottom", "⬇️ Zona Inferior", "⬇️ Bottom Half", 0f, 0.5f, 1f, 1f),
+    LEFT_HALF("left", "⬅️ Zona Izquierda", "⬅️ Left Half", 0f, 0f, 0.5f, 1f),
+    RIGHT_HALF("right", "➡️ Zona Derecha", "➡️ Right Half", 0.5f, 0f, 1f, 1f),
     CUSTOM("custom", "✂️ Personalizada", "✂️ Custom Area", 0f, 0f, 1f, 1f)
 }
 
 object OfflineTranslatorEngine {
+
+    fun getStandardMultiZones(): List<OcrTextZone> = listOf(
+        OcrTextZone("zone_top", "Zona 1 (Superior)", "Zone 1 (Top)", 0f, 0f, 1f, 0.35f),
+        OcrTextZone("zone_center", "Zona 2 (Centro)", "Zone 2 (Center)", 0f, 0.30f, 1f, 0.70f),
+        OcrTextZone("zone_bottom", "Zona 3 (Inferior)", "Zone 3 (Bottom)", 0f, 0.65f, 1f, 1f),
+        OcrTextZone("zone_left", "Zona 4 (Izquierda)", "Zone 4 (Left)", 0f, 0f, 0.5f, 1f),
+        OcrTextZone("zone_right", "Zona 5 (Derecha)", "Zone 5 (Right)", 0.5f, 0f, 1f, 1f)
+    )
+
 
     fun calculateCropBounds(
         imageWidth: Int,
@@ -199,57 +220,314 @@ object OfflineTranslatorEngine {
         )
     }
 
+    data class SignDictionaryEntry(
+        val japanese: String,
+        val es: String,
+        val en: String,
+        val romaji: String = "",
+        val category: String = "SIGN"
+    )
+
+    val japaneseTravelSignDictionary = listOf(
+        // Estaciones, Salidas y Transporte
+        SignDictionaryEntry("新宿駅", "Estación Shinjuku", "Shinjuku Station", "Shinjuku-eki", "STATION"),
+        SignDictionaryEntry("渋谷駅", "Estación Shibuya", "Shibuya Station", "Shibuya-eki", "STATION"),
+        SignDictionaryEntry("東京駅", "Estación Tokio", "Tokyo Station", "Tōkyō-eki", "STATION"),
+        SignDictionaryEntry("京都駅", "Estación Kioto", "Kyoto Station", "Kyōto-eki", "STATION"),
+        SignDictionaryEntry("大阪駅", "Estación Osaka", "Osaka Station", "Ōsaka-eki", "STATION"),
+        SignDictionaryEntry("浅草駅", "Estación Asakusa", "Asakusa Station", "Asakusa-eki", "STATION"),
+        SignDictionaryEntry("上野駅", "Estación Ueno", "Ueno Station", "Ueno-eki", "STATION"),
+        SignDictionaryEntry("秋葉原駅", "Estación Akihabara", "Akihabara Station", "Akihabara-eki", "STATION"),
+        SignDictionaryEntry("品川駅", "Estación Shinagawa", "Shinagawa Station", "Shinagawa-eki", "STATION"),
+        SignDictionaryEntry("銀座駅", "Estación Ginza", "Ginza Station", "Ginza-eki", "STATION"),
+        SignDictionaryEntry("池袋駅", "Estación Ikebukuro", "Ikebukuro Station", "Ikebukuro-eki", "STATION"),
+        SignDictionaryEntry("成田空港", "Aeropuerto de Narita", "Narita Airport", "Narita Kūkō", "AIRPORT"),
+        SignDictionaryEntry("羽田空港", "Aeropuerto de Haneda", "Haneda Airport", "Haneda Kūkō", "AIRPORT"),
+        SignDictionaryEntry("関西空港", "Aeropuerto de Kansai", "Kansai Airport", "Kansai Kūkō", "AIRPORT"),
+        SignDictionaryEntry("新幹線", "Tren bala Shinkansen", "Shinkansen bullet train", "Shinkansen", "TRAIN"),
+        SignDictionaryEntry("特急", "Tren Expreso Limitado", "Limited Express train", "Tokkyū", "TRAIN"),
+        SignDictionaryEntry("快速", "Tren Rápido", "Rapid train", "Kaisoku", "TRAIN"),
+        SignDictionaryEntry("急行", "Tren Expreso", "Express train", "Kyūkō", "TRAIN"),
+        SignDictionaryEntry("各駅停車", "Tren Local", "Local train", "Kakueki teisha", "TRAIN"),
+        SignDictionaryEntry("地下鉄", "Metro", "Subway", "Chikatetsu", "SUBWAY"),
+        SignDictionaryEntry("JR線", "Línea JR", "JR Line", "JR-sen", "TRAIN"),
+        SignDictionaryEntry("改札口", "Tornos de acceso / Control de billetes", "Ticket gates", "Kaisatsuguchi", "STATION"),
+        SignDictionaryEntry("改札", "Control de billetes", "Ticket gate", "Kaisatsu", "STATION"),
+        SignDictionaryEntry("中央改札", "Tornos centrales", "Central ticket gate", "Chūō kaisatsu", "STATION"),
+        SignDictionaryEntry("南改札", "Tornos sur", "South ticket gate", "Minami kaisatsu", "STATION"),
+        SignDictionaryEntry("北改札", "Tornos norte", "North ticket gate", "Kita kaisatsu", "STATION"),
+        SignDictionaryEntry("東改札", "Tornos este", "East ticket gate", "Higashi kaisatsu", "STATION"),
+        SignDictionaryEntry("西改札", "Tornos oeste", "West ticket gate", "Nishi kaisatsu", "STATION"),
+        SignDictionaryEntry("非常口", "Salida de emergencia", "Emergency exit", "Hijōguchi", "SAFETY"),
+        SignDictionaryEntry("避難所", "Lugar de evacuación", "Evacuation site", "Hinansho", "SAFETY"),
+        SignDictionaryEntry("避難口", "Salida de evacuación", "Evacuation exit", "Hinan-guchi", "SAFETY"),
+        SignDictionaryEntry("避難誘導", "Guía de evacuación", "Evacuation route", "Hinan yūdō", "SAFETY"),
+        SignDictionaryEntry("南口", "Salida Sur", "South Exit", "Minamiguchi", "STATION"),
+        SignDictionaryEntry("北口", "Salida Norte", "North Exit", "Kitaguchi", "STATION"),
+        SignDictionaryEntry("東口", "Salida Este", "East Exit", "Higashiguchi", "STATION"),
+        SignDictionaryEntry("西口", "Salida Oeste", "West Exit", "Nishiguchi", "STATION"),
+        SignDictionaryEntry("中央口", "Salida Central", "Central Exit", "Chūōguchi", "STATION"),
+        SignDictionaryEntry("出口", "Salida", "Exit", "Deguchi", "STATION"),
+        SignDictionaryEntry("入口", "Entrada", "Entrance", "Iriguchi", "STATION"),
+        SignDictionaryEntry("自動券売機", "Máquina expendedora de billetes", "Automatic ticket machine", "Jidō kenbaiki", "STATION"),
+        SignDictionaryEntry("券売機", "Venta de billetes", "Ticket machine", "Kenbaiki", "STATION"),
+        SignDictionaryEntry("精算機", "Máquina de ajuste de tarifa", "Fare adjustment machine", "Seisanki", "STATION"),
+        SignDictionaryEntry("切符", "Billetes / Pasajes", "Tickets", "Kippu", "STATION"),
+        SignDictionaryEntry("きっぷ", "Billetes", "Tickets", "Kippu", "STATION"),
+        SignDictionaryEntry("みどりの窓口", "Oficina de billetes JR", "JR Ticket Office", "Midori no madoguchi", "STATION"),
+        SignDictionaryEntry("窓口", "Ventanilla de atención", "Ticket counter", "Madoguchi", "STATION"),
+        SignDictionaryEntry("乗り換え", "Transbordo / Conexión", "Transfer", "Norikae", "STATION"),
+        SignDictionaryEntry("乗換", "Transbordo", "Transfer", "Norikae", "STATION"),
+        SignDictionaryEntry("のりば", "Andén / Parada", "Platform / Stop", "Noriba", "STATION"),
+        SignDictionaryEntry("乗り場", "Andén / Dársena", "Platform / Bus bay", "Noriba", "STATION"),
+        SignDictionaryEntry("番線", "Vía / Andén", "Track", "Bansen", "STATION"),
+        SignDictionaryEntry("ホーム", "Andén", "Platform", "Hōmu", "STATION"),
+        SignDictionaryEntry("自由席", "Asientos no reservados (libres)", "Non-reserved seats", "Jiyū-seki", "TRAIN"),
+        SignDictionaryEntry("指定席", "Asientos reservados", "Reserved seats", "Shitei-seki", "TRAIN"),
+        SignDictionaryEntry("グリーン車", "Coche de 1ª Clase (Green Car)", "Green Car (First Class)", "Gurīn-sha", "TRAIN"),
+        SignDictionaryEntry("号車", "Coche / Vagón", "Car number", "Gōsha", "TRAIN"),
+        SignDictionaryEntry("女性専用車", "Vagón exclusivo para mujeres", "Women-only car", "Josei sen'yō-sha", "TRAIN"),
+        SignDictionaryEntry("優先席", "Asientos prioritarios (mayores/embarazadas)", "Priority seats", "Yūsen-seki", "TRAIN"),
+        SignDictionaryEntry("エレベーター", "Ascensor", "Elevator", "Erebētā", "SIGN"),
+        SignDictionaryEntry("エスカレーター", "Escalera mecánica", "Escalator", "Esukarētā", "SIGN"),
+        SignDictionaryEntry("階段", "Escaleras", "Stairs", "Kaidan", "SIGN"),
+        SignDictionaryEntry("コインロッカー", "Taquillas de consigna (Coin Lockers)", "Coin lockers", "Koin rokkā", "SIGN"),
+        SignDictionaryEntry("手荷物預かり所", "Consigna de equipaje", "Baggage storage", "Tenimotsu azukarijo", "SIGN"),
+        SignDictionaryEntry("観光案内所", "Oficina de información turística", "Tourist information", "Kankō annaijo", "SIGN"),
+        SignDictionaryEntry("タクシー乗り場", "Parada de taxis", "Taxi stand", "Takushī noriba", "SIGN"),
+        SignDictionaryEntry("バス乗り場", "Parada de autobuses", "Bus stop / bay", "Basu noriba", "SIGN"),
+        SignDictionaryEntry("空きあり", "Disponible / Libre", "Available", "Aki ari", "SIGN"),
+        SignDictionaryEntry("空き", "Libre", "Vacant", "Aki", "SIGN"),
+        SignDictionaryEntry("駅前", "Frente a la estación", "Station front", "Ekimae", "SIGN"),
+        SignDictionaryEntry("駅", "Estación", "Station", "Eki", "SIGN"),
+
+        // Reglas, Normas y Avisos
+        SignDictionaryEntry("立入禁止", "Prohibido el paso / No entrar", "Keep out / No entry", "Tachiiri kinshi", "SAFETY"),
+        SignDictionaryEntry("進入禁止", "Dirección prohibida", "No entry", "Shinnyū kinshi", "SAFETY"),
+        SignDictionaryEntry("危険", "Peligro", "Danger", "Kiken", "SAFETY"),
+        SignDictionaryEntry("段差注意", "Peligro: Escalón / Desnivel", "Mind the step", "Dansa chūi", "SAFETY"),
+        SignDictionaryEntry("足元注意", "Cuidado con los pies / Suelo resbaladizo", "Watch your step", "Ashimoto chūi", "SAFETY"),
+        SignDictionaryEntry("頭上注意", "Cuidado con la cabeza / Techo bajo", "Watch your head", "Zujō chūi", "SAFETY"),
+        SignDictionaryEntry("土足厳禁", "Prohibido entrar con calzado de calle", "Remove shoes", "Dosoku genkin", "RULE"),
+        SignDictionaryEntry("靴を脱いで", "Por favor, quítese los zapatos", "Please remove shoes", "Kutsu o nuide", "RULE"),
+        SignDictionaryEntry("スリッパ", "Zapatillas de interior", "Slippers", "Surippa", "RULE"),
+        SignDictionaryEntry("撮影禁止", "Prohibido fotografiar o grabar", "No photography", "Satsuei kinshi", "RULE"),
+        SignDictionaryEntry("飲食禁止", "Prohibido comer o beber", "No food or drink", "Inshoku kinshi", "RULE"),
+        SignDictionaryEntry("禁煙席", "Zona de no fumadores", "Non-smoking section", "Kin'en-seki", "RULE"),
+        SignDictionaryEntry("禁煙", "Prohibido fumar", "No smoking", "Kin'en", "RULE"),
+        SignDictionaryEntry("喫煙所", "Zona de fumadores", "Smoking area", "Kitsuenjo", "RULE"),
+        SignDictionaryEntry("喫煙席", "Zona de fumadores", "Smoking section", "Kitsuen-seki", "RULE"),
+        SignDictionaryEntry("喫煙", "Fumar", "Smoking", "Kitsuen", "RULE"),
+        SignDictionaryEntry("携帯電話禁止", "Prohibido hablar por teléfono móvil", "No mobile phone calls", "Keitai denwa kinshi", "RULE"),
+        SignDictionaryEntry("通話禁止", "Prohibido hablar por teléfono", "No phone calls", "Tsūwa kinshi", "RULE"),
+        SignDictionaryEntry("マナーモード", "Modo silencio", "Silent / Manner mode", "Manā mōdo", "RULE"),
+        SignDictionaryEntry("防犯カメラ作動中", "Cámaras de seguridad en funcionamiento", "Security cameras in operation", "Bōhan kamera sadōchū", "SAFETY"),
+        SignDictionaryEntry("非常停止ボタン", "Botón de parada de emergencia", "Emergency stop button", "Hijō teishi botan", "SAFETY"),
+        SignDictionaryEntry("お手洗い", "Aseos / Baño", "Restroom", "O-tearai", "SIGN"),
+        SignDictionaryEntry("トイレ", "Aseos / Baño", "Toilet / Restroom", "Toire", "SIGN"),
+        SignDictionaryEntry("化粧室", "Aseos / Tocador", "Restroom", "Keshōshitsu", "SIGN"),
+        SignDictionaryEntry("男子トイレ", "Aseos de hombres", "Men's restroom", "Danshi toire", "SIGN"),
+        SignDictionaryEntry("女子トイレ", "Aseos de mujeres", "Women's restroom", "Joshi toire", "SIGN"),
+        SignDictionaryEntry("多機能トイレ", "Aseo accesible para todos", "Accessible restroom", "Takinō toire", "SIGN"),
+        SignDictionaryEntry("押す", "Empujar", "Push", "Osu", "SIGN"),
+        SignDictionaryEntry("引く", "Tirar", "Pull", "Hiku", "SIGN"),
+        SignDictionaryEntry("自動ドア", "Puerta automática", "Automatic door", "Jidō doa", "SIGN"),
+        SignDictionaryEntry("自動", "Automático", "Automatic", "Jidō", "SIGN"),
+        SignDictionaryEntry("故障中", "Averiado / Fuera de servicio", "Out of order", "Koshōchū", "SIGN"),
+        SignDictionaryEntry("使用禁止", "Fuera de uso / Prohibido usar", "Do not use", "Shiyō kinshi", "SIGN"),
+        SignDictionaryEntry("営業中", "Abierto / En servicio", "Open for business", "Eigyōchū", "SHOP"),
+        SignDictionaryEntry("準備中", "Preparando / Cerrado temporalmente", "Preparing / Closed", "Junbichū", "SHOP"),
+        SignDictionaryEntry("定休日", "Día de descanso semanal / Cerrado", "Regular closing day", "Teikyūbi", "SHOP"),
+        SignDictionaryEntry("本日休業", "Cerrado hoy", "Closed today", "Honjitsu kyūgyō", "SHOP"),
+        SignDictionaryEntry("満席", "Local completo (sin mesas disponibles)", "Full house / Fully booked", "Manseki", "SHOP"),
+        SignDictionaryEntry("満室", "Hotel completo (sin habitaciones)", "No vacancy", "Manshitsu", "HOTEL"),
+        SignDictionaryEntry("売り切れ", "Agotado (Sold out)", "Sold out", "Urikire", "SHOP"),
+        SignDictionaryEntry("完売", "Agotado / Totalmente vendido", "Sold out", "Kanbai", "SHOP"),
+
+        // Comida, Restaurantes y Bebidas
+        SignDictionaryEntry("和牛", "Carne de ternera Wagyu", "Wagyu beef", "Wagyū", "FOOD"),
+        SignDictionaryEntry("焼肉", "Carne a la brasa Yakiniku", "Yakiniku grilled meat", "Yakiniku", "FOOD"),
+        SignDictionaryEntry("盛り合わせ", "Surtido variado / Plato combinado", "Assorted platter", "Moriawase", "FOOD"),
+        SignDictionaryEntry("唐揚げ", "Pollo frito japonés Karaage", "Japanese fried chicken Karaage", "Karaage", "FOOD"),
+        SignDictionaryEntry("から揚げ", "Pollo frito japonés Karaage", "Karaage fried chicken", "Karaage", "FOOD"),
+        SignDictionaryEntry("定食", "Menú completo (con arroz y sopa)", "Set meal (Teishoku)", "Teishoku", "FOOD"),
+        SignDictionaryEntry("特製ラーメン", "Ramen especial de la casa", "Special Ramen", "Tokusei rāmen", "FOOD"),
+        SignDictionaryEntry("ラーメン", "Fideos Ramen", "Ramen noodles", "Rāmen", "FOOD"),
+        SignDictionaryEntry("チャーシュー", "Láminas de cerdo asado Chashu", "Roast pork Chashu", "Chāshū", "FOOD"),
+        SignDictionaryEntry("味玉", "Huevo marinado para ramen", "Seasoned boiled egg", "Ajitama", "FOOD"),
+        SignDictionaryEntry("つけ麺", "Fideos Tsukemen", "Tsukemen dipping noodles", "Tsukemen", "FOOD"),
+        SignDictionaryEntry("うどん", "Fideos Udon", "Udon noodles", "Udon", "FOOD"),
+        SignDictionaryEntry("蕎麦", "Fideos Soba", "Soba noodles", "Soba", "FOOD"),
+        SignDictionaryEntry("そば", "Fideos Soba", "Soba noodles", "Soba", "FOOD"),
+        SignDictionaryEntry("天ぷら", "Fritura Tempura", "Tempura", "Tenpura", "FOOD"),
+        SignDictionaryEntry("天丼", "Bol de arroz con tempura Tendon", "Tempura rice bowl", "Tendon", "FOOD"),
+        SignDictionaryEntry("牛丼", "Bol de arroz con ternera Gyudon", "Beef bowl Gyudon", "Gyūdon", "FOOD"),
+        SignDictionaryEntry("豚カツ", "Chuleta de cerdo Tonkatsu", "Pork cutlet Tonkatsu", "Tonkatsu", "FOOD"),
+        SignDictionaryEntry("とんかつ", "Chuleta de cerdo Tonkatsu", "Pork cutlet Tonkatsu", "Tonkatsu", "FOOD"),
+        SignDictionaryEntry("カツ丼", "Bol de arroz con Tonkatsu Katsudon", "Pork cutlet rice bowl", "Katsudon", "FOOD"),
+        SignDictionaryEntry("親子丼", "Bol de arroz con pollo y huevo Oyakodon", "Chicken and egg rice bowl", "Oyakodon", "FOOD"),
+        SignDictionaryEntry("うな重", "Anguila asada sobre arroz Unaju", "Grilled eel rice box", "Unajū", "FOOD"),
+        SignDictionaryEntry("うなぎ", "Anguila glaseada Unagi", "Grilled eel Unagi", "Unagi", "FOOD"),
+        SignDictionaryEntry("鰻", "Anguila Unagi", "Eel Unagi", "Unagi", "FOOD"),
+        SignDictionaryEntry("寿司", "Sushi", "Sushi", "Sushi", "FOOD"),
+        SignDictionaryEntry("鮨", "Sushi", "Sushi", "Sushi", "FOOD"),
+        SignDictionaryEntry("すし", "Sushi", "Sushi", "Sushi", "FOOD"),
+        SignDictionaryEntry("刺身", "Láminas de pescado crudo Sashimi", "Sashimi", "Sashimi", "FOOD"),
+        SignDictionaryEntry("さしみ", "Pescado crudo Sashimi", "Sashimi", "Sashimi", "FOOD"),
+        SignDictionaryEntry("海鮮丼", "Bol de arroz con marisco fresco Kaisendon", "Seafood rice bowl", "Kaisendon", "FOOD"),
+        SignDictionaryEntry("餃子", "Empanadillas japonesas Gyoza", "Gyoza dumplings", "Gyōza", "FOOD"),
+        SignDictionaryEntry("ギョーザ", "Empanadillas Gyoza", "Gyoza dumplings", "Gyōza", "FOOD"),
+        SignDictionaryEntry("焼き鳥", "Brochetas de pollo Yakitori", "Yakitori skewers", "Yakitori", "FOOD"),
+        SignDictionaryEntry("やきとり", "Brochetas Yakitori", "Yakitori skewers", "Yakitori", "FOOD"),
+        SignDictionaryEntry("お好み焼き", "Tortilla japonesa Okonomiyaki", "Okonomiyaki pancake", "Okonomiyaki", "FOOD"),
+        SignDictionaryEntry("たこ焼き", "Buñuelos de pulpo Takoyaki", "Takoyaki octopus balls", "Takoyaki", "FOOD"),
+        SignDictionaryEntry("居酒屋", "Taberna japonesa Izakaya", "Japanese pub Izakaya", "Izakaya", "FOOD"),
+        SignDictionaryEntry("カツカレー", "Curry japonés con Tonkatsu", "Katsu curry", "Katsu karē", "FOOD"),
+        SignDictionaryEntry("カレー", "Curry japonés", "Japanese curry", "Karē", "FOOD"),
+        SignDictionaryEntry("ご飯", "Arroz blanco", "White rice", "Gohan", "FOOD"),
+        SignDictionaryEntry("ライス", "Arroz", "Rice", "Raisu", "FOOD"),
+        SignDictionaryEntry("白米", "Arroz blanco", "White rice", "Hakumai", "FOOD"),
+        SignDictionaryEntry("味噌汁", "Sopa de miso", "Miso soup", "Misoshiru", "FOOD"),
+        SignDictionaryEntry("生ビール", "Cerveza de barril", "Draft beer", "Nama bīru", "DRINK"),
+        SignDictionaryEntry("ビール", "Cerveza", "Beer", "Bīru", "DRINK"),
+        SignDictionaryEntry("ハイボール", "Whisky con soda Highball", "Whiskey Highball", "Haibōru", "DRINK"),
+        SignDictionaryEntry("日本酒", "Sake japonés tradicional", "Japanese Sake", "Nihonshu", "DRINK"),
+        SignDictionaryEntry("地酒", "Sake artesanal local", "Local Sake", "Jizake", "DRINK"),
+        SignDictionaryEntry("焼酎", "Licor destilado Shochu", "Shochu liquor", "Shōchū", "DRINK"),
+        SignDictionaryEntry("梅酒", "Licor de ciruela Umeshu", "Plum wine Umeshu", "Umeshu", "DRINK"),
+        SignDictionaryEntry("お冷", "Agua fresca de mesa (gratis)", "Free ice water", "Ohie", "DRINK"),
+        SignDictionaryEntry("お茶", "Té verde caliente", "Green tea", "Ocha", "DRINK"),
+        SignDictionaryEntry("抹茶", "Té verde Matcha", "Matcha green tea", "Matcha", "DRINK"),
+        SignDictionaryEntry("ウーロン茶", "Té Oolong", "Oolong tea", "Ūron-cha", "DRINK"),
+        SignDictionaryEntry("水", "Agua fresca", "Water", "Mizu", "DRINK"),
+        SignDictionaryEntry("おすすめ", "Recomendación de la casa", "Chef's recommendation", "Osusume", "FOOD"),
+        SignDictionaryEntry("オススメ", "Recomendación de la casa", "Chef's recommendation", "Osusume", "FOOD"),
+        SignDictionaryEntry("名物", "Especialidad del local", "House specialty", "Meibutsu", "FOOD"),
+        SignDictionaryEntry("限定", "Edición limitada / Especial", "Limited edition", "Gentei", "FOOD"),
+        SignDictionaryEntry("本日", "De hoy / Del día", "Today's", "Honjitsu", "FOOD"),
+        SignDictionaryEntry("ランチ", "Menú de almuerzo / mediodía", "Lunch set", "Ranchi", "FOOD"),
+        SignDictionaryEntry("ディナー", "Cena", "Dinner", "Dinā", "FOOD"),
+        SignDictionaryEntry("大盛り", "Ración grande", "Large portion", "Ōmori", "FOOD"),
+        SignDictionaryEntry("並盛り", "Ración normal", "Regular portion", "Namimori", "FOOD"),
+        SignDictionaryEntry("小盛り", "Ración pequeña", "Small portion", "Komori", "FOOD"),
+        SignDictionaryEntry("替玉", "Fideos adicionales para ramen", "Extra noodle refill", "Kaedama", "FOOD"),
+        SignDictionaryEntry("替え玉", "Fideos adicionales para ramen", "Extra noodle refill", "Kaedama", "FOOD"),
+        SignDictionaryEntry("辛口", "Sabor picante", "Spicy", "Karakuchi", "FOOD"),
+        SignDictionaryEntry("甘口", "Sabor dulce / suave", "Mild / Sweet", "Amakuchi", "FOOD"),
+        SignDictionaryEntry("激辛", "Muy picante", "Extra spicy", "Gekikara", "FOOD"),
+        SignDictionaryEntry("食券", "Ticket de pedido de máquina", "Meal ticket", "Shokken", "FOOD"),
+        SignDictionaryEntry("お会計", "La cuenta / Pago", "Check / Bill", "Okaikei", "PAYMENT"),
+        SignDictionaryEntry("会計", "Pago / Cuenta", "Check / Bill", "Kaikei", "PAYMENT"),
+        SignDictionaryEntry("お勘定", "La cuenta", "The check / bill", "Okanjō", "PAYMENT"),
+        SignDictionaryEntry("レジ", "Caja de cobro", "Cash register", "Reji", "PAYMENT"),
+        SignDictionaryEntry("注文", "Pedido", "Order", "Chūmon", "FOOD"),
+        SignDictionaryEntry("御注文", "Pedido", "Order", "Gochūmon", "FOOD"),
+        SignDictionaryEntry("税込み", "Impuestos incluidos", "Tax included", "Zeikomi", "PAYMENT"),
+        SignDictionaryEntry("税込", "Impuestos incluidos", "Tax included", "Zeikomi", "PAYMENT"),
+        SignDictionaryEntry("税抜き", "Sin impuestos / Base", "Tax excluded", "Zeinuki", "PAYMENT"),
+        SignDictionaryEntry("税抜", "Sin impuestos", "Tax excluded", "Zeinuki", "PAYMENT"),
+        SignDictionaryEntry("お通し", "Aperitivo de mesa obligatorio (Otoshi)", "Table charge appetizer (Otoshi)", "Otōshi", "FOOD"),
+        SignDictionaryEntry("おかわり無料", "Repetición gratis de arroz/sopa", "Free refill", "Okawari muryō", "FOOD"),
+
+        // Compras, Moneda, Baños y Onsen
+        SignDictionaryEntry("免税", "Trámite Tax-Free libre de impuestos", "Tax-Free shopping", "Menzei", "SHOP"),
+        SignDictionaryEntry("TAX FREE", "Libre de impuestos (Tax-Free)", "Tax-Free", "Takusu furī", "SHOP"),
+        SignDictionaryEntry("パスポート", "Pasaporte", "Passport", "Pasupōto", "SHOP"),
+        SignDictionaryEntry("現金のみ", "Solo pago en efectivo", "Cash only", "Genkin nomi", "PAYMENT"),
+        SignDictionaryEntry("現金だけ", "Solo pago en efectivo", "Cash only", "Genkin dake", "PAYMENT"),
+        SignDictionaryEntry("現金", "Efectivo", "Cash", "Genkin", "PAYMENT"),
+        SignDictionaryEntry("クレジットカード利用可", "Se aceptan tarjetas de crédito", "Credit cards accepted", "Kurejitto kādo riyōka", "PAYMENT"),
+        SignDictionaryEntry("クレジットカード", "Tarjeta de crédito", "Credit card", "Kurejitto kādo", "PAYMENT"),
+        SignDictionaryEntry("カード", "Tarjeta de crédito", "Card", "Kādo", "PAYMENT"),
+        SignDictionaryEntry("電子マネー", "Dinero electrónico / IC card", "Electronic money", "Denshi manē", "PAYMENT"),
+        SignDictionaryEntry("割引", "Rebajas / Descuento", "Discount", "Waribiki", "SHOP"),
+        SignDictionaryEntry("セール", "Rebajas / Oferta", "Sale", "Sēru", "SHOP"),
+        SignDictionaryEntry("半額", "Mitad de precio (50% de descuento)", "Half price", "Hangaku", "SHOP"),
+        SignDictionaryEntry("両替機", "Máquina de cambio de moneda", "Currency exchange machine", "Ryōgaeki", "PAYMENT"),
+        SignDictionaryEntry("両替", "Cambio de moneda", "Currency exchange", "Ryōgae", "PAYMENT"),
+        SignDictionaryEntry("温泉", "Aguas termales Onsen", "Hot springs Onsen", "Onsen", "ONSEN"),
+        SignDictionaryEntry("露天風呂", "Baño termal al aire libre (Rotenburo)", "Open-air bath Rotenburo", "Rotenburo", "ONSEN"),
+        SignDictionaryEntry("入浴料", "Tarifa de baño / entrada", "Bath admission fee", "Nyūyokuryō", "ONSEN"),
+        SignDictionaryEntry("サウナ", "Sauna", "Sauna", "Sauna", "ONSEN"),
+        SignDictionaryEntry("薬局", "Farmacia", "Pharmacy", "Yakkyoku", "SHOP"),
+        SignDictionaryEntry("ドラッグストア", "Droguería / Farmacia", "Drugstore", "Doraggusutoa", "SHOP"),
+        SignDictionaryEntry("薬", "Farmacia / Medicamento", "Medicine", "Kusuri", "SHOP"),
+        SignDictionaryEntry("病院", "Hospital", "Hospital", "Byōin", "SAFETY"),
+        SignDictionaryEntry("交番", "Puesto de policía Koban", "Police box Koban", "Kōban", "SAFETY")
+    )
+
     private fun translateSingleOcrLine(line: String, isEs: Boolean): CameraOcrLine {
-        val yenRegex = """([0-9]{1,3}(?:,[0-9]{3})*|[0-9]+)\s*円""".toRegex()
-        val yenMatch = yenRegex.find(line)
+        val clean = line.trim()
+        val yenRegex = """([0-9]{1,3}(?:,[0-9]{3})*|[0-9]+)\s*(?:円|Yen|¥)""".toRegex(RegexOption.IGNORE_CASE)
+        val yenMatch = yenRegex.find(clean)
         val yenAmount = yenMatch?.groupValues?.get(1)
 
-        val (translatedText, romaji) = when {
-            line.contains("ラーメン") -> {
-                val priceInfo = if (yenAmount != null) " (~$yenAmount yenes)" else ""
-                val dish = if (line.contains("特製")) "Ramen especial" else "Ramen"
-                Pair("$dish$priceInfo", "Tokusei rāmen")
-            }
-            line.contains("餃子") -> {
-                val priceInfo = if (yenAmount != null) " (~$yenAmount yenes)" else ""
-                Pair("Empanadillas Gyoza$priceInfo", "Yaki-gyōza")
-            }
-            line.contains("ビール") -> {
-                val priceInfo = if (yenAmount != null) " (~$yenAmount yenes)" else ""
-                Pair("Cerveza de barril$priceInfo", "Nama bīru")
-            }
-            line.contains("新幹線") -> {
-                val track = """([0-9]+)\s*番""".toRegex().find(line)?.groupValues?.get(1)
-                val trackText = if (track != null) " andén $track" else ""
-                Pair("Tren Shinkansen$trackText", "Shinkansen")
-            }
-            line.contains("禁煙") -> Pair("Zona de no fumadores (prohibido fumar)", "Kin'en-seki")
-            line.contains("喫煙") -> Pair("Área de fumadores", "Kitsuen-jo")
-            line.contains("満席") || line.contains("本日満席") -> Pair("Local completo (sin mesas disponibles)", "Honjitsu manseki")
-            line.contains("お手洗い") || line.contains("トイレ") || line.contains("化粧室") -> Pair("Aseos / Baño", "O-tearai / Toire")
-            line.contains("非常口") || line.contains("避難所") -> Pair("Salida de emergencia", "Hijōguchi")
-            line.contains("出口") -> Pair("Salida", "Deguchi")
-            line.contains("現金のみ") || line.contains("現金だけ") -> Pair("Solo pago en efectivo", "Genkin nomi")
-            line.contains("免税") -> Pair("Trámite Tax-Free libre de impuestos", "Menzei")
-            line.contains("自由席") -> Pair("Vagones de asientos libres (no reservados)", "Jiyū-seki")
-            line.contains("指定席") -> Pair("Vagones de asientos reservados", "Shitei-seki")
-            line.contains("うどん") -> Pair("Fideos Udon" + (if (yenAmount != null) " (~$yenAmount yenes)" else ""), "Udon")
-            line.contains("そば") -> Pair("Fideos Soba" + (if (yenAmount != null) " (~$yenAmount yenes)" else ""), "Soba")
-            line.contains("寿司") || line.contains("すし") -> Pair("Sushi" + (if (yenAmount != null) " (~$yenAmount yenes)" else ""), "Sushi")
-            line.contains("カレー") -> Pair("Curry japonés" + (if (yenAmount != null) " (~$yenAmount yenes)" else ""), "Karē")
-            line.contains("水") -> Pair("Agua fresca", "O-mizu")
-            line.contains("お茶") -> Pair("Té verde", "O-cha")
-            yenAmount != null -> Pair("Importe: $yenAmount yenes", "$yenAmount-en")
-            else -> {
-                val speechResult = translateFromJapaneseSpeech(line)
-                Pair(speechResult.spanishSpokenText, speechResult.romaji)
+        // 1. Coincidencia exacta con el diccionario masivo
+        val exactMatch = japaneseTravelSignDictionary.firstOrNull { clean == it.japanese }
+        if (exactMatch != null) {
+            val priceSuffix = if (yenAmount != null && !exactMatch.es.contains(yenAmount)) " (~$yenAmount yenes)" else ""
+            return CameraOcrLine(
+                japaneseText = clean,
+                romaji = exactMatch.romaji.ifBlank { "Nihongo: $clean" },
+                translatedText = (if (isEs) exactMatch.es else exactMatch.en) + priceSuffix
+            )
+        }
+
+        // 2. Descomposición y segmentación morfológica/léxica
+        val matchedEntries = mutableListOf<SignDictionaryEntry>()
+        var remaining = clean
+        // Ordenamos por longitud descendente para emparejar frases largas antes que caracteres sueltos
+        val sortedDict = japaneseTravelSignDictionary.sortedByDescending { it.japanese.length }
+        for (entry in sortedDict) {
+            if (remaining.contains(entry.japanese)) {
+                matchedEntries.add(entry)
+                remaining = remaining.replace(entry.japanese, " ")
             }
         }
 
+        if (matchedEntries.isNotEmpty()) {
+            // Mantenemos el orden de aparición en la línea original
+            val orderedMatches = matchedEntries.sortedBy { clean.indexOf(it.japanese) }
+            val translatedSummary = orderedMatches.joinToString(" · ") { if (isEs) it.es else it.en }
+            val romajiSummary = orderedMatches.map { it.romaji }.filter { it.isNotBlank() }.joinToString(" ")
+            val priceSuffix = if (yenAmount != null && !translatedSummary.contains(yenAmount)) " (~$yenAmount yenes)" else ""
+
+            return CameraOcrLine(
+                japaneseText = clean,
+                romaji = if (romajiSummary.isNotBlank()) romajiSummary else "Nihongo: $clean",
+                translatedText = "$translatedSummary$priceSuffix"
+            )
+        }
+
+        // 3. Plantillas de voz/conversación si aplican
+        val speechResult = translateFromJapaneseSpeech(clean)
+        if (!speechResult.spanishSpokenText.contains("no disponible", ignoreCase = true)) {
+            val priceSuffix = if (yenAmount != null && !speechResult.spanishSpokenText.contains(yenAmount)) " (~$yenAmount yenes)" else ""
+            return CameraOcrLine(
+                japaneseText = clean,
+                romaji = speechResult.romaji,
+                translatedText = (if (isEs) speechResult.spanishSpokenText else speechResult.englishSpokenText) + priceSuffix
+            )
+        }
+
+        // 4. Si solo contiene un importe en yenes
+        if (yenAmount != null) {
+            return CameraOcrLine(
+                japaneseText = clean,
+                romaji = "$yenAmount-en",
+                translatedText = if (isEs) "Importe: $yenAmount yenes" else "Amount: $yenAmount yen"
+            )
+        }
+
+        // 5. Fallback descriptivo constructivo (nunca mensaje negativo estéril)
         return CameraOcrLine(
-            japaneseText = line,
-            romaji = romaji,
-            translatedText = translatedText
+            japaneseText = clean,
+            romaji = "Nihongo: $clean",
+            translatedText = if (isEs) {
+                "Texto japonés detectado: $clean"
+            } else {
+                "Detected Japanese text: $clean"
+            }
         )
     }
 

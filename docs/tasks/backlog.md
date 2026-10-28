@@ -277,17 +277,44 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 ## Hito 17: Traducción Robusta de Carteles (Offline + Online) y Selector Multizona Estilo Google Fotos
 
 ### Motor de Traducción de Carteles y Menús (`SPEC-06`)
-- [ ] **TASK-718 (TDD)**: Diccionario Offline Ampliado y Tokenizador Morfológico para Carteles en `OfflineTranslatorEngine` (`SPEC-06 RF-06.1.6`):
-  - Expandir el diccionario offline a cientos de términos y expresiones habituales de viaje (carteles, estaciones, salidas, andenes, advertencias, normas, platos de comida, bebidas, precios, etc.).
-  - Implementar segmentación/tokenización morfológica: si una línea de texto japonesa no coincide de forma exacta, descomponerla en vocablos y kanjis conocidos para traducir cada elemento, eliminando el fallo de *"Traducción directa no disponible offline"*.
-  - Crear tests unitarios en `OfflineTranslatorEngineTest.kt` comprobando la traducción de carteles urbanos, estaciones, comida, advertencias y segmentación morfológica.
-- [ ] **TASK-719 (Async/TDD)**: Traducción Fluida en Línea en Segundo Plano para OCR (`SPEC-06 RF-06.1.6`):
-  - Conectar el resultado de OCR con `OnlineTranslatorClient` para ejecutar traducciones en segundo plano cuando el dispositivo esté conectado y no se encuentre en modo offline forzado.
-  - Actualizar reactivamente las líneas del cartel con la traducción fluida completa sin bloquear la interfaz.
-- [ ] **TASK-720 (UI/TDD)**: Selector de Zonas de Foto no Destructivo Estilo Google Fotos y Soporte Multizona (`SPEC-06 RF-06.1.5`):
-  - Modelo `OcrTextZone` con coordenadas normalizadas, texto detectado e identificador numérico.
-  - Diseñar el diálogo/visor interactivo con overlay no destructivo: imagen completa con máscara atenuada (`scrim`), recuadros visuales con tiradores estilo visor de fotos de Google y selección multizona (activar/desactivar zonas individuales o todas las zonas).
-  - Vincular las zonas seleccionadas al procesamiento OCR y visualización de resultados por zona.
+- [x] **TASK-718 (TDD)**: Diccionario Offline Ampliado y Tokenizador Morfológico para Carteles en `OfflineTranslatorEngine` (`SPEC-06 RF-06.1.6`):
+  - Expandir el diccionario offline a más de 150 términos y expresiones categorizadas de viaje (carteles urbanos, estaciones, salidas, andenes, advertencias, normas, platos de comida, bebidas, precios, etc.).
+  - Implementar segmentación y descomposición morfológica de frases compuestas en japonés para traducir cada vocablo o kanji conocido, eliminando por completo el mensaje genérico de *"Traducción directa no disponible offline"*.
+  - Crear tests unitarios en `OfflineTranslatorEngineTest.kt` validando carteles de estaciones, comida, precios, advertencias y segmentación morfológica.
+- [x] **TASK-719 (Async/TDD)**: Traducción Fluida en Línea en Segundo Plano para OCR (`SPEC-06 RF-06.1.6`):
+  - Conectar el resultado de OCR en `VoiceTranslatorScreen` con `OnlineTranslatorClient` para consultar traducción contextual en línea en segundo plano cuando haya conexión y no esté forzado el modo offline.
+  - Mostrar la traducción online contextual en una tarjeta destacada con botón de audio locutado, complementando los desgloses offline instantáneos.
+- [x] **TASK-720 (UI/TDD)**: Selector de Zonas de Foto no Destructivo Estilo Google Fotos y Soporte Multizona (`SPEC-06 RF-06.1.5`):
+  - Diseñar el diálogo/visor interactivo `SelectImageRegionDialog` con encuadre no destructivo sobre la foto original (sin recortar el archivo base): imagen completa, máscara atenuada (`scrim`), cuadrícula de tercios y los 4 brackets de esquinas icónicos `┌ ┐ └ ┘`.
+  - Soporte Multizona (`OcrTextZone`): selector rápido de presets individuales (`Toda la foto`, `Superior`, `Centro`, `Inferior`, `Izquierda`, `Derecha`) y modo multizona con procesamiento en bloque y agrupación de resultados traducidos por zona (`📍 Zona 1`, `📍 Zona 2`, etc.).
+
+---
+
+## Hito 18: Tickets de Compra, Tax-Free, Control de Gastos y Escaneo IA (Local + Cloud)
+
+### Módulo de Comprobantes, Tax-Free y Presupuesto (`SPEC-08`)
+- [x] **TASK-801 (SDD)**: Especificación Funcional de Tickets de Compra, Tax-Free y Control de Gastos:
+  - Crear `docs/specs/08-shopping-receipts-tax-free-spec.md` detallando campos, reglas de 5.000 ¥, consumibles/generales/mixtos, control presupuestario y escaneo híbrido.
+- [x] **TASK-802 (Analysis)**: Análisis Técnico y Arquitectura Clean Architecture:
+  - Crear `docs/analysis/08-shopping-receipts-tax-free-analysis.md` detallando entidades, contratos y estrategia de testing.
+- [x] **TASK-803 (TDD/Domain)**: Modelos de Dominio y Calculador de Reglas Tax-Free de Japón:
+  - Definir `ReceiptProductItem`, `ShoppingReceipt`, `GoodsType`, `TaxFreeClaimStatus` y `ExpenseCategory` en `ShoppingReceiptsModels.kt`.
+  - Implementar cálculo de subtotales, desglose impositivo al 8% y 10%, y umbral de 5.000 ¥ sin impuestos.
+- [x] **TASK-804 (TDD/Domain)**: Analizador OCR de Recibos Japoneses (`JapaneseReceiptOcrParser`):
+  - Reconocimiento de cadenas principales (*Don Quijote, Bic Camera, Uniqlo, 7-Eleven, Lawson, FamilyMart*).
+  - Detección de fechas gregorianas y era Reiwa, extracción de productos, subtotales, `内消費税` e indicadores `8% / 10%`.
+- [x] **TASK-805 (TDD/Domain)**: Generador de Informes Consolidados de Tax-Free (`TaxFreeReportGenerator`):
+  - Agrupación por tienda y fecha, cálculo de impuesto recuperable en ¥ y EUR con Frankfurter API.
+  - Exportación en formatos Texto, Markdown y JSON portable.
+- [x] **TASK-806 (TDD/Domain)**: Módulo de Control de Presupuesto y Gastos del Viaje (`TravelBudgetSummary`):
+  - Acumulados totales de gasto en ¥ y EUR, desgloses por categoría (`ExpenseCategory`), por día y por ciudad.
+- [x] **TASK-807 (TDD/Data)**: Almacén Persistente y Gestor de Tickets (`ShoppingReceiptsStore`):
+  - Persistencia de comprobantes en almacenamiento privado (`filesDir`), soporte CRUD reactivo y cálculo de balances.
+- [x] **TASK-808 (TDD/AI)**: Escáner Inteligente Híbrido con Gemini Cloud Vision y Fallback a ML Kit (`AiReceiptScannerEngine`):
+  - Extracción multimodal vía Gemini Vision con fallback automático a ML Kit local offline ante errores o falta de red/clave.
+- [x] **TASK-809 (Test)**: Suite de Tests Unitarios Exhaustiva (`TaxFreeReceiptsTest`):
+  - Verificación de cálculos fiscales, reglas de umbral, parser OCR japonés, informes Tax-Free, control de gastos y escaneo híbrido.
+
 
 
 

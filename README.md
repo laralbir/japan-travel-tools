@@ -62,6 +62,11 @@ Aplicación Android **offline-first** con herramientas esenciales para viajar a 
    - **Búsqueda Predictiva y Coordenadas de Google Maps**: Sugerencias predictivas instantáneas reactivas mientras se escribe el nombre de la ciudad y obtención automática de coordenadas geográficas de Google Maps y Open-Meteo con catálogo local (>50 ciudades y destinos turísticos) 100% offline.
    - **Útil para el Usuario**: Clasificación diaria (`⛩️ Ideal Exterior` vs. `🏛️ Recomendado Cubierto`), avisos de paraguas (`☔ %`), temperaturas máx/mín y **porcentaje de visibilidad del Monte Fuji (`🗻 %`)** integrado en cada día del Planificador de Viaje.
    - **Útil para la IA (`Weather-Aware AI Planner`)**: Inyecta la previsión de Open-Meteo en `AiPlanBuilderEngine` para que la IA adapte automáticamente las paradas del itinerario en días de lluvia añadiendo alternativas cubiertas (*mercados Nishiki/Kuromon*, *galerías Shotengai*, museos).
+9. **Tickets de Compra, Tax-Free y Control de Gastos del Viaje (`SPEC-08`) [En Especificación - Beta]**
+   - Digitalización manual y escaneo inteligente de tickets (cámara, almacenamiento o Google Drive) con motor híbrido: **ML Kit Japanese OCR offline** + **Gemini Cloud Vision API** multimodal.
+   - Cálculo automático de elegibilidad para el régimen **Tax-Free** de Japón (umbral de 5.000 ¥ sin tasas, separación de consumibles al 8%, bienes generales al 10% y compras mixtas).
+   - Generador de informes consolidados de Tax-Free por tienda y fecha, con desglose de impuestos recuperables en yenes y euros, y exportación en texto, Markdown y JSON.
+   - Control integral de presupuesto de viaje con acumulados en ¥ y EUR, categorización (Compras, Comida, Transporte, Ocio, etc.) y balances analíticos por día y ciudad.
 
 ---
 
@@ -100,7 +105,8 @@ Toda la documentación técnica y funcional se encuentra en español dentro del 
   - [05 - Herramienta: Planificador de Transporte (Vuelos, Trenes/Shinkansen, Metros y Autobuses)](docs/specs/05-flight-planner-spec.md)
   - [06 - Herramienta: Asistente IA con Gemini y Acceso Directo a Traducción Simultánea](docs/specs/06-gemini-ai-and-translator-spec.md)
   - [07 - Herramienta: Previsión Meteorológica con Open-Meteo para Planificación de Usuario e IA](docs/specs/07-weather-open-meteo-spec.md)
-  - [08 - Guía y Esquema JSON para Generación con IA y Portabilidad](docs/specs/08-travel-plan-json-schema-guide.md)
+  - [08 - Herramienta: Tickets de Compra, Tax-Free y Control de Gastos del Viaje con Escaneo Inteligente](docs/specs/08-shopping-receipts-tax-free-spec.md)
+  - [09 - Guía y Esquema JSON para Generación con IA y Portabilidad](docs/specs/08-travel-plan-json-schema-guide.md)
 - **Análisis Técnico**:
   - [Arquitectura, Stack Tecnológico y Estrategia TDD](docs/analysis/architecture-and-tech-stack.md)
 - **Planificación de Tareas**:
