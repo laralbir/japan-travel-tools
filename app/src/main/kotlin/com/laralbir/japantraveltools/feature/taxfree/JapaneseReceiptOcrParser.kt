@@ -9,7 +9,8 @@ import java.util.Locale
 import java.util.UUID
 
 /**
- * Analizador OCR de comprobantes y tickets de compra con soporte trilingüe:
+ * Analizador OCR de comprobantes y tickets de compra con soporte trilingüe y multidivisa:
+ * - Divisas detectadas: JPY (¥ / 円), EUR (€ / Euro) y USD ($ / US Dollar)
  * - Japonés (日本語): kanjis habituales (小計, 合計, 内消費税, 免税, era Reiwa, etc.)
  * - Inglés (English): términos internacionales y duty-free (SUBTOTAL, TOTAL, TAX, VAT, etc.)
  * - Español (Spanish): comprobantes en español (BASE IMPONIBLE, TOTAL A PAGAR, IVA, etc.)
@@ -18,7 +19,87 @@ object JapaneseReceiptOcrParser {
 
     private val JST_ZONE = ZoneId.of("Asia/Tokyo")
 
-    fun parse(rawOcrText: String): ShoppingReceipt {
+    /**
+     * Detecta la divisa del ticket a partir del texto OCR.
+     * Retorna "JPY", "EUR", "USD" o null si la divisa es ambigua o no se detecta con seguridad.
+     */
+    fun detectCurrency(text: String): String? {
+        val hasEuroSymbol = text.contains("€")
+        val hasEuroWord = Regex("""\b(?:EUR|EUROS?)\b""", RegexOption.IGNORE_CASE).containsMatchIn(text) ||
+            Regex("""[0-9,.]+\s*(?:€|EUR)\b""", RegexOption.IGNORE_CASE).containsMatchIn(text) ||
+            Regex("""(?:€|EUR)\s*[0-9,.]+""", RegexOption.IGNORE_CASE).containsMatchIn(text)
+        val isEuro = hasEuroSymbol || hasEuroWord
+
+        val hasUsdWord = Regex("""\b(?:USD|US\$|DOLLARS?|DÓLARES?)\b""", RegexOption.IGNORE_CASE).containsMatchIn(text)
+        val hasDollarSymbol = text.contains("$")
+        val isUsd = hasUsdWord || (hasDollarSymbol && !isEuro)
+
+        val hasYenSymbol = text.contains("¥") || text.contains("￥") || text.contains("円")
+        val hasYenWord = Regex("""\b(?:JPY|YEN)\b""", RegexOption.IGNORE_CASE).containsMatchIn(text)
+        val hasJapaneseKanjiClues = text.contains("合計") || text.contains("小計") || text.contains("内消費税") ||
+            text.contains("消費税") || text.contains("税抜") || text.contains("ドン・キホーテ") ||
+            text.contains("ビックカメラ") || text.contains("ヨドバシ") || text.contains("ユニクロ") ||
+            text.contains("セブン-イレブン") || text.contains("ファミリーマート") || text.contains("ローソン")
+        val isJpy = hasYenSymbol || hasYenWord || hasJapaneseKanjiClues
+
+        return when {
+            isEuro && !isUsd && !hasYenSymbol -> "EUR"
+            isUsd && !isEuro && !hasYenSymbol -> "USD"
+            isJpy && !isEuro && !isUsd -> "JPY"
+            else -> null
+        }
+    }
+
+    fun isCurrencyAmbiguous(text: String): Boolean = detectCurrency(text) == null
+
+    /**
+     * Parsea importes numéricos en formato internacional (12.50 / 1,250.00), europeo (12,50 / 1.250,00) o enteros (1250).
+     */
+    fun parsePriceString(raw: String): Double? {
+        val clean = raw.trim()
+            .replace("¥", "")
+            .replace("￥", "")
+            .replace("$", "")
+            .replace("€", "")
+            .replace("円", "")
+            .replace("USD", "", ignoreCase = true)
+            .replace("EUR", "", ignoreCase = true)
+            .replace("JPY", "", ignoreCase = true)
+            .trim()
+        if (clean.isBlank()) return null
+
+        // 1. Formato europeo con punto como miles y coma decimal: 1.250,50
+        if (clean.matches(Regex("""\d{1,3}(?:\.\d{3})+,\d{1,2}"""))) {
+            return clean.replace(".", "").replace(",", ".").toDoubleOrNull()
+        }
+        // 2. Coma como separador decimal simple: 20,00 o 2,50
+        if (clean.matches(Regex("""\d+,\d{1,2}"""))) {
+            return clean.replace(",", ".").toDoubleOrNull()
+        }
+        // 3. Formato estándar US/JP con coma de miles y punto decimal (o sin decimales): 1,250.50 o 5000 o 50.00
+        return clean.replace(",", "").toDoubleOrNull()
+    }
+
+    fun parse(
+        rawOcrText: String,
+        forcedCurrency: String? = null,
+        eurToJpyRate: Double = 164.80,
+        usdToEurRate: Double = 1.084
+    ): ShoppingReceipt {
+        val detected = detectCurrency(rawOcrText)
+        val effectiveCurrency = forcedCurrency?.uppercase(Locale.ROOT) ?: detected ?: "JPY"
+        val isJpy = effectiveCurrency == "JPY"
+
+        val rateToJpy = when (effectiveCurrency) {
+            "EUR" -> if (eurToJpyRate > 0) eurToJpyRate else 164.80
+            "USD" -> {
+                val eRate = if (eurToJpyRate > 0) eurToJpyRate else 164.80
+                val uRate = if (usdToEurRate > 0) usdToEurRate else 1.084
+                eRate / uRate
+            }
+            else -> 1.0
+        }
+
         val lines = rawOcrText.lines().map { it.trim() }.filter { it.isNotBlank() }
 
         val storeName = detectStoreName(lines)
@@ -52,42 +133,48 @@ object JapaneseReceiptOcrParser {
         )
 
         // Extracción de líneas de productos
-        val items = extractProductItems(lines)
+        val items = extractProductItems(lines, effectiveCurrency, rateToJpy)
 
         val finalItems = if (items.isNotEmpty()) {
             items
         } else {
-            // Si no se pudieron desglosar artículos línea a línea, creamos un ítem sintético con los totales encontrados
             val basePrice = explicitSubtotal ?: if (explicitTotal != null && explicitTax != null) {
                 explicitTotal - explicitTax
             } else {
-                explicitTotal ?: 1000.0
+                explicitTotal ?: if (isJpy) 1000.0 else 10.0
             }
-            val taxAmount = explicitTax ?: Math.round(basePrice * 0.10).toDouble()
+            val taxAmount = explicitTax ?: Math.round(basePrice * 0.10 * 100.0) / 100.0
             val rate = if (basePrice > 0) Math.round((taxAmount / basePrice) * 100.0).toDouble() else 10.0
+            val unitYen = if (isJpy) basePrice else Math.round(basePrice * rateToJpy).toDouble()
+
             listOf(
                 ReceiptProductItem(
                     id = UUID.randomUUID().toString(),
                     name = "Compra en $storeName",
                     quantity = 1,
-                    unitPriceYen = basePrice,
-                    taxRatePercent = if (rate in 7.0..9.0) 8.0 else 10.0
+                    unitPriceYen = unitYen,
+                    taxRatePercent = if (rate in 7.0..9.0) 8.0 else 10.0,
+                    currency = effectiveCurrency,
+                    originalUnitPrice = basePrice
                 )
             )
         }
 
-        val subtotal = explicitSubtotal ?: finalItems.sumOf { it.subtotalWithoutTaxYen }
-        val tax = explicitTax ?: finalItems.sumOf { it.taxYen }
-        val total = explicitTotal ?: (subtotal + tax)
+        val origSub = explicitSubtotal ?: finalItems.sumOf { it.originalSubtotalWithoutTax }
+        val origTax = explicitTax ?: finalItems.sumOf { it.originalTax }
+        val origTotal = explicitTotal ?: (origSub + origTax)
 
-        val isEligible = subtotal >= TaxFreeCalculator.TAX_FREE_MIN_YEN ||
+        val subtotalYen = if (isJpy) origSub else Math.round(origSub * rateToJpy).toDouble()
+        val totalTaxYen = if (isJpy) origTax else Math.round(origTax * rateToJpy).toDouble()
+        val totalWithTaxYen = if (isJpy) origTotal else (subtotalYen + totalTaxYen)
+
+        val isDutyFree = storeName.contains("Duty Free", ignoreCase = true) || storeName.contains("Tax Free", ignoreCase = true)
+        val isEligible = (isJpy || isDutyFree) && subtotalYen >= TaxFreeCalculator.TAX_FREE_MIN_YEN ||
             rawOcrText.contains("免税", ignoreCase = true) ||
             rawOcrText.contains("TAX FREE", ignoreCase = true) ||
             rawOcrText.contains("TAX-FREE", ignoreCase = true) ||
             rawOcrText.contains("DUTY FREE", ignoreCase = true) ||
-            rawOcrText.contains("DUTY-FREE", ignoreCase = true) ||
-            rawOcrText.contains("LIBRE DE IMPUESTOS", ignoreCase = true) ||
-            rawOcrText.contains("DEVOLUCIÓN DE IVA", ignoreCase = true)
+            rawOcrText.contains("DUTY-FREE", ignoreCase = true)
 
         val has8 = finalItems.any { it.taxRatePercent == 8.0 } ||
             rawOcrText.contains("8%") || rawOcrText.contains("軽") ||
@@ -108,13 +195,72 @@ object JapaneseReceiptOcrParser {
             storeName = storeName,
             location = location,
             items = finalItems,
-            subtotalWithoutTaxYen = subtotal,
-            totalTaxYen = tax,
-            totalWithTaxYen = total,
+            subtotalWithoutTaxYen = subtotalYen,
+            totalTaxYen = totalTaxYen,
+            totalWithTaxYen = totalWithTaxYen,
+            currency = effectiveCurrency,
+            originalSubtotal = origSub,
+            originalTotalTax = origTax,
+            originalTotalWithTax = origTotal,
             isTaxFreeEligible = isEligible,
             goodsType = goodsType,
             taxFreeStatus = status,
             category = category,
+            updatedAtMillis = System.currentTimeMillis()
+        )
+    }
+
+    /**
+     * Recalcula un comprobante cuando el usuario selecciona o cambia manualmente la divisa.
+     */
+    fun recalculateWithCurrency(
+        receipt: ShoppingReceipt,
+        targetCurrency: String,
+        eurToJpyRate: Double = 164.80,
+        usdToEurRate: Double = 1.084
+    ): ShoppingReceipt {
+        val cur = targetCurrency.uppercase(Locale.ROOT)
+        val isJpy = cur == "JPY"
+        val rateToJpy = when (cur) {
+            "EUR" -> if (eurToJpyRate > 0) eurToJpyRate else 164.80
+            "USD" -> {
+                val eRate = if (eurToJpyRate > 0) eurToJpyRate else 164.80
+                val uRate = if (usdToEurRate > 0) usdToEurRate else 1.084
+                eRate / uRate
+            }
+            else -> 1.0
+        }
+
+        val origSub = receipt.originalSubtotal
+        val origTax = receipt.originalTotalTax
+        val origTotal = receipt.originalTotalWithTax
+
+        val subtotalYen = if (isJpy) origSub else Math.round(origSub * rateToJpy).toDouble()
+        val totalTaxYen = if (isJpy) origTax else Math.round(origTax * rateToJpy).toDouble()
+        val totalWithTaxYen = if (isJpy) origTotal else (subtotalYen + totalTaxYen)
+
+        val updatedItems = receipt.items.map { item ->
+            val unitYen = if (isJpy) item.originalUnitPrice else Math.round(item.originalUnitPrice * rateToJpy).toDouble()
+            item.copy(
+                currency = cur,
+                unitPriceYen = unitYen
+            )
+        }
+
+        val isDutyFree = receipt.storeName.contains("Duty Free", ignoreCase = true) || receipt.storeName.contains("Tax Free", ignoreCase = true)
+        val isEligible = (isJpy || isDutyFree) && subtotalYen >= TaxFreeCalculator.TAX_FREE_MIN_YEN
+
+        return receipt.copy(
+            currency = cur,
+            originalSubtotal = origSub,
+            originalTotalTax = origTax,
+            originalTotalWithTax = origTotal,
+            subtotalWithoutTaxYen = subtotalYen,
+            totalTaxYen = totalTaxYen,
+            totalWithTaxYen = totalWithTaxYen,
+            items = updatedItems,
+            isTaxFreeEligible = isEligible,
+            taxFreeStatus = if (isEligible) TaxFreeClaimStatus.PENDING else TaxFreeClaimStatus.NOT_APPLICABLE,
             updatedAtMillis = System.currentTimeMillis()
         )
     }
@@ -292,12 +438,15 @@ object JapaneseReceiptOcrParser {
 
     private fun extractAmount(text: String, keywords: List<String>): Double? {
         for (kw in keywords) {
-            // Patrón para capturar palabras clave en JP, EN o ES seguidas opcionalmente de dos puntos y el importe
-            val pattern = Regex("""(?:$kw)\s*[:：]?\s*[¥￥$€]?\s*([0-9,]+(?:\.[0-9]{1,2})?)""", RegexOption.IGNORE_CASE)
+            val kwRegex = if (kw.firstOrNull()?.isLetter() == true) """\b$kw\b""" else Regex.escape(kw)
+            val pattern = Regex(
+                """(?:$kwRegex)\s*[:：]?\s*[¥￥$€]?\s*([0-9,.]+(?:\s*[¥￥$€]|(?:\s*USD|\s*EUR))?)""",
+                RegexOption.IGNORE_CASE
+            )
             val match = pattern.find(text)
             if (match != null) {
-                val numStr = match.groupValues[1].replace(",", "")
-                val parsed = numStr.toDoubleOrNull()
+                val numStr = match.groupValues[1]
+                val parsed = parsePriceString(numStr)
                 if (parsed != null && parsed > 0) return parsed
             }
         }
@@ -310,13 +459,13 @@ object JapaneseReceiptOcrParser {
 
         // Buscar múltiples líneas de impuesto (Japonés, Inglés y Español)
         val taxPattern = Regex(
-            """(?:内消費税(?:等)?|消費税等?|外税|税額|CONSUMPTION TAX|SALES TAX|TOTAL TAX|TAX AMOUNT|TAX|VAT|CUOTA IVA|TOTAL IVA|IVA|IMPUESTOS?|TASAS?)\s*(?:\([^)]*\)|8%|10%)?\s*[:：]?\s*[¥￥$€]?\s*([0-9,]+(?:\.[0-9]{1,2})?)""",
+            """(?:\b(?:CONSUMPTION TAX|SALES TAX|TOTAL TAX|TAX AMOUNT|TAX|VAT|CUOTA IVA|TOTAL IVA|IVA|IMPUESTOS?|TASAS?)\b|内消費税(?:等)?|消費税等?|外税|税額)\s*(?:\([^)]*\)|8%|10%)?\s*[:：]?\s*[¥￥$€]?\s*([0-9,.]+(?:\s*[¥￥$€]|(?:\s*USD|\s*EUR))?)""",
             RegexOption.IGNORE_CASE
         )
         val matches = taxPattern.findAll(text)
         for (m in matches) {
-            val numStr = m.groupValues[1].replace(",", "")
-            val parsed = numStr.toDoubleOrNull()
+            val numStr = m.groupValues[1]
+            val parsed = parsePriceString(numStr)
             if (parsed != null && parsed > 0) {
                 accumulatedTax += parsed
                 found = true
@@ -326,8 +475,13 @@ object JapaneseReceiptOcrParser {
         return if (found) accumulatedTax else null
     }
 
-    private fun extractProductItems(lines: List<String>): List<ReceiptProductItem> {
+    private fun extractProductItems(
+        lines: List<String>,
+        currency: String,
+        rateToJpy: Double
+    ): List<ReceiptProductItem> {
         val items = mutableListOf<ReceiptProductItem>()
+        val isJpy = currency == "JPY"
         val skipKeywords = listOf(
             // Japonés
             "小計", "合計", "消費税", "税", "免税", "お釣", "預り", "TEL", "レシート", "領収書", "対象額",
@@ -344,22 +498,26 @@ object JapaneseReceiptOcrParser {
             }
 
             // Buscar si la línea termina con un número de precio
-            val priceMatch = Regex("""\s+[¥￥$€]?\s*([0-9,]{3,}(?:\.[0-9]{1,2})?)\s*$""").find(line)
+            val priceMatch = Regex("""\s+[¥￥$€]?\s*([0-9,.]+(?:\.[0-9]{1,2}|,\d{1,2})?)\s*(?:[¥￥$€]|USD|EUR|円)?\s*$""").find(line)
             if (priceMatch != null) {
-                val priceStr = priceMatch.groupValues[1].replace(",", "")
-                val price = priceStr.toDoubleOrNull()
+                val priceStr = priceMatch.groupValues[1]
+                val price = parsePriceString(priceStr)
                 if (price != null && price > 0) {
                     val rawName = line.substring(0, priceMatch.range.first).trim()
                     if (rawName.isNotBlank() && !skipKeywords.any { rawName.uppercase(Locale.ROOT).contains(it) }) {
                         val isReduced = line.contains("8%") || line.contains("*") || line.contains("軽") || line.contains("※")
                         val taxRate = if (isReduced) 8.0 else 10.0
+                        val unitYen = if (isJpy) price else Math.round(price * rateToJpy).toDouble()
+
                         items.add(
                             ReceiptProductItem(
                                 id = UUID.randomUUID().toString(),
                                 name = rawName,
                                 quantity = 1,
-                                unitPriceYen = price,
-                                taxRatePercent = taxRate
+                                unitPriceYen = unitYen,
+                                taxRatePercent = taxRate,
+                                currency = currency,
+                                originalUnitPrice = price
                             )
                         )
                     }

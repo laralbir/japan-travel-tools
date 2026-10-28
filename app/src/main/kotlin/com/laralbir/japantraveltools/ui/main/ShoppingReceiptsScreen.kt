@@ -93,6 +93,7 @@ import com.laralbir.japantraveltools.feature.taxfree.AiReceiptScannerEngine
 import com.laralbir.japantraveltools.feature.taxfree.CategoryExpenseBreakdown
 import com.laralbir.japantraveltools.feature.taxfree.ExpenseCategory
 import com.laralbir.japantraveltools.feature.taxfree.GoodsType
+import com.laralbir.japantraveltools.feature.taxfree.JapaneseReceiptOcrParser
 import com.laralbir.japantraveltools.feature.taxfree.ReceiptProductItem
 import com.laralbir.japantraveltools.feature.taxfree.ReceiptScanResult
 import com.laralbir.japantraveltools.feature.taxfree.ScannerSource
@@ -161,6 +162,8 @@ fun ShoppingReceiptsScreen(
     var showScanSourceDialog by rememberSaveable { mutableStateOf(false) }
     var isScanning by rememberSaveable { mutableStateOf(false) }
     var scanResultNotice by remember { mutableStateOf<String?>(null) }
+    var showCurrencySelectionDialog by rememberSaveable { mutableStateOf(false) }
+    var pendingScannedReceipt by remember { mutableStateOf<ShoppingReceipt?>(null) }
 
     // Filtros de listado
     var selectedFilterIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -207,7 +210,8 @@ fun ShoppingReceiptsScreen(
                     AiReceiptScannerEngine.scanWithFallback(
                         rawOcrText = rawOcrText,
                         geminiApiKey = apiKey,
-                        imageBytes = imageBytes
+                        imageBytes = imageBytes,
+                        eurToJpyRate = eurToJpyRate
                     )
                 }
 
@@ -221,9 +225,14 @@ fun ShoppingReceiptsScreen(
                 }
                 scanResultNotice = notice
 
-                // Abrir editor con los datos detectados
-                editingReceipt = scanResult.receipt
-                isEditorOpen = true
+                // Si la divisa no fue detectada con certeza por el OCR, preguntamos al usuario
+                if (scanResult.isCurrencyAmbiguous) {
+                    pendingScannedReceipt = scanResult.receipt
+                    showCurrencySelectionDialog = true
+                } else {
+                    editingReceipt = scanResult.receipt
+                    isEditorOpen = true
+                }
             } catch (e: Exception) {
                 scanResultNotice = if (isEs) {
                     "No se pudo extraer el ticket automáticamente. Puedes introducirlo a mano."
@@ -633,11 +642,36 @@ fun ShoppingReceiptsScreen(
         )
     }
 
+    // Diálogo de Selección de Divisa cuando el OCR no la detecta con seguridad
+    if (showCurrencySelectionDialog && pendingScannedReceipt != null) {
+        ReceiptCurrencySelectionDialog(
+            isEs = isEs,
+            onDismiss = {
+                editingReceipt = pendingScannedReceipt
+                isEditorOpen = true
+                showCurrencySelectionDialog = false
+                pendingScannedReceipt = null
+            },
+            onCurrencySelected = { selectedCurrency ->
+                val recalculated = JapaneseReceiptOcrParser.recalculateWithCurrency(
+                    receipt = pendingScannedReceipt!!,
+                    targetCurrency = selectedCurrency,
+                    eurToJpyRate = eurToJpyRate
+                )
+                editingReceipt = recalculated
+                isEditorOpen = true
+                showCurrencySelectionDialog = false
+                pendingScannedReceipt = null
+            }
+        )
+    }
+
     // Modal Sheet de Edición / Creación de Ticket
     if (isEditorOpen) {
         ShoppingReceiptEditorModalSheet(
             isEs = isEs,
             initialReceipt = editingReceipt,
+            eurToJpyRate = eurToJpyRate,
             onDismiss = {
                 isEditorOpen = false
                 editingReceipt = null
@@ -818,6 +852,102 @@ private fun ScanSourceItemCard(
             }
 
             Text("›", fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun ReceiptCurrencySelectionDialog(
+    isEs: Boolean,
+    onDismiss: () -> Unit,
+    onCurrencySelected: (String) -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("🪙", fontSize = 20.sp)
+                        }
+                    }
+                    Column {
+                        Text(
+                            text = if (isEs) "¿Cuál es la moneda del ticket?" else "What is the receipt currency?",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (isEs) "No se detectó el símbolo en el OCR. Selecciona una divisa:" else "Currency could not be identified. Select currency:",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                listOf(
+                    Triple("JPY", if (isEs) "💴 Yen japonés (¥ / JPY)" else "💴 Japanese Yen (¥ / JPY)", if (isEs) "Moneda nacional de Japón" else "National currency in Japan"),
+                    Triple("EUR", if (isEs) "💶 Euro (€ / EUR)" else "💶 Euro (€ / EUR)", if (isEs) "España y Unión Europea" else "European Union currency"),
+                    Triple("USD", if (isEs) "💵 Dólar estadounidense ($ / USD)" else "💵 US Dollar ($ / USD)", if (isEs) "Duty Free / Internacional" else "Duty Free / International")
+                ).forEach { (code, title, desc) ->
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onCurrencySelected(code) }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text(
+                                    text = title,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                                Text(
+                                    text = desc,
+                                    fontSize = 11.5.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Text("▶", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(if (isEs) "Cancelar" else "Cancel")
+                    }
+                }
+            }
         }
     }
 }
@@ -1022,18 +1152,48 @@ private fun ShoppingReceiptCard(
 
                 // Importe Total
                 Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "¥%,d".format(Locale.US, receipt.totalWithTaxYen.toInt()),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    val approxEur = if (eurToJpyRate > 0) receipt.totalWithTaxYen / eurToJpyRate else 0.0
-                    Text(
-                        text = "≈ %.2f €".format(approxEur),
-                        fontSize = 11.5.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    when (receipt.currency.uppercase(Locale.ROOT)) {
+                        "EUR" -> {
+                            Text(
+                                text = "%.2f €".format(Locale.GERMANY, receipt.originalTotalWithTax),
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "≈ ¥%,d".format(Locale.US, receipt.totalWithTaxYen.toInt()),
+                                fontSize = 11.5.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        "USD" -> {
+                            Text(
+                                text = "$%.2f".format(Locale.US, receipt.originalTotalWithTax),
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "≈ ¥%,d".format(Locale.US, receipt.totalWithTaxYen.toInt()),
+                                fontSize = 11.5.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        else -> {
+                            Text(
+                                text = "¥%,d".format(Locale.US, receipt.totalWithTaxYen.toInt()),
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            val approxEur = if (eurToJpyRate > 0) receipt.totalWithTaxYen / eurToJpyRate else 0.0
+                            Text(
+                                text = "≈ %.2f €".format(approxEur),
+                                fontSize = 11.5.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             }
 
@@ -1149,8 +1309,13 @@ private fun ShoppingReceiptCard(
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Medium
                     )
+                    val subtotalText = when (receipt.currency.uppercase(Locale.ROOT)) {
+                        "EUR" -> "Subtotal: %.2f €".format(Locale.GERMANY, receipt.originalSubtotal)
+                        "USD" -> "Subtotal: $%.2f".format(Locale.US, receipt.originalSubtotal)
+                        else -> "Subtotal: ¥%,d".format(Locale.US, receipt.subtotalWithoutTaxYen.toInt())
+                    }
                     Text(
-                        text = "Subtotal: ¥%,d".format(Locale.US, receipt.subtotalWithoutTaxYen.toInt()),
+                        text = subtotalText,
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1181,12 +1346,25 @@ private fun ShoppingReceiptCard(
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f)
                                 )
-                                Text(
-                                    text = "¥%,d (%s%%)".format(
+                                val itemPriceFormatted = when (receipt.currency.uppercase(Locale.ROOT)) {
+                                    "EUR" -> "%.2f € (%s%%)".format(
+                                        Locale.GERMANY,
+                                        item.originalTotalWithTax,
+                                        if (item.taxRatePercent == 8.0) "8" else "10"
+                                    )
+                                    "USD" -> "$%.2f (%s%%)".format(
+                                        Locale.US,
+                                        item.originalTotalWithTax,
+                                        if (item.taxRatePercent == 8.0) "8" else "10"
+                                    )
+                                    else -> "¥%,d (%s%%)".format(
                                         Locale.US,
                                         item.totalWithTaxYen.toInt(),
                                         if (item.taxRatePercent == 8.0) "8" else "10"
-                                    ),
+                                    )
+                                }
+                                Text(
+                                    text = itemPriceFormatted,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -1231,15 +1409,28 @@ private fun ShoppingReceiptCard(
 private fun ShoppingReceiptEditorModalSheet(
     isEs: Boolean,
     initialReceipt: ShoppingReceipt?,
+    eurToJpyRate: Double,
     onDismiss: () -> Unit,
     onSave: (ShoppingReceipt) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    var currency by rememberSaveable { mutableStateOf(initialReceipt?.currency ?: "JPY") }
     var storeName by rememberSaveable { mutableStateOf(initialReceipt?.storeName ?: "") }
     var location by rememberSaveable { mutableStateOf(initialReceipt?.location ?: "Tokyo") }
     var category by remember { mutableStateOf(initialReceipt?.category ?: ExpenseCategory.SHOPPING) }
     var taxFreeStatus by remember { mutableStateOf(initialReceipt?.taxFreeStatus ?: TaxFreeClaimStatus.PENDING) }
+
+    val curSymbol = when (currency.uppercase(Locale.ROOT)) {
+        "EUR" -> "€"
+        "USD" -> "$"
+        else -> "¥"
+    }
+    val rateToJpy = when (currency.uppercase(Locale.ROOT)) {
+        "EUR" -> if (eurToJpyRate > 0) eurToJpyRate else 164.80
+        "USD" -> (if (eurToJpyRate > 0) eurToJpyRate else 164.80) / 1.084
+        else -> 1.0
+    }
 
     // Fecha y hora
     val initialInstant = remember {
@@ -1259,13 +1450,17 @@ private fun ShoppingReceiptEditorModalSheet(
             if (initialReceipt != null && initialReceipt.items.isNotEmpty()) {
                 addAll(initialReceipt.items)
             } else {
+                val initUnit = if (currency == "JPY") 5500.0 else 35.0
+                val unitYen = if (currency == "JPY") initUnit else Math.round(initUnit * rateToJpy).toDouble()
                 add(
                     ReceiptProductItem(
                         id = UUID.randomUUID().toString(),
                         name = "General Goods",
                         quantity = 1,
-                        unitPriceYen = 5500.0,
-                        taxRatePercent = 10.0
+                        unitPriceYen = unitYen,
+                        taxRatePercent = 10.0,
+                        currency = currency,
+                        originalUnitPrice = initUnit
                     )
                 )
             }
@@ -1273,10 +1468,11 @@ private fun ShoppingReceiptEditorModalSheet(
     }
 
     // Cálculos en vivo
-    val liveSubtotal = items.sumOf { it.subtotalWithoutTaxYen }
-    val liveTax = items.sumOf { it.taxYen }
-    val liveTotal = items.sumOf { it.totalWithTaxYen }
-    val isThresholdMet = liveSubtotal >= 5000.0
+    val liveOrigSubtotal = items.sumOf { it.originalSubtotalWithoutTax }
+    val liveOrigTax = items.sumOf { it.originalTax }
+    val liveOrigTotal = items.sumOf { it.originalTotalWithTax }
+    val liveSubtotalYen = if (currency == "JPY") liveOrigSubtotal else Math.round(liveOrigSubtotal * rateToJpy).toDouble()
+    val isThresholdMet = liveSubtotalYen >= 5000.0
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1297,7 +1493,40 @@ private fun ShoppingReceiptEditorModalSheet(
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
+
+            // Selector de Moneda del Ticket
+            Text(
+                text = if (isEs) "Moneda del ticket:" else "Receipt currency:",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(
+                    "JPY" to if (isEs) "💴 ¥ JPY (Yen)" else "💴 ¥ JPY (Yen)",
+                    "EUR" to if (isEs) "💶 € EUR (Euro)" else "💶 € EUR (Euro)",
+                    "USD" to if (isEs) "💵 $ USD (Dólar)" else "💵 $ USD (Dollar)"
+                ).forEach { (code, label) ->
+                    val isSelected = currency.equals(code, ignoreCase = true)
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = {
+                            if (!currency.equals(code, ignoreCase = true)) {
+                                currency = code
+                            }
+                        },
+                        label = { Text(label, fontSize = 12.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
 
             // Nombre de la tienda
             OutlinedTextField(
@@ -1434,13 +1663,17 @@ private fun ShoppingReceiptEditorModalSheet(
                 )
                 Button(
                     onClick = {
+                        val initUnit = if (currency == "JPY") 1000.0 else 10.0
+                        val unitYen = if (currency == "JPY") initUnit else Math.round(initUnit * rateToJpy).toDouble()
                         items.add(
                             ReceiptProductItem(
                                 id = UUID.randomUUID().toString(),
                                 name = if (isEs) "Artículo ${items.size + 1}" else "Item ${items.size + 1}",
                                 quantity = 1,
-                                unitPriceYen = 1000.0,
-                                taxRatePercent = 10.0
+                                unitPriceYen = unitYen,
+                                taxRatePercent = 10.0,
+                                currency = currency,
+                                originalUnitPrice = initUnit
                             )
                         )
                     },
@@ -1485,12 +1718,7 @@ private fun ShoppingReceiptEditorModalSheet(
                         OutlinedTextField(
                             value = item.name,
                             onValueChange = { newName ->
-                                items[index] = item.copy(
-                                    name = newName,
-                                    subtotalWithoutTaxYen = item.quantity * item.unitPriceYen,
-                                    taxYen = Math.round((item.quantity * item.unitPriceYen) * (item.taxRatePercent / 100.0)).toDouble(),
-                                    totalWithTaxYen = (item.quantity * item.unitPriceYen) + Math.round((item.quantity * item.unitPriceYen) * (item.taxRatePercent / 100.0)).toDouble()
-                                )
+                                items[index] = item.copy(name = newName)
                             },
                             label = { Text(if (isEs) "Nombre del producto" else "Product name") },
                             modifier = Modifier.fillMaxWidth(),
@@ -1508,13 +1736,18 @@ private fun ShoppingReceiptEditorModalSheet(
                                 onValueChange = { qtyStr ->
                                     val qty = qtyStr.toIntOrNull() ?: 1
                                     val safeQty = qty.coerceAtLeast(1)
-                                    val sub = safeQty * item.unitPriceYen
-                                    val tax = Math.round(sub * (item.taxRatePercent / 100.0)).toDouble()
+                                    val origSub = safeQty * item.originalUnitPrice
+                                    val origTax = Math.round(origSub * (item.taxRatePercent / 100.0) * 100.0) / 100.0
+                                    val subYen = if (currency == "JPY") origSub else Math.round(origSub * rateToJpy).toDouble()
+                                    val taxYen = if (currency == "JPY") origTax else Math.round(origTax * rateToJpy).toDouble()
                                     items[index] = item.copy(
                                         quantity = safeQty,
-                                        subtotalWithoutTaxYen = sub,
-                                        taxYen = tax,
-                                        totalWithTaxYen = sub + tax
+                                        originalSubtotalWithoutTax = origSub,
+                                        originalTax = origTax,
+                                        originalTotalWithTax = origSub + origTax,
+                                        subtotalWithoutTaxYen = subYen,
+                                        taxYen = taxYen,
+                                        totalWithTaxYen = subYen + taxYen
                                     )
                                 },
                                 label = { Text(if (isEs) "Cant." else "Qty") },
@@ -1524,20 +1757,28 @@ private fun ShoppingReceiptEditorModalSheet(
                             )
 
                             OutlinedTextField(
-                                value = item.unitPriceYen.toInt().toString(),
+                                value = if (currency == "JPY") item.originalUnitPrice.toInt().toString() else item.originalUnitPrice.toString(),
                                 onValueChange = { priceStr ->
                                     val price = priceStr.toDoubleOrNull() ?: 0.0
-                                    val sub = item.quantity * price
-                                    val tax = Math.round(sub * (item.taxRatePercent / 100.0)).toDouble()
+                                    val origSub = item.quantity * price
+                                    val origTax = Math.round(origSub * (item.taxRatePercent / 100.0) * 100.0) / 100.0
+                                    val unitYen = if (currency == "JPY") price else Math.round(price * rateToJpy).toDouble()
+                                    val subYen = if (currency == "JPY") origSub else Math.round(origSub * rateToJpy).toDouble()
+                                    val taxYen = if (currency == "JPY") origTax else Math.round(origTax * rateToJpy).toDouble()
                                     items[index] = item.copy(
-                                        unitPriceYen = price,
-                                        subtotalWithoutTaxYen = sub,
-                                        taxYen = tax,
-                                        totalWithTaxYen = sub + tax
+                                        currency = currency,
+                                        originalUnitPrice = price,
+                                        originalSubtotalWithoutTax = origSub,
+                                        originalTax = origTax,
+                                        originalTotalWithTax = origSub + origTax,
+                                        unitPriceYen = unitYen,
+                                        subtotalWithoutTaxYen = subYen,
+                                        taxYen = taxYen,
+                                        totalWithTaxYen = subYen + taxYen
                                     )
                                 },
-                                label = { Text(if (isEs) "Precio sin tasas (¥)" else "Price w/o tax (¥)") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                label = { Text(if (isEs) "Precio sin tasas ($curSymbol)" else "Price w/o tax ($curSymbol)") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                 modifier = Modifier.weight(1.4f),
                                 singleLine = true
                             )
@@ -1556,12 +1797,16 @@ private fun ShoppingReceiptEditorModalSheet(
                                     FilterChip(
                                         selected = item.taxRatePercent == 8.0,
                                         onClick = {
-                                            val sub = item.subtotalWithoutTaxYen
-                                            val tax = Math.round(sub * (8.0 / 100.0)).toDouble()
+                                            val origSub = item.originalSubtotalWithoutTax
+                                            val origTax = Math.round(origSub * (8.0 / 100.0) * 100.0) / 100.0
+                                            val subYen = if (currency == "JPY") origSub else Math.round(origSub * rateToJpy).toDouble()
+                                            val taxYen = if (currency == "JPY") origTax else Math.round(origTax * rateToJpy).toDouble()
                                             items[index] = item.copy(
                                                 taxRatePercent = 8.0,
-                                                taxYen = tax,
-                                                totalWithTaxYen = sub + tax
+                                                originalTax = origTax,
+                                                originalTotalWithTax = origSub + origTax,
+                                                taxYen = taxYen,
+                                                totalWithTaxYen = subYen + taxYen
                                             )
                                         },
                                         label = { Text("8%", fontSize = 11.sp) }
@@ -1569,12 +1814,16 @@ private fun ShoppingReceiptEditorModalSheet(
                                     FilterChip(
                                         selected = item.taxRatePercent == 10.0,
                                         onClick = {
-                                            val sub = item.subtotalWithoutTaxYen
-                                            val tax = Math.round(sub * (10.0 / 100.0)).toDouble()
+                                            val origSub = item.originalSubtotalWithoutTax
+                                            val origTax = Math.round(origSub * (10.0 / 100.0) * 100.0) / 100.0
+                                            val subYen = if (currency == "JPY") origSub else Math.round(origSub * rateToJpy).toDouble()
+                                            val taxYen = if (currency == "JPY") origTax else Math.round(origTax * rateToJpy).toDouble()
                                             items[index] = item.copy(
                                                 taxRatePercent = 10.0,
-                                                taxYen = tax,
-                                                totalWithTaxYen = sub + tax
+                                                originalTax = origTax,
+                                                originalTotalWithTax = origSub + origTax,
+                                                taxYen = taxYen,
+                                                totalWithTaxYen = subYen + taxYen
                                             )
                                         },
                                         label = { Text("10%", fontSize = 11.sp) }
@@ -1602,14 +1851,24 @@ private fun ShoppingReceiptEditorModalSheet(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(if (isEs) "Subtotal sin tasas:" else "Subtotal w/o tax:", fontSize = 12.sp)
-                        Text("¥%,d".format(Locale.US, liveSubtotal.toInt()), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        val subText = when (currency) {
+                            "EUR" -> "%.2f € (≈ ¥%,d)".format(Locale.GERMANY, liveOrigSubtotal, liveSubtotalYen.toInt())
+                            "USD" -> "$%.2f (≈ ¥%,d)".format(Locale.US, liveOrigSubtotal, liveSubtotalYen.toInt())
+                            else -> "¥%,d".format(Locale.US, liveOrigSubtotal.toInt())
+                        }
+                        Text(subText, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(if (isEs) "Total impuestos (IVA):" else "Total tax amount:", fontSize = 12.sp)
-                        Text("+¥%,d".format(Locale.US, liveTax.toInt()), fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        val taxText = when (currency) {
+                            "EUR" -> "+%.2f €".format(Locale.GERMANY, liveOrigTax)
+                            "USD" -> "+$%.2f".format(Locale.US, liveOrigTax)
+                            else -> "+¥%,d".format(Locale.US, liveOrigTax.toInt())
+                        }
+                        Text(taxText, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
                     HorizontalDivider(Modifier.padding(vertical = 4.dp))
                     Row(
@@ -1617,15 +1876,20 @@ private fun ShoppingReceiptEditorModalSheet(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(if (isEs) "TOTAL CON TASAS:" else "TOTAL WITH TAX:", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        Text("¥%,d".format(Locale.US, liveTotal.toInt()), fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+                        val totText = when (currency) {
+                            "EUR" -> "%.2f € (≈ ¥%,d)".format(Locale.GERMANY, liveOrigTotal, Math.round(liveOrigTotal * rateToJpy).toInt())
+                            "USD" -> "$%.2f (≈ ¥%,d)".format(Locale.US, liveOrigTotal, Math.round(liveOrigTotal * rateToJpy).toInt())
+                            else -> "¥%,d".format(Locale.US, liveOrigTotal.toInt())
+                        }
+                        Text(totText, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
                     }
                     Spacer(Modifier.height(4.dp))
                     Text(
                         text = if (isThresholdMet) {
                             if (isEs) "✅ Supera los 5.000 ¥: ¡Aplica para devolución Tax-Free!" else "✅ Exceeds 5,000 ¥: Eligible for Tax-Free refund!"
                         } else {
-                            if (isEs) "ℹ️ No alcanza los 5.000 ¥ (faltan ¥%,d)".format(Locale.US, (5000.0 - liveSubtotal).toInt().coerceAtLeast(0))
-                            else "ℹ️ Below 5,000 ¥ threshold (¥%,d remaining)".format(Locale.US, (5000.0 - liveSubtotal).toInt().coerceAtLeast(0))
+                            if (isEs) "ℹ️ No alcanza los 5.000 ¥ (faltan ¥%,d)".format(Locale.US, (5000.0 - liveSubtotalYen).toInt().coerceAtLeast(0))
+                            else "ℹ️ Below 5,000 ¥ threshold (¥%,d remaining)".format(Locale.US, (5000.0 - liveSubtotalYen).toInt().coerceAtLeast(0))
                         },
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -1671,7 +1935,12 @@ private fun ShoppingReceiptEditorModalSheet(
                             category = category,
                             taxFreeStatus = taxFreeStatus,
                             photoFilePath = initialReceipt?.photoFilePath,
-                            notes = initialReceipt?.notes ?: ""
+                            notes = initialReceipt?.notes ?: "",
+                            currency = currency,
+                            originalSubtotal = liveOrigSubtotal,
+                            originalTax = liveOrigTax,
+                            originalTotal = liveOrigTotal,
+                            eurToJpyRate = eurToJpyRate
                         )
                         onSave(receipt)
                     },
