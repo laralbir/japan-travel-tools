@@ -178,5 +178,29 @@ class DocumentsAndGuidesUseCaseTest {
         SharedDocumentsAndGuidesStore.deleteCustomIdDoc(newDoc.id)
         assertFalse(SharedDocumentsAndGuidesStore.customIdDocsState.value.any { it.id == newDoc.id })
     }
+
+    @Test
+    fun `CustomIdDocumentItem identifies pdf extensions accurately`() {
+        val pdfDoc = CustomIdDocumentItem(
+            id = "pdf-1",
+            title = "Certificado Vacunación",
+            fileName = "custom_doc_vaccine.pdf"
+        )
+        val imageDoc = CustomIdDocumentItem(
+            id = "img-1",
+            title = "Pasaporte",
+            fileName = "custom_doc_pass.jpg"
+        )
+        val pngDoc = CustomIdDocumentItem(
+            id = "img-2",
+            title = "Permiso",
+            fileName = "custom_doc_permit.PNG"
+        )
+
+        assertTrue(pdfDoc.isPdf)
+        assertFalse(imageDoc.isPdf)
+        assertFalse(pngDoc.isPdf)
+    }
 }
+
 
