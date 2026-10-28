@@ -1,0 +1,170 @@
+package com.laralbir.japantraveltools.feature.ai
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class OfflineTranslatorEngineTest {
+
+    @Test
+    fun `translateToJapanese translates common travel questions accurately`() {
+        // ¿Dónde está el baño?
+        val restroom = OfflineTranslatorEngine.translateToJapanese("¿Dónde está el baño?")
+        assertTrue(restroom.japaneseText.contains("トイレはどこですか？"))
+        assertEquals("Toire wa doko desu ka?", restroom.romaji)
+        assertEquals("BAÑO / ASEO", restroom.categoryBadge)
+
+        // ¿Cuánto cuesta?
+        val howMuch = OfflineTranslatorEngine.translateToJapanese("¿Cuánto cuesta?")
+        assertTrue(howMuch.japaneseText.contains("いくらですか？"))
+        assertEquals("Ikura desu ka?", howMuch.romaji)
+
+        // ¿Cuánto cuesta esto?
+        val howMuchThis = OfflineTranslatorEngine.translateToJapanese("¿Cuánto cuesta esto?")
+        assertTrue(howMuchThis.japaneseText.contains("これはいくらですか？"))
+        assertEquals("Kore wa ikura desu ka?", howMuchThis.romaji)
+
+        // La cuenta, por favor
+        val bill = OfflineTranslatorEngine.translateToJapanese("La cuenta, por favor")
+        assertEquals("お会計をお願いします。", bill.japaneseText)
+        assertEquals("O-kaikei o onegaishimasu.", bill.romaji)
+
+        // ¿Tienen menú en inglés?
+        val menu = OfflineTranslatorEngine.translateToJapanese("¿Tienen menú en inglés?")
+        assertTrue(menu.japaneseText.contains("英語のメニューはありますか？"))
+        assertEquals("Eigo no menyū wa arimasu ka?", menu.romaji)
+
+        // Una cerveza, por favor
+        val oneBeer = OfflineTranslatorEngine.translateToJapanese("Una cerveza, por favor")
+        assertTrue(oneBeer.japaneseText.contains("ビールを1つお願いします。"))
+        assertEquals("Bīru o hitotsu onegaishimasu.", oneBeer.romaji)
+
+        // Dos cervezas, por favor
+        val twoBeers = OfflineTranslatorEngine.translateToJapanese("Dos cervezas, por favor")
+        assertTrue(twoBeers.japaneseText.contains("ビールを2つお願いします。"))
+        assertEquals("Bīru o futatsu onegaishimasu.", twoBeers.romaji)
+
+        // Agua, por favor
+        val water = OfflineTranslatorEngine.translateToJapanese("Agua, por favor")
+        assertTrue(water.japaneseText.contains("お水をお願いします。"))
+        assertEquals("O-mizu o onegaishimasu.", water.romaji)
+
+        // Dos aguas, por favor
+        val twoWaters = OfflineTranslatorEngine.translateToJapanese("Dos aguas, por favor")
+        assertTrue(twoWaters.japaneseText.contains("お水を2つお願いします。"))
+        assertEquals("O-mizu o futatsu onegaishimasu.", twoWaters.romaji)
+    }
+
+    @Test
+    fun `translateToJapanese handles courteous disculpe prefixes and stand-alone disculpa`() {
+        val pardonAlone = OfflineTranslatorEngine.translateToJapanese("Disculpe")
+        assertEquals("すみません。", pardonAlone.japaneseText)
+        assertEquals("Sumimasen.", pardonAlone.romaji)
+
+        val stationWithPrefix = OfflineTranslatorEngine.translateToJapanese("Disculpe, ¿dónde está la estación?")
+        assertEquals("すみません、駅はどこですか？", stationWithPrefix.japaneseText)
+        assertEquals("Sumimasen, Eki wa doko desu ka?", stationWithPrefix.romaji)
+    }
+
+    @Test
+    fun `translateToJapanese supports English travel queries`() {
+        val englishRestroom = OfflineTranslatorEngine.translateToJapanese("Where is the restroom?")
+        assertTrue(englishRestroom.japaneseText.contains("トイレはどこですか？"))
+
+        val englishCheck = OfflineTranslatorEngine.translateToJapanese("The check please")
+        assertEquals("お会計をお願いします。", englishCheck.japaneseText)
+
+        val englishBeer = OfflineTranslatorEngine.translateToJapanese("One beer please")
+        assertTrue(englishBeer.japaneseText.contains("ビールを1つお願いします。"))
+
+        val englishCard = OfflineTranslatorEngine.translateToJapanese("Can I pay with credit card?")
+        assertTrue(englishCard.japaneseText.contains("カードは使えますか？"))
+    }
+
+    @Test
+    fun `translateToJapanese handles payments, tax-free, and dietary needs`() {
+        val suica = OfflineTranslatorEngine.translateToJapanese("¿Puedo pagar con Suica?")
+        assertTrue(suica.japaneseText.contains("Suicaは使えますか？"))
+
+        val cash = OfflineTranslatorEngine.translateToJapanese("¿Solo efectivo?")
+        assertTrue(cash.japaneseText.contains("現金は使えますか？"))
+
+        val taxFree = OfflineTranslatorEngine.translateToJapanese("¿Tienen tax-free?")
+        assertTrue(taxFree.japaneseText.contains("免税はできますか？"))
+
+        val veg = OfflineTranslatorEngine.translateToJapanese("Soy vegetariano")
+        assertEquals("ベジタリアンです。", veg.japaneseText)
+
+        val allergy = OfflineTranslatorEngine.translateToJapanese("Tengo alergia al marisco")
+        assertEquals("甲殻類のアレルギーがあります。", allergy.japaneseText)
+
+        val hotelAddress = OfflineTranslatorEngine.translateToJapanese("A esta dirección de hotel, por favor")
+        assertEquals("このホテルの住所までお願いします。", hotelAddress.japaneseText)
+    }
+
+    @Test
+    fun `translateFromJapaneseSpeech translates incoming Japanese spoken queries accurately`() {
+        val welcome = OfflineTranslatorEngine.translateFromJapaneseSpeech("いらっしゃいませ。何名様ですか？禁煙席でよろしいですか？")
+        assertTrue(welcome.spanishSpokenText.contains("personas", ignoreCase = true))
+        assertTrue(welcome.englishSpokenText.contains("party", ignoreCase = true) || welcome.englishSpokenText.contains("people", ignoreCase = true))
+        assertTrue(welcome.contextLabel.startsWith("RESTAURANTE"))
+
+        val shinkansen = OfflineTranslatorEngine.translateFromJapaneseSpeech("新幹線のぞみ号は16番ホームから発車します。エレベーターはあちらです。")
+        assertTrue(shinkansen.spanishSpokenText.contains("16"))
+        assertTrue(shinkansen.spanishSpokenText.contains("andén", ignoreCase = true))
+
+        val bag = OfflineTranslatorEngine.translateFromJapaneseSpeech("レジ袋はいりますか？お箸と温めはどうしますか？")
+        assertTrue(bag.spanishSpokenText.contains("bolsa", ignoreCase = true))
+
+        val taxFree = OfflineTranslatorEngine.translateFromJapaneseSpeech("免税手続きのため、パスポートの原本を見せてください。")
+        assertTrue(taxFree.spanishSpokenText.contains("pasaporte", ignoreCase = true))
+
+        val suicaOnly = OfflineTranslatorEngine.translateFromJapaneseSpeech("申し訳ありませんが、現金またはSuicaのみとなります。")
+        assertTrue(suicaOnly.spanishSpokenText.contains("Suica", ignoreCase = true) || suicaOnly.spanishSpokenText.contains("efectivo", ignoreCase = true))
+
+        val blank = OfflineTranslatorEngine.translateFromJapaneseSpeech("   ")
+        assertTrue(blank.spanishSpokenText.contains("micrófono", ignoreCase = true))
+    }
+
+    @Test
+    fun `incomingJapaneseSamples and essentialPhrases have valid Japanese script for Locale JAPANESE TTS`() {
+        assertTrue(OfflineTranslatorEngine.incomingJapaneseSamples.isNotEmpty())
+        for (sample in OfflineTranslatorEngine.incomingJapaneseSamples) {
+            assertTrue("Expected Japanese text for ${sample.contextLabel}", OfflineTranslatorEngine.isJapaneseText(sample.japaneseHeardText))
+            assertTrue(sample.romaji.isNotBlank())
+            assertTrue(sample.spanishSpokenText.isNotBlank())
+            assertTrue(sample.englishSpokenText.isNotBlank())
+        }
+
+        assertTrue(OfflineTranslatorEngine.essentialPhrases.isNotEmpty())
+        for (phrase in OfflineTranslatorEngine.essentialPhrases) {
+            assertTrue("Expected Japanese text for ${phrase.sourceText}", OfflineTranslatorEngine.isJapaneseText(phrase.japaneseText))
+            assertTrue(phrase.romaji.isNotBlank())
+            assertTrue(phrase.categoryBadge.isNotBlank())
+        }
+    }
+
+    @Test
+    fun `isJapaneseText correctly distinguishes Japanese scripts from Latin alphabet`() {
+        assertTrue(OfflineTranslatorEngine.isJapaneseText("こんにちは")) // Hiragana
+        assertTrue(OfflineTranslatorEngine.isJapaneseText("ビール")) // Katakana
+        assertTrue(OfflineTranslatorEngine.isJapaneseText("新幹線")) // Kanji
+        assertTrue(OfflineTranslatorEngine.isJapaneseText("1000円")) // Number + Kanji
+
+        assertTrue(!OfflineTranslatorEngine.isJapaneseText("¿Dónde está el baño?"))
+        assertTrue(!OfflineTranslatorEngine.isJapaneseText("Where is the station?"))
+        assertTrue(!OfflineTranslatorEngine.isJapaneseText("12345"))
+    }
+
+    @Test
+    fun `translateOcrJapaneseText correctly translates OCR text lines`() {
+        val ocr = "新幹線 16番線\n本日満席\n生ビール 550円"
+        val result = OfflineTranslatorEngine.translateOcrJapaneseText(ocr, isEs = true)
+        assertTrue(result.hasJapanese)
+        assertEquals(3, result.lines.size)
+        assertTrue(result.lines[0].translatedText.contains("Shinkansen", ignoreCase = true))
+        assertTrue(result.lines[1].translatedText.contains("completo", ignoreCase = true))
+        assertTrue(result.lines[2].translatedText.contains("cerveza", ignoreCase = true))
+    }
+}
