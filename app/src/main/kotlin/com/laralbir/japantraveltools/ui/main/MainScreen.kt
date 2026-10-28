@@ -5773,10 +5773,17 @@ private fun PassportAndCustomsScreen(
 
     var isLaunchingExternalPicker by rememberSaveable { mutableStateOf(false) }
 
-    // Estado efímero en memoria (nunca en rememberSaveable) para obligar a autenticar en cada visita
-    var vaultUnlocked by remember {
-        mutableStateOf(VaultSecurityPolicy.shouldStartUnlocked(biometricAvailable))
+    // Marca temporal de sesión activa en rememberSaveable para evitar rebloqueos al rotar o invocar cámara/SAF
+    var lastUnlockTimestamp by rememberSaveable {
+        mutableStateOf(
+            if (VaultSecurityPolicy.shouldStartUnlocked(biometricAvailable)) System.currentTimeMillis() else 0L
+        )
     }
+
+    val isSessionValid = remember(lastUnlockTimestamp, isLockMandatory) {
+        !isLockMandatory || !VaultSecurityPolicy.isSessionExpired(lastUnlockTimestamp, System.currentTimeMillis())
+    }
+    val vaultUnlocked = isSessionValid
     var authErrorText by remember { mutableStateOf<String?>(null) }
     var refreshPhotoCounter by remember { mutableIntStateOf(0) }
 
@@ -5785,7 +5792,7 @@ private fun PassportAndCustomsScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) {
                 if (isLockMandatory && !isLaunchingExternalPicker) {
-                    vaultUnlocked = false
+                    lastUnlockTimestamp = 0L
                 }
             }
         }
@@ -5793,16 +5800,18 @@ private fun PassportAndCustomsScreen(
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
             if (isLockMandatory && !isLaunchingExternalPicker) {
-                vaultUnlocked = false
+                lastUnlockTimestamp = 0L
             }
         }
     }
 
     // Auto-bloqueo por tiempo prudencial de seguridad (120 segundos)
-    LaunchedEffect(vaultUnlocked, isLockMandatory) {
-        if (vaultUnlocked && isLockMandatory) {
-            delay(VaultSecurityPolicy.AUTO_LOCK_TIMEOUT_MILLIS)
-            vaultUnlocked = false
+    LaunchedEffect(lastUnlockTimestamp, isLockMandatory) {
+        if (vaultUnlocked && isLockMandatory && lastUnlockTimestamp > 0L) {
+            val elapsed = System.currentTimeMillis() - lastUnlockTimestamp
+            val remaining = (VaultSecurityPolicy.AUTO_LOCK_TIMEOUT_MILLIS - elapsed).coerceAtLeast(0L)
+            delay(remaining)
+            lastUnlockTimestamp = 0L
         }
     }
 
@@ -5812,7 +5821,7 @@ private fun PassportAndCustomsScreen(
 
     fun launchRealBiometricPrompt(
         onSuccess: () -> Unit = {
-            vaultUnlocked = true
+            lastUnlockTimestamp = System.currentTimeMillis()
             authErrorText = null
         },
         onError: ((String) -> Unit)? = null
@@ -5853,8 +5862,8 @@ private fun PassportAndCustomsScreen(
         prompt.authenticate(promptInfo)
     }
 
-    LaunchedEffect(isLockMandatory) {
-        if (isLockMandatory && !vaultUnlocked) {
+    LaunchedEffect(isLockMandatory, vaultUnlocked) {
+        if (isLockMandatory && !vaultUnlocked && !isLaunchingExternalPicker) {
             launchRealBiometricPrompt()
         }
     }
@@ -5984,7 +5993,7 @@ private fun PassportAndCustomsScreen(
                                     )
                                     OutlinedButton(
                                         onClick = {
-                                            vaultUnlocked = false
+                                            lastUnlockTimestamp = 0L
                                         },
                                         shape = RoundedCornerShape(8.dp),
                                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
@@ -6283,12 +6292,18 @@ private fun IdDocumentPhotoSection(
     }
 
     val pdfPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+        contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         onEndExternalPicker()
         if (uri != null) {
-            val originalName = queryFileName(context, uri)
-            SharedDocumentsAndGuidesStore.saveIdDocument(context, uri, fileName, originalName ?: "document.pdf")
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+            val originalName = queryFileName(context, uri) ?: "document.pdf"
+            SharedDocumentsAndGuidesStore.saveIdDocument(context, uri, fileName, originalName)
             onPhotoChanged()
         }
     }
@@ -6338,6 +6353,7 @@ private fun IdDocumentPhotoSection(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
+                            onStartExternalPicker()
                             openDocumentFile(context, docFile.absolutePath)
                         }
                 ) {
@@ -6390,7 +6406,7 @@ private fun IdDocumentPhotoSection(
                     OutlinedButton(
                         onClick = {
                             onStartExternalPicker()
-                            pdfPickerLauncher.launch("application/pdf")
+                            pdfPickerLauncher.launch(arrayOf("application/pdf", "*/*"))
                         },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(10.dp)
@@ -6479,7 +6495,7 @@ private fun IdDocumentPhotoSection(
                     OutlinedButton(
                         onClick = {
                             onStartExternalPicker()
-                            pdfPickerLauncher.launch("application/pdf")
+                            pdfPickerLauncher.launch(arrayOf("application/pdf", "*/*"))
                         },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(10.dp)
@@ -6526,7 +6542,7 @@ private fun IdDocumentPhotoSection(
                     OutlinedButton(
                         onClick = {
                             onStartExternalPicker()
-                            pdfPickerLauncher.launch("application/pdf")
+                            pdfPickerLauncher.launch(arrayOf("application/pdf", "*/*"))
                         },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(10.dp)

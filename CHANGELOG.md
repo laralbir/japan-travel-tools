@@ -7,6 +7,16 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Bóveda de Identidad Robusta con Magic Bytes, Sesión Biométrica Activa y Despliegue ADB para Pixel 9 🇯🇵🪪⚡
+
+#### 🪪 Bóveda de Identidad (Pasaporte y DNI con PDF y Magic Bytes):
+- **Detección Binaria de Formatos por Magic Bytes (`detectFileFormatByMagicBytes`)**: Análisis de cabeceras binarias (`%PDF-`, `0xFF 0xD8`, `0x89 0x50`) que garantiza que los archivos PDF adjuntados se guarden siempre con la extensión `.pdf` y se visualicen correctamente con la tarjeta y visor PDF, incluso si el selector de archivos o proveedor SAF no devuelve extensión o MIME type.
+- **Selector SAF `OpenDocument` con Soporte Universal**: Migración de `GetContent` a `ActivityResultContracts.OpenDocument()` con tipos `arrayOf("application/pdf", "*/*")` y `takePersistableUriPermission` para adjuntar PDFs desde cualquier gestor de archivos o nube sin restricciones.
+- **Gestión de Sesión Biométrica Activa con `rememberSaveable`**: Sustitución del booleano efímero por una marca temporal (`lastUnlockTimestamp`) en `rememberSaveable`. La sesión de 120 segundos sobrevive a la recreación de la actividad (al tomar fotos de alta resolución o rotar el teléfono) y a la apertura del selector de archivos (`isLaunchingExternalPicker`), impidiendo que el diálogo biométrico salte de forma espuria al volver a la app.
+
+#### ⚡ Optimización del Despliegue ADB para Google Pixel 9:
+- **Corrección de Cuelgues en Android 15 (`deploy-authorized-devices.sh`)**: Sustitución de `android install` (cuyo demonio de instalación incremental delta se bloquea en Android 15 / Pixel 9) por instalación directa mediante `adb install -r -d -t` con límite de tiempo de 35 segundos para una instalación limpia, rápida y sin cuelgues.
+
 ### Traductor de Texto en Pestaña Independiente, Orientación EXIF y Recorte de Región para Carteles 🇯🇵✍️📷
 
 #### ✍️ Pestañas Independientes del Traductor:

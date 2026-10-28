@@ -294,5 +294,42 @@ class DocumentsAndGuidesUseCaseTest {
             tempDir.deleteRecursively()
         }
     }
+
+    @Test
+    fun `detectFileFormatByMagicBytes accurately detects PDF, JPEG, and PNG headers`() {
+        val pdfBytes = byteArrayOf(0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x35) // %PDF-1.5
+        val jpgBytes = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte(), 0x00, 0x10)
+        val pngBytes = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
+        val randomBytes = byteArrayOf(0x01, 0x02, 0x03, 0x04)
+
+        assertEquals("pdf", SharedDocumentsAndGuidesStore.detectFileFormatByMagicBytes(pdfBytes))
+        assertEquals("jpg", SharedDocumentsAndGuidesStore.detectFileFormatByMagicBytes(jpgBytes))
+        assertEquals("png", SharedDocumentsAndGuidesStore.detectFileFormatByMagicBytes(pngBytes))
+        org.junit.Assert.assertNull(SharedDocumentsAndGuidesStore.detectFileFormatByMagicBytes(randomBytes))
+    }
+
+    @Test
+    fun `saveIdDocument saves PDF slot correctly even if originalName is empty or misleading`() {
+        val tempDir = java.nio.file.Files.createTempDirectory("id_vault_magic_test").toFile()
+        try {
+            val slotKey = "dni_front"
+            val pdfContent = "%PDF-1.7 confidential ID document bytes".toByteArray()
+
+            // Source bytes has PDF magic bytes, but suggestedName has no extension
+            val savedDoc = SharedDocumentsAndGuidesStore.saveIdDocumentBytesWithAutoDetect(
+                vaultDir = tempDir,
+                sourceBytes = pdfContent,
+                slotKey = slotKey,
+                suggestedName = "content_123456"
+            )
+
+            org.junit.Assert.assertNotNull(savedDoc)
+            assertEquals("dni_front.pdf", savedDoc.name)
+            assertTrue(SharedDocumentsAndGuidesStore.isPdfDocumentFile(savedDoc))
+        } finally {
+            tempDir.deleteRecursively()
+        }
+    }
 }
+
 
