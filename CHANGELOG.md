@@ -7,6 +7,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-28
+
 ### Traducción Robusta de Carteles, Selector Multizona Google Fotos y Módulo de Tickets / Tax-Free con IA 🇯🇵📸🧾✨
 
 #### 📸 Traductor de Carteles por Foto (Robusto Offline + Online Contextual):
