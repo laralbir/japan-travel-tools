@@ -118,3 +118,59 @@ class ShoppingReceiptsStore(
         TaxFreeCalculator.calculateBudgetSummary(_receiptsFlow.value, eurToJpyRate)
     }
 }
+
+object SharedShoppingReceiptsStore {
+    private var instance: ShoppingReceiptsStore? = null
+    private val _receiptsState = MutableStateFlow<List<ShoppingReceipt>>(emptyList())
+    val receiptsState: StateFlow<List<ShoppingReceipt>> = _receiptsState.asStateFlow()
+
+    fun init(context: android.content.Context) {
+        if (instance != null) return
+        val dir = File(context.applicationContext.filesDir, "taxfree_receipts")
+        if (!dir.exists()) dir.mkdirs()
+        initForTesting(dir)
+    }
+
+    fun initForTesting(dir: File) {
+        val store = ShoppingReceiptsStore(dir)
+        instance = store
+        _receiptsState.value = store.receiptsFlow.value
+    }
+
+    fun getStore(): ShoppingReceiptsStore? = instance
+
+    suspend fun saveReceipt(receipt: ShoppingReceipt) {
+        val currentStore = instance ?: return
+        currentStore.saveReceipt(receipt)
+        _receiptsState.value = currentStore.receiptsFlow.value
+    }
+
+    suspend fun deleteReceipt(receiptId: String): Boolean {
+        val currentStore = instance ?: return false
+        val result = currentStore.deleteReceipt(receiptId)
+        _receiptsState.value = currentStore.receiptsFlow.value
+        return result
+    }
+
+    suspend fun exportToJson(): String {
+        return instance?.exportToJson() ?: "[]"
+    }
+
+    suspend fun importFromJson(json: String): Int {
+        val currentStore = instance ?: return 0
+        val count = currentStore.importFromJson(json)
+        _receiptsState.value = currentStore.receiptsFlow.value
+        return count
+    }
+
+    suspend fun generateTaxFreeReport(eurToJpyRate: Double): TaxFreeReport {
+        return instance?.generateTaxFreeReport(eurToJpyRate)
+            ?: TaxFreeReportGenerator.generateReport(emptyList(), eurToJpyRate)
+    }
+
+    suspend fun calculateBudgetSummary(eurToJpyRate: Double): TravelBudgetSummary {
+        return instance?.calculateBudgetSummary(eurToJpyRate)
+            ?: TaxFreeCalculator.calculateBudgetSummary(emptyList(), eurToJpyRate)
+    }
+}
+

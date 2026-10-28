@@ -15,6 +15,7 @@ import com.laralbir.japantraveltools.core.portability.SharedTravelPlanStore
 import com.laralbir.japantraveltools.feature.currency.CurrencySyncScheduler
 import com.laralbir.japantraveltools.feature.currency.SharedCurrencyRateStore
 import com.laralbir.japantraveltools.feature.documents.SharedDocumentsAndGuidesStore
+import com.laralbir.japantraveltools.feature.taxfree.SharedShoppingReceiptsStore
 import com.laralbir.japantraveltools.feature.transport.TransportAlertNotificationHelper
 import com.laralbir.japantraveltools.feature.weather.SharedWeatherForecastStore
 import com.laralbir.japantraveltools.feature.weather.WeatherSyncScheduler
@@ -28,6 +29,7 @@ class MainActivity : FragmentActivity() {
     SharedDocumentsAndGuidesStore.init(this)
     SharedWeatherForecastStore.init(this)
     SharedCurrencyRateStore.init(this)
+    SharedShoppingReceiptsStore.init(this)
     CurrencySyncScheduler.schedule(this)
     WeatherSyncScheduler.schedule(this)
     TransportAlertNotificationHelper.ensureChannelCreated(this)
@@ -42,5 +44,10 @@ class MainActivity : FragmentActivity() {
     setContent {
       JapanTravelToolsTheme { Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { MainNavigation() } }
     }
+  }
+
+  override fun onNewIntent(intent: android.content.Intent) {
+    super.onNewIntent(intent)
+    setIntent(intent)
   }
 }

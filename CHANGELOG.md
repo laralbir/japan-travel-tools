@@ -22,11 +22,17 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - **Resultados Agrupados por Zona**: Visualización de traducciones etiquetadas con distintivos de zona (`📍 Zona 1 (Superior)`, `📍 Zona 2 (Inferior)`), facilitando la lectura de carteles con múltiples indicaciones o menús divididos en secciones.
 
 #### 🧾 Comprobantes de Compra, Tax-Free y Control de Gastos del Viaje (`SPEC-08`):
+- **Pantalla Adaptativa de Tickets y Tax-Free (`ShoppingReceiptsScreen`)**: Interfaz completa integrada en el menú de navegación con cuadro de mando de gastos (¥ y EUR), desglose por categorías (`ExpenseCategory`), saldo recuperable de Tax-Free, listado interactivo con estados aduaneros (Pendiente, Sellado, Reembolsado) y diálogo de informe para aduanas con copia al portapapeles.
 - **Entrada Manual y por OCR (Cámara, Drive o Archivo Local)**: Registro de tickets con fecha y hora (`Instant` ISO UTC formateada en hora local de Japón `Asia/Tokyo`), nombre de tienda (`storeName`), ciudad (`location`), desglose de productos (`ReceiptProductItem` con cantidad, precio unitario, tasa de impuesto al 8% o 10%), subtotal sin tasas, total de tasas y total con tasas.
 - **Reglas Fiscales Tax-Free de Japón**: Evaluación automática del umbral de compra de 5.000 ¥ sin tasas, clasificación de tipo de bienes (`CONSUMABLES`, `GENERAL_GOODS`, `MIXED`) y seguimiento del estado aduanero (`NOT_APPLICABLE`, `PENDING`, `CUSTOMS_STAMPED`, `REFUNDED`).
 - **Generador de Informes Consolidados para Solicitar Tax-Free**: Generación automática de informes agrupados por tienda y fecha, con cálculo de impuestos recuperables en ¥ y EUR (con conversión reactiva de divisas), y exportación en formato Texto, Markdown y JSON.
 - **Control de Presupuesto y Gastos del Viaje**: Cuadro de mando de gastos acumulados en ¥ y EUR, desglose por 6 categorías (`ExpenseCategory`: Compras, Comida, Transporte, Ocio, Alojamiento, Otros), porcentajes relativos y balances por día y por ciudad.
 - **Escaneo Inteligente Híbrido con IA (Cloud + Local)**: Procesamiento multimodal vía Google Gemini Vision API con fallback automático transparente al motor local offline con ML Kit Japanese OCR y parser estructural ante falta de red o API key.
+
+#### 🔄 Prevención de Reinicio de App al Cambiar de Aplicación en Android:
+- **Lanzamiento `singleTask` en `AndroidManifest.xml`**: Configuración de `android:launchMode="singleTask"` e implementación de `onNewIntent` en `MainActivity`. Al cambiar de aplicación y volver a abrir la app desde el launcher, Android trae al frente la instancia existente sin recrear la Activity ni reiniciar el estado.
+- **Gestión de Cambios de Configuración (`android:configChanges`)**: Declaración explícita de `orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize|uiMode` para evitar reinicios espurios de la Activity ante rotaciones, cambios de modo oscuro o redimensionamiento de pantalla.
+- **Persistencia de Pantalla Activa (`lastSelectedDestination`)**: Almacenamiento reactivo de la herramienta activa en `UserPreferencesRepository`. En caso de que el sistema operativo cierre el proceso por falta de memoria RAM en segundo plano, la app restaura exactamente la pantalla en la que se encontraba el viajero al reabrirla.
 
 
 ### Bóveda de Identidad Robusta con Magic Bytes, Sesión Biométrica Activa y Despliegue ADB para Pixel 9 🇯🇵🪪⚡

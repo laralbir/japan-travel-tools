@@ -175,6 +175,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.laralbir.japantraveltools.feature.documents.SharedDocumentsAndGuidesStore
+import com.laralbir.japantraveltools.feature.taxfree.SharedShoppingReceiptsStore
 import com.laralbir.japantraveltools.feature.documents.VaultSecurityPolicy
 import com.laralbir.japantraveltools.feature.documents.TravelDocumentItem
 import com.laralbir.japantraveltools.feature.documents.TravelGuideArticle
@@ -228,6 +229,7 @@ enum class JapanDrawerDestination(
     CURRENCY(DrawerSection.QUICK_TOOLS, "Conversor de Divisas", "Currency Converter", "💴"),
     CLOCKS(DrawerSection.QUICK_TOOLS, "Relojes y Husos", "Clocks & Timezones", "🕒"),
     WEATHER(DrawerSection.QUICK_TOOLS, "Tiempo (Open-Meteo)", "Weather (Open-Meteo)", "🌦️"),
+    TAX_FREE_RECEIPTS(DrawerSection.QUICK_TOOLS, "Tickets y Tax-Free", "Receipts & Tax-Free", "🧾"),
 
     PLANNER(DrawerSection.PLANNING, "Planificador de Viaje", "Trip Planner", "🗓️"),
     TRANSPORT(DrawerSection.PLANNING, "Transporte y Trenes", "Trains & Flights", "🚄"),
@@ -492,6 +494,7 @@ fun JapanTravelToolsAppContent(
         SharedTravelPlanStore.init(context)
         SharedDocumentsAndGuidesStore.init(context)
         SharedWeatherForecastStore.init(context)
+        SharedShoppingReceiptsStore.init(context)
     }
     val configuration = LocalConfiguration.current
     val isTabletExpanded = configuration.screenWidthDp >= 720
@@ -499,7 +502,17 @@ fun JapanTravelToolsAppContent(
     val effectiveLang = LanguageResolver.resolveEffectiveLanguage(prefs.language)
     val isEs = effectiveLang == EffectiveLanguage.SPANISH
 
-    var selectedDestination by rememberSaveable { mutableStateOf(JapanDrawerDestination.CURRENCY) }
+    val initialDestination = remember(prefs.lastSelectedDestination) {
+        runCatching { JapanDrawerDestination.valueOf(prefs.lastSelectedDestination) }
+            .getOrDefault(JapanDrawerDestination.CURRENCY)
+    }
+    var selectedDestination by rememberSaveable { mutableStateOf(initialDestination) }
+
+    fun navigateTo(dest: JapanDrawerDestination) {
+        selectedDestination = dest
+        prefsRepository.setLastSelectedDestination(dest.name)
+    }
+
     var showJsonPortabilitySheet by rememberSaveable { mutableStateOf(false) }
     var showConnectivitySheet by rememberSaveable { mutableStateOf(false) }
 
@@ -557,7 +570,7 @@ fun JapanTravelToolsAppContent(
                     SideDrawerMenuContent(
                         isEs = isEs,
                         selectedDestination = selectedDestination,
-                        onSelectDestination = { dest -> selectedDestination = dest }
+                        onSelectDestination = { dest -> navigateTo(dest) }
                     )
                 }
             }
@@ -590,7 +603,7 @@ fun JapanTravelToolsAppContent(
                         prefs = prefs,
                         prefsRepository = prefsRepository,
                         onOpenPlanSheet = { showJsonPortabilitySheet = true },
-                        onNavigateToDestination = { selectedDestination = it }
+                        onNavigateToDestination = { navigateTo(it) }
                     )
                 }
             }
@@ -607,7 +620,7 @@ fun JapanTravelToolsAppContent(
                         isEs = isEs,
                         selectedDestination = selectedDestination,
                         onSelectDestination = { dest ->
-                            selectedDestination = dest
+                            navigateTo(dest)
                             coroutineScope.launch { drawerState.close() }
                         }
                     )
@@ -645,7 +658,7 @@ fun JapanTravelToolsAppContent(
                         prefs = prefs,
                         prefsRepository = prefsRepository,
                         onOpenPlanSheet = { showJsonPortabilitySheet = true },
-                        onNavigateToDestination = { selectedDestination = it }
+                        onNavigateToDestination = { navigateTo(it) }
                     )
                 }
             }
@@ -862,6 +875,7 @@ private fun ActiveToolContent(
         JapanDrawerDestination.CURRENCY -> CurrencyToolScreen(isEs = isEs, prefs = prefs, prefsRepository = prefsRepository)
         JapanDrawerDestination.CLOCKS -> ClocksToolScreen(isEs = isEs, currentInstant = currentInstant, prefs = prefs, prefsRepository = prefsRepository)
         JapanDrawerDestination.WEATHER -> WeatherToolScreen(isEs = isEs)
+        JapanDrawerDestination.TAX_FREE_RECEIPTS -> ShoppingReceiptsScreen(isEs = isEs, prefs = prefs)
         JapanDrawerDestination.PLANNER -> TripPlannerTabScreen(isEs = isEs, onOpenJsonPortability = onOpenPlanSheet)
         JapanDrawerDestination.TRANSPORT -> TransportTabScreen(isEs = isEs, onOpenJsonPortability = onOpenPlanSheet)
         JapanDrawerDestination.VOICE_TRANSLATOR -> VoiceTranslatorScreen(isEs = isEs, prefs = prefs)

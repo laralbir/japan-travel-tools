@@ -109,5 +109,18 @@ class UserPreferencesRepositoryTest {
         val repo25Pro = DefaultUserPreferencesRepository(store)
         assertEquals("gemini-pro-latest", repo25Pro.current.geminiModelId)
     }
+
+    @Test
+    fun `last selected destination defaults to CURRENCY and persists across repository recreation`() = runTest {
+        val store = InMemoryKeyValueStore()
+        val repo1 = DefaultUserPreferencesRepository(store)
+        assertEquals("CURRENCY", repo1.current.lastSelectedDestination)
+
+        repo1.setLastSelectedDestination("TAX_FREE_RECEIPTS")
+        assertEquals("TAX_FREE_RECEIPTS", repo1.current.lastSelectedDestination)
+
+        val repo2 = DefaultUserPreferencesRepository(store)
+        assertEquals("TAX_FREE_RECEIPTS", repo2.current.lastSelectedDestination)
+    }
 }
 
