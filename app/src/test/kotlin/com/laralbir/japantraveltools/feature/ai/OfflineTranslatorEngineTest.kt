@@ -167,4 +167,26 @@ class OfflineTranslatorEngineTest {
         assertTrue(result.lines[1].translatedText.contains("completo", ignoreCase = true))
         assertTrue(result.lines[2].translatedText.contains("cerveza", ignoreCase = true))
     }
+
+    @Test
+    fun `travelerQuickPhrases is consolidated deduplicated and contains both Spanish and Japanese with audio TTS ready`() {
+        val phrases = OfflineTranslatorEngine.travelerQuickPhrases
+        assertTrue(phrases.isNotEmpty())
+
+        // Sin repeticiones (desduplicado estricto)
+        val uniqueJapanese = phrases.map { it.japaneseText.trim() }.toSet()
+        assertEquals("No debe haber frases en japonés repetidas", phrases.size, uniqueJapanese.size)
+
+        val uniqueSpanish = phrases.map { it.sourceEs.trim().lowercase() }.toSet()
+        assertEquals("No debe haber frases en español repetidas", phrases.size, uniqueSpanish.size)
+
+        for (phrase in phrases) {
+            assertTrue("Texto en español no debe estar vacío", phrase.sourceEs.isNotBlank())
+            assertTrue("Texto en inglés no debe estar vacío", phrase.sourceEn.isNotBlank())
+            assertTrue("Texto en japonés no debe estar vacío", phrase.japaneseText.isNotBlank())
+            assertTrue("Debe contener caracteres japoneses", OfflineTranslatorEngine.isJapaneseText(phrase.japaneseText))
+            assertTrue("Romaji no debe estar vacío", phrase.romaji.isNotBlank())
+            assertTrue("Categoría no debe estar vacía", phrase.categoryBadge.isNotBlank())
+        }
+    }
 }

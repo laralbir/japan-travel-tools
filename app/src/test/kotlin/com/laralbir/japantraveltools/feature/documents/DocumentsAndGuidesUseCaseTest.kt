@@ -240,7 +240,59 @@ class DocumentsAndGuidesUseCaseTest {
         assertEquals(1, imported.size)
         assertEquals("EX-JPN-8890-412", imported[0].locatorCode)
     }
+
+    @Test
+    fun `SharedDocumentsAndGuidesStore handles PDF and image files for Passport and DNI slots`() {
+        val tempDir = java.nio.file.Files.createTempDirectory("id_vault_test").toFile()
+        try {
+            val slotKey = "passport_data_page"
+
+            // 1. Initial state: slot is empty
+            var file = SharedDocumentsAndGuidesStore.getIdDocumentFile(tempDir, slotKey)
+            org.junit.Assert.assertNull(file)
+
+            // 2. Save a PDF document
+            val pdfContent = "%PDF-1.4 sample passport PDF content".toByteArray()
+            val savedPdf = SharedDocumentsAndGuidesStore.saveIdDocument(
+                vaultDir = tempDir,
+                sourceBytes = pdfContent,
+                slotKey = slotKey,
+                extension = "pdf"
+            )
+            org.junit.Assert.assertNotNull(savedPdf)
+            org.junit.Assert.assertTrue(savedPdf.exists())
+            org.junit.Assert.assertEquals("passport_data_page.pdf", savedPdf.name)
+            org.junit.Assert.assertTrue(SharedDocumentsAndGuidesStore.isPdfDocumentFile(savedPdf))
+
+            // Check resolving by slot key
+            file = SharedDocumentsAndGuidesStore.getIdDocumentFile(tempDir, slotKey)
+            org.junit.Assert.assertNotNull(file)
+            org.junit.Assert.assertEquals("passport_data_page.pdf", file?.name)
+
+            // 3. Replace PDF with a JPG photo
+            val jpgContent = "sample image bytes".toByteArray()
+            val savedJpg = SharedDocumentsAndGuidesStore.saveIdDocument(
+                vaultDir = tempDir,
+                sourceBytes = jpgContent,
+                slotKey = slotKey,
+                extension = "jpg"
+            )
+            org.junit.Assert.assertNotNull(savedJpg)
+            org.junit.Assert.assertEquals("passport_data_page.jpg", savedJpg.name)
+            org.junit.Assert.assertFalse(SharedDocumentsAndGuidesStore.isPdfDocumentFile(savedJpg))
+
+            // Check that old PDF was cleaned up so only 1 file exists for that slot
+            file = SharedDocumentsAndGuidesStore.getIdDocumentFile(tempDir, slotKey)
+            org.junit.Assert.assertEquals("passport_data_page.jpg", file?.name)
+            org.junit.Assert.assertFalse(java.io.File(tempDir, "passport_data_page.pdf").exists())
+
+            // 4. Delete document
+            val deleted = SharedDocumentsAndGuidesStore.deleteIdDocument(tempDir, slotKey)
+            org.junit.Assert.assertTrue(deleted)
+            org.junit.Assert.assertNull(SharedDocumentsAndGuidesStore.getIdDocumentFile(tempDir, slotKey))
+        } finally {
+            tempDir.deleteRecursively()
+        }
+    }
 }
-
-
 

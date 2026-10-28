@@ -313,35 +313,108 @@ object SharedDocumentsAndGuidesStore {
         }.getOrDefault(false)
     }
 
-    // Photo vault in Context.filesDir/id_vault/
+    // Photo and PDF vault in Context.filesDir/id_vault/
     fun getIdVaultDir(context: Context): File {
         val dir = File(context.filesDir, "id_vault")
         if (!dir.exists()) dir.mkdirs()
         return dir
     }
 
-    fun saveIdPhoto(context: Context, sourceUri: Uri, targetFileName: String): Boolean {
+    fun isPdfDocumentFile(file: File?): Boolean {
+        return file != null && file.name.endsWith(".pdf", ignoreCase = true)
+    }
+
+    fun isPdfDocumentPath(path: String?): Boolean {
+        return path != null && path.endsWith(".pdf", ignoreCase = true)
+    }
+
+    fun getIdDocumentSlotBaseName(slotOrFileName: String): String {
+        return slotOrFileName.substringBeforeLast('.')
+    }
+
+    fun getIdDocumentFile(vaultDir: File, slotKey: String): File? {
+        val baseName = getIdDocumentSlotBaseName(slotKey)
+        val candidateExtensions = listOf("pdf", "jpg", "jpeg", "png", "webp")
+        for (ext in candidateExtensions) {
+            val f = File(vaultDir, "$baseName.$ext")
+            if (f.exists() && f.length() > 0) return f
+        }
+        val direct = File(vaultDir, slotKey)
+        if (direct.exists() && direct.length() > 0) return direct
+        return null
+    }
+
+    fun getIdDocumentFile(context: Context, slotKey: String): File? {
+        return getIdDocumentFile(getIdVaultDir(context), slotKey)
+    }
+
+    fun saveIdDocument(
+        vaultDir: File,
+        sourceBytes: ByteArray,
+        slotKey: String,
+        extension: String
+    ): File {
+        val baseName = getIdDocumentSlotBaseName(slotKey)
+        val cleanExt = extension.lowercase().trim().removePrefix(".")
+        deleteIdDocument(vaultDir, slotKey)
+        val target = File(vaultDir, "$baseName.$cleanExt")
+        target.outputStream().use { it.write(sourceBytes) }
+        return target
+    }
+
+    fun saveIdDocument(
+        context: Context,
+        sourceUri: Uri,
+        slotKey: String,
+        originalName: String? = null
+    ): File? {
         return runCatching {
-            val targetFile = File(getIdVaultDir(context), targetFileName)
+            val vaultDir = getIdVaultDir(context)
+            val baseName = getIdDocumentSlotBaseName(slotKey)
+            val ext = resolveFileExtension(context, sourceUri, originalName)
+            deleteIdDocument(vaultDir, slotKey)
+            val target = File(vaultDir, "$baseName.$ext")
             context.contentResolver.openInputStream(sourceUri)?.use { input ->
-                targetFile.outputStream().use { output ->
+                target.outputStream().use { output ->
                     input.copyTo(output)
                 }
+            }
+            if (target.exists() && target.length() > 0) target else null
+        }.getOrNull()
+    }
+
+    fun deleteIdDocument(vaultDir: File, slotKey: String): Boolean {
+        return runCatching {
+            val baseName = getIdDocumentSlotBaseName(slotKey)
+            val candidateExtensions = listOf("pdf", "jpg", "jpeg", "png", "webp")
+            for (ext in candidateExtensions) {
+                val f = File(vaultDir, "$baseName.$ext")
+                if (f.exists()) {
+                    f.delete()
+                }
+            }
+            val direct = File(vaultDir, slotKey)
+            if (direct.exists()) {
+                direct.delete()
             }
             true
         }.getOrDefault(false)
     }
 
+    fun deleteIdDocument(context: Context, slotKey: String): Boolean {
+        return deleteIdDocument(getIdVaultDir(context), slotKey)
+    }
+
+    fun saveIdPhoto(context: Context, sourceUri: Uri, targetFileName: String): Boolean {
+        return saveIdDocument(context, sourceUri, targetFileName) != null
+    }
+
     fun deleteIdPhoto(context: Context, fileName: String): Boolean {
-        return runCatching {
-            val file = File(getIdVaultDir(context), fileName)
-            if (file.exists()) file.delete() else true
-        }.getOrDefault(false)
+        return deleteIdDocument(context, fileName)
     }
 
     fun getIdPhotoFile(context: Context, fileName: String): File? {
-        val file = File(getIdVaultDir(context), fileName)
-        return if (file.exists() && file.length() > 0) file else null
+        return getIdDocumentFile(context, fileName)
     }
 
     fun upsertCustomIdDoc(item: CustomIdDocumentItem) {

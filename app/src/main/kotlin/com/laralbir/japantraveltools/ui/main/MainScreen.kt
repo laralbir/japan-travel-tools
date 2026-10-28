@@ -4008,52 +4008,6 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
                             }
                         }
                     }
-
-                    Spacer(Modifier.height(14.dp))
-                    Text(
-                        text = if (isEs) "Preguntas habituales de viaje para traducir:" else "Common travel questions to translate:",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(8.dp))
-
-                    val quickQuestions = listOf(
-                        "¿Dónde está el baño?",
-                        "¿Cuánto cuesta?",
-                        "La cuenta, por favor",
-                        "¿Tienen menú en inglés?",
-                        "Una cerveza, por favor",
-                        "Dos cervezas, por favor",
-                        "Agua, por favor",
-                        "¿Aceptan tarjeta?",
-                        "Muchas gracias",
-                        "A esta dirección de hotel, por favor"
-                    )
-
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        quickQuestions.chunked(2).forEach { pair ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                pair.forEach { query ->
-                                    AppOptionButton(
-                                        text = query,
-                                        selected = textTranslatorInput == query,
-                                        onClick = {
-                                            textTranslatorInput = query
-                                            performTextTranslation(query, autoSpeak = true)
-                                        },
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-                                if (pair.size == 1) {
-                                    Spacer(Modifier.weight(1f))
-                                }
-                            }
-                        }
-                    }
                 }
             }
 
@@ -4156,40 +4110,6 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
                             }
                         }
                     }
-
-                    Spacer(Modifier.height(14.dp))
-                    Text(
-                        text = if (isEs) "Frases habituales en japonés para probar (audio en japonés):" else "Common Japanese phrases to test (audio in Japanese):",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(8.dp))
-
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OfflineTranslatorEngine.incomingJapaneseSamples.chunked(2).forEach { pair ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                pair.forEach { sample ->
-                                    AppOptionButton(
-                                        text = "🔊 ${sample.contextLabel}",
-                                        selected = japaneseHeardInput == sample.japaneseHeardText,
-                                        onClick = {
-                                            japaneseHeardInput = sample.japaneseHeardText
-                                            customOnlineTranslationJaToEs = null
-                                            speakOutLoud(sample.japaneseHeardText, Locale.JAPAN)
-                                        },
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-                                if (pair.size == 1) {
-                                    Spacer(Modifier.weight(1f))
-                                }
-                            }
-                        }
-                    }
                 }
             }
 
@@ -4287,33 +4207,119 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
                             )
                         }
                     }
+                }
+            }
 
-                    Spacer(Modifier.height(14.dp))
+            // SECCIÓN UNIFICADA AL FINAL: FRASES HABITUALES DE VIAJE EN JAPONÉS (DESDUPLICADAS CON AUDIO)
+            item {
+                KotlinConfCard {
                     Text(
-                        text = if (isEs) "Frases rápidas con audio japonés:" else "Quick Japanese audio phrases:",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        text = if (isEs) "🗣️ Frases Habituales de Viaje en Japonés" else "🗣️ Common Japanese Travel Phrases",
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = if (isEs) {
+                            "Frases hechas para hablar en japonés con significado en español, lectura fonética y locución por voz."
+                        } else {
+                            "Ready-made phrases to speak in Japanese with English meaning, phonetic romaji and voice audio."
+                        },
+                        fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(14.dp))
 
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OfflineTranslatorEngine.essentialPhrases.chunked(2).forEach { pair ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    var selectedCategoryFilter by remember { mutableStateOf<String?>(null) }
+                    val categories = remember {
+                        listOf("TODAS") + OfflineTranslatorEngine.travelerQuickPhrases.map { it.categoryBadge }.distinct()
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        categories.forEach { category ->
+                            val isSelected = (selectedCategoryFilter == null && category == "TODAS") || selectedCategoryFilter == category
+                            AppOptionButton(
+                                text = category,
+                                selected = isSelected,
+                                onClick = {
+                                    selectedCategoryFilter = if (category == "TODAS") null else category
+                                }
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+
+                    val filteredPhrases = remember(selectedCategoryFilter) {
+                        if (selectedCategoryFilter == null) OfflineTranslatorEngine.travelerQuickPhrases
+                        else OfflineTranslatorEngine.travelerQuickPhrases.filter { it.categoryBadge == selectedCategoryFilter }
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        filteredPhrases.forEach { phrase ->
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        speakOutLoud(phrase.japaneseText, Locale.JAPAN)
+                                    }
                             ) {
-                                pair.forEach { preset ->
-                                    AppOptionButton(
-                                        text = "🔊 ${preset.categoryBadge}",
-                                        selected = phraseInput == preset.sourceText,
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+                                            modifier = Modifier.padding(bottom = 6.dp)
+                                        ) {
+                                            Text(
+                                                text = phrase.categoryBadge,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                        Text(
+                                            text = if (isEs) phrase.sourceEs else phrase.sourceEn,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(
+                                            text = phrase.japaneseText,
+                                            fontSize = 19.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(Modifier.height(2.dp))
+                                        Text(
+                                            text = "🗣️ ${phrase.romaji}",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Spacer(Modifier.width(8.dp))
+                                    IconButton(
                                         onClick = {
-                                            phraseInput = preset.sourceText
-                                            customOnlineTranslationEsToJa = null
-                                            speakOutLoud(preset.japaneseText, Locale.JAPAN)
-                                        },
-                                        modifier = Modifier.weight(1f)
-                                    )
+                                            speakOutLoud(phrase.japaneseText, Locale.JAPAN)
+                                        }
+                                    ) {
+                                        Text("🔊", fontSize = 22.sp)
+                                    }
                                 }
                             }
                         }
@@ -5258,6 +5264,8 @@ private fun PassportAndCustomsScreen(
 
     val isLockMandatory = VaultSecurityPolicy.isLockMandatory(biometricAvailable)
 
+    var isLaunchingExternalPicker by rememberSaveable { mutableStateOf(false) }
+
     // Estado efímero en memoria (nunca en rememberSaveable) para obligar a autenticar en cada visita
     var vaultUnlocked by remember {
         mutableStateOf(VaultSecurityPolicy.shouldStartUnlocked(biometricAvailable))
@@ -5268,8 +5276,8 @@ private fun PassportAndCustomsScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, isLockMandatory) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP || event == Lifecycle.Event.ON_PAUSE) {
-                if (isLockMandatory) {
+            if (event == Lifecycle.Event.ON_STOP) {
+                if (isLockMandatory && !isLaunchingExternalPicker) {
                     vaultUnlocked = false
                 }
             }
@@ -5277,7 +5285,7 @@ private fun PassportAndCustomsScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-            if (isLockMandatory) {
+            if (isLockMandatory && !isLaunchingExternalPicker) {
                 vaultUnlocked = false
             }
         }
@@ -5348,6 +5356,8 @@ private fun PassportAndCustomsScreen(
         CustomIdDocumentEditorModalSheet(
             isEs = isEs,
             initialDoc = editingCustomDoc,
+            onStartExternalPicker = { isLaunchingExternalPicker = true },
+            onEndExternalPicker = { isLaunchingExternalPicker = false },
             onDismiss = {
                 isCreatingCustomDoc = false
                 editingCustomDoc = null
@@ -5565,9 +5575,11 @@ private fun PassportAndCustomsScreen(
                     IdDocumentPhotoSection(
                         isEs = isEs,
                         title = if (isEs) "🛂 Pasaporte (Página de Datos)" else "🛂 Passport (Data Page)",
-                        subtitle = if (isEs) "Foto lista para mostrar en hoteles y compras Tax-Free" else "Ready for hotels and Tax-Free shops",
-                        fileName = "passport_data_page.jpg",
+                        subtitle = if (isEs) "Foto o PDF listo para mostrar en hoteles y compras Tax-Free" else "Photo or PDF ready for hotels and Tax-Free shops",
+                        fileName = "passport_data_page",
                         refreshTrigger = refreshPhotoCounter,
+                        onStartExternalPicker = { isLaunchingExternalPicker = true },
+                        onEndExternalPicker = { isLaunchingExternalPicker = false },
                         onPhotoChanged = { refreshPhotoCounter++ }
                     )
 
@@ -5577,9 +5589,11 @@ private fun PassportAndCustomsScreen(
                     IdDocumentPhotoSection(
                         isEs = isEs,
                         title = if (isEs) "🪪 DNI / ID (Anverso)" else "🪪 National ID (Front)",
-                        subtitle = if (isEs) "Copia frontal de tu documento nacional" else "Front copy of your national identity card",
-                        fileName = "dni_front.jpg",
+                        subtitle = if (isEs) "Copia frontal de tu documento nacional (Foto o PDF)" else "Front copy of your national identity card (Photo or PDF)",
+                        fileName = "dni_front",
                         refreshTrigger = refreshPhotoCounter,
+                        onStartExternalPicker = { isLaunchingExternalPicker = true },
+                        onEndExternalPicker = { isLaunchingExternalPicker = false },
                         onPhotoChanged = { refreshPhotoCounter++ }
                     )
 
@@ -5589,9 +5603,11 @@ private fun PassportAndCustomsScreen(
                     IdDocumentPhotoSection(
                         isEs = isEs,
                         title = if (isEs) "🪪 DNI / ID (Reverso)" else "🪪 National ID (Back)",
-                        subtitle = if (isEs) "Reverso con dirección y datos de expedición" else "Back side with address and expiration",
-                        fileName = "dni_back.jpg",
+                        subtitle = if (isEs) "Reverso con dirección y datos de expedición (Foto o PDF)" else "Back side with address and expiration (Photo or PDF)",
+                        fileName = "dni_back",
                         refreshTrigger = refreshPhotoCounter,
+                        onStartExternalPicker = { isLaunchingExternalPicker = true },
+                        onEndExternalPicker = { isLaunchingExternalPicker = false },
                         onPhotoChanged = { refreshPhotoCounter++ }
                     )
 
@@ -5679,6 +5695,8 @@ private fun PassportAndCustomsScreen(
                                             isEs = isEs,
                                             item = customDoc,
                                             refreshTrigger = refreshPhotoCounter,
+                                            onStartExternalPicker = { isLaunchingExternalPicker = true },
+                                            onEndExternalPicker = { isLaunchingExternalPicker = false },
                                             onEdit = { editingCustomDoc = customDoc },
                                             onDelete = {
                                                 SharedDocumentsAndGuidesStore.deleteCustomIdDoc(customDoc.id, context)
@@ -5718,22 +5736,30 @@ private fun IdDocumentPhotoSection(
     subtitle: String,
     fileName: String,
     refreshTrigger: Int,
+    onStartExternalPicker: () -> Unit = {},
+    onEndExternalPicker: () -> Unit = {},
     onPhotoChanged: () -> Unit
 ) {
     val context = LocalContext.current
-    val photoFile = remember(fileName, refreshTrigger) {
-        SharedDocumentsAndGuidesStore.getIdPhotoFile(context, fileName)
+    val docFile = remember(fileName, refreshTrigger) {
+        SharedDocumentsAndGuidesStore.getIdDocumentFile(context, fileName)
     }
-    val photoBitmap = remember(photoFile) {
-        photoFile?.let { runCatching { BitmapFactory.decodeFile(it.absolutePath)?.asImageBitmap() }.getOrNull() }
+    val isPdf = remember(docFile) {
+        SharedDocumentsAndGuidesStore.isPdfDocumentFile(docFile)
+    }
+    val photoBitmap = remember(docFile, isPdf) {
+        if (!isPdf) {
+            docFile?.let { runCatching { BitmapFactory.decodeFile(it.absolutePath)?.asImageBitmap() }.getOrNull() }
+        } else null
     }
 
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
+        onEndExternalPicker()
         if (success && pendingCameraUri != null) {
-            SharedDocumentsAndGuidesStore.saveIdPhoto(context, pendingCameraUri!!, fileName)
+            SharedDocumentsAndGuidesStore.saveIdDocument(context, pendingCameraUri!!, fileName, "camera.jpg")
             onPhotoChanged()
         }
     }
@@ -5741,19 +5767,33 @@ private fun IdDocumentPhotoSection(
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
+        onEndExternalPicker()
         if (uri != null) {
-            SharedDocumentsAndGuidesStore.saveIdPhoto(context, uri, fileName)
+            val originalName = queryFileName(context, uri)
+            SharedDocumentsAndGuidesStore.saveIdDocument(context, uri, fileName, originalName)
+            onPhotoChanged()
+        }
+    }
+
+    val pdfPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        onEndExternalPicker()
+        if (uri != null) {
+            val originalName = queryFileName(context, uri)
+            SharedDocumentsAndGuidesStore.saveIdDocument(context, uri, fileName, originalName ?: "document.pdf")
             onPhotoChanged()
         }
     }
 
     fun launchCamera() {
+        onStartExternalPicker()
         runCatching {
             val tempFile = File(context.cacheDir, "camera_id_${System.currentTimeMillis()}.jpg")
             val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", tempFile)
             pendingCameraUri = uri
             cameraLauncher.launch(uri)
-        }
+        }.onFailure { onEndExternalPicker() }
     }
 
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
@@ -5784,7 +5824,90 @@ private fun IdDocumentPhotoSection(
             Text(text = subtitle, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(12.dp))
 
-            if (photoBitmap != null) {
+            if (isPdf && docFile != null && docFile.exists() && docFile.length() > 0L) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            openDocumentFile(context, docFile.absolutePath)
+                        }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("📄", fontSize = 34.sp)
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isEs) "Documento PDF Adjunto" else "Attached PDF Document",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            val sizeKb = (docFile.length() / 1024L).coerceAtLeast(1L)
+                            Text(
+                                text = "${docFile.name} · ${sizeKb} KB · " + if (isEs) "Toca para abrir ↗️" else "Tap to open ↗️",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Text("↗️", fontSize = 18.sp)
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = { launchCamera() },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "📸 Cámara" else "📸 Camera", fontSize = 12.sp)
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            onStartExternalPicker()
+                            photoPickerLauncher.launch("image/*")
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "🖼️ Galería" else "🖼️ Gallery", fontSize = 12.sp)
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            onStartExternalPicker()
+                            pdfPickerLauncher.launch("application/pdf")
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "📄 Cambiar" else "📄 Change", fontSize = 12.sp)
+                    }
+                    IconButton(
+                        onClick = {
+                            confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
+                                itemName = title,
+                                itemTypeEs = "documento de identidad",
+                                itemTypeEn = "identity document",
+                                isEs = isEs,
+                                onConfirm = {
+                                    SharedDocumentsAndGuidesStore.deleteIdDocument(context, fileName)
+                                    onPhotoChanged()
+                                }
+                            )
+                        }
+                    ) {
+                        Text("🗑️", fontSize = 16.sp)
+                    }
+                }
+            } else if (photoBitmap != null) {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
@@ -5837,11 +5960,24 @@ private fun IdDocumentPhotoSection(
                         Text(text = if (isEs) "📸 Cámara" else "📸 Camera", fontSize = 12.sp)
                     }
                     OutlinedButton(
-                        onClick = { photoPickerLauncher.launch("image/*") },
+                        onClick = {
+                            onStartExternalPicker()
+                            photoPickerLauncher.launch("image/*")
+                        },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(10.dp)
                     ) {
                         Text(text = if (isEs) "🖼️ Galería" else "🖼️ Gallery", fontSize = 12.sp)
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            onStartExternalPicker()
+                            pdfPickerLauncher.launch("application/pdf")
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "📄 PDF" else "📄 PDF", fontSize = 12.sp)
                     }
                     IconButton(
                         onClick = {
@@ -5851,7 +5987,7 @@ private fun IdDocumentPhotoSection(
                                 itemTypeEn = "official identity photo",
                                 isEs = isEs,
                                 onConfirm = {
-                                    SharedDocumentsAndGuidesStore.deleteIdPhoto(context, fileName)
+                                    SharedDocumentsAndGuidesStore.deleteIdDocument(context, fileName)
                                     onPhotoChanged()
                                 }
                             )
@@ -5866,16 +6002,29 @@ private fun IdDocumentPhotoSection(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     AppPrimaryButton(
-                        text = if (isEs) "📸 Hacer Foto" else "📸 Take Photo",
+                        text = if (isEs) "📸 Cámara" else "📸 Camera",
                         onClick = { launchCamera() },
                         modifier = Modifier.weight(1f)
                     )
                     OutlinedButton(
-                        onClick = { photoPickerLauncher.launch("image/*") },
+                        onClick = {
+                            onStartExternalPicker()
+                            photoPickerLauncher.launch("image/*")
+                        },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(10.dp)
                     ) {
                         Text(text = if (isEs) "🖼️ Galería" else "🖼️ Gallery", fontSize = 13.sp)
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            onStartExternalPicker()
+                            pdfPickerLauncher.launch("application/pdf")
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "📄 PDF" else "📄 PDF", fontSize = 13.sp)
                     }
                 }
             }
@@ -5888,6 +6037,8 @@ private fun CustomIdDocumentItemCard(
     isEs: Boolean,
     item: CustomIdDocumentItem,
     refreshTrigger: Int,
+    onStartExternalPicker: () -> Unit = {},
+    onEndExternalPicker: () -> Unit = {},
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onPhotoChanged: () -> Unit
@@ -5907,6 +6058,7 @@ private fun CustomIdDocumentItemCard(
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
+        onEndExternalPicker()
         if (success && pendingCameraUri != null) {
             SharedDocumentsAndGuidesStore.updateCustomIdDocumentFile(context, item.id, pendingCameraUri!!, "camera.jpg")
             onPhotoChanged()
@@ -5916,6 +6068,7 @@ private fun CustomIdDocumentItemCard(
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
+        onEndExternalPicker()
         if (uri != null) {
             val originalName = queryFileName(context, uri)
             SharedDocumentsAndGuidesStore.updateCustomIdDocumentFile(context, item.id, uri, originalName)
@@ -5924,12 +6077,13 @@ private fun CustomIdDocumentItemCard(
     }
 
     fun launchCamera() {
+        onStartExternalPicker()
         runCatching {
             val tempFile = File(context.cacheDir, "camera_custom_${System.currentTimeMillis()}.jpg")
             val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", tempFile)
             pendingCameraUri = uri
             cameraLauncher.launch(uri)
-        }
+        }.onFailure { onEndExternalPicker() }
     }
 
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
@@ -6037,7 +6191,10 @@ private fun CustomIdDocumentItemCard(
                         Text(text = if (isEs) "📸 Cámara" else "📸 Camera", fontSize = 12.sp)
                     }
                     OutlinedButton(
-                        onClick = { filePickerLauncher.launch("*/*") },
+                        onClick = {
+                            onStartExternalPicker()
+                            filePickerLauncher.launch("*/*")
+                        },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(10.dp)
                     ) {
@@ -6113,7 +6270,10 @@ private fun CustomIdDocumentItemCard(
                         Text(text = if (isEs) "📸 Cámara" else "📸 Camera", fontSize = 12.sp)
                     }
                     OutlinedButton(
-                        onClick = { filePickerLauncher.launch("*/*") },
+                        onClick = {
+                            onStartExternalPicker()
+                            filePickerLauncher.launch("*/*")
+                        },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(10.dp)
                     ) {
@@ -6181,6 +6341,8 @@ private fun CustomIdDocumentItemCard(
 private fun CustomIdDocumentEditorModalSheet(
     isEs: Boolean,
     initialDoc: CustomIdDocumentItem?,
+    onStartExternalPicker: () -> Unit = {},
+    onEndExternalPicker: () -> Unit = {},
     onDismiss: () -> Unit,
     onSave: (title: String, subtitle: String, fileUri: Uri?, originalName: String?) -> Unit
 ) {
@@ -6195,6 +6357,7 @@ private fun CustomIdDocumentEditorModalSheet(
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
+        onEndExternalPicker()
         if (success && pendingCameraUri != null) {
             selectedFileUri = pendingCameraUri
             selectedFileName = "camera_capture.jpg"
@@ -6204,6 +6367,7 @@ private fun CustomIdDocumentEditorModalSheet(
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
+        onEndExternalPicker()
         if (uri != null) {
             selectedFileUri = uri
             selectedFileName = queryFileName(context, uri) ?: "document"
@@ -6211,12 +6375,13 @@ private fun CustomIdDocumentEditorModalSheet(
     }
 
     fun launchCamera() {
+        onStartExternalPicker()
         runCatching {
             val tempFile = File(context.cacheDir, "camera_edit_${System.currentTimeMillis()}.jpg")
             val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", tempFile)
             pendingCameraUri = uri
             cameraLauncher.launch(uri)
-        }
+        }.onFailure { onEndExternalPicker() }
     }
 
     val presets = remember(isEs) {
@@ -6360,7 +6525,10 @@ private fun CustomIdDocumentEditorModalSheet(
                         }
                         AppPrimaryButton(
                             text = if (isEs) "📄 PDF / Galería" else "📄 PDF / Gallery",
-                            onClick = { filePickerLauncher.launch("*/*") },
+                            onClick = {
+                                onStartExternalPicker()
+                                filePickerLauncher.launch("*/*")
+                            },
                             modifier = Modifier.weight(1.2f)
                         )
                     }
