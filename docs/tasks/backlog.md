@@ -248,5 +248,11 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
   - Incorporar en la pestaña `TEXT` la opción de seleccionar/insertar frases rápidas de viaje en el campo de texto.
   - Mantener en la pestaña `VOICE` las tarjetas de conversación bidireccional y las frases habituales con audio al pie.
   - Mantener en la pestaña `CAMERA` el traductor OCR de carteles y menús.
+- [ ] **TASK-714 (TDD/UI)**: Orientación EXIF de Cámara, Rotación 90° y Selección de Área/Recorte para OCR (`SPEC-06 RF-06.1.4`):
+  - Implementar decodificación con corrección de orientación EXIF (`ExifInterface`) para evitar que las fotos tomadas con la cámara nativa se giren o carguen apaisadas.
+  - Implementar botón de rotación manual `🔄 Girar 90°` en la tarjeta de foto capturada.
+  - Implementar selección de región de imagen (`ImageCropPreset` y `calculateCropBounds`) con presets rápidos (`Toda la foto`, `Superior`, `Centro`, `Inferior`, `Personalizada`).
+  - Implementar diálogo/panel `SelectImageRegionDialog` con controles de márgenes y previsualización interactiva de la caja delimitadora para enviar únicamente el sub-mapa de bits recortado a ML Kit OCR.
+
 
 

@@ -46,9 +46,17 @@ Dotar a **Japan Travel Tools** de capacidades de Inteligencia Artificial mediant
    - **Locución en Japonés por Voz (`ja-JP`)**: Botón prominente `🔊 Escuchar en Japonés` para reproducir la pronunciación exacta mediante Android TextToSpeech (`Locale.JAPAN`).
    - **Inserción Rápida de Frases en Modo Texto**: En la pestaña de texto se proporciona acceso directo a las frases habituales de viaje para poder insertar cualquier consulta típica en el campo de texto con un toque y traducirla o escucharla al momento.
    - Las tarjetas individuales de traducción (Texto, Voz Japonés ➔ Español y Voz Español ➔ Japonés) se mantienen limpias y concisas, sin listas redundantes ni preguntas incrustadas en su interior.
-4. **Traducción Visual con Cámara (Menús, Carteles e Ingredientes — OCR Offline)**:
+4. **Traducción Visual con Cámara (Menús, Carteles e Ingredientes — OCR Offline — Hito 15)**:
    - **Permisos en Tiempo de Ejecución y Captura Robusta**: Manejo de permiso de cámara `CAMERA` en runtime con `rememberLauncherForActivityResult(RequestPermission)` antes de invocar la captura.
    - **Captura directa y selección de fotos**: Botones para abrir la cámara y tomar foto instantánea en alta resolución mediante `FileProvider` en caché (`ActivityResultContracts.TakePicture`) con fallback a `TakePicturePreview`, o importar fotos desde la galería/archivos (`GetContent("image/*")`).
+   - **Corrección Automática de Orientación EXIF**:
+     - Al capturar o importar una fotografía, la aplicación inspecciona los metadatos EXIF (`ExifInterface.TAG_ORIENTATION`) y rota la imagen a su orientación vertical natural (`0°`, `90°`, `180°`, `270°`) antes de renderizarla o procesarla con el reconocedor de caracteres.
+     - Se proporciona un botón manual `🔄 Girar 90°` para rotar la imagen en el sentido de las agujas del reloj tantas veces como sea necesario para corregir carteles tomados en ángulos complejos.
+   - **Selección de Región a Traducir (Recorte / Área de Interés ROI)**:
+     - El viajero puede seleccionar qué parte concreta del cartel o menú desea traducir, evitando que el OCR se disperse con textos secundarios del fondo.
+     - Presets de acceso rápido: `🖼️ Toda la foto`, `⬆️ Zona Superior`, `↔️ Zona Central`, `⬇️ Zona Inferior` y `✂️ Personalizada`.
+     - Selector interactivo modal de área con ajuste de márgenes porcentuales (superior, inferior, izquierdo, derecho) y previsualización gráfica de la caja delimitadora en tiempo real.
+     - El motor OCR procesa exclusivamente el sub-mapa de bits recortado, mostrando la traducción fiel de la zona seleccionada.
    - **Reconocimiento de Texto Japonés (Kanji / Kana)**: Procesamiento mediante **Google ML Kit Text Recognition v2 (Japanese)** (`JapaneseTextRecognizerOptions`) sobre la imagen, extrayendo los caracteres japoneses.
    - **Traducción Inmediata y Pronunciación**: Desglose línea por línea del cartel o menú en español/inglés, con pronunciación fonética en Romaji, detección de precios en yenes (`¥`) y botón para escuchar la locución por voz (`🔊`).
    - **Carteles de Prueba Rápida**: Muestras representativas de carteles y menús comunes en Japón (*Ramen 1000円*, *Zona de no fumadores*, *Completo/Sold out*, *Andén Shinkansen*, *Aseos*, *Salida*, *Solo efectivo*) para pruebas inmediatas.
