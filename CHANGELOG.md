@@ -7,6 +7,23 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Traductor de Texto Bidireccional y Locución en Japonés — Issue #8 🇯🇵🗣️
+
+#### ✍️ Traductor de Texto (Español / Inglés ➔ Japonés):
+- **Nueva Tarjeta Dedicada en `VoiceTranslatorScreen`**: Incorporación de sección `Traductor de Texto (Español ➔ Japonés)` con `OutlinedTextField` multilínea para redactar cualquier consulta o frase de viaje en español o inglés (#8).
+- **Traducción Inmediata y Visualización de Kanji/Kana + Romaji**: Botón rápido `🇯🇵 Traducir a Japonés` que genera al instante la traducción a caracteres japoneses con desglose fonético Romaji y badge contextual (#8).
+- **Locución en Japonés por Android TextToSpeech (`Locale.JAPAN` / `ja-JP`)**: Botón dedicado `🔊 Escuchar en Japonés` para reproducir la pronunciación exacta ante locales japoneses o practicar fonética (#8).
+- **Preguntas Rápidas de Viaje**: Fichas interactivas para rellenar, traducir y escuchar al instante dudas frecuentes (*"¿Dónde está el baño?"*, *"¿Cuánto cuesta?"*, *"La cuenta, por favor"*, *"¿Tienen menú en inglés?"*, *"Una cerveza, por favor"*, *"Dos cervezas, por favor"*, *"Agua, por favor"*, *"¿Aceptan tarjeta?"*, *"Muchas gracias"*, etc.) (#8).
+
+#### 🔊 Corrección de Audio en Frases Habituales en Japonés:
+- **Locución en Japonés en `incomingJapaneseSamples`**: Corrección del comportamiento en las frases habituales de prueba de la tarjeta 1; ahora se reproducen en japonés con `Locale.JAPAN` en lugar de hablar en español, permitiendo al viajero escuchar la pronunciación original y mostrársela a interlocutores locales (#8).
+- **Botones de Altavoz Claros y Accesibles**: Inclusión de controles de altavoz específicos tanto para la locución en japonés como para la traducción al español en las tarjetas del traductor (#8).
+
+#### 🧩 Modularización de `OfflineTranslatorEngine`:
+- **Extracción de `OfflineTranslatorEngine.kt`**: Traslado del motor de traducción léxica offline y cliente online desde `AiAndTranslatorUseCase.kt` a un archivo dedicado `OfflineTranslatorEngine.kt` en el paquete `feature.ai` (#8).
+- **Tests Unitarios Exhaustivos (`OfflineTranslatorEngineTest`)**: Adición de suite de tests unitarios verificando traducción bidireccional, preguntas comunes, cantidades y soporte multilingüe (#8).
+
+
 ## [1.1.0] - 2026-10-27
 
 ### Portabilidad JSON Unificada, Zonas Horarias ISO UTC, Sincronización en Segundo Plano y Bóveda Biométrica — Japan Travel Tools 1.1.0 🇯🇵🚀

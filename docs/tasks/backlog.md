@@ -202,3 +202,16 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 - [x] **TASK-134 (UI)**: Rediseño Ergonómico de Botones en Tarjetas:
   - Rediseñar botones en `ItineraryStopCard` y `TransportSegmentCard` con altura reducida y disposición limpia.
 - [x] **TASK-135**: Publicación de release `v1.1.0` en GitHub Releases con compilación completa firmada para Google Play Store (`.aab` y `.apk`) y APK debug.
+
+---
+
+## Hito 13: Traductor de Texto Bidireccional y Locución en Japonés (Issue #8)
+
+### Traducción de Texto y Locución en Japonés (Issue #8)
+- [x] **TASK-136 (TDD)**: Extracción y Pruebas Exhaustivas de `OfflineTranslatorEngine` (`Issue #8 / SPEC-06`):
+  - Extraer `OfflineTranslatorEngine.kt` a archivo propio en `feature.ai` y crear test suite `OfflineTranslatorEngineTest`.
+  - Ampliar diccionario para consultas frecuentes de viaje (restaurante, bebidas con cantidades, precios, aseos, direcciones, cortesía) en español e inglés.
+- [x] **TASK-137 (TDD/UI)**: Corrección de Audio en Frases Habituales en Japonés (`Issue #8 / SPEC-06`):
+  - Corregir reproducción de audio en frases habituales de prueba de la Tarjeta 1 para que hable en japonés (`Locale.JAPAN` / `ja-JP`) en vez de español.
+- [x] **TASK-138 (UI)**: Sección Dedicada de Traductor de Texto (Español ➔ Japonés) (`Issue #8 / SPEC-06`):
+  - Añadir tarjeta dedicada con `OutlinedTextField` multilínea, botón `🇯🇵 Traducir a Japonés`, visualización de caracteres Kanji/Kana con fonética Romaji, botón `🔊 Escuchar en Japonés` y fichas de preguntas rápidas.
