@@ -9,6 +9,14 @@ data class SimultaneousTranslationItem(
     val categoryBadge: String
 )
 
+data class TravelerQuickPhrase(
+    val sourceEs: String,
+    val sourceEn: String,
+    val japaneseText: String,
+    val romaji: String,
+    val categoryBadge: String
+)
+
 data class JapaneseToTravelerVoiceResult(
     val japaneseHeardText: String,
     val romaji: String,
@@ -885,6 +893,214 @@ object OfflineTranslatorEngine {
             japaneseText = "このホテルの住所までお願いします。",
             romaji = "Kono hoteru no jūsho made onegaishimasu.",
             categoryBadge = "TAXI / HOTEL"
+        )
+    )
+
+    val travelerQuickPhrases = listOf(
+        // 1. CORTESÍA Y SALUDOS
+        TravelerQuickPhrase(
+            sourceEs = "Hola / Buenos días",
+            sourceEn = "Hello / Good day",
+            japaneseText = "こんにちは。",
+            romaji = "Konnichiwa.",
+            categoryBadge = "CORTESÍA"
+        ),
+        TravelerQuickPhrase(
+            sourceEs = "Disculpe / Perdón",
+            sourceEn = "Excuse me",
+            japaneseText = "すみません。",
+            romaji = "Sumimasen.",
+            categoryBadge = "CORTESÍA"
+        ),
+        TravelerQuickPhrase(
+            sourceEs = "Muchas gracias",
+            sourceEn = "Thank you very much",
+            japaneseText = "どうもありがとうございます。",
+            romaji = "Dōmo arigatō gozaimasu.",
+            categoryBadge = "CORTESÍA"
+        ),
+        TravelerQuickPhrase(
+            sourceEs = "De nada",
+            sourceEn = "You are welcome",
+            japaneseText = "どういたしまして。",
+            romaji = "Dōitashimashite.",
+            categoryBadge = "CORTESÍA"
+        ),
+        TravelerQuickPhrase(
+            sourceEs = "Sí",
+            sourceEn = "Yes",
+            japaneseText = "はい。",
+            romaji = "Hai.",
+            categoryBadge = "CORTESÍA"
+        ),
+        TravelerQuickPhrase(
+            sourceEs = "No",
+            sourceEn = "No",
+            japaneseText = "いいえ。",
+            romaji = "Iie.",
+            categoryBadge = "CORTESÍA"
+        ),
+        TravelerQuickPhrase(
+            sourceEs = "Adiós / Hasta luego",
+            sourceEn = "Goodbye",
+            japaneseText = "さようなら。",
+            romaji = "Sayōnara.",
+            categoryBadge = "CORTESÍA"
+        ),
+
+        // 2. RESTAURANTE Y COMIDA
+        TravelerQuickPhrase(
+            sourceEs = "¿Tienen menú en inglés?",
+            sourceEn = "Do you have an English menu?",
+            japaneseText = "英語のメニューはありますか？",
+            romaji = "Eigo no menyū wa arimasu ka?",
+            categoryBadge = "RESTAURANTE"
+        ),
+        TravelerQuickPhrase(
+            sourceEs = "La cuenta, por favor",
+            sourceEn = "The check, please",
+            japaneseText = "お会計をお願いします。",
+            romaji = "O-kaikei o onegaishimasu.",
+            categoryBadge = "RESTAURANTE"
+        ),
+        TravelerQuickPhrase(
+            sourceEs = "Agua, por favor",
+            sourceEn = "Water, please",
+            japaneseText = "お水をお願いします。",
+            romaji = "O-mizu o onegaishimasu.",
+            categoryBadge = "RESTAURANTE"
+        ),
+        TravelerQuickPhrase(
+            sourceEs = "Una cerveza, por favor",
+            sourceEn = "One beer, please",
+            japaneseText = "ビールを1つお願いします。",
+            romaji = "Bīru o hitotsu onegaishimasu.",
+            categoryBadge = "RESTAURANTE"
+        ),
+        TravelerQuickPhrase(
+            sourceEs = "Dos cervezas, por favor",
+            sourceEn = "Two beers, please",
+            japaneseText = "ビールを2つお願いします。",
+            romaji = "Bīru o futatsu onegaishimasu.",
+            categoryBadge = "RESTAURANTE"
+        ),
+        TravelerQuickPhrase(
+            sourceEs = "Está muy delicioso",
+            sourceEn = "It is very delicious",
+            japaneseText = "とても美味しいです。",
+            romaji = "Totemo oishii desu.",
+            categoryBadge = "RESTAURANTE"
+        ),
+        TravelerQuickPhrase(
+            sourceEs = "Buen provecho (antes de comer)",
+            sourceEn = "Bon appetit (before eating)",
+            japaneseText = "いただきます。",
+            romaji = "Itadakimasu.",
+            categoryBadge = "RESTAURANTE"
+        ),
+        TravelerQuickPhrase(
+            sourceEs = "Gracias por la comida (al terminar)",
+            sourceEn = "Thank you for the meal (after eating)",
+            japaneseText = "ごちそうさまでした。",
+            romaji = "Gochisōsama deshita.",
+            categoryBadge = "RESTAURANTE"
+        ),
+
+        // 3. TRANSPORTE Y DIRECCIONES
+        TravelerQuickPhrase(
+            sourceEs = "¿Dónde está el baño?",
+            sourceEn = "Where is the restroom?",
+            japaneseText = "トイレはどこですか？",
+            romaji = "Toire wa doko desu ka?",
+            categoryBadge = "TRANSPORTE"
+        ),
+        TravelerQuickPhrase(
+            sourceEs = "¿Dónde está la estación?",
+            sourceEn = "Where is the station?",
+            japaneseText = "駅はどこですか？",
+            romaji = "Eki wa doko desu ka?",
+            categoryBadge = "TRANSPORTE"
+        ),
+        TravelerQuickPhrase(
+            sourceEs = "¿Dónde está el andén del Shinkansen?",
+            sourceEn = "Where is the Shinkansen platform?",
+            japaneseText = "新幹線のホームはどこですか？",
+            romaji = "Shinkansen no hōmu wa doko desu ka?",
+            categoryBadge = "TRANSPORTE"
+        ),
+        TravelerQuickPhrase(
+            sourceEs = "A esta dirección de hotel, por favor",
+            sourceEn = "To this hotel address, please",
+            japaneseText = "このホテルの住所までお願いします。",
+            romaji = "Kono hoteru no jūsho made onegaishimasu.",
+            categoryBadge = "HOTEL / TAXI"
+        ),
+
+        // 4. COMPRAS Y PAGOS
+        TravelerQuickPhrase(
+            sourceEs = "¿Cuánto cuesta esto?",
+            sourceEn = "How much is this?",
+            japaneseText = "これはいくらですか？",
+            romaji = "Kore wa ikura desu ka?",
+            categoryBadge = "COMPRAS"
+        ),
+        TravelerQuickPhrase(
+            sourceEs = "¿Aceptan tarjeta de crédito?",
+            sourceEn = "Do you accept credit card?",
+            japaneseText = "カードは使えますか？",
+            romaji = "Kādo wa tsukaemasu ka?",
+            categoryBadge = "PAGOS"
+        ),
+        TravelerQuickPhrase(
+            sourceEs = "¿Puedo pagar con Suica / Pasmo?",
+            sourceEn = "Can I pay with Suica / Pasmo?",
+            japaneseText = "Suicaは使えますか？",
+            romaji = "Suica wa tsukaemasu ka?",
+            categoryBadge = "PAGOS"
+        ),
+        TravelerQuickPhrase(
+            sourceEs = "¿Aceptan efectivo?",
+            sourceEn = "Do you accept cash?",
+            japaneseText = "現金は使えますか？",
+            romaji = "Genkin wa tsukaemasu ka?",
+            categoryBadge = "PAGOS"
+        ),
+        TravelerQuickPhrase(
+            sourceEs = "¿Hacen compras libres de impuestos (Tax-Free)?",
+            sourceEn = "Do you do Tax-Free shopping?",
+            japaneseText = "免税はできますか？",
+            romaji = "Menzei wa dekimasu ka?",
+            categoryBadge = "TAX-FREE"
+        ),
+        TravelerQuickPhrase(
+            sourceEs = "No necesito bolsa, gracias",
+            sourceEn = "No bag needed, thank you",
+            japaneseText = "袋は大丈夫です。",
+            romaji = "Fukuro wa daijōbu desu.",
+            categoryBadge = "COMPRAS"
+        ),
+
+        // 5. SALUD Y EMERGENCIAS
+        TravelerQuickPhrase(
+            sourceEs = "Tengo alergia alimentaria",
+            sourceEn = "I have a food allergy",
+            japaneseText = "アレルギーがあります。",
+            romaji = "Arerugī ga arimasu.",
+            categoryBadge = "SALUD"
+        ),
+        TravelerQuickPhrase(
+            sourceEs = "Por favor, ayúdeme",
+            sourceEn = "Please help me",
+            japaneseText = "助けてください。",
+            romaji = "Tasukete kudasai.",
+            categoryBadge = "EMERGENCIA"
+        ),
+        TravelerQuickPhrase(
+            sourceEs = "No hablo japonés",
+            sourceEn = "I do not speak Japanese",
+            japaneseText = "日本語が話せません。",
+            romaji = "Nihongo ga hanasemasen.",
+            categoryBadge = "CORTESÍA"
         )
     )
 

@@ -215,3 +215,22 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
   - Corregir reproducción de audio en frases habituales de prueba de la Tarjeta 1 para que hable en japonés (`Locale.JAPAN` / `ja-JP`) en vez de español.
 - [x] **TASK-138 (UI)**: Sección Dedicada de Traductor de Texto (Español ➔ Japonés) (`Issue #8 / SPEC-06`):
   - Añadir tarjeta dedicada con `OutlinedTextField` multilínea, botón `🇯🇵 Traducir a Japonés`, visualización de caracteres Kanji/Kana con fonética Romaji, botón `🔊 Escuchar en Japonés` y fichas de preguntas rápidas.
+
+---
+
+## Hito 14: Adjuntos PDF en Pasaporte/DNI, Ciclo de Vida de Bóveda y Consolidación de Frases de Viaje
+
+### Bóveda de Pasaporte y DNI (`SPEC-03`)
+- [x] **TASK-408 (TDD)**: Soporte de PDF e Imagen en Pasaporte y DNI (`SPEC-03 RF-03.1`):
+  - Implementar en `SharedDocumentsAndGuidesStore` los métodos `getIdDocumentFile`, `saveIdDocument` y `deleteIdDocument` para soportar extensiones `.pdf`, `.jpg`, `.jpeg`, `.png`, `.webp` en los slots `passport_data_page`, `dni_front` y `dni_back`.
+  - Diseñar `IdDocumentSection` con soporte interactivo para PDFs (tarjeta de documento PDF con tamaño, apertura en visor PDF externo) e imágenes (miniatura táctil con zoom full-screen), con botones de acción para `📸 Cámara`, `🖼️ Galería`, `📄 Adjuntar PDF` y `🗑️ Eliminar`.
+- [x] **TASK-409 (TDD)**: Prevención de Re-bloqueo Biométrico en Captura/Selección Externa (`SPEC-03 RF-03.3`):
+  - Eliminar el bloqueo prematuro en `ON_PAUSE` del ciclo de vida en `PassportAndCustomsScreen`.
+  - Implementar flag `isLaunchingExternalPicker` para evitar que la transición a la cámara del sistema o al selector de archivos SAF active el bloqueo en `ON_STOP` o relance el modal biométrico al volver a la app.
+
+### Traductor de Voz y Texto (`SPEC-06`)
+- [x] **TASK-711 (TDD)**: Consolidación y Desduplicación de Frases Habituales de Viaje en Japonés (`SPEC-06 RF-06.1`):
+  - Retirar las listas de preguntas/frases embebidas en las 3 tarjetas de traducción individuales (Texto, Voz JP->ES y Voz ES->JP).
+  - Implementar en `OfflineTranslatorEngine` la colección consolidada y desduplicada `travelerQuickPhrases` con categorías estructuradas.
+  - Diseñar la tarjeta unificada al pie de la pantalla en `VoiceTranslatorScreen` con visualización obligatoria dual (Español y Japonés con Kanji/Kana y fonética Romaji) y botón directo de audio `🔊` en japonés (`Locale.JAPAN`).
+
