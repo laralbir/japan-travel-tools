@@ -17,13 +17,15 @@ Permitir al viajero llevar siempre a mano y **100% offline**:
 
 ## 2. Requisitos Funcionales (RF)
 
-### RF-03.1: Tarjetas Rápidas de Pasaporte y DNI (ID Vault)
+### RF-03.1: Tarjetas Rápidas de Pasaporte y DNI (ID Vault con Soporte PDF e Imagen)
 1. Sección destacada con acceso directo a:
    - **Pasaporte** (página principal de datos + visado/sello QR de Visit Japan Web opcional).
    - **DNI / Documento de Identidad** (Anverso y Reverso).
-2. Captura e importación:
-   - Permite tomar una foto directamente con la cámara o importar una imagen desde el selector del sistema (`Photo Picker`).
-3. Visor a Pantalla Completa con Zoom Táctil (`FullScreenZoomableImageViewerDialog`):
+2. Captura e importación flexible (Foto o PDF):
+   - Permite tomar una foto directamente con la cámara, seleccionar una imagen desde la galería (`image/*`) o adjuntar un documento **PDF** (`application/pdf`).
+   - Si se adjunta un PDF, se muestra la tarjeta de documento PDF con indicación de tamaño, acceso con un toque al visor de PDF externo y opciones para cambiarlo (por cámara, galería u otro PDF) o eliminarlo.
+   - Si se adjunta una imagen, se muestra la miniatura con acceso al visor a pantalla completa con zoom táctil y opciones para cambiar o eliminar.
+3. Visor a Pantalla Completa con Zoom Táctil (`FullScreenZoomableImageViewerDialog`) para imágenes:
    - Al tocar la fotografía de Pasaporte o DNI, se abre un visor inmersivo a pantalla completa sobre fondo negro de alto contraste.
    - **Gesto de pellizco para zoom (`pinch-to-zoom`)**: amplía suavemente la imagen desde 1.0x hasta 5.0x, permitiendo inspeccionar con total nitidez detalles cruciales como el número de pasaporte, fecha de caducidad, códigos MRZ o números de identidad.
    - **Desplazamiento panorámico (`pan / drag`)**: permite arrastrar y mover la foto ampliada para recorrer los bordes y zonas de interés manteniéndola delimitada en pantalla.
@@ -61,7 +63,8 @@ Permitir al viajero llevar siempre a mano y **100% offline**:
    - El estado de desbloqueo es estrictamente efímero en memoria (`remember`) y **nunca** se persiste en el `savedInstanceState` (`rememberSaveable`), obligando siempre a una nueva verificación de biometría en cada entrada o reinicio.
 4. **Auto-Bloqueo por Tiempo de Seguridad y Ciclo de Vida**:
    - Al desbloquearse la bóveda, se inicia un temporizador de seguridad de **120 segundos** (2 minutos); superado dicho tiempo, la bóveda se bloquea automáticamente (`vaultUnlocked = false`) ocultando los documentos.
-   - Si la aplicación o la pantalla pasa a segundo plano (`Lifecycle.Event.ON_STOP` / `ON_PAUSE`), la bóveda se bloquea inmediatamente por seguridad.
+   - Si la aplicación pasa a segundo plano (`Lifecycle.Event.ON_STOP`), la bóveda se bloquea por seguridad.
+   - **Excepción para Selectores de Cámara y Archivos Externos**: Al invocar la cámara del sistema (`TakePicture`) o el selector de archivos/galería/PDF (`GetContent`), la transición temporal de la actividad no debe bloquear la bóveda ni provocar que vuelva a saltar el modal de autenticación biométrica cuando el usuario regresa con el archivo capturado o seleccionado.
 5. **Botón de Bloqueo Manual ("Bloquear")**:
    - Mientras los documentos estén visibles (`vaultUnlocked = true`), se muestra un botón con el texto conciso **"Bloquear"** (`🔒 Bloquear`), que permite al usuario forzar el bloqueo inmediato en cualquier instante con un solo toque.
 

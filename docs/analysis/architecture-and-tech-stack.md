@@ -142,7 +142,10 @@ data class UserPreferences(
   - Fallo/Cancelación: `vaultUnlocked = false`, `authErrorText = errString`.
 - **Auto-Bloqueo por Temporizador y Ciclo de Vida**:
   - **Temporizador de Sesión**: Cuando `vaultUnlocked == true` e `isLockMandatory == true`, una corrutina en `LaunchedEffect(vaultUnlocked)` espera 120 segundos (`120_000L`); al transcurrir el tiempo, ejecuta `vaultUnlocked = false`.
-  - **Ciclo de Vida (Background)**: Mediante `DisposableEffect` con `LifecycleEventObserver`, si el usuario sale de la app (`ON_STOP`/`ON_PAUSE`), apaga la pantalla o cambia de pantalla, `vaultUnlocked` se conmuta inmediatamente a `false`.
+  - **Ciclo de Vida y Excepción de Selectores Externos**: Mediante `DisposableEffect` con `LifecycleEventObserver`, si el usuario sale de la aplicación a otra app (`ON_STOP`) o cambia de pantalla, `vaultUnlocked` se conmuta a `false`. Sin embargo, al invocar la cámara o el selector de archivos del sistema (`isLaunchingExternalPicker == true`), el ciclo de vida no bloquea la sesión para evitar que el modal biométrico interrumpa el flujo al regresar con la foto o el PDF.
+- **Soporte Multiformato (PDF e Imagen) en Pasaporte y DNI**:
+  - Tanto la tarjeta de Pasaporte como el DNI (anverso y reverso) soportan indistintamente fotos (`.jpg`, `.png`, `.webp`) y documentos **PDF** (`.pdf`).
+  - Si el archivo es un PDF, la interfaz muestra la tarjeta interactiva con metadatos y acceso al visor de PDF externo. Si es una imagen, se renderiza con visor zoom táctil a pantalla completa.
 - **Botón "Bloquear"**:
   - Mientras `vaultUnlocked == true`, se muestra de forma fija el botón de acción rápida `🔒 Bloquear`, permitiendo al usuario revocar el acceso y bloquear la pantalla de inmediato.
 
@@ -263,6 +266,11 @@ data class UserPreferences(
   - **Estrategia Híbrida**:
     - **Online**: Llamada en segundo plano al endpoint de traducción rápida en tiempo real para traducir libremente cualquier locución cuando hay conectividad.
     - **100% Offline-First**: Analizador léxico y de términos de viaje directo (`OfflineTranslatorEngine`) que traduce exactamente palabras, preguntas, direcciones, precios, alimentos y cortesía de forma literal, garantizando cero desfases sin inventar respuestas.
+- **Sección Unificada de Frases Habituales de Viaje en Japonés**:
+  - Eliminación de listas de preguntas predefinidas del interior de las 3 tarjetas de traducción individuales.
+  - Consolidación al pie de la pantalla en una tarjeta única y desduplicada (`OfflineTranslatorEngine.travelerQuickPhrases`).
+  - Representación obligatoria dual: texto en español (o inglés) y texto en japonés (`Kanji/Kana`) con lectura fonética en Romaji.
+  - Botón de audio directo `🔊` que locuta la frase inmediatamente en japonés (`Locale.JAPAN`).
 
 ### 3.7. Portabilidad JSON Legible (`TravelPlanJsonCodec`) y Constructor/Optimizador IA (`AiPlanBuilderEngine`)
 - **`PortableTravelPlanBundle` (`schemaVersion = "japan-travel-plan.v1"`)**:

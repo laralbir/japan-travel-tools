@@ -39,17 +39,18 @@ Dotar a **Japan Travel Tools** de capacidades de Inteligencia Artificial mediant
    - **Tarjeta Independiente para Entrada de Texto**: Dispone de un `OutlinedTextField` multilínea para que el viajero pueda redactar cualquier consulta o frase libremente (ej. *"¿Dónde está el baño?"*, *"La cuenta, por favor"*, *"Una cerveza, por favor"*, etc.).
    - **Traducción Inmediata y Fonética**: Botón `🇯🇵 Traducir a Japonés` que genera al instante la traducción a caracteres japoneses (`Kanji/Kana`) junto con su fonética `Romaji` y categoría temática.
    - **Locución en Japonés por Voz (`ja-JP`)**: Botón prominente `🔊 Escuchar en Japonés` para reproducir la pronunciación exacta mediante Android TextToSpeech (`Locale.JAPAN`).
-   - **Preguntas Rápidas de Viaje**: Fichas interactivas con preguntas y frases esenciales que rellenan, traducen y reproducen en audio japonés con un solo toque.
+   - Las tarjetas individuales de traducción (Texto, Voz Japonés ➔ Español y Voz Español ➔ Japonés) se mantienen limpias y concisas, sin listas redundantes ni preguntas incrustadas en su interior.
 4. **Traducción Visual con Cámara (Menús, Carteles e Ingredientes — OCR Offline)**:
    - **Permisos en Tiempo de Ejecución y Captura Robusta**: Manejo de permiso de cámara `CAMERA` en runtime con `rememberLauncherForActivityResult(RequestPermission)` antes de invocar la captura.
    - **Captura directa y selección de fotos**: Botones para abrir la cámara y tomar foto instantánea en alta resolución mediante `FileProvider` en caché (`ActivityResultContracts.TakePicture`) con fallback a `TakePicturePreview`, o importar fotos desde la galería/archivos (`GetContent("image/*")`).
    - **Reconocimiento de Texto Japonés (Kanji / Kana)**: Procesamiento mediante **Google ML Kit Text Recognition v2 (Japanese)** (`JapaneseTextRecognizerOptions`) sobre la imagen, extrayendo los caracteres japoneses.
    - **Traducción Inmediata y Pronunciación**: Desglose línea por línea del cartel o menú en español/inglés, con pronunciación fonética en Romaji, detección de precios en yenes (`¥`) y botón para escuchar la locución por voz (`🔊`).
    - **Carteles de Prueba Rápida**: Muestras representativas de carteles y menús comunes en Japón (*Ramen 1000円*, *Zona de no fumadores*, *Completo/Sold out*, *Andén Shinkansen*, *Aseos*, *Salida*, *Solo efectivo*) para pruebas inmediatas.
-4. **Lanzador Directo a Google Lens / Google Translate / Cámara del Sistema**:
-   - Tarjeta dedicada con selector dual: `🌐 Abrir Google Lens` (abre directamente la experiencia de realidad aumentada de Lens con detección de texto y paquetes declarados en `<queries>`) y `🌐 Google Traductor` con fallback automático a la cámara nativa del sistema (`MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA`) o selector web.
-5. **Tarjetas de Frases Esenciales y Alergias 100% Offline**:
-   - Tarjetas pre-cargadas de emergencia/supervivencia (alergias alimentarias, pedir la cuenta, ¿dónde está el baño/andén?, *Tax-Free*) con texto japonés a gran tamaño y audio offline.
+5. **Sección Unificada de Frases Habituales de Viaje en Japonés (Al Final y Sin Repeticiones)**:
+   - En lugar de fragmentar preguntas en cada tarjeta, la pantalla consolida al final una **tarjeta unificada y dedicada** de frases hechas y preguntas habituales de viaje para hablar en japonés.
+   - **Sin Repeticiones**: Lista única, desduplicada y clasificada temáticamente (Cortesía, Restaurante, Trenes y Transporte, Tiendas y Pagos, Hotel y Dirección, Emergencias y Salud).
+   - **Representación Dual Obligatoria**: Cada frase muestra con total claridad tanto el **texto en español** (o inglés según el idioma activo) como el **texto en japonés** (`Kanji/Kana`) y su fonética en **Romaji**.
+   - **Locución Instantánea en Japonés**: Cada elemento dispone de un botón directo de altavoz `🔊` para que el teléfono reproduzca de inmediato la frase en voz alta en japonés (`Locale.JAPAN`), permitiendo que el viajero la escuche para aprenderla o se la muestre/reproduzca directamente al interlocutor local.
 
 ### RF-06.2: Asistente de Viaje con IA (Google Gemini: On-Device + Cloud con Caché Offline)
 1. **Arquitectura Híbrida de Gemini (Optimizada para Pixel 10/9 Pro XL y Tablet TCL)**:
