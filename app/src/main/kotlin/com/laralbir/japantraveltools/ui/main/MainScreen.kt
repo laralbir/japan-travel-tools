@@ -160,6 +160,7 @@ import com.laralbir.japantraveltools.feature.documents.DocumentCategory
 import com.laralbir.japantraveltools.feature.documents.DocumentsFilterUseCase
 import com.laralbir.japantraveltools.feature.documents.FullScreenZoomableImageViewerDialog
 import com.laralbir.japantraveltools.feature.documents.CustomIdDocumentItem
+import com.laralbir.japantraveltools.feature.documents.GuideSortOrder
 import com.laralbir.japantraveltools.feature.planner.ItineraryStopItem
 import com.laralbir.japantraveltools.feature.planner.StopCategory
 import com.laralbir.japantraveltools.feature.planner.TripPlannerUseCase
@@ -6755,11 +6756,14 @@ private fun DocumentEditorModalSheet(
 private fun TravelGuidesScreen(isEs: Boolean) {
     val guides by SharedDocumentsAndGuidesStore.guidesState.collectAsState()
     var searchQuery by rememberSaveable { mutableStateOf("") }
-    val filteredGuides = remember(guides, searchQuery) {
-        DocumentsFilterUseCase.filterGuides(guides, null, searchQuery)
+    var selectedSortOrder by rememberSaveable { mutableStateOf(GuideSortOrder.PINNED_FIRST) }
+    var selectedCityFilter by rememberSaveable { mutableStateOf<String?>(null) }
+    val filteredGuides = remember(guides, searchQuery, selectedCityFilter, selectedSortOrder) {
+        DocumentsFilterUseCase.filterGuides(guides, selectedCityFilter, searchQuery, selectedSortOrder)
     }
 
     var editingGuide by remember { mutableStateOf<TravelGuideArticle?>(null) }
+    var viewingFullGuide by remember { mutableStateOf<TravelGuideArticle?>(null) }
     var isCreatingGuide by remember { mutableStateOf(false) }
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
 
@@ -6767,6 +6771,14 @@ private fun TravelGuidesScreen(isEs: Boolean) {
         state = confirmationDialogState,
         onDismiss = { confirmationDialogState = null }
     )
+
+    if (viewingFullGuide != null) {
+        FullGuideReaderDialog(
+            guide = viewingFullGuide!!,
+            isEs = isEs,
+            onDismiss = { viewingFullGuide = null }
+        )
+    }
 
     if (isCreatingGuide || editingGuide != null) {
         val initialGuide = editingGuide ?: TravelGuideArticle(
@@ -6804,6 +6816,33 @@ private fun TravelGuidesScreen(isEs: Boolean) {
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Sorting & Filter bar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AppOptionButton(
+                        text = if (isEs) "📌 Fijadas" else "📌 Pinned",
+                        selected = selectedSortOrder == GuideSortOrder.PINNED_FIRST,
+                        onClick = { selectedSortOrder = GuideSortOrder.PINNED_FIRST },
+                        modifier = Modifier.width(105.dp)
+                    )
+                    AppOptionButton(
+                        text = if (isEs) "🔤 A - Z" else "🔤 A - Z",
+                        selected = selectedSortOrder == GuideSortOrder.TITLE_AZ,
+                        onClick = { selectedSortOrder = GuideSortOrder.TITLE_AZ },
+                        modifier = Modifier.width(95.dp)
+                    )
+                    AppOptionButton(
+                        text = if (isEs) "🏙️ Por Ciudad" else "🏙️ By City",
+                        selected = selectedSortOrder == GuideSortOrder.CITY_REGION,
+                        onClick = { selectedSortOrder = GuideSortOrder.CITY_REGION },
+                        modifier = Modifier.width(125.dp)
+                    )
+                }
+
                 AppPrimaryButton(
                     text = if (isEs) "➕ Crear Nueva Guía" else "➕ Create New Guide",
                     onClick = {
@@ -6849,8 +6888,8 @@ private fun TravelGuidesScreen(isEs: Boolean) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = guide.title,
-                            fontSize = 18.sp,
+                            text = if (guide.isPinned) "📌 ${guide.title}" else guide.title,
+                            fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.weight(1f)
                         )
@@ -6859,28 +6898,143 @@ private fun TravelGuidesScreen(isEs: Boolean) {
                     Spacer(Modifier.height(8.dp))
                     Text(
                         text = guide.markdownSummary,
-                        fontSize = 15.sp,
+                        fontSize = 14.sp,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    Spacer(Modifier.height(12.dp))
-                    AppButtonRow(
-                        primaryText = if (isEs) "✏️ Editar" else "✏️ Edit",
-                        onPrimaryClick = {
-                            isCreatingGuide = false
-                            editingGuide = guide
-                        },
-                        secondaryText = if (isEs) "🗑️ Eliminar" else "🗑️ Delete",
-                        onSecondaryClick = {
-                            confirmationDialogState = ConfirmationDialogBuilder.buildDeleteConfirmation(
-                                itemName = guide.title,
-                                itemTypeEs = "guía de viaje",
-                                itemTypeEn = "travel guide",
-                                isEs = isEs,
-                                onConfirm = { SharedDocumentsAndGuidesStore.deleteGuide(guide.id) }
-                            )
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = { viewingFullGuide = guide },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                            modifier = Modifier
+                                .height(34.dp)
+                                .weight(1.3f)
+                        ) {
+                            Text(if (isEs) "📖 Leer Guía" else "📖 Read Guide", fontSize = 12.sp, maxLines = 1)
                         }
+                        OutlinedButton(
+                            onClick = {
+                                isCreatingGuide = false
+                                editingGuide = guide
+                            },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                            modifier = Modifier
+                                .height(34.dp)
+                                .weight(1.1f)
+                        ) {
+                            Text(if (isEs) "✏️ Editar" else "✏️ Edit", fontSize = 12.sp, maxLines = 1)
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                confirmationDialogState = ConfirmationDialogBuilder.buildDeleteConfirmation(
+                                    itemName = guide.title,
+                                    itemTypeEs = "guía de viaje",
+                                    itemTypeEn = "travel guide",
+                                    isEs = isEs,
+                                    onConfirm = { SharedDocumentsAndGuidesStore.deleteGuide(guide.id) }
+                                )
+                            },
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                            modifier = Modifier.height(34.dp)
+                        ) {
+                            Text("🗑️", fontSize = 13.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FullGuideReaderDialog(
+    guide: TravelGuideArticle,
+    isEs: Boolean,
+    onDismiss: () -> Unit
+) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+            modifier = Modifier
+                .fillMaxWidth(0.94f)
+                .fillMaxHeight(0.85f)
+                .padding(vertical = 16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    InfoTagPill(text = guide.cityRegion)
+                    IconButton(onClick = onDismiss) {
+                        Text("✕", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                Text(
+                    text = guide.title,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                if (guide.tags.isNotEmpty()) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = guide.tags.joinToString(" · ") { "#$it" },
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium
                     )
+                }
+
+                Spacer(Modifier.height(14.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                Spacer(Modifier.height(14.dp))
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        text = guide.markdownSummary,
+                        fontSize = 16.sp,
+                        lineHeight = 25.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                Spacer(Modifier.height(14.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp)
+                ) {
+                    Text(if (isEs) "Cerrar Lectura" else "Close Reader", fontSize = 14.sp)
                 }
             }
         }

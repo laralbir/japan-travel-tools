@@ -63,6 +63,28 @@ class DocumentsAndGuidesUseCaseTest {
     }
 
     @Test
+    fun `sorts travel guides by title, region or pinned first`() {
+        val guides = listOf(
+            TravelGuideArticle(id = "1", title = "Zoos and Parks in Ueno", cityRegion = "Tokyo", tags = emptyList(), markdownSummary = "", isPinned = false),
+            TravelGuideArticle(id = "2", title = "Arashiyama Bamboo Grove", cityRegion = "Kyoto", tags = emptyList(), markdownSummary = "", isPinned = true),
+            TravelGuideArticle(id = "3", title = "Dotonbori Street Food", cityRegion = "Osaka", tags = emptyList(), markdownSummary = "", isPinned = false)
+        )
+
+        val pinnedFirst = DocumentsFilterUseCase.filterGuides(guides, null, "", GuideSortOrder.PINNED_FIRST)
+        assertEquals("Arashiyama Bamboo Grove", pinnedFirst.first().title)
+
+        val titleAz = DocumentsFilterUseCase.filterGuides(guides, null, "", GuideSortOrder.TITLE_AZ)
+        assertEquals("Arashiyama Bamboo Grove", titleAz[0].title)
+        assertEquals("Dotonbori Street Food", titleAz[1].title)
+        assertEquals("Zoos and Parks in Ueno", titleAz[2].title)
+
+        val byRegion = DocumentsFilterUseCase.filterGuides(guides, null, "", GuideSortOrder.CITY_REGION)
+        assertEquals("Kyoto", byRegion[0].cityRegion)
+        assertEquals("Osaka", byRegion[1].cityRegion)
+        assertEquals("Tokyo", byRegion[2].cityRegion)
+    }
+
+    @Test
     fun `DocumentsAndGuidesJsonCodec correctly serializes and deserializes travel documents with attachments`() {
         val docs = listOf(
             TravelDocumentItem(
