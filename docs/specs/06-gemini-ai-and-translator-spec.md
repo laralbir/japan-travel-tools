@@ -52,13 +52,19 @@ Dotar a **Japan Travel Tools** de capacidades de Inteligencia Artificial mediant
    - **Corrección Automática de Orientación EXIF**:
      - Al capturar o importar una fotografía, la aplicación inspecciona los metadatos EXIF (`ExifInterface.TAG_ORIENTATION`) y rota la imagen a su orientación vertical natural (`0°`, `90°`, `180°`, `270°`) antes de renderizarla o procesarla con el reconocedor de caracteres.
      - Se proporciona un botón manual `🔄 Girar 90°` para rotar la imagen en el sentido de las agujas del reloj tantas veces como sea necesario para corregir carteles tomados en ángulos complejos.
-   - **Selección de Región a Traducir (Recorte / Área de Interés ROI)**:
-     - El viajero puede seleccionar qué parte concreta del cartel o menú desea traducir, evitando que el OCR se disperse con textos secundarios del fondo.
-     - Presets de acceso rápido: `🖼️ Toda la foto`, `⬆️ Zona Superior`, `↔️ Zona Central`, `⬇️ Zona Inferior` y `✂️ Personalizada`.
-     - Selector interactivo modal de área con ajuste de márgenes porcentuales (superior, inferior, izquierdo, derecho) y previsualización gráfica de la caja delimitadora en tiempo real.
-     - El motor OCR procesa exclusivamente el sub-mapa de bits recortado, mostrando la traducción fiel de la zona seleccionada.
-   - **Reconocimiento de Texto Japonés (Kanji / Kana)**: Procesamiento mediante **Google ML Kit Text Recognition v2 (Japanese)** (`JapaneseTextRecognizerOptions`) sobre la imagen, extrayendo los caracteres japoneses.
-   - **Traducción Inmediata y Pronunciación**: Desglose línea por línea del cartel o menú en español/inglés, con pronunciación fonética en Romaji, detección de precios en yenes (`¥`) y botón para escuchar la locución por voz (`🔊`).
+   - **Selección de Región a Traducir Estilo Google Fotos y Soporte Multizona (`RF-06.1.5`)**:
+     - Visualización no destructiva sobre la foto completa: la imagen original permanece intacta en el fondo, con una máscara atenuada (`scrim`) y recuadros delimitadores interactivos con esquinas estilo visor de edición de fotos.
+     - **Soporte Multizona y Detección Automática**:
+       - Al escanear la foto, los bloques de texto detectados por ML Kit se identifican como zonas independientes numeradas.
+       - El usuario puede tocar directamente sobre cualquier bloque de texto en pantalla para activarlo/desactivarlo, seleccionar una zona única o activar la traducción conjunta multizona (*Todas las Zonas*).
+       - Permite añadir recuadros manuales personalizados o ajustar zonas con tiradores táctiles.
+       - Los resultados de la traducción se asocian visualmente a su zona correspondiente (*📍 Zona 1*, *📍 Zona 2*).
+   - **Reconocimiento de Texto Japonés (Kanji / Kana) y Motor Robusto de Traducción (`RF-06.1.6`)**:
+     - Procesamiento mediante **Google ML Kit Text Recognition v2 (Japanese)** (`JapaneseTextRecognizerOptions`) sobre la imagen completa o las zonas seleccionadas.
+     - **Diccionario Offline Especializado y Extenso (>500 términos)**: Cobertura masiva de carteles urbanos, estaciones de tren (*JR, Shinkansen, Metro*), salidas, andenes, señalizaciones viales, advertencias, restaurantes, menús (*Izakaya, Ramen, Sushi, Yakiniku*), bebidas, ingredientes, farmacia, tiendas y precios en yenes.
+     - **Tokenización y Segmentación Morfológica**: Si una línea no coincide con una frase exacta del catálogo, el motor segmenta los términos y kanjis componentes traduciéndolos individualmente (ej. `[新宿駅: Estación Shinjuku] · [南口: Salida Sur] · [切符: Billetes]`), eliminando el mensaje genérico de *"Traducción directa no disponible offline"*.
+     - **Traducción Fluida Online en Segundo Plano**: Cuando el dispositivo dispone de conexión a internet (y no está en modo forzar offline), el traductor consulta automáticamente `OnlineTranslatorClient` en segundo plano para obtener la traducción gramatical fluida completa y actualizar la UI reactivamente.
+   - **Pronunciación y Locución en Japonés**: Desglose línea por línea en español e inglés, transcripción fonética en Romaji, detección de importes en yenes (`¥ / 円`) y botón de locución por voz nativa (`🔊 Locale.JAPAN`).
    - **Carteles de Prueba Rápida**: Muestras representativas de carteles y menús comunes en Japón (*Ramen 1000円*, *Zona de no fumadores*, *Completo/Sold out*, *Andén Shinkansen*, *Aseos*, *Salida*, *Solo efectivo*) para pruebas inmediatas.
 5. **Sección Unificada de Frases Habituales de Viaje en Japonés (Al Final y Sin Repeticiones)**:
    - En lugar de fragmentar preguntas en cada tarjeta, la pantalla consolida al final una **tarjeta unificada y dedicada** de frases hechas y preguntas habituales de viaje para hablar en japonés.

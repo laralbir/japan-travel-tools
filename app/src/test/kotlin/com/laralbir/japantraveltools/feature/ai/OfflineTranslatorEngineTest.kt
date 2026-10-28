@@ -1,6 +1,7 @@
 package com.laralbir.japantraveltools.feature.ai
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -269,4 +270,101 @@ class OfflineTranslatorEngineTest {
         assertEquals(500, clampedBounds.width)
         assertEquals(800, clampedBounds.height)
     }
+
+    @Test
+    fun `translateOcrJapaneseText never outputs generic unavailable string for common signs and menus`() {
+        val testSigns = listOf(
+            "新宿駅 南口 改札口",
+            "営業中 準備中 定休日",
+            "立入禁止 危険 足元注意",
+            "お会計はレジにて クレジットカード利用可",
+            "唐揚げ定食 850円",
+            "温泉 露天風呂 入浴料",
+            "和牛 焼肉 盛り合わせ",
+            "コインロッカー",
+            "非常口 避難誘導",
+            "禁煙席 喫煙所",
+            "手荷物預かり所",
+            "自動券売機",
+            "のりば 2番線",
+            "本日休業",
+            "売り切れ 完売",
+            "段差注意 頭上注意"
+        )
+
+        for (sign in testSigns) {
+            val result = OfflineTranslatorEngine.translateOcrJapaneseText(sign, isEs = true)
+            assertTrue("Debe detectar japonés en: $sign", result.hasJapanese)
+            for (line in result.lines) {
+                assertFalse(
+                    "El texto '$sign' no debe devolver 'Traducción directa no disponible offline': ${line.translatedText}",
+                    line.translatedText.contains("Traducción directa no disponible offline", ignoreCase = true)
+                )
+                assertTrue(
+                    "Debe haber una traducción significativa para '$sign', obtuvo: ${line.translatedText}",
+                    line.translatedText.isNotBlank()
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `translateOcrJapaneseText performs morphological token segmentation on compound Japanese sentences`() {
+        val compound = "新宿駅の南口で切符を買う"
+        val result = OfflineTranslatorEngine.translateOcrJapaneseText(compound, isEs = true)
+        assertTrue(result.hasJapanese)
+        val translation = result.lines.first().translatedText
+        assertFalse(translation.contains("Traducción directa no disponible offline"))
+        assertTrue(translation.contains("Estación", ignoreCase = true) || translation.contains("Shinjuku", ignoreCase = true))
+        assertTrue(translation.contains("Salida", ignoreCase = true) || translation.contains("Sur", ignoreCase = true))
+        assertTrue(translation.contains("Billete", ignoreCase = true) || translation.contains("Ticket", ignoreCase = true))
+    }
+
+    @Test
+    fun `calculateCropBounds handles multi-zone presets accurately`() {
+        val width = 1000
+        val height = 2000
+
+        // Left half
+        val leftBounds = OfflineTranslatorEngine.calculateCropBounds(
+            width, height,
+            ImageCropPreset.LEFT_HALF.leftFraction,
+            ImageCropPreset.LEFT_HALF.topFraction,
+            ImageCropPreset.LEFT_HALF.rightFraction,
+            ImageCropPreset.LEFT_HALF.bottomFraction
+        )
+        assertEquals(0, leftBounds.left)
+        assertEquals(0, leftBounds.top)
+        assertEquals(500, leftBounds.width)
+        assertEquals(2000, leftBounds.height)
+
+        // Right half
+        val rightBounds = OfflineTranslatorEngine.calculateCropBounds(
+            width, height,
+            ImageCropPreset.RIGHT_HALF.leftFraction,
+            ImageCropPreset.RIGHT_HALF.topFraction,
+            ImageCropPreset.RIGHT_HALF.rightFraction,
+            ImageCropPreset.RIGHT_HALF.bottomFraction
+        )
+        assertEquals(500, rightBounds.left)
+        assertEquals(0, rightBounds.top)
+        assertEquals(500, rightBounds.width)
+        assertEquals(2000, rightBounds.height)
+
+        // Standard multi-zones
+        val zones = OfflineTranslatorEngine.getStandardMultiZones()
+        assertEquals(5, zones.size)
+        val topZone = zones[0]
+        val topBounds = OfflineTranslatorEngine.calculateCropBounds(
+            width, height,
+            topZone.leftFraction, topZone.topFraction,
+            topZone.rightFraction, topZone.bottomFraction
+        )
+        assertEquals(0, topBounds.left)
+        assertEquals(0, topBounds.top)
+        assertEquals(1000, topBounds.width)
+        assertEquals(700, topBounds.height)
+    }
 }
+
+

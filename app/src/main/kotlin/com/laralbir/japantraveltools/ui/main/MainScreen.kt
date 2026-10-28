@@ -16,10 +16,16 @@ import android.speech.tts.TextToSpeech
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
+import com.laralbir.japantraveltools.feature.ai.CameraOcrLine
+import com.laralbir.japantraveltools.feature.ai.CameraOcrResult
+import com.laralbir.japantraveltools.feature.ai.OcrTextZone
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -81,6 +87,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -3529,15 +3536,18 @@ private fun SelectImageRegionDialog(
     initialTop: Float,
     initialRight: Float,
     initialBottom: Float,
+    initialSelectedZones: Set<String> = emptySet(),
     isEs: Boolean,
     onDismiss: () -> Unit,
-    onConfirm: (preset: ImageCropPreset, left: Float, top: Float, right: Float, bottom: Float) -> Unit
+    onConfirm: (preset: ImageCropPreset, left: Float, top: Float, right: Float, bottom: Float, selectedZones: Set<String>) -> Unit
 ) {
     var selectedPreset by remember { mutableStateOf(initialPreset) }
     var left by remember { mutableFloatStateOf(initialLeft) }
     var top by remember { mutableFloatStateOf(initialTop) }
     var right by remember { mutableFloatStateOf(initialRight) }
     var bottom by remember { mutableFloatStateOf(initialBottom) }
+    var multiZoneMode by remember { mutableStateOf(initialSelectedZones.size > 1) }
+    val selectedZones = remember { mutableStateListOf<String>().apply { addAll(initialSelectedZones) } }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -3546,57 +3556,172 @@ private fun SelectImageRegionDialog(
             tonalElevation = 6.dp,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 16.dp)
+                .padding(vertical = 12.dp)
         ) {
             Column(
                 modifier = Modifier
-                    .padding(18.dp)
+                    .padding(16.dp)
                     .verticalScroll(rememberScrollState())
             ) {
-                Text(
-                    text = if (isEs) "✂️ Seleccionar Zona a Traducir" else "✂️ Select Area to Translate",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (isEs) "📸 Selector de Zona (Google Photos)" else "📸 Region Selector (Google Photos)",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = if (isEs) {
-                        "Elige una zona o ajusta los márgenes para que el OCR traduzca solo esa parte del cartel o menú:"
+                        "Encuadra la zona del cartel sin recortar la foto original, o activa Multizona para traducir varios bloques a la vez:"
                     } else {
-                        "Choose a zone or adjust margins so OCR translates only that portion of the sign or menu:"
+                        "Frame the area without cropping original photo, or enable Multi-Zone to translate multiple text blocks:"
                     },
-                    fontSize = 13.sp,
+                    fontSize = 12.5.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(10.dp))
 
-                // Previsualización de la imagen
+                // Previsualización no destructiva estilo Google Photos (con scrim oscuro y brackets de esquinas)
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF161616),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(180.dp)
+                        .height(240.dp)
                 ) {
                     Box(
                         contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(6.dp)
+                        modifier = Modifier.fillMaxSize()
                     ) {
                         Image(
                             bitmap = bitmap.asImageBitmap(),
-                            contentDescription = "Previsualización para recorte",
+                            contentDescription = "Previsualización Google Photos",
                             contentScale = ContentScale.Fit,
                             modifier = Modifier.fillMaxSize()
                         )
+
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val boxW = size.width
+                            val boxH = size.height
+                            val aspectBitmap = bitmap.width.toFloat() / bitmap.height.toFloat().coerceAtLeast(1f)
+                            val aspectBox = boxW / boxH.coerceAtLeast(1f)
+
+                            val imgW: Float
+                            val imgH: Float
+                            val imgX: Float
+                            val imgY: Float
+                            if (aspectBox > aspectBitmap) {
+                                imgH = boxH
+                                imgW = imgH * aspectBitmap
+                                imgX = (boxW - imgW) / 2f
+                                imgY = 0f
+                            } else {
+                                imgW = boxW
+                                imgH = imgW / aspectBitmap
+                                imgX = 0f
+                                imgY = (boxH - imgH) / 2f
+                            }
+
+                            val cropL = imgX + imgW * left
+                            val cropT = imgY + imgH * top
+                            val cropR = imgX + imgW * right
+                            val cropB = imgY + imgH * bottom
+
+                            // 1. Scrim translúcido (oscurece todo lo exterior al encuadre)
+                            val scrimColor = Color(0x99000000)
+                            if (cropT > imgY) {
+                                drawRect(scrimColor, topLeft = Offset(imgX, imgY), size = Size(imgW, cropT - imgY))
+                            }
+                            if (imgY + imgH > cropB) {
+                                drawRect(scrimColor, topLeft = Offset(imgX, cropB), size = Size(imgW, (imgY + imgH) - cropB))
+                            }
+                            if (cropL > imgX) {
+                                drawRect(scrimColor, topLeft = Offset(imgX, cropT), size = Size(cropL - imgX, cropB - cropT))
+                            }
+                            if (imgX + imgW > cropR) {
+                                drawRect(scrimColor, topLeft = Offset(cropR, cropT), size = Size((imgX + imgW) - cropR, cropB - cropT))
+                            }
+
+                            // 2. Líneas de guía de tercios (Rule of Thirds)
+                            val cropW = (cropR - cropL).coerceAtLeast(1f)
+                            val cropH = (cropB - cropT).coerceAtLeast(1f)
+                            val gridColor = Color.White.copy(alpha = 0.35f)
+                            val gridStroke = 1.dp.toPx()
+                            drawLine(gridColor, Offset(cropL + cropW / 3f, cropT), Offset(cropL + cropW / 3f, cropB), strokeWidth = gridStroke)
+                            drawLine(gridColor, Offset(cropL + 2f * cropW / 3f, cropT), Offset(cropL + 2f * cropW / 3f, cropB), strokeWidth = gridStroke)
+                            drawLine(gridColor, Offset(cropL, cropT + cropH / 3f), Offset(cropR, cropT + cropH / 3f), strokeWidth = gridStroke)
+                            drawLine(gridColor, Offset(cropL, cropT + 2f * cropH / 3f), Offset(cropR, cropT + 2f * cropH / 3f), strokeWidth = gridStroke)
+
+                            // 3. Marco de recorte blanco
+                            drawRect(
+                                color = Color.White.copy(alpha = 0.85f),
+                                topLeft = Offset(cropL, cropT),
+                                size = Size(cropW, cropH),
+                                style = Stroke(width = 1.5.dp.toPx())
+                            )
+
+                            // 4. Brackets de esquina icónicos estilo Google Photos ┌ ┐ └ ┘
+                            val bracketLen = 18.dp.toPx().coerceAtMost(cropW / 3f).coerceAtMost(cropH / 3f)
+                            val bracketStroke = 3.5.dp.toPx()
+                            val bracketColor = Color.White
+
+                            // Top-Left ┌
+                            drawLine(bracketColor, Offset(cropL, cropT), Offset(cropL + bracketLen, cropT), strokeWidth = bracketStroke)
+                            drawLine(bracketColor, Offset(cropL, cropT), Offset(cropL, cropT + bracketLen), strokeWidth = bracketStroke)
+
+                            // Top-Right ┐
+                            drawLine(bracketColor, Offset(cropR, cropT), Offset(cropR - bracketLen, cropT), strokeWidth = bracketStroke)
+                            drawLine(bracketColor, Offset(cropR, cropT), Offset(cropR, cropT + bracketLen), strokeWidth = bracketStroke)
+
+                            // Bottom-Left └
+                            drawLine(bracketColor, Offset(cropL, cropB), Offset(cropL + bracketLen, cropB), strokeWidth = bracketStroke)
+                            drawLine(bracketColor, Offset(cropL, cropB), Offset(cropL, cropB - bracketLen), strokeWidth = bracketStroke)
+
+                            // Bottom-Right ┘
+                            drawLine(bracketColor, Offset(cropR, cropB), Offset(cropR - bracketLen, cropB), strokeWidth = bracketStroke)
+                            drawLine(bracketColor, Offset(cropR, cropB), Offset(cropR, cropB - bracketLen), strokeWidth = bracketStroke)
+                        }
                     }
                 }
 
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(10.dp))
+
+                // Selector de modo Multizona
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { multiZoneMode = !multiZoneMode }
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isEs) "✨ Modo Multizona" else "✨ Multi-Zone Mode",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (isEs) "Traduce múltiples bloques de carteles simultáneamente" else "Translate multiple sign zones simultaneously",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = multiZoneMode,
+                        onCheckedChange = { multiZoneMode = it }
+                    )
+                }
+
+                Spacer(Modifier.height(8.dp))
 
                 Text(
-                    text = if (isEs) "Zonas Rápidas:" else "Quick Zones:",
+                    text = if (isEs) "Zonas Rápidas y Presets:" else "Quick Zones & Presets:",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -3607,22 +3732,50 @@ private fun SelectImageRegionDialog(
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    listOf(
+                    val presets = listOf(
                         ImageCropPreset.FULL,
                         ImageCropPreset.TOP_HALF,
                         ImageCropPreset.CENTER,
-                        ImageCropPreset.BOTTOM_HALF
-                    ).forEach { preset ->
-                        val isSel = selectedPreset == preset
+                        ImageCropPreset.BOTTOM_HALF,
+                        ImageCropPreset.LEFT_HALF,
+                        ImageCropPreset.RIGHT_HALF
+                    )
+                    presets.forEach { preset ->
+                        val isSel = if (multiZoneMode) {
+                            preset.id in selectedZones
+                        } else {
+                            selectedPreset == preset
+                        }
                         AppOptionButton(
                             text = if (isEs) preset.labelEs else preset.labelEn,
                             selected = isSel,
                             onClick = {
-                                selectedPreset = preset
-                                left = preset.leftFraction
-                                top = preset.topFraction
-                                right = preset.rightFraction
-                                bottom = preset.bottomFraction
+                                if (multiZoneMode) {
+                                    if (preset == ImageCropPreset.FULL) {
+                                        selectedZones.clear()
+                                        selectedZones.addAll(listOf("zone_top", "zone_center", "zone_bottom"))
+                                    } else {
+                                        val zoneId = when (preset) {
+                                            ImageCropPreset.TOP_HALF -> "zone_top"
+                                            ImageCropPreset.CENTER -> "zone_center"
+                                            ImageCropPreset.BOTTOM_HALF -> "zone_bottom"
+                                            ImageCropPreset.LEFT_HALF -> "zone_left"
+                                            ImageCropPreset.RIGHT_HALF -> "zone_right"
+                                            else -> preset.id
+                                        }
+                                        if (zoneId in selectedZones) {
+                                            selectedZones.remove(zoneId)
+                                        } else {
+                                            selectedZones.add(zoneId)
+                                        }
+                                    }
+                                } else {
+                                    selectedPreset = preset
+                                    left = preset.leftFraction
+                                    top = preset.topFraction
+                                    right = preset.rightFraction
+                                    bottom = preset.bottomFraction
+                                }
                             },
                             fontSize = 11.5.sp,
                             horizontalPadding = 6.dp
@@ -3630,72 +3783,74 @@ private fun SelectImageRegionDialog(
                     }
                 }
 
-                Spacer(Modifier.height(12.dp))
-                HorizontalDivider()
-                Spacer(Modifier.height(12.dp))
+                if (!multiZoneMode) {
+                    Spacer(Modifier.height(10.dp))
+                    HorizontalDivider()
+                    Spacer(Modifier.height(10.dp))
 
-                Text(
-                    text = if (isEs) "Ajuste Fino de Márgenes:" else "Fine Margin Tuning:",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = if (isEs) "Ajuste Fino de Márgenes:" else "Fine Margin Tuning:",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(4.dp))
 
-                Text(
-                    text = if (isEs) "Superior: ${(top * 100).toInt()}%" else "Top: ${(top * 100).toInt()}%",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Slider(
-                    value = top,
-                    onValueChange = {
-                        top = it.coerceAtMost(bottom - 0.1f)
-                        selectedPreset = ImageCropPreset.CUSTOM
-                    },
-                    valueRange = 0f..0.85f
-                )
+                    Text(
+                        text = if (isEs) "Superior: ${(top * 100).toInt()}%" else "Top: ${(top * 100).toInt()}%",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Slider(
+                        value = top,
+                        onValueChange = {
+                            top = it.coerceAtMost(bottom - 0.1f)
+                            selectedPreset = ImageCropPreset.CUSTOM
+                        },
+                        valueRange = 0f..0.85f
+                    )
 
-                Text(
-                    text = if (isEs) "Inferior: ${(bottom * 100).toInt()}%" else "Bottom: ${(bottom * 100).toInt()}%",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Slider(
-                    value = bottom,
-                    onValueChange = {
-                        bottom = it.coerceAtLeast(top + 0.1f)
-                        selectedPreset = ImageCropPreset.CUSTOM
-                    },
-                    valueRange = 0.15f..1f
-                )
+                    Text(
+                        text = if (isEs) "Inferior: ${(bottom * 100).toInt()}%" else "Bottom: ${(bottom * 100).toInt()}%",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Slider(
+                        value = bottom,
+                        onValueChange = {
+                            bottom = it.coerceAtLeast(top + 0.1f)
+                            selectedPreset = ImageCropPreset.CUSTOM
+                        },
+                        valueRange = 0.15f..1f
+                    )
 
-                Text(
-                    text = if (isEs) "Izquierda: ${(left * 100).toInt()}%" else "Left: ${(left * 100).toInt()}%",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Slider(
-                    value = left,
-                    onValueChange = {
-                        left = it.coerceAtMost(right - 0.1f)
-                        selectedPreset = ImageCropPreset.CUSTOM
-                    },
-                    valueRange = 0f..0.85f
-                )
+                    Text(
+                        text = if (isEs) "Izquierda: ${(left * 100).toInt()}%" else "Left: ${(left * 100).toInt()}%",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Slider(
+                        value = left,
+                        onValueChange = {
+                            left = it.coerceAtMost(right - 0.1f)
+                            selectedPreset = ImageCropPreset.CUSTOM
+                        },
+                        valueRange = 0f..0.85f
+                    )
 
-                Text(
-                    text = if (isEs) "Derecha: ${(right * 100).toInt()}%" else "Right: ${(right * 100).toInt()}%",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Slider(
-                    value = right,
-                    onValueChange = {
-                        right = it.coerceAtLeast(left + 0.1f)
-                        selectedPreset = ImageCropPreset.CUSTOM
-                    },
-                    valueRange = 0.15f..1f
-                )
+                    Text(
+                        text = if (isEs) "Derecha: ${(right * 100).toInt()}%" else "Right: ${(right * 100).toInt()}%",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Slider(
+                        value = right,
+                        onValueChange = {
+                            right = it.coerceAtLeast(left + 0.1f)
+                            selectedPreset = ImageCropPreset.CUSTOM
+                        },
+                        valueRange = 0.15f..1f
+                    )
+                }
 
                 Spacer(Modifier.height(14.dp))
 
@@ -3711,11 +3866,18 @@ private fun SelectImageRegionDialog(
                     }
                     Button(
                         onClick = {
-                            onConfirm(selectedPreset, left, top, right, bottom)
+                            val zonesToReturn = if (multiZoneMode) selectedZones.toSet() else emptySet()
+                            onConfirm(selectedPreset, left, top, right, bottom, zonesToReturn)
                         },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(if (isEs) "🔍 Traducir" else "🔍 Translate")
+                        Text(
+                            if (multiZoneMode && selectedZones.size > 1) {
+                                if (isEs) "🔍 Traducir (${selectedZones.size} zonas)" else "🔍 Translate (${selectedZones.size} zones)"
+                            } else {
+                                if (isEs) "🔍 Traducir" else "🔍 Translate"
+                            }
+                        )
                     }
                 }
             }
@@ -3752,6 +3914,10 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
     var customCropTop by remember { mutableFloatStateOf(0f) }
     var customCropRight by remember { mutableFloatStateOf(1f) }
     var customCropBottom by remember { mutableFloatStateOf(1f) }
+    var activeSelectedZones by remember { mutableStateOf(setOf<String>()) }
+    var ocrMultiZoneResults by remember { mutableStateOf<List<Pair<String, com.laralbir.japantraveltools.feature.ai.CameraOcrResult>>>(emptyList()) }
+    var ocrOnlineTranslation by remember { mutableStateOf<String?>(null) }
+    var isProcessingOnlineOcr by remember { mutableStateOf(false) }
 
     var isProcessingOcr by remember { mutableStateOf(false) }
     var ocrRawText by rememberSaveable {
@@ -3858,6 +4024,7 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
     fun processOcrImage(inputImage: InputImage, previewBitmap: Bitmap?) {
         isProcessingOcr = true
         ocrErrorMessage = null
+        ocrOnlineTranslation = null
         activeCroppedBitmap = previewBitmap
         ocrRecognizer.process(inputImage)
             .addOnSuccessListener { visionText ->
@@ -3865,6 +4032,19 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
                 val recognizedText = visionText.text
                 if (recognizedText.isNotBlank()) {
                     ocrRawText = recognizedText
+                    // Traducción online en segundo plano para enriquecer el resultado offline
+                    if (prefs?.forceOfflineMode != true) {
+                        isProcessingOnlineOcr = true
+                        coroutineScope.launch(Dispatchers.IO) {
+                            val online = OnlineTranslatorClient.translate(recognizedText, "ja", if (isEs) "es" else "en")
+                            withContext(Dispatchers.Main) {
+                                isProcessingOnlineOcr = false
+                                if (!online.isNullOrBlank()) {
+                                    ocrOnlineTranslation = online
+                                }
+                            }
+                        }
+                    }
                 } else {
                     ocrErrorMessage = if (isEs) {
                         "No se detectó texto en la zona seleccionada. Intenta seleccionar otra área o enfocar más de cerca el cartel o menú."
@@ -3883,14 +4063,92 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
             }
     }
 
+    fun runMultiZoneOcr(zoneIds: Set<String>) {
+        val orig = originalCapturedBitmap ?: return
+        isProcessingOcr = true
+        ocrErrorMessage = null
+        ocrOnlineTranslation = null
+        ocrMultiZoneResults = emptyList()
+
+        val standardZones = OfflineTranslatorEngine.getStandardMultiZones().filter { it.id in zoneIds }
+        if (standardZones.isEmpty()) {
+            return
+        }
+
+        val collectedResults = mutableListOf<Pair<String, com.laralbir.japantraveltools.feature.ai.CameraOcrResult>>()
+        val allTexts = StringBuilder()
+        var completedCount = 0
+
+        standardZones.forEach { zone ->
+            val bounds = OfflineTranslatorEngine.calculateCropBounds(
+                orig.width, orig.height,
+                zone.leftFraction, zone.topFraction,
+                zone.rightFraction, zone.bottomFraction
+            )
+            val cropped = Bitmap.createBitmap(orig, bounds.left, bounds.top, bounds.width, bounds.height)
+            val inputImage = InputImage.fromBitmap(cropped, 0)
+            ocrRecognizer.process(inputImage)
+                .addOnSuccessListener { visionText ->
+                    completedCount++
+                    val text = visionText.text.trim()
+                    if (text.isNotBlank()) {
+                        val zoneResult = OfflineTranslatorEngine.translateOcrJapaneseText(text, isEs)
+                        val label = if (isEs) zone.labelEs else zone.labelEn
+                        collectedResults.add(label to zoneResult)
+                        if (allTexts.isNotEmpty()) allTexts.append("\n---\n")
+                        allTexts.append(text)
+                    }
+                    if (completedCount == standardZones.size) {
+                        isProcessingOcr = false
+                        ocrMultiZoneResults = collectedResults.toList()
+                        if (collectedResults.isNotEmpty()) {
+                            ocrRawText = allTexts.toString()
+                            if (prefs?.forceOfflineMode != true) {
+                                isProcessingOnlineOcr = true
+                                coroutineScope.launch(Dispatchers.IO) {
+                                    val online = OnlineTranslatorClient.translate(allTexts.toString(), "ja", if (isEs) "es" else "en")
+                                    withContext(Dispatchers.Main) {
+                                        isProcessingOnlineOcr = false
+                                        if (!online.isNullOrBlank()) {
+                                            ocrOnlineTranslation = online
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            ocrErrorMessage = if (isEs) {
+                                "No se detectó texto en ninguna de las zonas seleccionadas."
+                            } else {
+                                "No text detected in any of the selected zones."
+                            }
+                        }
+                    }
+                }
+                .addOnFailureListener {
+                    completedCount++
+                    if (completedCount == standardZones.size) {
+                        isProcessingOcr = false
+                        ocrMultiZoneResults = collectedResults.toList()
+                    }
+                }
+        }
+    }
+
     fun applyCropAndRunOcr(
         preset: ImageCropPreset,
         leftFrac: Float = if (preset == ImageCropPreset.CUSTOM) customCropLeft else preset.leftFraction,
         topFrac: Float = if (preset == ImageCropPreset.CUSTOM) customCropTop else preset.topFraction,
         rightFrac: Float = if (preset == ImageCropPreset.CUSTOM) customCropRight else preset.rightFraction,
-        bottomFrac: Float = if (preset == ImageCropPreset.CUSTOM) customCropBottom else preset.bottomFraction
+        bottomFrac: Float = if (preset == ImageCropPreset.CUSTOM) customCropBottom else preset.bottomFraction,
+        selectedZones: Set<String> = emptySet()
     ) {
         activeCropPreset = preset
+        activeSelectedZones = selectedZones
+        if (selectedZones.size > 1) {
+            runMultiZoneOcr(selectedZones)
+            return
+        }
+        ocrMultiZoneResults = emptyList()
         if (preset == ImageCropPreset.CUSTOM) {
             customCropLeft = leftFrac
             customCropTop = topFrac
@@ -4950,7 +5208,59 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
 
                     Spacer(Modifier.height(14.dp))
 
-                    if (ocrResult.lines.isNotEmpty()) {
+                    if (ocrMultiZoneResults.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            ocrMultiZoneResults.forEach { (zoneLabel, zoneRes) ->
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            text = "📍 $zoneLabel",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                        )
+                                    }
+                                    zoneRes.lines.forEach { line ->
+                                        Surface(
+                                            shape = RoundedCornerShape(12.dp),
+                                            color = MaterialTheme.colorScheme.surfaceVariant,
+                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Column(modifier = Modifier.padding(12.dp)) {
+                                                Text(
+                                                    text = line.japaneseText,
+                                                    fontSize = 20.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                                if (line.romaji.isNotBlank()) {
+                                                    Spacer(Modifier.height(3.dp))
+                                                    Text(
+                                                        text = "🗣️ ${line.romaji}",
+                                                        fontSize = 13.sp,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                                Spacer(Modifier.height(6.dp))
+                                                Text(
+                                                    text = "✅ ${line.translatedText}",
+                                                    fontSize = 16.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else if (ocrResult.lines.isNotEmpty()) {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             ocrResult.lines.forEach { line ->
                                 Surface(
@@ -4985,25 +5295,6 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
                                 }
                             }
                         }
-
-                        Spacer(Modifier.height(14.dp))
-
-                        AppButtonRow(
-                            primaryText = if (isEs) "🔊 Oír en Español" else "🔊 Hear in English",
-                            onPrimaryClick = {
-                                speakOutLoud(
-                                    ocrResult.lines.joinToString(". ") { it.translatedText },
-                                    if (isEs) Locale.forLanguageTag("es-ES") else Locale.US
-                                )
-                            },
-                            secondaryText = if (isEs) "🔊 Oír en Japonés" else "🔊 Hear Japanese",
-                            onSecondaryClick = {
-                                speakOutLoud(
-                                    ocrResult.lines.joinToString(" ") { it.japaneseText },
-                                    Locale.JAPAN
-                                )
-                            }
-                        )
                     } else {
                         Surface(
                             shape = RoundedCornerShape(12.dp),
@@ -5017,6 +5308,98 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
                                 modifier = Modifier.padding(14.dp)
                             )
                         }
+                    }
+
+                    if (isProcessingOnlineOcr) {
+                        Spacer(Modifier.height(10.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = if (isEs) "🌐 Obteniendo traducción online contextual..." else "🌐 Fetching contextual online translation...",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    if (ocrOnlineTranslation != null) {
+                        Spacer(Modifier.height(10.dp))
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = if (isEs) "🌐 Traducción Online Contextual" else "🌐 Contextual Online Translation",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    IconButton(
+                                        onClick = {
+                                            speakOutLoud(
+                                                ocrOnlineTranslation!!,
+                                                if (isEs) Locale.forLanguageTag("es-ES") else Locale.US
+                                            )
+                                        },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Text("🔊", fontSize = 14.sp)
+                                    }
+                                }
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = ocrOnlineTranslation!!,
+                                    fontSize = 15.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+
+                    if (ocrResult.lines.isNotEmpty() || ocrMultiZoneResults.isNotEmpty()) {
+                        Spacer(Modifier.height(14.dp))
+
+                        AppButtonRow(
+                            primaryText = if (isEs) "🔊 Oír en Español" else "🔊 Hear in English",
+                            onPrimaryClick = {
+                                val textToSpeak = ocrOnlineTranslation ?: if (ocrMultiZoneResults.isNotEmpty()) {
+                                    ocrMultiZoneResults.flatMap { it.second.lines }.joinToString(". ") { it.translatedText }
+                                } else {
+                                    ocrResult.lines.joinToString(". ") { it.translatedText }
+                                }
+                                speakOutLoud(
+                                    textToSpeak,
+                                    if (isEs) Locale.forLanguageTag("es-ES") else Locale.US
+                                )
+                            },
+                            secondaryText = if (isEs) "🔊 Oír en Japonés" else "🔊 Hear Japanese",
+                            onSecondaryClick = {
+                                val jaToSpeak = if (ocrMultiZoneResults.isNotEmpty()) {
+                                    ocrMultiZoneResults.flatMap { it.second.lines }.joinToString(" ") { it.japaneseText }
+                                } else {
+                                    ocrResult.lines.joinToString(" ") { it.japaneseText }
+                                }
+                                speakOutLoud(
+                                    jaToSpeak,
+                                    Locale.JAPAN
+                                )
+                            }
+                        )
                     }
                 }
             }
@@ -5156,11 +5539,12 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
             initialTop = customCropTop,
             initialRight = customCropRight,
             initialBottom = customCropBottom,
+            initialSelectedZones = activeSelectedZones,
             isEs = isEs,
             onDismiss = { showRegionCropDialog = false },
-            onConfirm = { preset, l, t, r, b ->
+            onConfirm = { preset, l, t, r, b, zones ->
                 showRegionCropDialog = false
-                applyCropAndRunOcr(preset, l, t, r, b)
+                applyCropAndRunOcr(preset, l, t, r, b, zones)
             }
         )
     }

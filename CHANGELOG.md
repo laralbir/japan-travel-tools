@@ -7,6 +7,26 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Traducción Robusta de Carteles, Selector Multizona Google Fotos y Módulo de Tickets / Tax-Free con IA 🇯🇵📸🧾✨
+
+#### 📸 Traductor de Carteles por Foto (Robusto Offline + Online Contextual):
+- **Eliminación Total de "Traducción directa no disponible offline"**: Ampliación masiva del diccionario offline en `OfflineTranslatorEngine` a más de 150 carteles, letreros y términos clave de estaciones, andenes, salidas, comidas típicas, bebidas, avisos de seguridad y normas.
+- **Segmentación y Descomposición Morfológica**: Si un letrero contiene combinaciones de palabras (ej. `新宿駅 南口 改札口` o `新宿駅の南口で切符を買う`), el motor lo descompone en sus términos y kanjis conocidos para traducir cada elemento con sentido y precio en yenes (`円`).
+- **Traducción Fluida en Línea en Segundo Plano**: Integración asíncrona de `OnlineTranslatorClient` en `VoiceTranslatorScreen`. Al detectar texto japonés en una foto, se consulta automáticamente la traducción contextual en línea en segundo plano y se muestra en una tarjeta destacada con botón de audio locutado, sin bloquear ni demorar la traducción local inmediata.
+
+#### ✂️ Selector de Zona Estilo Google Fotos (No Destructivo y Multizona):
+- **Encuadre No Destructivo Estilo Google Fotos ("Sin Recortar")**: Diálogo `SelectImageRegionDialog` rediseñado con visor de la foto completa, máscara translúcida oscura (`scrim`) en el exterior, cuadrícula de tercios y los 4 brackets de esquinas icónicos `┌ ┐ └ ┘`. La foto original se preserva siempre intacta sin recortar destructivamente el archivo.
+- **Soporte Multizona (`OcrTextZone`)**: Modo multizona interactivo para seleccionar y traducir múltiples bloques o zonas de una misma foto simultáneamente (`✨ Todas las Zonas`, `⬆️ Zona 1: Superior`, `↔️ Zona 2: Central`, `⬇️ Zona 3: Inferior`, `⬅️ Zona 4: Izquierda`, `➡️ Zona 5: Derecha`).
+- **Resultados Agrupados por Zona**: Visualización de traducciones etiquetadas con distintivos de zona (`📍 Zona 1 (Superior)`, `📍 Zona 2 (Inferior)`), facilitando la lectura de carteles con múltiples indicaciones o menús divididos en secciones.
+
+#### 🧾 Comprobantes de Compra, Tax-Free y Control de Gastos del Viaje (`SPEC-08`):
+- **Entrada Manual y por OCR (Cámara, Drive o Archivo Local)**: Registro de tickets con fecha y hora (`Instant` ISO UTC formateada en hora local de Japón `Asia/Tokyo`), nombre de tienda (`storeName`), ciudad (`location`), desglose de productos (`ReceiptProductItem` con cantidad, precio unitario, tasa de impuesto al 8% o 10%), subtotal sin tasas, total de tasas y total con tasas.
+- **Reglas Fiscales Tax-Free de Japón**: Evaluación automática del umbral de compra de 5.000 ¥ sin tasas, clasificación de tipo de bienes (`CONSUMABLES`, `GENERAL_GOODS`, `MIXED`) y seguimiento del estado aduanero (`NOT_APPLICABLE`, `PENDING`, `CUSTOMS_STAMPED`, `REFUNDED`).
+- **Generador de Informes Consolidados para Solicitar Tax-Free**: Generación automática de informes agrupados por tienda y fecha, con cálculo de impuestos recuperables en ¥ y EUR (con conversión reactiva de divisas), y exportación en formato Texto, Markdown y JSON.
+- **Control de Presupuesto y Gastos del Viaje**: Cuadro de mando de gastos acumulados en ¥ y EUR, desglose por 6 categorías (`ExpenseCategory`: Compras, Comida, Transporte, Ocio, Alojamiento, Otros), porcentajes relativos y balances por día y por ciudad.
+- **Escaneo Inteligente Híbrido con IA (Cloud + Local)**: Procesamiento multimodal vía Google Gemini Vision API con fallback automático transparente al motor local offline con ML Kit Japanese OCR y parser estructural ante falta de red o API key.
+
+
 ### Bóveda de Identidad Robusta con Magic Bytes, Sesión Biométrica Activa y Despliegue ADB para Pixel 9 🇯🇵🪪⚡
 
 #### 🪪 Bóveda de Identidad (Pasaporte y DNI con PDF y Magic Bytes):
