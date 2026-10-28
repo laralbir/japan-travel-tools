@@ -256,11 +256,13 @@ data class ReceiptScanResult(
    - Cálculo exacto de líneas al 8% y 10%.
    - Umbral de 5.000 ¥ (igual a 5.000 ¥ -> elegible; 4.999 ¥ -> no elegible).
    - Clasificación `CONSUMABLES`, `GENERAL_GOODS` y `MIXED`.
-2. **Tests del Parser OCR Japonés**:
+2. **Tests del Parser OCR Trilingüe (Japonés, Inglés, Español)**:
    - Recibo de Don Quijote (compras mixtas, alimentos al 8% y souvenirs al 10%).
    - Recibo de Bic Camera (electrónica al 10% con importe superior a 5.000 ¥).
    - Recibo de Uniqlo (ropa al 10% Tax-Free).
    - Recibo de 7-Eleven (snacks al 8% por debajo del umbral).
+   - Recibo Duty-Free Internacional en Inglés (Subtotal, Tax, Grand Total, Items).
+   - Recibo y Factura Simplificada en Español (Base imponible, IVA 10%, Total a pagar, Categoría Comida).
 3. **Tests de Generación de Informes Tax-Free**:
    - Agrupación por tienda y fecha.
    - Conversión de impuestos a EUR según tasa de cambio.
@@ -268,5 +270,7 @@ data class ReceiptScanResult(
 4. **Tests de Control de Gastos y Presupuesto**:
    - Acumulados totales en ¥ y EUR.
    - Desglose por categorías, días y ciudades.
-5. **Tests de Escáner IA / Fallback**:
+5. **Tests de Escáner IA / Fallback y Fuentes (Cámara, Local, Drive y PDF)**:
    - Fallback graceful a ML Kit/Parser local cuando no hay clave o hay error en Gemini.
+   - Decodificación y rasterización de documentos PDF mediante `android.graphics.pdf.PdfRenderer` para OCR.
+   - Selección homogénea de fuentes con selector interactivo y botones estándar a 48.dp.

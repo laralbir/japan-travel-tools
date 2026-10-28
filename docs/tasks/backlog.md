@@ -328,6 +328,15 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
   - Configuración de `android:launchMode="singleTask"` e implementación de `onNewIntent` en `MainActivity`.
   - Configuración de `android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize|uiMode"` para evitar destrucciones innecesarias de la Activity.
   - Persistencia reactiva de `lastSelectedDestination` en `UserPreferencesRepository` para restaurar la herramienta activa tras suspensiones o cierres en segundo plano.
+- [x] **TASK-812 (UI/UX)**: Estandarización de Filas de Botones y Selector de Origen de Tickets (Cámara / Local / Drive):
+  - Unificación visual y ergonómica de botones de acción a una altura idéntica de `48.dp` con esquinas de `12.dp` en `ShoppingReceiptsScreen`.
+  - Eliminación de iconos huérfanos confusos (`🖼️`) y sustitución por etiquetas autoexplicativas (`📁 Local / ☁️ Drive`).
+  - Creación de diálogo selector de fuente de escaneo (`ScanSourceSelectorDialog`) con tres opciones independientes: `📷 Cámara de Fotos`, `📁 Almacenamiento Local / Galería` y `☁️ Google Drive`.
+  - Integración nativa de `android.graphics.pdf.PdfRenderer` para decodificar y rasterizar facturas o tickets PDF directamente a imagen para el OCR / IA sin dependencias externas.
+- [x] **TASK-813 (TDD/Domain)**: Analizador OCR Trilingüe (Japonés, Inglés, Español):
+  - Extensión de `JapaneseReceiptOcrParser` para reconocer tickets en inglés (recibos Duty-Free internacionales: `SUBTOTAL`, `TAX`, `VAT`, `TOTAL AMOUNT`) y español (`BASE IMPONIBLE`, `IVA 10%`, `TOTAL FACTURA`, `TOTAL A PAGAR`).
+  - Detección de formatos de fecha ISO (`YYYY/MM/DD`), europeos (`DD/MM/YYYY`) y era japonesa (`R07/03/15`).
+  - Clasificación multilingüe de categorías de gasto y tests unitarios automatizados en `TaxFreeReceiptsTest`.
 
 
 

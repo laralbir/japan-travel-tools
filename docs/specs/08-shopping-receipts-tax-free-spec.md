@@ -119,17 +119,30 @@ Cada comprobante registrado en la aplicación debe contener de forma estructurad
 
 ---
 
-### RF-08.5: Escaneo Inteligente Híbrido (Local Offline + Cloud IA)
-1. **Motor Local Offline (`JapaneseReceiptOcrParser` + ML Kit)**:
-   - Procesamiento sin conexión de texto extraído por Google ML Kit Japanese Text Recognition.
-   - Reconocimiento de patrones clave en recibos japoneses:
-     * Nombres de cadenas populares: Don Quijote (`ドン・キホーテ`), Bic Camera (`ビックカメラ`), Yodobashi (`ヨドバシ`), Uniqlo (`ユニクロ`), 7-Eleven (`セブン-イレブン`), FamilyMart (`ファミリーマート`), Lawson (`ローソン`).
-     * Detección de fechas en formato ISO (`2027/03/20`) y fecha japonesa de la era Reiwa (`R9.03.20` o `令和`).
-     * Detección de palabras clave financieras: `合計` (Total), `小計` (Subtotal), `内消費税` / `消費税等` (Impuestos incluidos), `10%対象` (Base al 10%), `8%対象` / `軽` (Base reducida al 8%), `免税` / `TAX FREE` (Tax-free).
-     * Extracción de líneas de productos con cantidades y precios asociados.
-2. **Motor Cloud IA (`Gemini Vision Multimodal`)**:
+### RF-08.5: Escaneo Inteligente Híbrido (Local Offline + Cloud IA) y Fuentes de Entrada
+1. **Selector de Origen del Ticket (Cámara, Local y Google Drive)**:
+   - El sistema proporciona un selector explícito con opciones claras:
+     * `📷 Cámara de Fotos`: Captura directa mediante la cámara del dispositivo.
+     * `📁 Almacenamiento Local / Galería`: Selección de fotos (JPG, PNG, WEBP) o documentos PDF almacenados en el teléfono.
+     * `☁️ Google Drive`: Acceso a tickets y facturas PDF o imágenes almacenadas en la nube a través del proveedor SAF (`Storage Access Framework`).
+   - **Renderizado y Decodificación Universal de Documentos PDF (`PdfRenderer`)**: Cuando el comprobante seleccionado es un archivo PDF, el motor rasteriza automáticamente la primera página a un `Bitmap` de alta resolución para alimentar al OCR local o al modelo multimodal de IA sin dependencias de terceros.
+
+2. **Motor Local Offline Trilingüe (`JapaneseReceiptOcrParser` + ML Kit)**:
+   - Procesamiento sin conexión de texto extraído por Google ML Kit Text Recognition con soporte completo para recibos en **Japonés, Inglés y Español**:
+     * **Japonés**: Cadenas populares (Don Quijote `ドン・キホーテ`, Bic Camera `ビックカメラ`, Yodobashi `ヨドバシ`, Uniqlo `ユニクロ`, 7-Eleven `セブン-イレブン`, FamilyMart, Lawson), era Reiwa (`令和` / `R7`), `合計` (Total), `小計` (Subtotal), `内消費税` (Impuestos), `免税` / `TAX FREE`.
+     * **Inglés**: Recibos duty-free o internacionales (`TAX FREE SHOP`, `DUTY FREE`, `RECEIPT`, `SUBTOTAL`, `TAX`, `VAT`, `TOTAL AMOUNT`, `GRAND TOTAL`, `ITEMS`).
+     * **Español**: Comprobantes de agencias o comercios hispanohablantes (`FACTURA SIMPLIFICADA`, `TICKET DE VENTA`, `BASE IMPONIBLE`, `IMPORTE NETO`, `CUOTA IVA`, `IVA 10%`, `TOTAL FACTURA`, `TOTAL A PAGAR`).
+     * Detección de fechas en formato ISO (`YYYY/MM/DD`), europeo (`DD/MM/YYYY`) y era japonesa (`R07/03/15`).
+     * Clasificación automática de categorías en los 3 idiomas (`Comida/Food`, `Transporte/Transport`, `Compras/Shopping`, `Alojamiento/Accommodation`, `Ocio/Leisure`).
+
+3. **Motor Cloud IA (`Gemini Vision Multimodal`)**:
    - Cuando existe conexión a internet y una Gemini API Key válida (`SPEC-06`), el sistema permite enviar la imagen del ticket directamente a Gemini Vision con un prompt estricto solicitando un esquema JSON validado con los campos: `storeName`, `dateIso`, `location`, `items`, `subtotalWithoutTaxYen`, `taxYen`, `totalWithTaxYen`, `category` y `goodsType`.
    - **Fallback Automático**: Si la llamada a Gemini Cloud falla por cuota (HTTP 429), falta de red o error de red, el sistema recurre inmediatamente y sin interrupción al motor OCR local offline.
+
+4. **Diseño de Interfaz Consistente (Filas de Botones Homogéneas)**:
+   - Todas las filas de botones de acción presentan una altura unificada idéntica de `48.dp` con esquinas redondeadas (`12.dp`), eliminando botones huérfanos con iconos desconocidos y ofreciendo etiquetas de texto autoexplicativas con icono descriptivo:
+     * Fila 1: `➕ Ticket Manual` (Filled Primary) y `✨ Escanear con IA` (Filled Primary).
+     * Fila 2: `📁 Local / ☁️ Drive` (Outlined Secondary) y `📄 Informe Aduanas` (Outlined Secondary).
 
 ---
 
