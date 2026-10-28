@@ -15,8 +15,8 @@ android {
     applicationId = "com.laralbir.japantraveltools"
     minSdk = 26
     targetSdk = 36
-    versionCode = 34
-    versionName = "1.1.0"
+    versionCode = 35
+    versionName = "1.2.0"
   }
 
   signingConfigs {
@@ -135,5 +135,5 @@ tasks.register<Exec>("installAuthorizedDebug") {
   group = "install"
   description = "Builds and installs the Debug APK via ADB/Android CLI only on devices listed in authorized-devices.local.conf (git-ignored)."
   workingDir = rootProject.projectDir
-  commandLine("zsh", "${rootProject.projectDir}/scripts/deploy-authorized-devices.sh")
+  commandLine("sh", "${rootProject.projectDir}/scripts/deploy-authorized-devices.sh")
 }

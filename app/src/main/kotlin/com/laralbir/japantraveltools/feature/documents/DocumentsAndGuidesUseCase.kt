@@ -26,7 +26,8 @@ data class TravelDocumentItem(
     val isPinned: Boolean = false,
     val internalUriPath: String? = null,
     val lastReadPage: Int = 1,
-    val fileUri: String? = internalUriPath
+    val fileUri: String? = internalUriPath,
+    val locatorCode: String? = null
 )
 
 data class TravelGuideArticle(
@@ -45,7 +46,9 @@ data class CustomIdDocumentItem(
     val subtitle: String = "",
     val fileName: String,
     val createdAtEpochMs: Long = System.currentTimeMillis()
-)
+) {
+    val isPdf: Boolean get() = fileName.endsWith(".pdf", ignoreCase = true)
+}
 
 object DefaultTravelGuidesCatalog {
     fun initialDocuments(): List<TravelDocumentItem> = listOf(
@@ -310,35 +313,174 @@ object SharedDocumentsAndGuidesStore {
         }.getOrDefault(false)
     }
 
-    // Photo vault in Context.filesDir/id_vault/
+    // Photo and PDF vault in Context.filesDir/id_vault/
     fun getIdVaultDir(context: Context): File {
         val dir = File(context.filesDir, "id_vault")
         if (!dir.exists()) dir.mkdirs()
         return dir
     }
 
-    fun saveIdPhoto(context: Context, sourceUri: Uri, targetFileName: String): Boolean {
+    fun isPdfDocumentFile(file: File?): Boolean {
+        return file != null && file.name.endsWith(".pdf", ignoreCase = true)
+    }
+
+    fun isPdfDocumentPath(path: String?): Boolean {
+        return path != null && path.endsWith(".pdf", ignoreCase = true)
+    }
+
+    fun getIdDocumentSlotBaseName(slotOrFileName: String): String {
+        return slotOrFileName.substringBeforeLast('.')
+    }
+
+    fun getIdDocumentFile(vaultDir: File, slotKey: String): File? {
+        val baseName = getIdDocumentSlotBaseName(slotKey)
+        val candidateExtensions = listOf("pdf", "jpg", "jpeg", "png", "webp")
+        for (ext in candidateExtensions) {
+            val f = File(vaultDir, "$baseName.$ext")
+            if (f.exists() && f.length() > 0) return f
+        }
+        val direct = File(vaultDir, slotKey)
+        if (direct.exists() && direct.length() > 0) return direct
+        return null
+    }
+
+    fun getIdDocumentFile(context: Context, slotKey: String): File? {
+        return getIdDocumentFile(getIdVaultDir(context), slotKey)
+    }
+
+    fun detectFileFormatByMagicBytes(bytes: ByteArray): String? {
+        if (bytes.size >= 4 &&
+            bytes[0] == 0x25.toByte() && // %
+            bytes[1] == 0x50.toByte() && // P
+            bytes[2] == 0x44.toByte() && // D
+            bytes[3] == 0x46.toByte()    // F
+        ) {
+            return "pdf"
+        }
+        if (bytes.size >= 2 &&
+            bytes[0] == 0xFF.toByte() &&
+            bytes[1] == 0xD8.toByte()
+        ) {
+            return "jpg"
+        }
+        if (bytes.size >= 4 &&
+            bytes[0] == 0x89.toByte() &&
+            bytes[1] == 0x50.toByte() && // P
+            bytes[2] == 0x4E.toByte() && // N
+            bytes[3] == 0x47.toByte()    // G
+        ) {
+            return "png"
+        }
+        if (bytes.size >= 12 &&
+            bytes[0] == 'R'.code.toByte() &&
+            bytes[1] == 'I'.code.toByte() &&
+            bytes[2] == 'F'.code.toByte() &&
+            bytes[3] == 'F'.code.toByte() &&
+            bytes[8] == 'W'.code.toByte() &&
+            bytes[9] == 'E'.code.toByte() &&
+            bytes[10] == 'B'.code.toByte() &&
+            bytes[11] == 'P'.code.toByte()
+        ) {
+            return "webp"
+        }
+        return null
+    }
+
+    fun saveIdDocumentBytesWithAutoDetect(
+        vaultDir: File,
+        sourceBytes: ByteArray,
+        slotKey: String,
+        suggestedName: String? = null
+    ): File {
+        val detected = detectFileFormatByMagicBytes(sourceBytes)
+        val ext = detected
+            ?: suggestedName?.substringAfterLast('.', "")?.takeIf { it.length in 2..5 }
+            ?: "jpg"
+        return saveIdDocument(vaultDir, sourceBytes, slotKey, ext)
+    }
+
+    fun saveIdDocument(
+        vaultDir: File,
+        sourceBytes: ByteArray,
+        slotKey: String,
+        extension: String
+    ): File {
+        val baseName = getIdDocumentSlotBaseName(slotKey)
+        val cleanExt = extension.lowercase().trim().removePrefix(".")
+        deleteIdDocument(vaultDir, slotKey)
+        val target = File(vaultDir, "$baseName.$cleanExt")
+        target.outputStream().use { it.write(sourceBytes) }
+        return target
+    }
+
+    fun saveIdDocument(
+        context: Context,
+        sourceUri: Uri,
+        slotKey: String,
+        originalName: String? = null
+    ): File? {
         return runCatching {
-            val targetFile = File(getIdVaultDir(context), targetFileName)
-            context.contentResolver.openInputStream(sourceUri)?.use { input ->
-                targetFile.outputStream().use { output ->
-                    input.copyTo(output)
+            val vaultDir = getIdVaultDir(context)
+            val baseName = getIdDocumentSlotBaseName(slotKey)
+
+            // Leemos primero a un archivo temporal para inspeccionar su cabecera binaria con seguridad
+            val tempFile = File.createTempFile("id_doc_tmp", ".bin", context.cacheDir)
+            try {
+                context.contentResolver.openInputStream(sourceUri)?.use { input ->
+                    tempFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
                 }
+                if (!tempFile.exists() || tempFile.length() == 0L) return null
+
+                val header = ByteArray(32.coerceAtMost(tempFile.length().toInt()))
+                tempFile.inputStream().use { it.read(header) }
+
+                val detectedExt = detectFileFormatByMagicBytes(header)
+                val ext = detectedExt ?: resolveFileExtension(context, sourceUri, originalName)
+
+                deleteIdDocument(vaultDir, slotKey)
+                val target = File(vaultDir, "$baseName.$ext")
+                tempFile.copyTo(target, overwrite = true)
+                if (target.exists() && target.length() > 0) target else null
+            } finally {
+                tempFile.delete()
+            }
+        }.getOrNull()
+    }
+
+    fun deleteIdDocument(vaultDir: File, slotKey: String): Boolean {
+        return runCatching {
+            val baseName = getIdDocumentSlotBaseName(slotKey)
+            val candidateExtensions = listOf("pdf", "jpg", "jpeg", "png", "webp")
+            for (ext in candidateExtensions) {
+                val f = File(vaultDir, "$baseName.$ext")
+                if (f.exists()) {
+                    f.delete()
+                }
+            }
+            val direct = File(vaultDir, slotKey)
+            if (direct.exists()) {
+                direct.delete()
             }
             true
         }.getOrDefault(false)
     }
 
+    fun deleteIdDocument(context: Context, slotKey: String): Boolean {
+        return deleteIdDocument(getIdVaultDir(context), slotKey)
+    }
+
+    fun saveIdPhoto(context: Context, sourceUri: Uri, targetFileName: String): Boolean {
+        return saveIdDocument(context, sourceUri, targetFileName) != null
+    }
+
     fun deleteIdPhoto(context: Context, fileName: String): Boolean {
-        return runCatching {
-            val file = File(getIdVaultDir(context), fileName)
-            if (file.exists()) file.delete() else true
-        }.getOrDefault(false)
+        return deleteIdDocument(context, fileName)
     }
 
     fun getIdPhotoFile(context: Context, fileName: String): File? {
-        val file = File(getIdVaultDir(context), fileName)
-        return if (file.exists() && file.length() > 0) file else null
+        return getIdDocumentFile(context, fileName)
     }
 
     fun upsertCustomIdDoc(item: CustomIdDocumentItem) {
@@ -366,14 +508,38 @@ object SharedDocumentsAndGuidesStore {
         saveToDisk()
     }
 
-    fun addCustomIdDocumentWithPhoto(
+    fun resolveFileExtension(context: Context, sourceUri: Uri, originalName: String? = null): String {
+        val fromName = originalName?.substringAfterLast('.', "")
+        if (!fromName.isNullOrBlank() && fromName.length in 2..5) {
+            return fromName.lowercase()
+        }
+        val mime = runCatching { context.contentResolver.getType(sourceUri) }.getOrNull()
+        if (mime != null) {
+            when (mime.lowercase()) {
+                "application/pdf" -> return "pdf"
+                "image/png" -> return "png"
+                "image/jpeg", "image/jpg" -> return "jpg"
+                "image/webp" -> return "webp"
+            }
+        }
+        val path = sourceUri.path
+        val fromPath = path?.substringAfterLast('.', "")
+        if (!fromPath.isNullOrBlank() && fromPath.length in 2..5) {
+            return fromPath.lowercase()
+        }
+        return "jpg"
+    }
+
+    fun addCustomIdDocumentWithFile(
         context: Context,
         title: String,
         subtitle: String,
-        sourceUri: Uri
+        sourceUri: Uri,
+        originalName: String? = null
     ): CustomIdDocumentItem? {
+        val ext = resolveFileExtension(context, sourceUri, originalName)
         val docId = "custom_doc_${System.currentTimeMillis()}"
-        val fileName = "${docId}.jpg"
+        val fileName = "${docId}.$ext"
         val saved = saveIdPhoto(context, sourceUri, fileName)
         if (!saved) return null
         val doc = CustomIdDocumentItem(
@@ -387,18 +553,44 @@ object SharedDocumentsAndGuidesStore {
         return doc
     }
 
+    fun addCustomIdDocumentWithPhoto(
+        context: Context,
+        title: String,
+        subtitle: String,
+        sourceUri: Uri
+    ): CustomIdDocumentItem? = addCustomIdDocumentWithFile(context, title, subtitle, sourceUri, null)
+
+    fun updateCustomIdDocumentFile(
+        context: Context,
+        id: String,
+        sourceUri: Uri,
+        originalName: String? = null
+    ): Boolean {
+        val current = _customIdDocsState.value.firstOrNull { it.id == id } ?: return false
+        val newExt = resolveFileExtension(context, sourceUri, originalName)
+        val currentExt = current.fileName.substringAfterLast('.', "jpg")
+        val targetFileName = if (newExt.equals(currentExt, ignoreCase = true)) {
+            current.fileName
+        } else {
+            deleteIdPhoto(context, current.fileName)
+            "${current.id}.$newExt"
+        }
+        val saved = saveIdPhoto(context, sourceUri, targetFileName)
+        if (saved) {
+            if (targetFileName != current.fileName) {
+                upsertCustomIdDoc(current.copy(fileName = targetFileName))
+            } else {
+                _customIdDocsState.value = _customIdDocsState.value.toList()
+            }
+        }
+        return saved
+    }
+
     fun updateCustomIdDocumentPhoto(
         context: Context,
         id: String,
         sourceUri: Uri
-    ): Boolean {
-        val current = _customIdDocsState.value.firstOrNull { it.id == id } ?: return false
-        val saved = saveIdPhoto(context, sourceUri, current.fileName)
-        if (saved) {
-            _customIdDocsState.value = _customIdDocsState.value.toList()
-        }
-        return saved
-    }
+    ): Boolean = updateCustomIdDocumentFile(context, id, sourceUri, null)
 }
 
 object DocumentsAndGuidesJsonCodec {
@@ -415,6 +607,8 @@ object DocumentsAndGuidesJsonCodec {
             sb.appendLine("      \"referenceOrNotes\": \"${escape(doc.referenceOrNotes)}\",")
             val fileUriStr = if (doc.fileUri != null) "\"${escape(doc.fileUri)}\"" else "null"
             sb.appendLine("      \"fileUri\": $fileUriStr,")
+            val locStr = if (doc.locatorCode != null) "\"${escape(doc.locatorCode)}\"" else "null"
+            sb.appendLine("      \"locatorCode\": $locStr,")
             sb.appendLine("      \"isPinned\": ${doc.isPinned}")
             sb.appendLine("    }$comma")
         }
@@ -433,6 +627,7 @@ object DocumentsAndGuidesJsonCodec {
             val cat = runCatching { DocumentCategory.valueOf(catName) }.getOrDefault(DocumentCategory.TICKET)
             val notes = extractString(obj, "referenceOrNotes") ?: ""
             val fileUri = extractString(obj, "fileUri")
+            val locatorCode = extractString(obj, "locatorCode")
             val isPinned = extractBoolean(obj, "isPinned") ?: false
             TravelDocumentItem(
                 id = id,
@@ -440,7 +635,8 @@ object DocumentsAndGuidesJsonCodec {
                 category = cat,
                 referenceOrNotes = notes,
                 fileUri = fileUri,
-                isPinned = isPinned
+                isPinned = isPinned,
+                locatorCode = locatorCode
             )
         }
     }
@@ -588,6 +784,12 @@ object DocumentsAndGuidesJsonCodec {
     }
 }
 
+enum class GuideSortOrder(val labelEs: String, val labelEn: String) {
+    PINNED_FIRST("Fijadas", "Pinned first"),
+    TITLE_AZ("A - Z", "Title A-Z"),
+    CITY_REGION("Ciudad", "City / Region")
+}
+
 object DocumentsFilterUseCase {
     fun filterDocuments(
         documents: List<TravelDocumentItem>,
@@ -609,20 +811,30 @@ object DocumentsFilterUseCase {
     fun filterGuides(
         guides: List<TravelGuideArticle>,
         cityFilter: String?,
-        searchQuery: String
+        searchQuery: String,
+        sortOrder: GuideSortOrder = GuideSortOrder.PINNED_FIRST
     ): List<TravelGuideArticle> {
         val q = searchQuery.trim().lowercase()
-        return guides
-            .filter { guide ->
-                val matchesCity = cityFilter.isNullOrBlank() ||
-                    cityFilter == "All" ||
-                    guide.cityRegion.equals(cityFilter, ignoreCase = true)
-                val matchesQuery = q.isEmpty() ||
-                    guide.title.lowercase().contains(q) ||
-                    guide.markdownSummary.lowercase().contains(q) ||
-                    guide.tags.any { it.lowercase().contains(q) }
-                matchesCity && matchesQuery
-            }
-            .sortedByDescending { it.isPinned }
+        val filtered = guides.filter { guide ->
+            val matchesCity = cityFilter.isNullOrBlank() ||
+                cityFilter == "All" ||
+                cityFilter == "Todas" ||
+                cityFilter == "Todos" ||
+                guide.cityRegion.equals(cityFilter, ignoreCase = true)
+            val matchesQuery = q.isEmpty() ||
+                guide.title.lowercase().contains(q) ||
+                guide.markdownSummary.lowercase().contains(q) ||
+                guide.tags.any { it.lowercase().contains(q) }
+            matchesCity && matchesQuery
+        }
+        return when (sortOrder) {
+            GuideSortOrder.PINNED_FIRST -> filtered.sortedWith(
+                compareByDescending<TravelGuideArticle> { it.isPinned }.thenBy { it.title.lowercase() }
+            )
+            GuideSortOrder.TITLE_AZ -> filtered.sortedBy { it.title.lowercase() }
+            GuideSortOrder.CITY_REGION -> filtered.sortedWith(
+                compareBy<TravelGuideArticle> { it.cityRegion.lowercase() }.thenBy { it.title.lowercase() }
+            )
+        }
     }
 }

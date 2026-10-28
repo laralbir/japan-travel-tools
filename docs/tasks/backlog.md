@@ -202,3 +202,151 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 - [x] **TASK-134 (UI)**: Rediseño Ergonómico de Botones en Tarjetas:
   - Rediseñar botones en `ItineraryStopCard` y `TransportSegmentCard` con altura reducida y disposición limpia.
 - [x] **TASK-135**: Publicación de release `v1.1.0` en GitHub Releases con compilación completa firmada para Google Play Store (`.aab` y `.apk`) y APK debug.
+
+---
+
+## Hito 13: Traductor de Texto Bidireccional y Locución en Japonés (Issue #8)
+
+### Traducción de Texto y Locución en Japonés (Issue #8)
+- [x] **TASK-136 (TDD)**: Extracción y Pruebas Exhaustivas de `OfflineTranslatorEngine` (`Issue #8 / SPEC-06`):
+  - Extraer `OfflineTranslatorEngine.kt` a archivo propio en `feature.ai` y crear test suite `OfflineTranslatorEngineTest`.
+  - Ampliar diccionario para consultas frecuentes de viaje (restaurante, bebidas con cantidades, precios, aseos, direcciones, cortesía) en español e inglés.
+- [x] **TASK-137 (TDD/UI)**: Corrección de Audio en Frases Habituales en Japonés (`Issue #8 / SPEC-06`):
+  - Corregir reproducción de audio en frases habituales de prueba de la Tarjeta 1 para que hable en japonés (`Locale.JAPAN` / `ja-JP`) en vez de español.
+- [x] **TASK-138 (UI)**: Sección Dedicada de Traductor de Texto (Español ➔ Japonés) (`Issue #8 / SPEC-06`):
+  - Añadir tarjeta dedicada con `OutlinedTextField` multilínea, botón `🇯🇵 Traducir a Japonés`, visualización de caracteres Kanji/Kana con fonética Romaji, botón `🔊 Escuchar en Japonés` y fichas de preguntas rápidas.
+
+---
+
+## Hito 14: Adjuntos PDF en Pasaporte/DNI, Ciclo de Vida de Bóveda y Consolidación de Frases de Viaje
+
+### Bóveda de Pasaporte y DNI (`SPEC-03`)
+- [x] **TASK-408 (TDD)**: Soporte de PDF e Imagen en Pasaporte y DNI (`SPEC-03 RF-03.1`):
+  - Implementar en `SharedDocumentsAndGuidesStore` los métodos `getIdDocumentFile`, `saveIdDocument` y `deleteIdDocument` para soportar extensiones `.pdf`, `.jpg`, `.jpeg`, `.png`, `.webp` en los slots `passport_data_page`, `dni_front` y `dni_back`.
+  - Diseñar `IdDocumentSection` con soporte interactivo para PDFs (tarjeta de documento PDF con tamaño, apertura en visor PDF externo) e imágenes (miniatura táctil con zoom full-screen), con botones de acción para `📸 Cámara`, `🖼️ Galería`, `📄 Adjuntar PDF` y `🗑️ Eliminar`.
+- [x] **TASK-409 (TDD)**: Prevención de Re-bloqueo Biométrico en Captura/Selección Externa (`SPEC-03 RF-03.3`):
+  - Eliminar el bloqueo prematuro en `ON_PAUSE` del ciclo de vida en `PassportAndCustomsScreen`.
+  - Implementar flag `isLaunchingExternalPicker` para evitar que la transición a la cámara del sistema o al selector de archivos SAF active el bloqueo en `ON_STOP` o relance el modal biométrico al volver a la app.
+
+### Traductor de Voz y Texto (`SPEC-06`)
+- [x] **TASK-711 (TDD)**: Consolidación y Desduplicación de Frases Habituales de Viaje en Japonés (`SPEC-06 RF-06.1`):
+  - Retirar las listas de preguntas/frases embebidas en las 3 tarjetas de traducción individuales (Texto, Voz JP->ES y Voz ES->JP).
+  - Implementar en `OfflineTranslatorEngine` la colección consolidada y desduplicada `travelerQuickPhrases` con categorías estructuradas.
+  - Diseñar la tarjeta unificada al pie de la pantalla en `VoiceTranslatorScreen` con visualización obligatoria dual (Español y Japonés con Kanji/Kana y fonética Romaji) y botón directo de audio `🔊` en japonés (`Locale.JAPAN`).
+
+---
+
+## Hito 15: Traductor de Texto en Sección Independiente con Botones Estilo Pestaña
+
+### Navegación de Traductor y Pestaña de Texto (`SPEC-06`)
+- [x] **TASK-712 (TDD)**: Modelo de Modos de Navegación por Pestañas del Traductor (`SPEC-06 RF-06.1.3`):
+  - Definir enum `TranslatorTabMode` (`VOICE`, `TEXT`, `CAMERA`) con identificador, icono y etiquetas localizadas en `OfflineTranslatorEngine.kt`.
+  - Crear pruebas unitarias en `OfflineTranslatorEngineTest.kt` validando los modos, títulos y filtrado de contenido de cada pestaña.
+- [x] **TASK-713 (UI/TDD)**: Pestaña Independiente de Traductor de Texto en `VoiceTranslatorScreen` (`SPEC-06 RF-06.1.3`):
+  - Actualizar la barra superior de modos con botones de estilo pestaña (`AppOptionButton`) para `🎙️ Voz`, `✍️ Texto` y `📷 Carteles / Cámara`.
+  - Desplegar la sección de Traductor de Texto exclusivamente en la pestaña `TEXT`, con tarjeta completa de traducción (entrada multilínea, botones de traducción y locución, visor de caracteres japoneses, romaji y audio).
+  - Incorporar en la pestaña `TEXT` la opción de seleccionar/insertar frases rápidas de viaje en el campo de texto.
+  - Mantener en la pestaña `VOICE` las tarjetas de conversación bidireccional y las frases habituales con audio al pie.
+  - Mantener en la pestaña `CAMERA` el traductor OCR de carteles y menús.
+- [x] **TASK-714 (TDD/UI)**: Orientación EXIF de Cámara, Rotación 90° y Selección de Área/Recorte para OCR (`SPEC-06 RF-06.1.4`):
+  - Implementar decodificación con corrección de orientación EXIF (`ExifInterface`) para evitar que las fotos tomadas con la cámara nativa se giren o carguen apaisadas.
+  - Implementar botón de rotación manual `🔄 Girar 90°` en la tarjeta de foto capturada.
+  - Implementar selección de región de imagen (`ImageCropPreset` y `calculateCropBounds`) con presets rápidos (`Toda la foto`, `Superior`, `Centro`, `Inferior`, `Personalizada`).
+  - Implementar diálogo/panel `SelectImageRegionDialog` con controles de márgenes y previsualización interactiva de la caja delimitadora para enviar únicamente el sub-mapa de bits recortado a ML Kit OCR.
+
+---
+
+## Hito 16: Robustez de Adjuntos PDF en Bóveda, Prevención Definitiva de Rebloqueo Biométrico y Fix Despliegue ADB Pixel 9
+
+### Bóveda de Identidad y PDF (`SPEC-03`)
+- [x] **TASK-715 (TDD)**: Detección Binaria de Archivos por Magic Bytes y Selector SAF en `SharedDocumentsAndGuidesStore` (`SPEC-03 RF-03.3`):
+  - Implementar `detectFileFormatByMagicBytes` para identificar encabezados `%PDF-`, `0xFF, 0xD8` (JPEG) y `0x89, 0x50` (PNG).
+  - Usar la detección binaria en `saveIdDocument` para asignar la extensión correcta (`pdf`, `jpg`, `png`) sin depender de nombres o tipos MIME imprecisos.
+  - Migrar `pdfPickerLauncher` y selectores a `ActivityResultContracts.OpenDocument()` con `arrayOf("application/pdf", "*/*")` y persistencia de permisos URI.
+- [x] **TASK-716 (UI/Lifecycle)**: Sesión Temporal con `rememberSaveable` y Prevención de Rebloqueo en Bóveda (`SPEC-03 RF-03.3`):
+  - Migrar el estado de sesión a `var lastUnlockTimestamp by rememberSaveable { mutableStateOf(0L) }`.
+  - Evaluar `isSessionValid = !VaultSecurityPolicy.isSessionExpired(lastUnlockTimestamp, System.currentTimeMillis())`.
+  - Ajustar `Lifecycle.Event.ON_STOP` y `onDispose` para no invalidar `lastUnlockTimestamp` cuando `isLaunchingExternalPicker` es verdadero.
+  - Sincronizar auto-bloqueo tras 120s o al pulsar el botón `🔒 Bloquear`.
+- [x] **TASK-717 (DevOps)**: Optimización del Script de Despliegue ADB para Evitar Cuelgues en Pixel 9:
+  - Eliminar la llamada a `android install` con delta-install que se cuelga en Android 15.
+  - Usar directamente `adb install -r -d -t` con timeout de 35 segundos para una instalación fluida y sin bloqueos.
+
+---
+
+## Hito 17: Traducción Robusta de Carteles (Offline + Online) y Selector Multizona Estilo Google Fotos
+
+### Motor de Traducción de Carteles y Menús (`SPEC-06`)
+- [x] **TASK-718 (TDD)**: Diccionario Offline Ampliado y Tokenizador Morfológico para Carteles en `OfflineTranslatorEngine` (`SPEC-06 RF-06.1.6`):
+  - Expandir el diccionario offline a más de 150 términos y expresiones categorizadas de viaje (carteles urbanos, estaciones, salidas, andenes, advertencias, normas, platos de comida, bebidas, precios, etc.).
+  - Implementar segmentación y descomposición morfológica de frases compuestas en japonés para traducir cada vocablo o kanji conocido, eliminando por completo el mensaje genérico de *"Traducción directa no disponible offline"*.
+  - Crear tests unitarios en `OfflineTranslatorEngineTest.kt` validando carteles de estaciones, comida, precios, advertencias y segmentación morfológica.
+- [x] **TASK-719 (Async/TDD)**: Traducción Fluida en Línea en Segundo Plano para OCR (`SPEC-06 RF-06.1.6`):
+  - Conectar el resultado de OCR en `VoiceTranslatorScreen` con `OnlineTranslatorClient` para consultar traducción contextual en línea en segundo plano cuando haya conexión y no esté forzado el modo offline.
+  - Mostrar la traducción online contextual en una tarjeta destacada con botón de audio locutado, complementando los desgloses offline instantáneos.
+- [x] **TASK-720 (UI/TDD)**: Selector de Zonas de Foto no Destructivo Estilo Google Fotos y Soporte Multizona (`SPEC-06 RF-06.1.5`):
+  - Diseñar el diálogo/visor interactivo `SelectImageRegionDialog` con encuadre no destructivo sobre la foto original (sin recortar el archivo base): imagen completa, máscara atenuada (`scrim`), cuadrícula de tercios y los 4 brackets de esquinas icónicos `┌ ┐ └ ┘`.
+  - Soporte Multizona (`OcrTextZone`): selector rápido de presets individuales (`Toda la foto`, `Superior`, `Centro`, `Inferior`, `Izquierda`, `Derecha`) y modo multizona con procesamiento en bloque y agrupación de resultados traducidos por zona (`📍 Zona 1`, `📍 Zona 2`, etc.).
+- [x] **TASK-721 (UI/Touch)**: Arrastre Táctil Directo para Encuadre de Carteles y Maximización de Pantalla (`SPEC-06 RF-06.1.5`):
+  - Reemplazo completo de deslizadores numéricos por gestos multitáctiles en Compose (`pointerInput` + `detectDragGestures`).
+  - Redimensionamiento arrastrando con el dedo esquinas (`TOP_LEFT`, `TOP_RIGHT`, `BOTTOM_LEFT`, `BOTTOM_RIGHT`) y bordes (`EDGE_TOP`, `EDGE_BOTTOM`, `EDGE_LEFT`, `EDGE_RIGHT`).
+  - Desplazamiento/paneo completo del recuadro de encuadre tocando y arrastrando el interior (`MOVE_BOX`).
+  - Maximización del área visual de la imagen en pantalla a 380.dp de altura y ancho completo (`usePlatformDefaultWidth = false`), permitiendo inspeccionar cómodamente los textos antes de traducir.
+
+---
+
+## Hito 18: Tickets de Compra, Tax-Free, Control de Gastos y Escaneo IA (Local + Cloud)
+
+### Módulo de Comprobantes, Tax-Free y Presupuesto (`SPEC-08`)
+- [x] **TASK-801 (SDD)**: Especificación Funcional de Tickets de Compra, Tax-Free y Control de Gastos:
+  - Crear `docs/specs/08-shopping-receipts-tax-free-spec.md` detallando campos, reglas de 5.000 ¥, consumibles/generales/mixtos, control presupuestario y escaneo híbrido.
+- [x] **TASK-802 (Analysis)**: Análisis Técnico y Arquitectura Clean Architecture:
+  - Crear `docs/analysis/08-shopping-receipts-tax-free-analysis.md` detallando entidades, contratos y estrategia de testing.
+- [x] **TASK-803 (TDD/Domain)**: Modelos de Dominio y Calculador de Reglas Tax-Free de Japón:
+  - Definir `ReceiptProductItem`, `ShoppingReceipt`, `GoodsType`, `TaxFreeClaimStatus` y `ExpenseCategory` en `ShoppingReceiptsModels.kt`.
+  - Implementar cálculo de subtotales, desglose impositivo al 8% y 10%, y umbral de 5.000 ¥ sin impuestos.
+- [x] **TASK-804 (TDD/Domain)**: Analizador OCR de Recibos Japoneses (`JapaneseReceiptOcrParser`):
+  - Reconocimiento de cadenas principales (*Don Quijote, Bic Camera, Uniqlo, 7-Eleven, Lawson, FamilyMart*).
+  - Detección de fechas gregorianas y era Reiwa, extracción de productos, subtotales, `内消費税` e indicadores `8% / 10%`.
+- [x] **TASK-805 (TDD/Domain)**: Generador de Informes Consolidados de Tax-Free (`TaxFreeReportGenerator`):
+  - Agrupación por tienda y fecha, cálculo de impuesto recuperable en ¥ y EUR con Frankfurter API.
+  - Exportación en formatos Texto, Markdown y JSON portable.
+- [x] **TASK-806 (TDD/Domain)**: Módulo de Control de Presupuesto y Gastos del Viaje (`TravelBudgetSummary`):
+  - Acumulados totales de gasto en ¥ y EUR, desgloses por categoría (`ExpenseCategory`), por día y por ciudad.
+- [x] **TASK-807 (TDD/Data)**: Almacén Persistente y Gestor de Tickets (`ShoppingReceiptsStore`):
+  - Persistencia de comprobantes en almacenamiento privado (`filesDir`), soporte CRUD reactivo y cálculo de balances.
+- [x] **TASK-808 (TDD/AI)**: Escáner Inteligente Híbrido con Gemini Cloud Vision y Fallback a ML Kit (`AiReceiptScannerEngine`):
+  - Extracción multimodal vía Gemini Vision con fallback automático a ML Kit local offline ante errores o falta de red/clave.
+- [x] **TASK-809 (Test)**: Suite de Tests Unitarios Exhaustiva (`TaxFreeReceiptsTest`):
+  - Verificación de cálculos fiscales, reglas de umbral, parser OCR japonés, informes Tax-Free, control de gastos y escaneo híbrido.
+- [x] **TASK-810 (UI/Integration)**: Pantalla de Tickets, Tax-Free y Presupuesto (`ShoppingReceiptsScreen`):
+  - Pantalla adaptativa con listado de tickets, formulario de alta manual / OCR / Cloud IA (cámara, Drive o archivo local).
+  - Resumen visual de gastos (¥ y EUR) por categoría y tarjeta de saldo para reembolso Tax-Free.
+  - Generador y visor del informe de solicitud de Tax-Free para aduanas con exportación a portapapeles/archivo.
+  - Integración en la navegación principal y selector de herramientas (`TAX_FREE_RECEIPTS`).
+- [x] **TASK-811 (Lifecycle/Android)**: Prevención de Reinicio de App al Cambiar de Aplicación en Android:
+  - Configuración de `android:launchMode="singleTask"` e implementación de `onNewIntent` en `MainActivity`.
+  - Configuración de `android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize|uiMode"` para evitar destrucciones innecesarias de la Activity.
+  - Persistencia reactiva de `lastSelectedDestination` en `UserPreferencesRepository` para restaurar la herramienta activa tras suspensiones o cierres en segundo plano.
+- [x] **TASK-812 (UI/UX)**: Estandarización de Filas de Botones y Selector de Origen de Tickets (Cámara / Local / Drive):
+  - Unificación visual y ergonómica de botones de acción a una altura idéntica de `48.dp` con esquinas de `12.dp` en `ShoppingReceiptsScreen`.
+  - Eliminación de iconos huérfanos confusos (`🖼️`) y sustitución por etiquetas autoexplicativas (`📁 Local / ☁️ Drive`).
+  - Creación de diálogo selector de fuente de escaneo (`ScanSourceSelectorDialog`) con tres opciones independientes: `📷 Cámara de Fotos`, `📁 Almacenamiento Local / Galería` y `☁️ Google Drive`.
+  - Integración nativa de `android.graphics.pdf.PdfRenderer` para decodificar y rasterizar facturas o tickets PDF directamente a imagen para el OCR / IA sin dependencias externas.
+- [x] **TASK-813 (TDD/Domain)**: Analizador OCR Trilingüe (Japonés, Inglés, Español):
+  - Extensión de `JapaneseReceiptOcrParser` para reconocer tickets en inglés (recibos Duty-Free internacionales: `SUBTOTAL`, `TAX`, `VAT`, `TOTAL AMOUNT`) y español (`BASE IMPONIBLE`, `IVA 10%`, `TOTAL FACTURA`, `TOTAL A PAGAR`).
+  - Detección de formatos de fecha ISO (`YYYY/MM/DD`), europeos (`DD/MM/YYYY`) y era japonesa (`R07/03/15`).
+  - Clasificación multilingüe de categorías de gasto y tests unitarios automatizados en `TaxFreeReceiptsTest`.
+- [x] **TASK-814 (TDD/UI)**: Soporte Multidivisa (Yen JPY, Euro EUR, Dólar USD) con Detección OCR y Diálogo de Ambigüedad:
+  - Extensión de `JapaneseReceiptOcrParser` con `detectCurrency` e `isCurrencyAmbiguous`.
+  - Normalización de importes con `parsePriceString` soportando formato decimal europeo (coma) e internacional (punto), así como etiquetas de divisa integradas (`$ 55.00 USD`).
+  - Normalización cambiaria y cálculo de importes equivalentes en yenes (`¥`) y euros (`EUR`).
+  - Diálogo emergente `ReceiptCurrencySelectionDialog` para preguntar activamente al viajero la divisa cuando el OCR no pueda determinarla con certeza.
+  - Inclusión de selector de moneda (`FilterChips`) en `ShoppingReceiptEditorModalSheet` y visualización dual (moneda nativa y equivalente en ¥) en `ShoppingReceiptCard`.
+  - Tests unitarios exhaustivos en `TaxFreeReceiptsTest` superados al 100%.
+
+
+
+
+
+

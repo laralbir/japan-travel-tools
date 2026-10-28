@@ -7,6 +7,112 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-28
+
+### Traducción Robusta de Carteles, Selector Multizona Google Fotos y Módulo de Tickets / Tax-Free con IA 🇯🇵📸🧾✨
+
+#### 📸 Traductor de Carteles por Foto (Robusto Offline + Online Contextual):
+- **Eliminación Total de "Traducción directa no disponible offline"**: Ampliación masiva del diccionario offline en `OfflineTranslatorEngine` a más de 150 carteles, letreros y términos clave de estaciones, andenes, salidas, comidas típicas, bebidas, avisos de seguridad y normas.
+- **Segmentación y Descomposición Morfológica**: Si un letrero contiene combinaciones de palabras (ej. `新宿駅 南口 改札口` o `新宿駅の南口で切符を買う`), el motor lo descompone en sus términos y kanjis conocidos para traducir cada elemento con sentido y precio en yenes (`円`).
+- **Traducción Fluida en Línea en Segundo Plano**: Integración asíncrona de `OnlineTranslatorClient` en `VoiceTranslatorScreen`. Al detectar texto japonés en una foto, se consulta automáticamente la traducción contextual en línea en segundo plano y se muestra en una tarjeta destacada con botón de audio locutado, sin bloquear ni demorar la traducción local inmediata.
+
+#### ✂️ Selector de Zona Estilo Google Fotos (Arrastre Táctil, Maximizado y Multizona):
+- **Arrastre Táctil Interactivo con el Dedo (`detectDragGestures`)**: Sustitución completa de los 4 deslizadores numéricos (`Slider`) por gestos táctiles directos sobre la imagen. Permite cambiar el tamaño del recuadro arrastrando con el dedo las esquinas (`TOP_LEFT`, `TOP_RIGHT`, `BOTTOM_LEFT`, `BOTTOM_RIGHT`) o los bordes (`EDGE_TOP`, `EDGE_BOTTOM`, `EDGE_LEFT`, `EDGE_RIGHT`), y desplazar/panear todo el recuadro arrastrando desde el interior.
+- **Espacio de Pantalla Maximizado (380.dp y Ancho Completo)**: Ampliación del área de previsualización de la foto de 240.dp a 380.dp con `usePlatformDefaultWidth = false`, optimizando el espacio visual en pantalla para leer e inspeccionar claramente los textos y carteles en japonés antes de traducir.
+- **Encuadre No Destructivo Estilo Google Fotos ("Sin Recortar")**: Diálogo `SelectImageRegionDialog` con visor de la foto completa, máscara translúcida oscura (`scrim`) en el exterior, cuadrícula de tercios, brackets de esquinas icónicos `┌ ┐ └ ┘` y tiradores circulares táctiles. La foto original se preserva siempre intacta sin recortar destructivamente el archivo.
+- **Soporte Multizona (`OcrTextZone`)**: Modo multizona interactivo para seleccionar y traducir múltiples bloques o zonas de una misma foto simultáneamente (`✨ Todas las Zonas`, `⬆️ Zona 1: Superior`, `↔️ Zona 2: Central`, `⬇️ Zona 3: Inferior`, `⬅️ Zona 4: Izquierda`, `➡️ Zona 5: Derecha`).
+- **Resultados Agrupados por Zona**: Visualización de traducciones etiquetadas con distintivos de zona (`📍 Zona 1 (Superior)`, `📍 Zona 2 (Inferior)`), facilitando la lectura de carteles con múltiples indicaciones o menús divididos en secciones.
+
+#### 🧾 Comprobantes de Compra, Tax-Free y Control de Gastos del Viaje (`SPEC-08`):
+- **Pantalla Adaptativa de Tickets y Tax-Free (`ShoppingReceiptsScreen`)**: Interfaz completa integrada en el menú de navegación con cuadro de mando de gastos (¥ y EUR), desglose por categorías (`ExpenseCategory`), saldo recuperable de Tax-Free, listado interactivo con estados aduaneros (Pendiente, Sellado, Reembolsado) y diálogo de informe para aduanas con copia al portapapeles.
+- **Entrada Manual y por OCR (Cámara, Drive o Archivo Local)**: Registro de tickets con fecha y hora (`Instant` ISO UTC formateada en hora local de Japón `Asia/Tokyo`), nombre de tienda (`storeName`), ciudad (`location`), desglose de productos (`ReceiptProductItem` con cantidad, precio unitario, tasa de impuesto al 8% o 10%), subtotal sin tasas, total de tasas y total con tasas.
+- **Reglas Fiscales Tax-Free de Japón**: Evaluación automática del umbral de compra de 5.000 ¥ sin tasas, clasificación de tipo de bienes (`CONSUMABLES`, `GENERAL_GOODS`, `MIXED`) y seguimiento del estado aduanero (`NOT_APPLICABLE`, `PENDING`, `CUSTOMS_STAMPED`, `REFUNDED`).
+- **Generador de Informes Consolidados para Solicitar Tax-Free**: Generación automática de informes agrupados por tienda y fecha, con cálculo de impuestos recuperables en ¥ y EUR (con conversión reactiva de divisas), y exportación en formato Texto, Markdown y JSON.
+- **Control de Presupuesto y Gastos del Viaje**: Cuadro de mando de gastos acumulados en ¥ y EUR, desglose por 6 categorías (`ExpenseCategory`: Compras, Comida, Transporte, Ocio, Alojamiento, Otros), porcentajes relativos y balances por día y por ciudad.
+- **Escaneo Inteligente Híbrido con IA (Cloud + Local)**: Procesamiento multimodal vía Google Gemini Vision API con fallback automático transparente al motor local offline con ML Kit Japanese OCR y parser estructural ante falta de red o API key.
+- **Selector de Origen del Ticket (Cámara, Local o Google Drive) y Decodificación PDF**: Diálogo selector interactivo `ScanSourceSelectorDialog` con opciones independientes para capturar desde la cámara, seleccionar desde la galería local o abrir desde Google Drive (SAF). Incorpora rasterizado nativo de facturas o tickets en PDF mediante `android.graphics.pdf.PdfRenderer` para procesar comprobantes digitales directamente en el OCR/IA.
+- **Analizador OCR Trilingüe (Japonés, Inglés, Español)**: Ampliación de `JapaneseReceiptOcrParser` para extraer de manera determinista información de tickets en japonés (caracteres kanji/kana, era Reiwa, Don Quijote, Bic Camera, Uniqlo, 7-Eleven), tickets en inglés (recibos duty-free o internacionales: `SUBTOTAL`, `TAX`, `VAT`, `TOTAL AMOUNT`, `GRAND TOTAL`) y facturas/tickets en español (`BASE IMPONIBLE`, `IVA 10%`, `TOTAL FACTURA`, `TOTAL A PAGAR`).
+- **Unificación de Alturas y Ergonomía de Botones de Acción (48.dp)**: Reestructuración de la barra de acciones de `ShoppingReceiptsScreen` en 2 filas equilibradas con altura uniforme de `48.dp` y esquinas redondeadas (`12.dp`), eliminando iconos enigmáticos huérfanos y ofreciendo etiquetas de texto claras (`➕ Ticket Manual`, `✨ Escanear con IA`, `📁 Local / ☁️ Drive`, `📄 Informe Aduanas`).
+- **Soporte Multidivisa (Yen JPY, Euro EUR, Dólar USD) con Detección OCR y Diálogo de Ambigüedad**: Extensión de `JapaneseReceiptOcrParser` y `AiReceiptScannerEngine` para reconocer tickets expresados en Euros (`€`, `EUR`), Dólares estadounidenses (`$`, `USD`) y Yenes (`¥`, `円`). Si el OCR no detecta con certeza la divisa del comprobante, la aplicación abre interactivamente el diálogo `ReceiptCurrencySelectionDialog` para que el viajero elija la moneda correspondiente. Incluye selector manual en el formulario de edición, soporte de coma y punto decimal, y visualización dual en las tarjetas de compra (moneda nativa y contravalor en ¥).
+
+#### 🔄 Prevención de Reinicio de App al Cambiar de Aplicación en Android:
+- **Lanzamiento `singleTask` en `AndroidManifest.xml`**: Configuración de `android:launchMode="singleTask"` e implementación de `onNewIntent` en `MainActivity`. Al cambiar de aplicación y volver a abrir la app desde el launcher, Android trae al frente la instancia existente sin recrear la Activity ni reiniciar el estado.
+- **Gestión de Cambios de Configuración (`android:configChanges`)**: Declaración explícita de `orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize|uiMode` para evitar reinicios espurios de la Activity ante rotaciones, cambios de modo oscuro o redimensionamiento de pantalla.
+- **Persistencia de Pantalla Activa (`lastSelectedDestination`)**: Almacenamiento reactivo de la herramienta activa en `UserPreferencesRepository`. En caso de que el sistema operativo cierre el proceso por falta de memoria RAM en segundo plano, la app restaura exactamente la pantalla en la que se encontraba el viajero al reabrirla.
+
+
+### Bóveda de Identidad Robusta con Magic Bytes, Sesión Biométrica Activa y Despliegue ADB para Pixel 9 🇯🇵🪪⚡
+
+#### 🪪 Bóveda de Identidad (Pasaporte y DNI con PDF y Magic Bytes):
+- **Detección Binaria de Formatos por Magic Bytes (`detectFileFormatByMagicBytes`)**: Análisis de cabeceras binarias (`%PDF-`, `0xFF 0xD8`, `0x89 0x50`) que garantiza que los archivos PDF adjuntados se guarden siempre con la extensión `.pdf` y se visualicen correctamente con la tarjeta y visor PDF, incluso si el selector de archivos o proveedor SAF no devuelve extensión o MIME type.
+- **Selector SAF `OpenDocument` con Soporte Universal**: Migración de `GetContent` a `ActivityResultContracts.OpenDocument()` con tipos `arrayOf("application/pdf", "*/*")` y `takePersistableUriPermission` para adjuntar PDFs desde cualquier gestor de archivos o nube sin restricciones.
+- **Gestión de Sesión Biométrica Activa con `rememberSaveable`**: Sustitución del booleano efímero por una marca temporal (`lastUnlockTimestamp`) en `rememberSaveable`. La sesión de 120 segundos sobrevive a la recreación de la actividad (al tomar fotos de alta resolución o rotar el teléfono) y a la apertura del selector de archivos (`isLaunchingExternalPicker`), impidiendo que el diálogo biométrico salte de forma espuria al volver a la app.
+
+#### ⚡ Optimización del Despliegue ADB para Google Pixel 9:
+- **Corrección de Cuelgues en Android 15 (`deploy-authorized-devices.sh`)**: Sustitución de `android install` (cuyo demonio de instalación incremental delta se bloquea en Android 15 / Pixel 9) por instalación directa mediante `adb install -r -d -t` con límite de tiempo de 35 segundos para una instalación limpia, rápida y sin cuelgues.
+
+### Traductor de Texto en Pestaña Independiente, Orientación EXIF y Recorte de Región para Carteles 🇯🇵✍️📷
+
+#### ✍️ Pestañas Independientes del Traductor:
+- **Estructuración en 3 Modos por Pestañas**: Separación clara de la pantalla de traducción mediante barra superior estilizada (`AppOptionButton`) en `🎙️ Voz`, `✍️ Texto` y `📷 Carteles / Cámara`.
+- **Pestaña Exclusiva de Texto**: Entorno enfocado para redactar en español/inglés, con traducción instantánea a caracteres japoneses (*Kanji/Kana*), transcripción fonética *Romaji*, locución por voz nativa y acceso a frases de viaje para inserción directa en el cuadro de texto.
+- **Pestaña de Voz y Conversación**: Centralización de la escucha e interpretación por voz bidireccional junto con el catálogo de frases habituales al pie de la pantalla.
+
+#### 📷 Orientación EXIF, Rotación 90° y Selección de Área de Imagen para OCR:
+- **Corrección Automática de Orientación EXIF**: Detección y corrección de la orientación de los sensores de cámara (`ExifInterface.TAG_ORIENTATION`) al capturar fotos desde la app nativa o seleccionar desde la galería, asegurando que las imágenes se procesen siempre en posición vertical real sin giros de 90°.
+- **Botón Manual `🔄 Girar 90°`**: Capacidad para rotar manualmente la foto en incrementos de 90 grados en caso de carteles verticales o fotografías apaisadas.
+- **Selección de Región de Interés (ROI / Crop)**: Capacidad para seleccionar qué parte específica de la imagen procesar antes del reconocimiento OCR, con chips de recorte preestablecidos (*🖼️ Toda la foto*, *⬆️ Zona Superior*, *↔️ Zona Central*, *⬇️ Zona Inferior*, *✂️ Personalizada*).
+- **Diálogo Interactivo `SelectImageRegionDialog`**: Diálogo modal con deslizadores de márgenes y caja delimitadora visual en tiempo real para recortar con precisión y traducir solo el cartel, menú o plato deseado.
+
+### Bóveda de Identidad con PDF, Prevención de Rebloqueo Biométrico y Frases Rápidas de Viaje Unificadas 🇯🇵🪪🗣️
+
+#### 🪪 Pasaporte y DNI con Soporte Multi-Formato PDF y Prevención de Rebloqueo:
+- **Soporte de Documentos PDF en Pasaporte y DNI**: Extensión de las ranuras principales de identidad (`passport_data_page`, `dni_front`, `dni_back`) para permitir adjuntar tanto imágenes como archivos PDF con visor externo nativo de Android.
+- **Excepción de Ciclo de Vida para Lanzadores Externos**: Flag reactivo `isLaunchingExternalPicker` para evitar que la bóveda se bloquee y vuelva a pedir la biometría al abrir o regresar de la cámara nativa o del selector del sistema de archivos (`ActivityResultLauncher`).
+
+#### 🗣️ Frases de Viaje Unificadas y Deduplicadas en el Traductor:
+- **Consolidación en Tarjeta Única**: Eliminación de las listas de preguntas duplicadas incrustadas en las tres tarjetas superiores del traductor, centralizándolas al final de la pantalla en una sección unificada sin frases repetidas.
+- **Visualización Bilingüe con Audio Inmediato**: Cada frase muestra su texto en español/inglés, caracteres japoneses (*Kanji/Kana*), transcripción *Romaji* y botón directo de audio `🔊` en japonés nativo (`Locale.JAPAN`).
+- **Filtrado por Categorías Temáticas**: Chips de acceso rápido para explorar frases por contexto (*Todas, Cortesía, Restaurante, Transporte, Compras / Tax-Free, Emergencias*).
+
+### Mejoras Globales, Ajustes de Teclado, Bóveda, Reservas y Guías — Issues #6, #7, #8, #9 y #10 🇯🇵✨
+
+#### ⌨️ Corrección de Visibilidad del Teclado Virtual (IME) — Issue #7:
+- **`Modifier.imePadding()` en Contenedores Raíz**: Incorporación de padding reactivo de teclado en las pantallas principales (`ActiveToolContent`) para teléfono y tableta, impidiendo que el teclado virtual tape los campos de texto activos (#7).
+- **Soporte IME y Desplazamiento Vertical en Hojas Modales**: Aplicación de `.navigationBarsPadding().imePadding().verticalScroll(rememberScrollState())` en las 8 hojas modales del sistema (paradas, transportes, documentos, guías, ciudades del tiempo, documentos de identidad y conectividad), garantizando que cualquier formulario sea desplazable y visible mientras se escribe (#7).
+
+#### 🪪 Bóveda de Identidad y Documentos con Cámara y PDF — Issue #6:
+- **Captura Fotográfica con Cámara Nativa (`TakePicture`)**: Soporte directo para fotografiar el pasaporte, el DNI (anverso y reverso) o documentos personalizados mediante el contrato de cámara de Android con FileProvider (#6).
+- **Soporte de Documentos PDF y Cualquier Extensión**: Capacidad para adjuntar certificados y documentos en formato PDF con tarjeta dedicada de previsualización y apertura mediante el visor externo de Android (#6).
+- **Unificación del Botón de Añadir Documentos**: Eliminación del botón duplicado en el estado vacío, manteniendo un único botón compacto y accesible en la cabecera de la sección (#6).
+
+#### 🎫 Reservas y Billetes con Botones Compactos, Cámara y Pases QR Offline — Issue #9:
+- **Estandarización de Botones a Fila Compacta (34dp)**: Reemplazo de los botones grandes invasivos por una fila sutil y compacta de 34dp alineada con el resto de la aplicación (`📄 Archivo`, `🎫 Pase QR`, `✏️ Editar`, `🗑️`) (#9).
+- **Captura Fotográfica de Billetes y Entradas**: Soporte para tomar fotos de entradas de papel o billetes físicos directamente desde la cámara al crear o editar documentos (#9).
+- **Pase Digital Estilo Wallet Offline (`WalletTicketPassDialog`)**: Soporte de código localizador con visor de pase de alta visibilidad y recomendación de brillo para escaneo rápido en tornos de tren o parques (#9).
+
+#### 📖 Guías de Viaje con Botones Compactos, Visor Completo y Ordenación — Issue #10:
+- **Botones Compactos y Vista Previa Resumida**: Sustitución de botones grandes por la fila estilizada de 34dp (`📖 Leer Guía`, `✏️ Editar`, `🗑️`) y truncado del texto a 3 líneas con puntos suspensivos en las tarjetas de lista (#10).
+- **Visor Modal de Lectura Cómoda (`FullGuideReaderDialog`)**: Despliegue de la guía completa en diálogo amplio con tipografía cómoda de lectura (16sp/25sp) y etiquetas (#10).
+- **Selector de Ordenación Dinámico (`GuideSortOrder`)**: Selector de ordenación para alternar entre *📌 Fijadas*, *🔤 A - Z* o *🏙️ Por Ciudad* (#10).
+
+### Traductor de Texto Bidireccional y Locución en Japonés — Issue #8 🇯🇵🗣️
+
+#### ✍️ Traductor de Texto (Español / Inglés ➔ Japonés):
+- **Nueva Tarjeta Dedicada en `VoiceTranslatorScreen`**: Incorporación de sección `Traductor de Texto (Español ➔ Japonés)` con `OutlinedTextField` multilínea para redactar cualquier consulta o frase de viaje en español o inglés (#8).
+- **Traducción Inmediata y Visualización de Kanji/Kana + Romaji**: Botón rápido `🇯🇵 Traducir a Japonés` que genera al instante la traducción a caracteres japoneses con desglose fonético Romaji y badge contextual (#8).
+- **Locución en Japonés por Android TextToSpeech (`Locale.JAPAN` / `ja-JP`)**: Botón dedicado `🔊 Escuchar en Japonés` para reproducir la pronunciación exacta ante locales japoneses o practicar fonética (#8).
+- **Preguntas Rápidas de Viaje**: Fichas interactivas para rellenar, traducir y escuchar al instante dudas frecuentes (*"¿Dónde está el baño?"*, *"¿Cuánto cuesta?"*, *"La cuenta, por favor"*, *"¿Tienen menú en inglés?"*, *"Una cerveza, por favor"*, *"Dos cervezas, por favor"*, *"Agua, por favor"*, *"¿Aceptan tarjeta?"*, *"Muchas gracias"*, etc.) (#8).
+
+#### 🔊 Corrección de Audio en Frases Habituales en Japonés:
+- **Locución en Japonés en `incomingJapaneseSamples`**: Corrección del comportamiento en las frases habituales de prueba de la tarjeta 1; ahora se reproducen en japonés con `Locale.JAPAN` en lugar de hablar en español, permitiendo al viajero escuchar la pronunciación original y mostrársela a interlocutores locales (#8).
+- **Botones de Altavoz Claros y Accesibles**: Inclusión de controles de altavoz específicos tanto para la locución en japonés como para la traducción al español en las tarjetas del traductor (#8).
+
+#### 🧩 Modularización de `OfflineTranslatorEngine`:
+- **Extracción de `OfflineTranslatorEngine.kt`**: Traslado del motor de traducción léxica offline y cliente online desde `AiAndTranslatorUseCase.kt` a un archivo dedicado `OfflineTranslatorEngine.kt` en el paquete `feature.ai` (#8).
+- **Tests Unitarios Exhaustivos (`OfflineTranslatorEngineTest`)**: Adición de suite de tests unitarios verificando traducción bidireccional, preguntas comunes, cantidades y soporte multilingüe (#8).
+
+
 ## [1.1.0] - 2026-10-27
 
 ### Portabilidad JSON Unificada, Zonas Horarias ISO UTC, Sincronización en Segundo Plano y Bóveda Biométrica — Japan Travel Tools 1.1.0 🇯🇵🚀

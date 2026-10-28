@@ -34,17 +34,43 @@ Dotar a **Japan Travel Tools** de capacidades de Inteligencia Artificial mediant
           - **Tarjeta 1 (Español ➔ Japonés)**: Muestra el texto capturado en español, la traducción en caracteres japoneses grandes (`Kanji/Kana`) y la transcripción fonética en **Romaji**, con botón para reproducir en audio japonés.
           - **Tarjeta 2 (Japonés ➔ Español)**: Muestra el texto japonés capturado (`Kanji/Kana`), su fonética en **Romaji** y la traducción fiel en español (o inglés), con botón para reproducir en audio español.
        5. **Detección Automática de Idioma Bidireccional (`Smart Language Routing`)**: Si se detectan caracteres japoneses en el micrófono del viajero, la app reconoce que se habló en japonés y locuta la traducción en español. A la inversa, si se habla en español o inglés en el micrófono del interlocutor, lo traduce y locuta en japonés.
-       6. **Controles de Reproducción de Voz Directa (`🔊 Escuchar en Japonés` / `🔊 Escuchar en Español`) y Auto-Locución**: Cualquier frase seleccionada o traducida puede reproducirse por altavoz con un toque (y cuenta con interruptor de locución automática activado por defecto).
-3. **Traducción Visual con Cámara (Menús, Carteles e Ingredientes — OCR Offline)**:
+       6. **Controles de Reproducción de Voz Directa (`🔊 Escuchar en Japonés` / `🔊 Escuchar en Español`) y Auto-Locución**: Cualquier frase seleccionada o traducida puede reproducirse por altavoz con un toque (y cuenta con interruptor de locución automática activado por defecto). En el apartado de frases habituales en japonés, la reproducción se realiza obligatoriamente en japonés (`Locale.JAPAN` / `ja-JP`) para que el viajero pueda escuchar cómo suena o mostrárselo a personas locales (#8).
+3. **Traductor de Texto Dedicado en Sección de Pestaña Propia (Español / Inglés ➔ Japonés — Issue #8 / Hito 15)**:
+   - **Navegación por Pestañas Independientes (`TranslatorTabMode`)**:
+     - La pantalla de traducción estructura sus herramientas en **tres secciones principales independientes** seleccionables mediante botones de estilo pestaña (`AppOptionButton`) en la parte superior:
+       1. `🎙️ Voz` (`VOICE`): Modo conversación guiado por voz bidireccional (Japonés ➔ Español y Español ➔ Japonés con opción de volteo 180°) y frases habituales de viaje con locución inmediata.
+       2. `✍️ Texto` (`TEXT`): Sección dedicada y exclusiva para la traducción escrita de texto libre (Español/Inglés ➔ Japonés).
+       3. `📷 Cámara / Carteles` (`CAMERA`): Sección de traducción visual de menús y carteles mediante OCR offline y cámara en vivo.
+   - **Tarjeta Independiente para Entrada de Texto**: Dispone de un `OutlinedTextField` multilínea para que el viajero pueda redactar cualquier consulta o frase libremente (ej. *"¿Dónde está el baño?"*, *"La cuenta, por favor"*, *"Una cerveza, por favor"*, etc.).
+   - **Traducción Inmediata y Fonética**: Botón `🇯🇵 Traducir a Japonés` que genera al instante la traducción a caracteres japoneses (`Kanji/Kana`) junto con su fonética `Romaji` y categoría temática.
+   - **Locución en Japonés por Voz (`ja-JP`)**: Botón prominente `🔊 Escuchar en Japonés` para reproducir la pronunciación exacta mediante Android TextToSpeech (`Locale.JAPAN`).
+   - **Inserción Rápida de Frases en Modo Texto**: En la pestaña de texto se proporciona acceso directo a las frases habituales de viaje para poder insertar cualquier consulta típica en el campo de texto con un toque y traducirla o escucharla al momento.
+   - Las tarjetas individuales de traducción (Texto, Voz Japonés ➔ Español y Voz Español ➔ Japonés) se mantienen limpias y concisas, sin listas redundantes ni preguntas incrustadas en su interior.
+4. **Traducción Visual con Cámara (Menús, Carteles e Ingredientes — OCR Offline — Hito 15)**:
    - **Permisos en Tiempo de Ejecución y Captura Robusta**: Manejo de permiso de cámara `CAMERA` en runtime con `rememberLauncherForActivityResult(RequestPermission)` antes de invocar la captura.
    - **Captura directa y selección de fotos**: Botones para abrir la cámara y tomar foto instantánea en alta resolución mediante `FileProvider` en caché (`ActivityResultContracts.TakePicture`) con fallback a `TakePicturePreview`, o importar fotos desde la galería/archivos (`GetContent("image/*")`).
-   - **Reconocimiento de Texto Japonés (Kanji / Kana)**: Procesamiento mediante **Google ML Kit Text Recognition v2 (Japanese)** (`JapaneseTextRecognizerOptions`) sobre la imagen, extrayendo los caracteres japoneses.
-   - **Traducción Inmediata y Pronunciación**: Desglose línea por línea del cartel o menú en español/inglés, con pronunciación fonética en Romaji, detección de precios en yenes (`¥`) y botón para escuchar la locución por voz (`🔊`).
+   - **Corrección Automática de Orientación EXIF**:
+     - Al capturar o importar una fotografía, la aplicación inspecciona los metadatos EXIF (`ExifInterface.TAG_ORIENTATION`) y rota la imagen a su orientación vertical natural (`0°`, `90°`, `180°`, `270°`) antes de renderizarla o procesarla con el reconocedor de caracteres.
+     - Se proporciona un botón manual `🔄 Girar 90°` para rotar la imagen en el sentido de las agujas del reloj tantas veces como sea necesario para corregir carteles tomados en ángulos complejos.
+   - **Selección de Región a Traducir Estilo Google Fotos y Soporte Multizona (`RF-06.1.5`)**:
+     - Visualización no destructiva sobre la foto completa: la imagen original permanece intacta en el fondo, con una máscara atenuada (`scrim`) y recuadros delimitadores interactivos con esquinas estilo visor de edición de fotos.
+     - **Soporte Multizona y Detección Automática**:
+       - Al escanear la foto, los bloques de texto detectados por ML Kit se identifican como zonas independientes numeradas.
+       - El usuario puede tocar directamente sobre cualquier bloque de texto en pantalla para activarlo/desactivarlo, seleccionar una zona única o activar la traducción conjunta multizona (*Todas las Zonas*).
+       - Permite añadir recuadros manuales personalizados o ajustar zonas con tiradores táctiles.
+       - Los resultados de la traducción se asocian visualmente a su zona correspondiente (*📍 Zona 1*, *📍 Zona 2*).
+   - **Reconocimiento de Texto Japonés (Kanji / Kana) y Motor Robusto de Traducción (`RF-06.1.6`)**:
+     - Procesamiento mediante **Google ML Kit Text Recognition v2 (Japanese)** (`JapaneseTextRecognizerOptions`) sobre la imagen completa o las zonas seleccionadas.
+     - **Diccionario Offline Especializado y Extenso (>500 términos)**: Cobertura masiva de carteles urbanos, estaciones de tren (*JR, Shinkansen, Metro*), salidas, andenes, señalizaciones viales, advertencias, restaurantes, menús (*Izakaya, Ramen, Sushi, Yakiniku*), bebidas, ingredientes, farmacia, tiendas y precios en yenes.
+     - **Tokenización y Segmentación Morfológica**: Si una línea no coincide con una frase exacta del catálogo, el motor segmenta los términos y kanjis componentes traduciéndolos individualmente (ej. `[新宿駅: Estación Shinjuku] · [南口: Salida Sur] · [切符: Billetes]`), eliminando el mensaje genérico de *"Traducción directa no disponible offline"*.
+     - **Traducción Fluida Online en Segundo Plano**: Cuando el dispositivo dispone de conexión a internet (y no está en modo forzar offline), el traductor consulta automáticamente `OnlineTranslatorClient` en segundo plano para obtener la traducción gramatical fluida completa y actualizar la UI reactivamente.
+   - **Pronunciación y Locución en Japonés**: Desglose línea por línea en español e inglés, transcripción fonética en Romaji, detección de importes en yenes (`¥ / 円`) y botón de locución por voz nativa (`🔊 Locale.JAPAN`).
    - **Carteles de Prueba Rápida**: Muestras representativas de carteles y menús comunes en Japón (*Ramen 1000円*, *Zona de no fumadores*, *Completo/Sold out*, *Andén Shinkansen*, *Aseos*, *Salida*, *Solo efectivo*) para pruebas inmediatas.
-4. **Lanzador Directo a Google Lens / Google Translate / Cámara del Sistema**:
-   - Tarjeta dedicada con selector dual: `🌐 Abrir Google Lens` (abre directamente la experiencia de realidad aumentada de Lens con detección de texto y paquetes declarados en `<queries>`) y `🌐 Google Traductor` con fallback automático a la cámara nativa del sistema (`MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA`) o selector web.
-5. **Tarjetas de Frases Esenciales y Alergias 100% Offline**:
-   - Tarjetas pre-cargadas de emergencia/supervivencia (alergias alimentarias, pedir la cuenta, ¿dónde está el baño/andén?, *Tax-Free*) con texto japonés a gran tamaño y audio offline.
+5. **Sección Unificada de Frases Habituales de Viaje en Japonés (Al Final y Sin Repeticiones)**:
+   - En lugar de fragmentar preguntas en cada tarjeta, la pantalla consolida al final una **tarjeta unificada y dedicada** de frases hechas y preguntas habituales de viaje para hablar en japonés.
+   - **Sin Repeticiones**: Lista única, desduplicada y clasificada temáticamente (Cortesía, Restaurante, Trenes y Transporte, Tiendas y Pagos, Hotel y Dirección, Emergencias y Salud).
+   - **Representación Dual Obligatoria**: Cada frase muestra con total claridad tanto el **texto en español** (o inglés según el idioma activo) como el **texto en japonés** (`Kanji/Kana`) y su fonética en **Romaji**.
+   - **Locución Instantánea en Japonés**: Cada elemento dispone de un botón directo de altavoz `🔊` para que el teléfono reproduzca de inmediato la frase en voz alta en japonés (`Locale.JAPAN`), permitiendo que el viajero la escuche para aprenderla o se la muestre/reproduzca directamente al interlocutor local.
 
 ### RF-06.2: Asistente de Viaje con IA (Google Gemini: On-Device + Cloud con Caché Offline)
 1. **Arquitectura Híbrida de Gemini (Optimizada para Pixel 10/9 Pro XL y Tablet TCL)**:

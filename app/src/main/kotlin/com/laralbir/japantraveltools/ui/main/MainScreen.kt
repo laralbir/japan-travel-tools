@@ -10,15 +10,26 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.CalendarContract
 import android.provider.MediaStore
+import android.provider.OpenableColumns
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
+import com.laralbir.japantraveltools.feature.ai.CameraOcrLine
+import com.laralbir.japantraveltools.feature.ai.CameraOcrResult
+import com.laralbir.japantraveltools.feature.ai.OcrTextZone
+import kotlin.math.abs
+import kotlin.math.hypot
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -71,11 +82,16 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import android.graphics.Matrix
+import android.media.ExifInterface
+import androidx.compose.material3.Slider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -95,8 +111,14 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.window.Dialog
+import com.laralbir.japantraveltools.feature.ai.CropBounds
+import com.laralbir.japantraveltools.feature.ai.ImageCropPreset
+import com.laralbir.japantraveltools.feature.ai.TranslatorTabMode
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavKey
 import com.laralbir.japantraveltools.core.cloud.GoogleDriveSyncCard
@@ -119,6 +141,7 @@ import com.laralbir.japantraveltools.feature.ai.AssistantSource
 import com.laralbir.japantraveltools.feature.ai.GeminiAssistantEngine
 import com.laralbir.japantraveltools.feature.ai.OfflineTranslatorEngine
 import com.laralbir.japantraveltools.feature.ai.OnlineTranslatorClient
+import com.laralbir.japantraveltools.feature.ai.SimultaneousTranslationItem
 import com.laralbir.japantraveltools.feature.ai.GeminiApiKeySetupCard
 import com.laralbir.japantraveltools.feature.ai.GeminiApiKeyHelper
 import com.laralbir.japantraveltools.feature.ai.MarkdownText
@@ -152,6 +175,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.laralbir.japantraveltools.feature.documents.SharedDocumentsAndGuidesStore
+import com.laralbir.japantraveltools.feature.taxfree.SharedShoppingReceiptsStore
 import com.laralbir.japantraveltools.feature.documents.VaultSecurityPolicy
 import com.laralbir.japantraveltools.feature.documents.TravelDocumentItem
 import com.laralbir.japantraveltools.feature.documents.TravelGuideArticle
@@ -159,6 +183,7 @@ import com.laralbir.japantraveltools.feature.documents.DocumentCategory
 import com.laralbir.japantraveltools.feature.documents.DocumentsFilterUseCase
 import com.laralbir.japantraveltools.feature.documents.FullScreenZoomableImageViewerDialog
 import com.laralbir.japantraveltools.feature.documents.CustomIdDocumentItem
+import com.laralbir.japantraveltools.feature.documents.GuideSortOrder
 import com.laralbir.japantraveltools.feature.planner.ItineraryStopItem
 import com.laralbir.japantraveltools.feature.planner.StopCategory
 import com.laralbir.japantraveltools.feature.planner.TripPlannerUseCase
@@ -204,11 +229,12 @@ enum class JapanDrawerDestination(
     CURRENCY(DrawerSection.QUICK_TOOLS, "Conversor de Divisas", "Currency Converter", "💴"),
     CLOCKS(DrawerSection.QUICK_TOOLS, "Relojes y Husos", "Clocks & Timezones", "🕒"),
     WEATHER(DrawerSection.QUICK_TOOLS, "Tiempo (Open-Meteo)", "Weather (Open-Meteo)", "🌦️"),
+    TAX_FREE_RECEIPTS(DrawerSection.QUICK_TOOLS, "Tickets y Tax-Free", "Receipts & Tax-Free", "🧾"),
 
     PLANNER(DrawerSection.PLANNING, "Planificador de Viaje", "Trip Planner", "🗓️"),
     TRANSPORT(DrawerSection.PLANNING, "Transporte y Trenes", "Trains & Flights", "🚄"),
 
-    VOICE_TRANSLATOR(DrawerSection.VOICE_AI, "Traductor por Voz", "Voice Translator", "🎙️"),
+    VOICE_TRANSLATOR(DrawerSection.VOICE_AI, "Traductor", "Translator", "🗣️"),
     AI_ASSISTANT(DrawerSection.VOICE_AI, "Asistente IA de Viaje", "AI Travel Assistant", "✨"),
 
     PASSPORT_CUSTOMS(DrawerSection.DOCS_GUIDES, "Pasaporte y Aduanas", "Passport & Customs", "🛂"),
@@ -317,7 +343,9 @@ private fun AppOptionButton(
     text: String,
     selected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    fontSize: TextUnit = 14.sp,
+    horizontalPadding: Dp = 10.dp
 ) {
     val containerColor = if (selected) {
         MaterialTheme.colorScheme.primaryContainer
@@ -347,11 +375,11 @@ private fun AppOptionButton(
             contentAlignment = Alignment.Center,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 12.dp)
+                .padding(horizontal = horizontalPadding)
         ) {
             Text(
                 text = text,
-                fontSize = 14.sp,
+                fontSize = fontSize,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                 color = contentColor,
                 maxLines = 1,
@@ -466,6 +494,7 @@ fun JapanTravelToolsAppContent(
         SharedTravelPlanStore.init(context)
         SharedDocumentsAndGuidesStore.init(context)
         SharedWeatherForecastStore.init(context)
+        SharedShoppingReceiptsStore.init(context)
     }
     val configuration = LocalConfiguration.current
     val isTabletExpanded = configuration.screenWidthDp >= 720
@@ -473,7 +502,17 @@ fun JapanTravelToolsAppContent(
     val effectiveLang = LanguageResolver.resolveEffectiveLanguage(prefs.language)
     val isEs = effectiveLang == EffectiveLanguage.SPANISH
 
-    var selectedDestination by rememberSaveable { mutableStateOf(JapanDrawerDestination.CURRENCY) }
+    val initialDestination = remember(prefs.lastSelectedDestination) {
+        runCatching { JapanDrawerDestination.valueOf(prefs.lastSelectedDestination) }
+            .getOrDefault(JapanDrawerDestination.CURRENCY)
+    }
+    var selectedDestination by rememberSaveable { mutableStateOf(initialDestination) }
+
+    fun navigateTo(dest: JapanDrawerDestination) {
+        selectedDestination = dest
+        prefsRepository.setLastSelectedDestination(dest.name)
+    }
+
     var showJsonPortabilitySheet by rememberSaveable { mutableStateOf(false) }
     var showConnectivitySheet by rememberSaveable { mutableStateOf(false) }
 
@@ -531,7 +570,7 @@ fun JapanTravelToolsAppContent(
                     SideDrawerMenuContent(
                         isEs = isEs,
                         selectedDestination = selectedDestination,
-                        onSelectDestination = { dest -> selectedDestination = dest }
+                        onSelectDestination = { dest -> navigateTo(dest) }
                     )
                 }
             }
@@ -555,6 +594,7 @@ fun JapanTravelToolsAppContent(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
+                        .imePadding()
                 ) {
                     ActiveToolContent(
                         destination = selectedDestination,
@@ -563,7 +603,7 @@ fun JapanTravelToolsAppContent(
                         prefs = prefs,
                         prefsRepository = prefsRepository,
                         onOpenPlanSheet = { showJsonPortabilitySheet = true },
-                        onNavigateToDestination = { selectedDestination = it }
+                        onNavigateToDestination = { navigateTo(it) }
                     )
                 }
             }
@@ -580,7 +620,7 @@ fun JapanTravelToolsAppContent(
                         isEs = isEs,
                         selectedDestination = selectedDestination,
                         onSelectDestination = { dest ->
-                            selectedDestination = dest
+                            navigateTo(dest)
                             coroutineScope.launch { drawerState.close() }
                         }
                     )
@@ -609,6 +649,7 @@ fun JapanTravelToolsAppContent(
                         .fillMaxSize()
                         .padding(innerPadding)
                         .navigationBarsPadding()
+                        .imePadding()
                 ) {
                     ActiveToolContent(
                         destination = selectedDestination,
@@ -617,7 +658,7 @@ fun JapanTravelToolsAppContent(
                         prefs = prefs,
                         prefsRepository = prefsRepository,
                         onOpenPlanSheet = { showJsonPortabilitySheet = true },
-                        onNavigateToDestination = { selectedDestination = it }
+                        onNavigateToDestination = { navigateTo(it) }
                     )
                 }
             }
@@ -834,6 +875,7 @@ private fun ActiveToolContent(
         JapanDrawerDestination.CURRENCY -> CurrencyToolScreen(isEs = isEs, prefs = prefs, prefsRepository = prefsRepository)
         JapanDrawerDestination.CLOCKS -> ClocksToolScreen(isEs = isEs, currentInstant = currentInstant, prefs = prefs, prefsRepository = prefsRepository)
         JapanDrawerDestination.WEATHER -> WeatherToolScreen(isEs = isEs)
+        JapanDrawerDestination.TAX_FREE_RECEIPTS -> ShoppingReceiptsScreen(isEs = isEs, prefs = prefs)
         JapanDrawerDestination.PLANNER -> TripPlannerTabScreen(isEs = isEs, onOpenJsonPortability = onOpenPlanSheet)
         JapanDrawerDestination.TRANSPORT -> TransportTabScreen(isEs = isEs, onOpenJsonPortability = onOpenPlanSheet)
         JapanDrawerDestination.VOICE_TRANSLATOR -> VoiceTranslatorScreen(isEs = isEs, prefs = prefs)
@@ -1603,7 +1645,8 @@ private fun CityWeatherEditorModalSheet(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp, vertical = 10.dp)
-                .navigationBarsPadding(),
+                .navigationBarsPadding()
+                .imePadding(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
@@ -2415,7 +2458,8 @@ private fun ItineraryStopEditorModalSheet(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp, vertical = 10.dp)
-                .navigationBarsPadding(),
+                .navigationBarsPadding()
+                .imePadding(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
@@ -2638,7 +2682,8 @@ private fun PlanEditorModalSheet(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp, vertical = 10.dp)
-                .navigationBarsPadding(),
+                .navigationBarsPadding()
+                .imePadding(),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Text(
@@ -2728,7 +2773,8 @@ private fun PlanSwitcherModalSheet(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp, vertical = 10.dp)
-                .navigationBarsPadding(),
+                .navigationBarsPadding()
+                .imePadding(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
@@ -3279,7 +3325,8 @@ private fun TransportSegmentEditorModalSheet(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp, vertical = 10.dp)
-                .navigationBarsPadding(),
+                .navigationBarsPadding()
+                .imePadding(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
@@ -3499,11 +3546,454 @@ private fun TransportSegmentEditorModalSheet(
 // ============================================================================
 // 6. VOICE & CAMERA TRANSLATOR SCREEN (BIDIRECTIONAL STT + CAMERA OCR)
 // ============================================================================
+private enum class CropDragHandle {
+    NONE, TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT,
+    EDGE_TOP, EDGE_BOTTOM, EDGE_LEFT, EDGE_RIGHT,
+    MOVE_BOX
+}
+
+@Composable
+private fun SelectImageRegionDialog(
+    bitmap: Bitmap,
+    initialPreset: ImageCropPreset,
+    initialLeft: Float,
+    initialTop: Float,
+    initialRight: Float,
+    initialBottom: Float,
+    initialSelectedZones: Set<String> = emptySet(),
+    isEs: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (preset: ImageCropPreset, left: Float, top: Float, right: Float, bottom: Float, selectedZones: Set<String>) -> Unit
+) {
+    var selectedPreset by remember { mutableStateOf(initialPreset) }
+    var left by remember { mutableFloatStateOf(initialLeft) }
+    var top by remember { mutableFloatStateOf(initialTop) }
+    var right by remember { mutableFloatStateOf(initialRight) }
+    var bottom by remember { mutableFloatStateOf(initialBottom) }
+    var multiZoneMode by remember { mutableStateOf(initialSelectedZones.size > 1) }
+    val selectedZones = remember { mutableStateListOf<String>().apply { addAll(initialSelectedZones) } }
+    var activeDragHandle by remember { mutableStateOf(CropDragHandle.NONE) }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(14.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (isEs) "📸 Selector de Zona (Arrastre Táctil)" else "📸 Region Selector (Touch Drag)",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = if (isEs) {
+                        "Arrastra con el dedo las esquinas o bordes para encuadrar el cartel sin recortar la foto original:"
+                    } else {
+                        "Drag corners or edges with your finger to frame the sign without cropping original photo:"
+                    },
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
+
+                // Previsualización no destructiva maximizada estilo Google Photos (con arrastre táctil)
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF141414),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(380.dp)
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(bitmap) {
+                                val boxW = size.width.toFloat()
+                                val boxH = size.height.toFloat()
+                                val aspectBitmap = bitmap.width.toFloat() / bitmap.height.toFloat().coerceAtLeast(1f)
+                                val aspectBox = boxW / boxH.coerceAtLeast(1f)
+
+                                val imgW: Float
+                                val imgH: Float
+                                val imgX: Float
+                                val imgY: Float
+                                if (aspectBox > aspectBitmap) {
+                                    imgH = boxH
+                                    imgW = imgH * aspectBitmap
+                                    imgX = (boxW - imgW) / 2f
+                                    imgY = 0f
+                                } else {
+                                    imgW = boxW
+                                    imgH = imgW / aspectBitmap
+                                    imgX = 0f
+                                    imgY = (boxH - imgH) / 2f
+                                }
+
+                                val cornerSlop = 40.dp.toPx()
+                                val edgeSlop = 28.dp.toPx()
+
+                                detectDragGestures(
+                                    onDragStart = { offset ->
+                                        val cropL = imgX + imgW * left
+                                        val cropT = imgY + imgH * top
+                                        val cropR = imgX + imgW * right
+                                        val cropB = imgY + imgH * bottom
+
+                                        val tx = offset.x
+                                        val ty = offset.y
+
+                                        activeDragHandle = when {
+                                            // 1. Esquinas (prioridad táctil máxima)
+                                            hypot(tx - cropL, ty - cropT) <= cornerSlop -> CropDragHandle.TOP_LEFT
+                                            hypot(tx - cropR, ty - cropT) <= cornerSlop -> CropDragHandle.TOP_RIGHT
+                                            hypot(tx - cropL, ty - cropB) <= cornerSlop -> CropDragHandle.BOTTOM_LEFT
+                                            hypot(tx - cropR, ty - cropB) <= cornerSlop -> CropDragHandle.BOTTOM_RIGHT
+
+                                            // 2. Bordes
+                                            abs(ty - cropT) <= edgeSlop && tx >= (cropL - 10f) && tx <= (cropR + 10f) -> CropDragHandle.EDGE_TOP
+                                            abs(ty - cropB) <= edgeSlop && tx >= (cropL - 10f) && tx <= (cropR + 10f) -> CropDragHandle.EDGE_BOTTOM
+                                            abs(tx - cropL) <= edgeSlop && ty >= (cropT - 10f) && ty <= (cropB + 10f) -> CropDragHandle.EDGE_LEFT
+                                            abs(tx - cropR) <= edgeSlop && ty >= (cropT - 10f) && ty <= (cropB + 10f) -> CropDragHandle.EDGE_RIGHT
+
+                                            // 3. Interior del recuadro para desplazar/panear
+                                            tx in cropL..cropR && ty in cropT..cropB -> CropDragHandle.MOVE_BOX
+
+                                            else -> CropDragHandle.NONE
+                                        }
+                                        if (activeDragHandle != CropDragHandle.NONE) {
+                                            selectedPreset = ImageCropPreset.CUSTOM
+                                        }
+                                    },
+                                    onDragEnd = {
+                                        activeDragHandle = CropDragHandle.NONE
+                                    },
+                                    onDragCancel = {
+                                        activeDragHandle = CropDragHandle.NONE
+                                    },
+                                    onDrag = { change, dragAmount ->
+                                        if (activeDragHandle == CropDragHandle.NONE) return@detectDragGestures
+                                        change.consume()
+
+                                        val dx = if (imgW > 0f) dragAmount.x / imgW else 0f
+                                        val dy = if (imgH > 0f) dragAmount.y / imgH else 0f
+                                        val minSpan = 0.08f
+
+                                        when (activeDragHandle) {
+                                            CropDragHandle.TOP_LEFT -> {
+                                                left = (left + dx).coerceIn(0f, right - minSpan)
+                                                top = (top + dy).coerceIn(0f, bottom - minSpan)
+                                            }
+                                            CropDragHandle.TOP_RIGHT -> {
+                                                right = (right + dx).coerceIn(left + minSpan, 1f)
+                                                top = (top + dy).coerceIn(0f, bottom - minSpan)
+                                            }
+                                            CropDragHandle.BOTTOM_LEFT -> {
+                                                left = (left + dx).coerceIn(0f, right - minSpan)
+                                                bottom = (bottom + dy).coerceIn(top + minSpan, 1f)
+                                            }
+                                            CropDragHandle.BOTTOM_RIGHT -> {
+                                                right = (right + dx).coerceIn(left + minSpan, 1f)
+                                                bottom = (bottom + dy).coerceIn(top + minSpan, 1f)
+                                            }
+                                            CropDragHandle.EDGE_TOP -> {
+                                                top = (top + dy).coerceIn(0f, bottom - minSpan)
+                                            }
+                                            CropDragHandle.EDGE_BOTTOM -> {
+                                                bottom = (bottom + dy).coerceIn(top + minSpan, 1f)
+                                            }
+                                            CropDragHandle.EDGE_LEFT -> {
+                                                left = (left + dx).coerceIn(0f, right - minSpan)
+                                            }
+                                            CropDragHandle.EDGE_RIGHT -> {
+                                                right = (right + dx).coerceIn(left + minSpan, 1f)
+                                            }
+                                            CropDragHandle.MOVE_BOX -> {
+                                                val curW = right - left
+                                                val curH = bottom - top
+                                                var newL = left + dx
+                                                var newT = top + dy
+                                                if (newL < 0f) newL = 0f
+                                                if (newL + curW > 1f) newL = 1f - curW
+                                                if (newT < 0f) newT = 0f
+                                                if (newT + curH > 1f) newT = 1f - curH
+                                                left = newL
+                                                right = newL + curW
+                                                top = newT
+                                                bottom = newT + curH
+                                            }
+                                            CropDragHandle.NONE -> {}
+                                        }
+                                    }
+                                )
+                            }
+                    ) {
+                        Image(
+                            bitmap = bitmap.asImageBitmap(),
+                            contentDescription = "Previsualización Google Photos",
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxSize()
+                        )
+
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val boxW = size.width
+                            val boxH = size.height
+                            val aspectBitmap = bitmap.width.toFloat() / bitmap.height.toFloat().coerceAtLeast(1f)
+                            val aspectBox = boxW / boxH.coerceAtLeast(1f)
+
+                            val imgW: Float
+                            val imgH: Float
+                            val imgX: Float
+                            val imgY: Float
+                            if (aspectBox > aspectBitmap) {
+                                imgH = boxH
+                                imgW = imgH * aspectBitmap
+                                imgX = (boxW - imgW) / 2f
+                                imgY = 0f
+                            } else {
+                                imgW = boxW
+                                imgH = imgW / aspectBitmap
+                                imgX = 0f
+                                imgY = (boxH - imgH) / 2f
+                            }
+
+                            val cropL = imgX + imgW * left
+                            val cropT = imgY + imgH * top
+                            val cropR = imgX + imgW * right
+                            val cropB = imgY + imgH * bottom
+
+                            // 1. Scrim translúcido (oscurece todo lo exterior al encuadre)
+                            val scrimColor = Color(0x99000000)
+                            if (cropT > imgY) {
+                                drawRect(scrimColor, topLeft = Offset(imgX, imgY), size = Size(imgW, cropT - imgY))
+                            }
+                            if (imgY + imgH > cropB) {
+                                drawRect(scrimColor, topLeft = Offset(imgX, cropB), size = Size(imgW, (imgY + imgH) - cropB))
+                            }
+                            if (cropL > imgX) {
+                                drawRect(scrimColor, topLeft = Offset(imgX, cropT), size = Size(cropL - imgX, cropB - cropT))
+                            }
+                            if (imgX + imgW > cropR) {
+                                drawRect(scrimColor, topLeft = Offset(cropR, cropT), size = Size((imgX + imgW) - cropR, cropB - cropT))
+                            }
+
+                            // 2. Líneas de guía de tercios (Rule of Thirds)
+                            val cropW = (cropR - cropL).coerceAtLeast(1f)
+                            val cropH = (cropB - cropT).coerceAtLeast(1f)
+                            val gridColor = Color.White.copy(alpha = 0.35f)
+                            val gridStroke = 1.dp.toPx()
+                            drawLine(gridColor, Offset(cropL + cropW / 3f, cropT), Offset(cropL + cropW / 3f, cropB), strokeWidth = gridStroke)
+                            drawLine(gridColor, Offset(cropL + 2f * cropW / 3f, cropT), Offset(cropL + 2f * cropW / 3f, cropB), strokeWidth = gridStroke)
+                            drawLine(gridColor, Offset(cropL, cropT + cropH / 3f), Offset(cropR, cropT + cropH / 3f), strokeWidth = gridStroke)
+                            drawLine(gridColor, Offset(cropL, cropT + 2f * cropH / 3f), Offset(cropR, cropT + 2f * cropH / 3f), strokeWidth = gridStroke)
+
+                            // 3. Marco de recorte blanco
+                            drawRect(
+                                color = Color.White.copy(alpha = 0.85f),
+                                topLeft = Offset(cropL, cropT),
+                                size = Size(cropW, cropH),
+                                style = Stroke(width = 1.5.dp.toPx())
+                            )
+
+                            // 4. Brackets de esquina icónicos estilo Google Photos ┌ ┐ └ ┘ con puntos de toque
+                            val bracketLen = 22.dp.toPx().coerceAtMost(cropW / 3f).coerceAtMost(cropH / 3f)
+                            val bracketStroke = 4.dp.toPx()
+                            val bracketColor = Color.White
+                            val handleCircleRadius = 5.dp.toPx()
+
+                            // Top-Left ┌
+                            drawLine(bracketColor, Offset(cropL, cropT), Offset(cropL + bracketLen, cropT), strokeWidth = bracketStroke)
+                            drawLine(bracketColor, Offset(cropL, cropT), Offset(cropL, cropT + bracketLen), strokeWidth = bracketStroke)
+                            drawCircle(bracketColor, radius = handleCircleRadius, center = Offset(cropL, cropT))
+
+                            // Top-Right ┐
+                            drawLine(bracketColor, Offset(cropR, cropT), Offset(cropR - bracketLen, cropT), strokeWidth = bracketStroke)
+                            drawLine(bracketColor, Offset(cropR, cropT), Offset(cropR, cropT + bracketLen), strokeWidth = bracketStroke)
+                            drawCircle(bracketColor, radius = handleCircleRadius, center = Offset(cropR, cropT))
+
+                            // Bottom-Left └
+                            drawLine(bracketColor, Offset(cropL, cropB), Offset(cropL + bracketLen, cropB), strokeWidth = bracketStroke)
+                            drawLine(bracketColor, Offset(cropL, cropB), Offset(cropL, cropB - bracketLen), strokeWidth = bracketStroke)
+                            drawCircle(bracketColor, radius = handleCircleRadius, center = Offset(cropL, cropB))
+
+                            // Bottom-Right ┘
+                            drawLine(bracketColor, Offset(cropR, cropB), Offset(cropR - bracketLen, cropB), strokeWidth = bracketStroke)
+                            drawLine(bracketColor, Offset(cropR, cropB), Offset(cropR, cropB - bracketLen), strokeWidth = bracketStroke)
+                            drawCircle(bracketColor, radius = handleCircleRadius, center = Offset(cropR, cropB))
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                // Indicador táctil de ayuda
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = if (isEs) {
+                            "👆 Arrastra con el dedo las esquinas/bordes para cambiar el tamaño. Toca y arrastra el centro para mover el recuadro."
+                        } else {
+                            "👆 Drag corners/edges with your finger to resize. Tap and drag inside the box to move it."
+                        },
+                        fontSize = 11.5.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                // Selector de modo Multizona
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { multiZoneMode = !multiZoneMode }
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isEs) "✨ Modo Multizona" else "✨ Multi-Zone Mode",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = if (isEs) "Traduce múltiples bloques de carteles simultáneamente" else "Translate multiple sign zones simultaneously",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = multiZoneMode,
+                        onCheckedChange = { multiZoneMode = it }
+                    )
+                }
+
+                Spacer(Modifier.height(6.dp))
+
+                Text(
+                    text = if (isEs) "Zonas Rápidas y Presets:" else "Quick Zones & Presets:",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    val presets = listOf(
+                        ImageCropPreset.FULL,
+                        ImageCropPreset.TOP_HALF,
+                        ImageCropPreset.CENTER,
+                        ImageCropPreset.BOTTOM_HALF,
+                        ImageCropPreset.LEFT_HALF,
+                        ImageCropPreset.RIGHT_HALF
+                    )
+                    presets.forEach { preset ->
+                        val isSel = if (multiZoneMode) {
+                            preset.id in selectedZones
+                        } else {
+                            selectedPreset == preset
+                        }
+                        AppOptionButton(
+                            text = if (isEs) preset.labelEs else preset.labelEn,
+                            selected = isSel,
+                            onClick = {
+                                if (multiZoneMode) {
+                                    if (preset == ImageCropPreset.FULL) {
+                                        selectedZones.clear()
+                                        selectedZones.addAll(listOf("zone_top", "zone_center", "zone_bottom"))
+                                    } else {
+                                        val zoneId = when (preset) {
+                                            ImageCropPreset.TOP_HALF -> "zone_top"
+                                            ImageCropPreset.CENTER -> "zone_center"
+                                            ImageCropPreset.BOTTOM_HALF -> "zone_bottom"
+                                            ImageCropPreset.LEFT_HALF -> "zone_left"
+                                            ImageCropPreset.RIGHT_HALF -> "zone_right"
+                                            else -> preset.id
+                                        }
+                                        if (zoneId in selectedZones) {
+                                            selectedZones.remove(zoneId)
+                                        } else {
+                                            selectedZones.add(zoneId)
+                                        }
+                                    }
+                                } else {
+                                    selectedPreset = preset
+                                    left = preset.leftFraction
+                                    top = preset.topFraction
+                                    right = preset.rightFraction
+                                    bottom = preset.bottomFraction
+                                }
+                            },
+                            fontSize = 11.5.sp,
+                            horizontalPadding = 6.dp
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(14.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(if (isEs) "Cancelar" else "Cancel")
+                    }
+                    Button(
+                        onClick = {
+                            val zonesToReturn = if (multiZoneMode) selectedZones.toSet() else emptySet()
+                            onConfirm(selectedPreset, left, top, right, bottom, zonesToReturn)
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            if (multiZoneMode && selectedZones.size > 1) {
+                                if (isEs) "🔍 Traducir (${selectedZones.size} zonas)" else "🔍 Translate (${selectedZones.size} zones)"
+                            } else {
+                                if (isEs) "🔍 Traducir" else "🔍 Translate"
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    var translatorMode by rememberSaveable { mutableIntStateOf(0) } // 0: Voz, 1: Cámara
+    var translatorMode by rememberSaveable { mutableIntStateOf(0) } // 0: Voz, 1: Texto, 2: Cámara / Carteles
 
     // --- MODO 0: VOZ SIMULTÁNEA ---
     var phraseInput by rememberSaveable { mutableStateOf("¿Dónde está el andén del Shinkansen?") }
@@ -3514,8 +4004,25 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
     var customOnlineTranslationEsToJa by rememberSaveable { mutableStateOf<String?>(null) }
     var rotateJapaneseCard180 by rememberSaveable { mutableStateOf(false) }
 
-    // --- MODO 1: CÁMARA & OCR DE CARTELES ---
-    var capturedBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    // --- MODO 1: TRADUCTOR DE TEXTO (ESPAÑOL ➔ JAPONÉS) ---
+    var textTranslatorInput by rememberSaveable { mutableStateOf("") }
+    var textTranslatedItem by rememberSaveable { mutableStateOf<SimultaneousTranslationItem?>(null) }
+    var textOnlineTranslationJa by rememberSaveable { mutableStateOf<String?>(null) }
+
+    // --- MODO 2: CÁMARA & OCR DE CARTELES ---
+    var originalCapturedBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var activeCroppedBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var activeCropPreset by remember { mutableStateOf(ImageCropPreset.FULL) }
+    var showRegionCropDialog by remember { mutableStateOf(false) }
+    var customCropLeft by remember { mutableFloatStateOf(0f) }
+    var customCropTop by remember { mutableFloatStateOf(0f) }
+    var customCropRight by remember { mutableFloatStateOf(1f) }
+    var customCropBottom by remember { mutableFloatStateOf(1f) }
+    var activeSelectedZones by remember { mutableStateOf(setOf<String>()) }
+    var ocrMultiZoneResults by remember { mutableStateOf<List<Pair<String, com.laralbir.japantraveltools.feature.ai.CameraOcrResult>>>(emptyList()) }
+    var ocrOnlineTranslation by remember { mutableStateOf<String?>(null) }
+    var isProcessingOnlineOcr by remember { mutableStateOf(false) }
+
     var isProcessingOcr by remember { mutableStateOf(false) }
     var ocrRawText by rememberSaveable {
         mutableStateOf(OfflineTranslatorEngine.sampleJapaneseSigns.first().sampleJapaneseOcr)
@@ -3533,6 +4040,36 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
         onDispose {
             ocrRecognizer.close()
         }
+    }
+
+    fun rotateBitmap(source: Bitmap, degrees: Float): Bitmap {
+        if (degrees == 0f || degrees % 360f == 0f) return source
+        val matrix = Matrix().apply { postRotate(degrees) }
+        return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
+    }
+
+    fun decodeAndOrientBitmap(ctx: Context, uri: Uri): Bitmap? {
+        return runCatching {
+            val rotationDegrees = ctx.contentResolver.openInputStream(uri)?.use { stream ->
+                val exif = ExifInterface(stream)
+                when (exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
+                    ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                    ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                    ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                    else -> 0f
+                }
+            } ?: 0f
+
+            val rawBitmap = ctx.contentResolver.openInputStream(uri)?.use { stream ->
+                BitmapFactory.decodeStream(stream)
+            } ?: return null
+
+            if (rotationDegrees != 0f) {
+                rotateBitmap(rawBitmap, rotationDegrees)
+            } else {
+                rawBitmap
+            }
+        }.getOrNull()
     }
 
     // Motor TTS local
@@ -3564,21 +4101,59 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
         engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "utt_${System.currentTimeMillis()}")
     }
 
+    fun performTextTranslation(input: String, autoSpeak: Boolean = false) {
+        val clean = input.trim()
+        if (clean.isBlank()) return
+        val offline = OfflineTranslatorEngine.translateToJapanese(clean)
+        textTranslatedItem = offline
+        textOnlineTranslationJa = null
+        if (autoSpeak) {
+            speakOutLoud(offline.japaneseText, Locale.JAPAN)
+        }
+        if (prefs?.forceOfflineMode != true) {
+            coroutineScope.launch(Dispatchers.IO) {
+                val online = OnlineTranslatorClient.translate(clean, if (isEs) "es" else "en", "ja")
+                withContext(Dispatchers.Main) {
+                    if (!online.isNullOrBlank() && online != offline.japaneseText) {
+                        textOnlineTranslationJa = online
+                        if (autoSpeak) {
+                            speakOutLoud(online, Locale.JAPAN)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     fun processOcrImage(inputImage: InputImage, previewBitmap: Bitmap?) {
         isProcessingOcr = true
         ocrErrorMessage = null
-        capturedBitmap = previewBitmap
+        ocrOnlineTranslation = null
+        activeCroppedBitmap = previewBitmap
         ocrRecognizer.process(inputImage)
             .addOnSuccessListener { visionText ->
                 isProcessingOcr = false
                 val recognizedText = visionText.text
                 if (recognizedText.isNotBlank()) {
                     ocrRawText = recognizedText
+                    // Traducción online en segundo plano para enriquecer el resultado offline
+                    if (prefs?.forceOfflineMode != true) {
+                        isProcessingOnlineOcr = true
+                        coroutineScope.launch(Dispatchers.IO) {
+                            val online = OnlineTranslatorClient.translate(recognizedText, "ja", if (isEs) "es" else "en")
+                            withContext(Dispatchers.Main) {
+                                isProcessingOnlineOcr = false
+                                if (!online.isNullOrBlank()) {
+                                    ocrOnlineTranslation = online
+                                }
+                            }
+                        }
+                    }
                 } else {
                     ocrErrorMessage = if (isEs) {
-                        "No se detectó texto en la imagen. Intenta enfocar más de cerca el cartel o menú."
+                        "No se detectó texto en la zona seleccionada. Intenta seleccionar otra área o enfocar más de cerca el cartel o menú."
                     } else {
-                        "No text detected in the image. Please focus closer to the sign or menu."
+                        "No text detected in the selected area. Please select another area or focus closer to the sign or menu."
                     }
                 }
             }
@@ -3592,6 +4167,117 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
             }
     }
 
+    fun runMultiZoneOcr(zoneIds: Set<String>) {
+        val orig = originalCapturedBitmap ?: return
+        isProcessingOcr = true
+        ocrErrorMessage = null
+        ocrOnlineTranslation = null
+        ocrMultiZoneResults = emptyList()
+
+        val standardZones = OfflineTranslatorEngine.getStandardMultiZones().filter { it.id in zoneIds }
+        if (standardZones.isEmpty()) {
+            return
+        }
+
+        val collectedResults = mutableListOf<Pair<String, com.laralbir.japantraveltools.feature.ai.CameraOcrResult>>()
+        val allTexts = StringBuilder()
+        var completedCount = 0
+
+        standardZones.forEach { zone ->
+            val bounds = OfflineTranslatorEngine.calculateCropBounds(
+                orig.width, orig.height,
+                zone.leftFraction, zone.topFraction,
+                zone.rightFraction, zone.bottomFraction
+            )
+            val cropped = Bitmap.createBitmap(orig, bounds.left, bounds.top, bounds.width, bounds.height)
+            val inputImage = InputImage.fromBitmap(cropped, 0)
+            ocrRecognizer.process(inputImage)
+                .addOnSuccessListener { visionText ->
+                    completedCount++
+                    val text = visionText.text.trim()
+                    if (text.isNotBlank()) {
+                        val zoneResult = OfflineTranslatorEngine.translateOcrJapaneseText(text, isEs)
+                        val label = if (isEs) zone.labelEs else zone.labelEn
+                        collectedResults.add(label to zoneResult)
+                        if (allTexts.isNotEmpty()) allTexts.append("\n---\n")
+                        allTexts.append(text)
+                    }
+                    if (completedCount == standardZones.size) {
+                        isProcessingOcr = false
+                        ocrMultiZoneResults = collectedResults.toList()
+                        if (collectedResults.isNotEmpty()) {
+                            ocrRawText = allTexts.toString()
+                            if (prefs?.forceOfflineMode != true) {
+                                isProcessingOnlineOcr = true
+                                coroutineScope.launch(Dispatchers.IO) {
+                                    val online = OnlineTranslatorClient.translate(allTexts.toString(), "ja", if (isEs) "es" else "en")
+                                    withContext(Dispatchers.Main) {
+                                        isProcessingOnlineOcr = false
+                                        if (!online.isNullOrBlank()) {
+                                            ocrOnlineTranslation = online
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            ocrErrorMessage = if (isEs) {
+                                "No se detectó texto en ninguna de las zonas seleccionadas."
+                            } else {
+                                "No text detected in any of the selected zones."
+                            }
+                        }
+                    }
+                }
+                .addOnFailureListener {
+                    completedCount++
+                    if (completedCount == standardZones.size) {
+                        isProcessingOcr = false
+                        ocrMultiZoneResults = collectedResults.toList()
+                    }
+                }
+        }
+    }
+
+    fun applyCropAndRunOcr(
+        preset: ImageCropPreset,
+        leftFrac: Float = if (preset == ImageCropPreset.CUSTOM) customCropLeft else preset.leftFraction,
+        topFrac: Float = if (preset == ImageCropPreset.CUSTOM) customCropTop else preset.topFraction,
+        rightFrac: Float = if (preset == ImageCropPreset.CUSTOM) customCropRight else preset.rightFraction,
+        bottomFrac: Float = if (preset == ImageCropPreset.CUSTOM) customCropBottom else preset.bottomFraction,
+        selectedZones: Set<String> = emptySet()
+    ) {
+        activeCropPreset = preset
+        activeSelectedZones = selectedZones
+        if (selectedZones.size > 1) {
+            runMultiZoneOcr(selectedZones)
+            return
+        }
+        ocrMultiZoneResults = emptyList()
+        if (preset == ImageCropPreset.CUSTOM) {
+            customCropLeft = leftFrac
+            customCropTop = topFrac
+            customCropRight = rightFrac
+            customCropBottom = bottomFrac
+        }
+        val orig = originalCapturedBitmap ?: return
+        val bounds = OfflineTranslatorEngine.calculateCropBounds(
+            imageWidth = orig.width,
+            imageHeight = orig.height,
+            leftFraction = leftFrac,
+            topFraction = topFrac,
+            rightFraction = rightFrac,
+            bottomFraction = bottomFrac
+        )
+        val cropped = if (bounds.left == 0 && bounds.top == 0 && bounds.width == orig.width && bounds.height == orig.height) {
+            orig
+        } else {
+            Bitmap.createBitmap(orig, bounds.left, bounds.top, bounds.width, bounds.height)
+        }
+        activeCroppedBitmap = cropped
+        val inputImage = InputImage.fromBitmap(cropped, 0)
+        processOcrImage(inputImage, cropped)
+    }
+
     var tempCameraImageUri by remember { mutableStateOf<Uri?>(null) }
 
     val takePictureLauncher = rememberLauncherForActivityResult(
@@ -3600,14 +4286,10 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
         if (success) {
             val uri = tempCameraImageUri
             if (uri != null) {
-                val decodedBitmap = runCatching {
-                    context.contentResolver.openInputStream(uri)?.use { stream ->
-                        BitmapFactory.decodeStream(stream)
-                    }
-                }.getOrNull()
-                if (decodedBitmap != null) {
-                    val inputImage = InputImage.fromBitmap(decodedBitmap, 0)
-                    processOcrImage(inputImage, decodedBitmap)
+                val orientedBitmap = decodeAndOrientBitmap(context, uri)
+                if (orientedBitmap != null) {
+                    originalCapturedBitmap = orientedBitmap
+                    applyCropAndRunOcr(ImageCropPreset.FULL)
                 }
             }
         }
@@ -3617,8 +4299,8 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
         contract = ActivityResultContracts.TakePicturePreview()
     ) { bitmap ->
         if (bitmap != null) {
-            val inputImage = InputImage.fromBitmap(bitmap, 0)
-            processOcrImage(inputImage, bitmap)
+            originalCapturedBitmap = bitmap
+            applyCropAndRunOcr(ImageCropPreset.FULL)
         }
     }
 
@@ -3670,14 +4352,10 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) {
-            val decodedBitmap = runCatching {
-                context.contentResolver.openInputStream(uri)?.use { stream ->
-                    BitmapFactory.decodeStream(stream)
-                }
-            }.getOrNull()
-            if (decodedBitmap != null) {
-                val inputImage = InputImage.fromBitmap(decodedBitmap, 0)
-                processOcrImage(inputImage, decodedBitmap)
+            val orientedBitmap = decodeAndOrientBitmap(context, uri)
+            if (orientedBitmap != null) {
+                originalCapturedBitmap = orientedBitmap
+                applyCropAndRunOcr(ImageCropPreset.FULL)
             }
         }
     }
@@ -3782,33 +4460,46 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // SELECTOR DE MODO: VOZ vs CÁMARA
+        // SELECTOR DE MODO: VOZ vs TEXTO vs CÁMARA
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 AppOptionButton(
-                    text = if (isEs) "🎙️ Voz Simultánea" else "🎙️ Voice Interpreter",
+                    text = if (isEs) "🎙️ Voz" else "🎙️ Voice",
                     selected = translatorMode == 0,
                     onClick = { translatorMode = 0 },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    fontSize = 13.sp,
+                    horizontalPadding = 4.dp
                 )
                 AppOptionButton(
-                    text = if (isEs) "📷 Cámara / Carteles" else "📷 Camera / Signs",
+                    text = if (isEs) "✍️ Texto" else "✍️ Text",
                     selected = translatorMode == 1,
                     onClick = { translatorMode = 1 },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    fontSize = 13.sp,
+                    horizontalPadding = 4.dp
+                )
+                AppOptionButton(
+                    text = if (isEs) "📷 Carteles / Cámara" else "📷 Camera / Signs",
+                    selected = translatorMode == 2,
+                    onClick = { translatorMode = 2 },
+                    modifier = Modifier.weight(1.35f),
+                    fontSize = 12.sp,
+                    horizontalPadding = 4.dp
                 )
             }
         }
 
-        if (translatorMode == 0) {
-            // MODO VOZ - TARJETA 1: HABLA JAPONÉS ➔ SE CAPTURA TEXTO JAPONÉS ➔ SE TRADUCE AL ESPAÑOL ➔ SE HABLA EN ESPAÑOL
-            item {
-                KotlinConfCard {
-                    Text(
-                        text = if (isEs) "1. Habla Japonés ➔ Traduce y Habla en Español" else "1. Speaks Japanese ➔ Translates and Speaks in Spanish",
+        when (translatorMode) {
+            0 -> {
+                // MODO VOZ - TARJETA 1: HABLA JAPONÉS ➔ SE CAPTURA TEXTO JAPONÉS ➔ SE TRADUCE AL ESPAÑOL ➔ SE HABLA EN ESPAÑOL
+                item {
+                    KotlinConfCard {
+                        Text(
+                            text = if (isEs) "1. Habla Japonés ➔ Traduce y Habla en Español" else "1. Speaks Japanese ➔ Translates and Speaks in Spanish",
                         fontSize = 19.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -3844,12 +4535,28 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = japaneseHeardInput.ifBlank { if (isEs) "Pulsa el micro para hablar en japonés 🇯🇵" else "Tap mic to speak in Japanese 🇯🇵" },
-                                fontSize = 21.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = japaneseHeardInput.ifBlank { if (isEs) "Pulsa el micro para hablar en japonés 🇯🇵" else "Tap mic to speak in Japanese 🇯🇵" },
+                                    fontSize = 21.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                if (japaneseHeardInput.isNotBlank()) {
+                                    IconButton(
+                                        onClick = {
+                                            speakOutLoud(japaneseHeardInput, Locale.JAPAN)
+                                        }
+                                    ) {
+                                        Text("🔊", fontSize = 20.sp)
+                                    }
+                                }
+                            }
                             if (japaneseReplyTranslation.romaji.isNotBlank()) {
                                 Spacer(Modifier.height(4.dp))
                                 Text(
@@ -3863,45 +4570,26 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
                             HorizontalDivider()
                             Spacer(Modifier.height(10.dp))
                             val displayTranslation = customOnlineTranslationJaToEs ?: if (isEs) japaneseReplyTranslation.spanishSpokenText else japaneseReplyTranslation.englishSpokenText
-                            Text(
-                                text = "🇪🇸 $displayTranslation",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                        }
-                    }
-
-                    Spacer(Modifier.height(14.dp))
-                    Text(
-                        text = if (isEs) "Frases habituales en japonés para probar:" else "Common Japanese phrases to test:",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(8.dp))
-
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OfflineTranslatorEngine.incomingJapaneseSamples.chunked(2).forEach { pair ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                pair.forEach { sample ->
-                                    AppOptionButton(
-                                        text = "🔊 ${sample.contextLabel}",
-                                        selected = japaneseHeardInput == sample.japaneseHeardText,
+                                Text(
+                                    text = "🇪🇸 $displayTranslation",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                if (displayTranslation.isNotBlank()) {
+                                    IconButton(
                                         onClick = {
-                                            japaneseHeardInput = sample.japaneseHeardText
-                                            customOnlineTranslationJaToEs = null
-                                            val spoken = if (isEs) sample.spanishSpokenText else sample.englishSpokenText
-                                            speakOutLoud(spoken, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
-                                        },
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-                                if (pair.size == 1) {
-                                    Spacer(Modifier.weight(1f))
+                                            speakOutLoud(displayTranslation, if (isEs) Locale.forLanguageTag("es-ES") else Locale.US)
+                                        }
+                                    ) {
+                                        Text("🔊", fontSize = 16.sp)
+                                    }
                                 }
                             }
                         }
@@ -3973,12 +4661,28 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
                             HorizontalDivider()
                             Spacer(Modifier.height(8.dp))
                             val displayJa = customOnlineTranslationEsToJa ?: translation.japaneseText
-                            Text(
-                                text = displayJa,
-                                fontSize = 23.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = displayJa,
+                                    fontSize = 23.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                if (displayJa.isNotBlank()) {
+                                    IconButton(
+                                        onClick = {
+                                            speakOutLoud(displayJa, Locale.JAPAN)
+                                        }
+                                    ) {
+                                        Text("🔊", fontSize = 20.sp)
+                                    }
+                                }
+                            }
                             Spacer(Modifier.height(6.dp))
                             Text(
                                 text = "🗣️ ${translation.romaji}",
@@ -3987,104 +4691,555 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
                             )
                         }
                     }
+                }
+            }
 
-                    Spacer(Modifier.height(14.dp))
+            // SECCIÓN UNIFICADA AL FINAL: FRASES HABITUALES DE VIAJE EN JAPONÉS (DESDUPLICADAS CON AUDIO)
+            item {
+                KotlinConfCard {
                     Text(
-                        text = if (isEs) "Frases rápidas con audio japonés:" else "Quick Japanese audio phrases:",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        text = if (isEs) "🗣️ Frases Habituales de Viaje en Japonés" else "🗣️ Common Japanese Travel Phrases",
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = if (isEs) {
+                            "Frases hechas para hablar en japonés con significado en español, lectura fonética y locución por voz."
+                        } else {
+                            "Ready-made phrases to speak in Japanese with English meaning, phonetic romaji and voice audio."
+                        },
+                        fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(14.dp))
 
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OfflineTranslatorEngine.essentialPhrases.chunked(2).forEach { pair ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    var selectedCategoryFilter by remember { mutableStateOf<String?>(null) }
+                    val categories = remember {
+                        listOf("TODAS") + OfflineTranslatorEngine.travelerQuickPhrases.map { it.categoryBadge }.distinct()
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        categories.forEach { category ->
+                            val isSelected = (selectedCategoryFilter == null && category == "TODAS") || selectedCategoryFilter == category
+                            AppOptionButton(
+                                text = category,
+                                selected = isSelected,
+                                onClick = {
+                                    selectedCategoryFilter = if (category == "TODAS") null else category
+                                }
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+
+                    val filteredPhrases = remember(selectedCategoryFilter) {
+                        if (selectedCategoryFilter == null) OfflineTranslatorEngine.travelerQuickPhrases
+                        else OfflineTranslatorEngine.travelerQuickPhrases.filter { it.categoryBadge == selectedCategoryFilter }
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        filteredPhrases.forEach { phrase ->
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        speakOutLoud(phrase.japaneseText, Locale.JAPAN)
+                                    }
                             ) {
-                                pair.forEach { preset ->
-                                    AppOptionButton(
-                                        text = "🔊 ${preset.categoryBadge}",
-                                        selected = phraseInput == preset.sourceText,
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+                                            modifier = Modifier.padding(bottom = 6.dp)
+                                        ) {
+                                            Text(
+                                                text = phrase.categoryBadge,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                        Text(
+                                            text = if (isEs) phrase.sourceEs else phrase.sourceEn,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(
+                                            text = phrase.japaneseText,
+                                            fontSize = 19.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(Modifier.height(2.dp))
+                                        Text(
+                                            text = "🗣️ ${phrase.romaji}",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Spacer(Modifier.width(8.dp))
+                                    IconButton(
                                         onClick = {
-                                            phraseInput = preset.sourceText
-                                            customOnlineTranslationEsToJa = null
-                                            speakOutLoud(preset.japaneseText, Locale.JAPAN)
-                                        },
-                                        modifier = Modifier.weight(1f)
-                                    )
+                                            speakOutLoud(phrase.japaneseText, Locale.JAPAN)
+                                        }
+                                    ) {
+                                        Text("🔊", fontSize = 22.sp)
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-        } else {
-            // MODO CÁMARA & CARTELES - CARD 1: CAPTURA Y FOTO
-            item {
-                KotlinConfCard {
-                    Text(
-                        text = if (isEs) "📷 Traductor de Carteles y Menús" else "📷 Sign & Menu Camera Translator",
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = if (isEs) {
-                            "Reconoce caracteres japoneses (Kanji, Hiragana, Katakana), platos, precios en Yenes y carteles 100% offline."
-                        } else {
-                            "Recognizes Japanese text (Kanji, Hiragana, Katakana), dish names, Yen prices, and station signs 100% offline."
-                        },
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+        }
+        1 -> {
+                // ==================== MODO 1: TEXTO ====================
+                // SECCIÓN / TARJETA DEDICADA: TRADUCTOR DE TEXTO (ESPAÑOL ➔ JAPONÉS)
+                item {
+                    KotlinConfCard {
+                        Text(
+                            text = if (isEs) "Traductor de Texto (Español ➔ Japonés)" else "Text Translator (Spanish ➔ Japanese)",
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = if (isEs) {
+                                "Escribe frases o preguntas en español (o inglés) para traducirlas a caracteres japoneses (Kanji/Kana) con fonética Romaji y locución en audio japonés."
+                            } else {
+                                "Type phrases or questions in Spanish (or English) to translate into Japanese (Kanji/Kana) with Romaji pronunciation and Japanese audio speech."
+                            },
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
 
-                    Spacer(Modifier.height(14.dp))
-
-                    AppButtonRow(
-                        primaryText = if (isEs) "📷 Abrir Cámara" else "📷 Open Camera",
-                        onPrimaryClick = {
-                            checkAndLaunchCamera()
-                        },
-                        secondaryText = if (isEs) "🖼️ Elegir Imagen" else "🖼️ Pick Image",
-                        onSecondaryClick = {
-                            runCatching {
-                                pickImageLauncher.launch("image/*")
-                            }
-                        }
-                    )
-
-                    if (capturedBitmap != null) {
                         Spacer(Modifier.height(14.dp))
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(8.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+
+                        OutlinedTextField(
+                            value = textTranslatorInput,
+                            onValueChange = { textTranslatorInput = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = {
+                                Text(if (isEs) "Escribe en español o inglés" else "Type in Spanish or English")
+                            },
+                            placeholder = {
+                                Text(if (isEs) "Ej. ¿Dónde está el baño? / La cuenta, por favor" else "E.g. Where is the restroom? / The bill, please")
+                            },
+                            trailingIcon = {
+                                if (textTranslatorInput.isNotBlank()) {
+                                    IconButton(
+                                        onClick = {
+                                            textTranslatorInput = ""
+                                            textTranslatedItem = null
+                                            textOnlineTranslationJa = null
+                                        }
+                                    ) {
+                                        Text(
+                                            "✕",
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            },
+                            singleLine = false,
+                            maxLines = 3,
+                            keyboardOptions = KeyboardOptions(
+                                imeAction = ImeAction.Done,
+                                keyboardType = KeyboardType.Text
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = {
+                                    if (textTranslatorInput.isNotBlank()) {
+                                        performTextTranslation(textTranslatorInput)
+                                    }
+                                }
+                            )
+                        )
+
+                        Spacer(Modifier.height(12.dp))
+
+                        AppButtonRow(
+                            primaryText = if (isEs) "🇯🇵 Traducir a Japonés" else "🇯🇵 Translate to Japanese",
+                            onPrimaryClick = {
+                                if (textTranslatorInput.isNotBlank()) {
+                                    performTextTranslation(textTranslatorInput)
+                                }
+                            },
+                            secondaryText = if (isEs) "🔊 Escuchar en Japonés" else "🔊 Speak in Japanese",
+                            onSecondaryClick = {
+                                val target = textOnlineTranslationJa ?: textTranslatedItem?.japaneseText
+                                if (!target.isNullOrBlank()) {
+                                    speakOutLoud(target, Locale.JAPAN)
+                                } else if (textTranslatorInput.isNotBlank()) {
+                                    performTextTranslation(textTranslatorInput, autoSpeak = true)
+                                }
+                            }
+                        )
+
+                        // Visualización del resultado con traducción en japonés (Kanji/Kana), pronunciación Romaji y botón de altavoz
+                        val displayJa = textOnlineTranslationJa ?: textTranslatedItem?.japaneseText
+                        if (!displayJa.isNullOrBlank()) {
+                            Spacer(Modifier.height(14.dp))
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Image(
-                                    bitmap = capturedBitmap!!.asImageBitmap(),
-                                    contentDescription = "Foto capturada",
-                                    contentScale = ContentScale.Fit,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(160.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                )
-                                Spacer(Modifier.height(6.dp))
-                                AppOptionButton(
-                                    text = if (isEs) "🗑️ Quitar foto" else "🗑️ Clear photo",
-                                    selected = false,
-                                    onClick = { capturedBitmap = null },
-                                    modifier = Modifier.fillMaxWidth(0.5f)
-                                )
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        val badge = textTranslatedItem?.categoryBadge
+                                        if (!badge.isNullOrBlank()) {
+                                            Surface(
+                                                shape = RoundedCornerShape(6.dp),
+                                                color = MaterialTheme.colorScheme.primaryContainer
+                                            ) {
+                                                Text(
+                                                    text = badge,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                        } else {
+                                            Spacer(Modifier.width(1.dp))
+                                        }
+
+                                        IconButton(
+                                            onClick = {
+                                                speakOutLoud(displayJa, Locale.JAPAN)
+                                            }
+                                        ) {
+                                            Text("🔊", fontSize = 20.sp)
+                                        }
+                                    }
+
+                                    Spacer(Modifier.height(6.dp))
+
+                                    Text(
+                                        text = displayJa,
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+
+                                    val romaji = textTranslatedItem?.romaji
+                                    if (!romaji.isNullOrBlank()) {
+                                        Spacer(Modifier.height(6.dp))
+                                        Text(
+                                            text = "🗣️ $romaji",
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+
+                                    Spacer(Modifier.height(12.dp))
+
+                                    Button(
+                                        onClick = {
+                                            speakOutLoud(displayJa, Locale.JAPAN)
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.primary
+                                        )
+                                    ) {
+                                        Text(
+                                            text = if (isEs) "🔊 Escuchar en Japonés" else "🔊 Speak in Japanese",
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
+                }
+
+                // FRASES RÁPIDAS DE VIAJE PARA INSERTAR Y TRADUCIR
+                item {
+                    KotlinConfCard {
+                        Text(
+                            text = if (isEs) "💡 Frases Rápidas para Traducir" else "💡 Quick Phrases to Translate",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = if (isEs) {
+                                "Toca cualquier frase para insertarla en el traductor de texto, ver su traducción y escuchar su pronunciación:"
+                            } else {
+                                "Tap any phrase to insert it into the text translator, view translation and hear pronunciation:"
+                            },
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(14.dp))
+
+                        var selectedCategoryFilter by remember { mutableStateOf<String?>(null) }
+                        val categories = remember {
+                            listOf("TODAS") + OfflineTranslatorEngine.travelerQuickPhrases.map { it.categoryBadge }.distinct()
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            categories.forEach { category ->
+                                val isSelected = (selectedCategoryFilter == null && category == "TODAS") || selectedCategoryFilter == category
+                                AppOptionButton(
+                                    text = category,
+                                    selected = isSelected,
+                                    onClick = {
+                                        selectedCategoryFilter = if (category == "TODAS") null else category
+                                    }
+                                )
+                            }
+                        }
+
+                        Spacer(Modifier.height(14.dp))
+
+                        val filteredPhrases = remember(selectedCategoryFilter) {
+                            if (selectedCategoryFilter == null) OfflineTranslatorEngine.travelerQuickPhrases
+                            else OfflineTranslatorEngine.travelerQuickPhrases.filter { it.categoryBadge == selectedCategoryFilter }
+                        }
+
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            filteredPhrases.forEach { phrase ->
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            textTranslatorInput = phrase.sourceEs
+                                            performTextTranslation(phrase.sourceEs, autoSpeak = true)
+                                        }
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(14.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Surface(
+                                                shape = RoundedCornerShape(4.dp),
+                                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+                                                modifier = Modifier.padding(bottom = 6.dp)
+                                            ) {
+                                                Text(
+                                                    text = phrase.categoryBadge,
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                            Text(
+                                                text = if (isEs) phrase.sourceEs else phrase.sourceEn,
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Spacer(Modifier.height(4.dp))
+                                            Text(
+                                                text = phrase.japaneseText,
+                                                fontSize = 19.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                            Spacer(Modifier.height(2.dp))
+                                            Text(
+                                                text = "🗣️ ${phrase.romaji}",
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Spacer(Modifier.width(8.dp))
+                                        IconButton(
+                                            onClick = {
+                                                speakOutLoud(phrase.japaneseText, Locale.JAPAN)
+                                            }
+                                        ) {
+                                            Text("🔊", fontSize = 22.sp)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else -> {
+                // ==================== MODO 2: CÁMARA & CARTELES ====================
+                // MODO CÁMARA & CARTELES - CARD 1: CAPTURA Y FOTO
+                item {
+                    KotlinConfCard {
+                        Text(
+                            text = if (isEs) "📷 Traductor de Carteles y Menús" else "📷 Sign & Menu Camera Translator",
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = if (isEs) {
+                                "Reconoce caracteres japoneses (Kanji, Hiragana, Katakana), platos, precios en Yenes y carteles 100% offline."
+                            } else {
+                                "Recognizes Japanese text (Kanji, Hiragana, Katakana), dish names, Yen prices, and station signs 100% offline."
+                            },
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(Modifier.height(14.dp))
+
+                        AppButtonRow(
+                            primaryText = if (isEs) "📷 Abrir Cámara" else "📷 Open Camera",
+                            onPrimaryClick = {
+                                checkAndLaunchCamera()
+                            },
+                            secondaryText = if (isEs) "🖼️ Elegir Imagen" else "🖼️ Pick Image",
+                            onSecondaryClick = {
+                                runCatching {
+                                    pickImageLauncher.launch("image/*")
+                                }
+                            }
+                        )
+
+                        val currentPhoto = activeCroppedBitmap ?: originalCapturedBitmap
+                        if (currentPhoto != null) {
+                            Spacer(Modifier.height(14.dp))
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(10.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Image(
+                                        bitmap = currentPhoto.asImageBitmap(),
+                                        contentDescription = "Foto capturada",
+                                        contentScale = ContentScale.Fit,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(180.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                    )
+
+                                    Spacer(Modifier.height(10.dp))
+
+                                    // Acciones directas sobre la foto: Girar 90°, Recortar y Quitar
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        AppOptionButton(
+                                            text = if (isEs) "🔄 Girar 90°" else "🔄 Rotate 90°",
+                                            selected = false,
+                                            onClick = {
+                                                val orig = originalCapturedBitmap
+                                                if (orig != null) {
+                                                    val rotated = rotateBitmap(orig, 90f)
+                                                    originalCapturedBitmap = rotated
+                                                    applyCropAndRunOcr(activeCropPreset)
+                                                }
+                                            },
+                                            modifier = Modifier.weight(1f),
+                                            fontSize = 12.sp,
+                                            horizontalPadding = 6.dp
+                                        )
+                                        AppOptionButton(
+                                            text = if (isEs) "✂️ Recortar Área" else "✂️ Crop Area",
+                                            selected = activeCropPreset != ImageCropPreset.FULL,
+                                            onClick = {
+                                                showRegionCropDialog = true
+                                            },
+                                            modifier = Modifier.weight(1f),
+                                            fontSize = 12.sp,
+                                            horizontalPadding = 6.dp
+                                        )
+                                        AppOptionButton(
+                                            text = if (isEs) "🗑️ Quitar" else "🗑️ Clear",
+                                            selected = false,
+                                            onClick = {
+                                                originalCapturedBitmap = null
+                                                activeCroppedBitmap = null
+                                                activeCropPreset = ImageCropPreset.FULL
+                                            },
+                                            modifier = Modifier.weight(0.8f),
+                                            fontSize = 12.sp,
+                                            horizontalPadding = 6.dp
+                                        )
+                                    }
+
+                                    Spacer(Modifier.height(10.dp))
+
+                                    // Selector rápido de presets de área a traducir
+                                    Text(
+                                        text = if (isEs) "Zona a traducir:" else "Zone to translate:",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.align(Alignment.Start)
+                                    )
+                                    Spacer(Modifier.height(6.dp))
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .horizontalScroll(rememberScrollState()),
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        ImageCropPreset.entries.forEach { preset ->
+                                            val isSelected = activeCropPreset == preset
+                                            AppOptionButton(
+                                                text = if (isEs) preset.labelEs else preset.labelEn,
+                                                selected = isSelected,
+                                                onClick = {
+                                                    if (preset == ImageCropPreset.CUSTOM) {
+                                                        showRegionCropDialog = true
+                                                    } else {
+                                                        applyCropAndRunOcr(preset)
+                                                    }
+                                                },
+                                                fontSize = 11.5.sp,
+                                                horizontalPadding = 6.dp
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
 
                     if (isProcessingOcr) {
                         Spacer(Modifier.height(14.dp))
@@ -4157,7 +5312,59 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
 
                     Spacer(Modifier.height(14.dp))
 
-                    if (ocrResult.lines.isNotEmpty()) {
+                    if (ocrMultiZoneResults.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                            ocrMultiZoneResults.forEach { (zoneLabel, zoneRes) ->
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            text = "📍 $zoneLabel",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                        )
+                                    }
+                                    zoneRes.lines.forEach { line ->
+                                        Surface(
+                                            shape = RoundedCornerShape(12.dp),
+                                            color = MaterialTheme.colorScheme.surfaceVariant,
+                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Column(modifier = Modifier.padding(12.dp)) {
+                                                Text(
+                                                    text = line.japaneseText,
+                                                    fontSize = 20.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                                if (line.romaji.isNotBlank()) {
+                                                    Spacer(Modifier.height(3.dp))
+                                                    Text(
+                                                        text = "🗣️ ${line.romaji}",
+                                                        fontSize = 13.sp,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                }
+                                                Spacer(Modifier.height(6.dp))
+                                                Text(
+                                                    text = "✅ ${line.translatedText}",
+                                                    fontSize = 16.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else if (ocrResult.lines.isNotEmpty()) {
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             ocrResult.lines.forEach { line ->
                                 Surface(
@@ -4192,25 +5399,6 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
                                 }
                             }
                         }
-
-                        Spacer(Modifier.height(14.dp))
-
-                        AppButtonRow(
-                            primaryText = if (isEs) "🔊 Oír en Español" else "🔊 Hear in English",
-                            onPrimaryClick = {
-                                speakOutLoud(
-                                    ocrResult.lines.joinToString(". ") { it.translatedText },
-                                    if (isEs) Locale.forLanguageTag("es-ES") else Locale.US
-                                )
-                            },
-                            secondaryText = if (isEs) "🔊 Oír en Japonés" else "🔊 Hear Japanese",
-                            onSecondaryClick = {
-                                speakOutLoud(
-                                    ocrResult.lines.joinToString(" ") { it.japaneseText },
-                                    Locale.JAPAN
-                                )
-                            }
-                        )
                     } else {
                         Surface(
                             shape = RoundedCornerShape(12.dp),
@@ -4224,6 +5412,98 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
                                 modifier = Modifier.padding(14.dp)
                             )
                         }
+                    }
+
+                    if (isProcessingOnlineOcr) {
+                        Spacer(Modifier.height(10.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = if (isEs) "🌐 Obteniendo traducción online contextual..." else "🌐 Fetching contextual online translation...",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    if (ocrOnlineTranslation != null) {
+                        Spacer(Modifier.height(10.dp))
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = if (isEs) "🌐 Traducción Online Contextual" else "🌐 Contextual Online Translation",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    IconButton(
+                                        onClick = {
+                                            speakOutLoud(
+                                                ocrOnlineTranslation!!,
+                                                if (isEs) Locale.forLanguageTag("es-ES") else Locale.US
+                                            )
+                                        },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Text("🔊", fontSize = 14.sp)
+                                    }
+                                }
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = ocrOnlineTranslation!!,
+                                    fontSize = 15.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+
+                    if (ocrResult.lines.isNotEmpty() || ocrMultiZoneResults.isNotEmpty()) {
+                        Spacer(Modifier.height(14.dp))
+
+                        AppButtonRow(
+                            primaryText = if (isEs) "🔊 Oír en Español" else "🔊 Hear in English",
+                            onPrimaryClick = {
+                                val textToSpeak = ocrOnlineTranslation ?: if (ocrMultiZoneResults.isNotEmpty()) {
+                                    ocrMultiZoneResults.flatMap { it.second.lines }.joinToString(". ") { it.translatedText }
+                                } else {
+                                    ocrResult.lines.joinToString(". ") { it.translatedText }
+                                }
+                                speakOutLoud(
+                                    textToSpeak,
+                                    if (isEs) Locale.forLanguageTag("es-ES") else Locale.US
+                                )
+                            },
+                            secondaryText = if (isEs) "🔊 Oír en Japonés" else "🔊 Hear Japanese",
+                            onSecondaryClick = {
+                                val jaToSpeak = if (ocrMultiZoneResults.isNotEmpty()) {
+                                    ocrMultiZoneResults.flatMap { it.second.lines }.joinToString(" ") { it.japaneseText }
+                                } else {
+                                    ocrResult.lines.joinToString(" ") { it.japaneseText }
+                                }
+                                speakOutLoud(
+                                    jaToSpeak,
+                                    Locale.JAPAN
+                                )
+                            }
+                        )
                     }
                 }
             }
@@ -4260,7 +5540,9 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
                                         text = sample.label,
                                         selected = ocrRawText == sample.sampleJapaneseOcr,
                                         onClick = {
-                                            capturedBitmap = null
+                                            originalCapturedBitmap = null
+                                            activeCroppedBitmap = null
+                                            activeCropPreset = ImageCropPreset.FULL
                                             ocrErrorMessage = null
                                             ocrRawText = sample.sampleJapaneseOcr
                                             speakOutLoud(
@@ -4350,6 +5632,25 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
                 }
             }
         }
+    }
+}
+
+    if (showRegionCropDialog && originalCapturedBitmap != null) {
+        SelectImageRegionDialog(
+            bitmap = originalCapturedBitmap!!,
+            initialPreset = activeCropPreset,
+            initialLeft = customCropLeft,
+            initialTop = customCropTop,
+            initialRight = customCropRight,
+            initialBottom = customCropBottom,
+            initialSelectedZones = activeSelectedZones,
+            isEs = isEs,
+            onDismiss = { showRegionCropDialog = false },
+            onConfirm = { preset, l, t, r, b, zones ->
+                showRegionCropDialog = false
+                applyCropAndRunOcr(preset, l, t, r, b, zones)
+            }
+        )
     }
 }
 
@@ -4958,36 +6259,47 @@ private fun PassportAndCustomsScreen(
 
     val isLockMandatory = VaultSecurityPolicy.isLockMandatory(biometricAvailable)
 
-    // Estado efímero en memoria (nunca en rememberSaveable) para obligar a autenticar en cada visita
-    var vaultUnlocked by remember {
-        mutableStateOf(VaultSecurityPolicy.shouldStartUnlocked(biometricAvailable))
+    var isLaunchingExternalPicker by rememberSaveable { mutableStateOf(false) }
+
+    // Marca temporal de sesión activa en rememberSaveable para evitar rebloqueos al rotar o invocar cámara/SAF
+    var lastUnlockTimestamp by rememberSaveable {
+        mutableStateOf(
+            if (VaultSecurityPolicy.shouldStartUnlocked(biometricAvailable)) System.currentTimeMillis() else 0L
+        )
     }
+
+    val isSessionValid = remember(lastUnlockTimestamp, isLockMandatory) {
+        !isLockMandatory || !VaultSecurityPolicy.isSessionExpired(lastUnlockTimestamp, System.currentTimeMillis())
+    }
+    val vaultUnlocked = isSessionValid
     var authErrorText by remember { mutableStateOf<String?>(null) }
     var refreshPhotoCounter by remember { mutableIntStateOf(0) }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, isLockMandatory) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP || event == Lifecycle.Event.ON_PAUSE) {
-                if (isLockMandatory) {
-                    vaultUnlocked = false
+            if (event == Lifecycle.Event.ON_STOP) {
+                if (isLockMandatory && !isLaunchingExternalPicker) {
+                    lastUnlockTimestamp = 0L
                 }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-            if (isLockMandatory) {
-                vaultUnlocked = false
+            if (isLockMandatory && !isLaunchingExternalPicker) {
+                lastUnlockTimestamp = 0L
             }
         }
     }
 
     // Auto-bloqueo por tiempo prudencial de seguridad (120 segundos)
-    LaunchedEffect(vaultUnlocked, isLockMandatory) {
-        if (vaultUnlocked && isLockMandatory) {
-            delay(VaultSecurityPolicy.AUTO_LOCK_TIMEOUT_MILLIS)
-            vaultUnlocked = false
+    LaunchedEffect(lastUnlockTimestamp, isLockMandatory) {
+        if (vaultUnlocked && isLockMandatory && lastUnlockTimestamp > 0L) {
+            val elapsed = System.currentTimeMillis() - lastUnlockTimestamp
+            val remaining = (VaultSecurityPolicy.AUTO_LOCK_TIMEOUT_MILLIS - elapsed).coerceAtLeast(0L)
+            delay(remaining)
+            lastUnlockTimestamp = 0L
         }
     }
 
@@ -4997,7 +6309,7 @@ private fun PassportAndCustomsScreen(
 
     fun launchRealBiometricPrompt(
         onSuccess: () -> Unit = {
-            vaultUnlocked = true
+            lastUnlockTimestamp = System.currentTimeMillis()
             authErrorText = null
         },
         onError: ((String) -> Unit)? = null
@@ -5038,8 +6350,8 @@ private fun PassportAndCustomsScreen(
         prompt.authenticate(promptInfo)
     }
 
-    LaunchedEffect(isLockMandatory) {
-        if (isLockMandatory && !vaultUnlocked) {
+    LaunchedEffect(isLockMandatory, vaultUnlocked) {
+        if (isLockMandatory && !vaultUnlocked && !isLaunchingExternalPicker) {
             launchRealBiometricPrompt()
         }
     }
@@ -5048,33 +6360,35 @@ private fun PassportAndCustomsScreen(
         CustomIdDocumentEditorModalSheet(
             isEs = isEs,
             initialDoc = editingCustomDoc,
+            onStartExternalPicker = { isLaunchingExternalPicker = true },
+            onEndExternalPicker = { isLaunchingExternalPicker = false },
             onDismiss = {
                 isCreatingCustomDoc = false
                 editingCustomDoc = null
             },
-            onSave = { title, subtitle, photoUri ->
+            onSave = { title, subtitle, fileUri, originalName ->
                 val docToEdit = editingCustomDoc
                 if (docToEdit != null) {
                     val updated = docToEdit.copy(title = title, subtitle = subtitle)
                     SharedDocumentsAndGuidesStore.upsertCustomIdDoc(updated)
-                    if (photoUri != null) {
-                        SharedDocumentsAndGuidesStore.saveIdPhoto(context, photoUri, docToEdit.fileName)
-                        refreshPhotoCounter++
+                    if (fileUri != null) {
+                        SharedDocumentsAndGuidesStore.updateCustomIdDocumentFile(context, docToEdit.id, fileUri, originalName)
                     }
+                    refreshPhotoCounter++
                 } else {
-                    val newId = "custom_${System.currentTimeMillis()}"
-                    val fileName = "${newId}.jpg"
-                    if (photoUri != null) {
-                        SharedDocumentsAndGuidesStore.saveIdPhoto(context, photoUri, fileName)
+                    if (fileUri != null) {
+                        SharedDocumentsAndGuidesStore.addCustomIdDocumentWithFile(context, title, subtitle, fileUri, originalName)
+                    } else {
+                        val newId = "custom_${System.currentTimeMillis()}"
+                        val newDoc = CustomIdDocumentItem(
+                            id = newId,
+                            title = title,
+                            subtitle = subtitle,
+                            fileName = "${newId}.jpg",
+                            createdAtEpochMs = System.currentTimeMillis()
+                        )
+                        SharedDocumentsAndGuidesStore.upsertCustomIdDoc(newDoc)
                     }
-                    val newDoc = CustomIdDocumentItem(
-                        id = newId,
-                        title = title,
-                        subtitle = subtitle,
-                        fileName = fileName,
-                        createdAtEpochMs = System.currentTimeMillis()
-                    )
-                    SharedDocumentsAndGuidesStore.upsertCustomIdDoc(newDoc)
                     refreshPhotoCounter++
                 }
                 isCreatingCustomDoc = false
@@ -5167,7 +6481,7 @@ private fun PassportAndCustomsScreen(
                                     )
                                     OutlinedButton(
                                         onClick = {
-                                            vaultUnlocked = false
+                                            lastUnlockTimestamp = 0L
                                         },
                                         shape = RoundedCornerShape(8.dp),
                                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
@@ -5265,9 +6579,11 @@ private fun PassportAndCustomsScreen(
                     IdDocumentPhotoSection(
                         isEs = isEs,
                         title = if (isEs) "🛂 Pasaporte (Página de Datos)" else "🛂 Passport (Data Page)",
-                        subtitle = if (isEs) "Foto lista para mostrar en hoteles y compras Tax-Free" else "Ready for hotels and Tax-Free shops",
-                        fileName = "passport_data_page.jpg",
+                        subtitle = if (isEs) "Foto o PDF listo para mostrar en hoteles y compras Tax-Free" else "Photo or PDF ready for hotels and Tax-Free shops",
+                        fileName = "passport_data_page",
                         refreshTrigger = refreshPhotoCounter,
+                        onStartExternalPicker = { isLaunchingExternalPicker = true },
+                        onEndExternalPicker = { isLaunchingExternalPicker = false },
                         onPhotoChanged = { refreshPhotoCounter++ }
                     )
 
@@ -5277,9 +6593,11 @@ private fun PassportAndCustomsScreen(
                     IdDocumentPhotoSection(
                         isEs = isEs,
                         title = if (isEs) "🪪 DNI / ID (Anverso)" else "🪪 National ID (Front)",
-                        subtitle = if (isEs) "Copia frontal de tu documento nacional" else "Front copy of your national identity card",
-                        fileName = "dni_front.jpg",
+                        subtitle = if (isEs) "Copia frontal de tu documento nacional (Foto o PDF)" else "Front copy of your national identity card (Photo or PDF)",
+                        fileName = "dni_front",
                         refreshTrigger = refreshPhotoCounter,
+                        onStartExternalPicker = { isLaunchingExternalPicker = true },
+                        onEndExternalPicker = { isLaunchingExternalPicker = false },
                         onPhotoChanged = { refreshPhotoCounter++ }
                     )
 
@@ -5289,9 +6607,11 @@ private fun PassportAndCustomsScreen(
                     IdDocumentPhotoSection(
                         isEs = isEs,
                         title = if (isEs) "🪪 DNI / ID (Reverso)" else "🪪 National ID (Back)",
-                        subtitle = if (isEs) "Reverso con dirección y datos de expedición" else "Back side with address and expiration",
-                        fileName = "dni_back.jpg",
+                        subtitle = if (isEs) "Reverso con dirección y datos de expedición (Foto o PDF)" else "Back side with address and expiration (Photo or PDF)",
+                        fileName = "dni_back",
                         refreshTrigger = refreshPhotoCounter,
+                        onStartExternalPicker = { isLaunchingExternalPicker = true },
+                        onEndExternalPicker = { isLaunchingExternalPicker = false },
                         onPhotoChanged = { refreshPhotoCounter++ }
                     )
 
@@ -5361,19 +6681,13 @@ private fun PassportAndCustomsScreen(
                                         Spacer(Modifier.height(3.dp))
                                         Text(
                                             text = if (isEs) {
-                                                "Añade cualquier documento oficial con foto (ej. certificado de vacunas, receta médica para aduanas japonesas, carnet internacional de conducir, póliza de seguro o visado)."
+                                                "Añade cualquier documento oficial con foto o PDF (ej. certificado de vacunas, receta médica para aduanas japonesas, carnet internacional de conducir, póliza de seguro o visado) con el botón de añadir arriba."
                                             } else {
-                                                "Add any official photo document (e.g. vaccine certificate, prescription for Japanese customs, international permit, insurance policy or visa)."
+                                                "Add any official photo or PDF document (e.g. vaccine certificate, prescription for Japanese customs, international permit, insurance policy or visa) with the add button above."
                                             },
                                             fontSize = 12.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             textAlign = TextAlign.Center
-                                        )
-                                        Spacer(Modifier.height(12.dp))
-                                        AppPrimaryButton(
-                                            text = if (isEs) "➕ Añadir Documento Personalizado" else "➕ Add Custom Document",
-                                            onClick = { isCreatingCustomDoc = true },
-                                            modifier = Modifier.fillMaxWidth()
                                         )
                                     }
                                 }
@@ -5385,6 +6699,8 @@ private fun PassportAndCustomsScreen(
                                             isEs = isEs,
                                             item = customDoc,
                                             refreshTrigger = refreshPhotoCounter,
+                                            onStartExternalPicker = { isLaunchingExternalPicker = true },
+                                            onEndExternalPicker = { isLaunchingExternalPicker = false },
                                             onEdit = { editingCustomDoc = customDoc },
                                             onDelete = {
                                                 SharedDocumentsAndGuidesStore.deleteCustomIdDoc(customDoc.id, context)
@@ -5403,6 +6719,20 @@ private fun PassportAndCustomsScreen(
     }
 }
 
+private fun queryFileName(context: Context, uri: Uri): String? {
+    if (uri.scheme == "content") {
+        runCatching {
+            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (idx >= 0) return cursor.getString(idx)
+                }
+            }
+        }
+    }
+    return uri.lastPathSegment
+}
+
 @Composable
 private fun IdDocumentPhotoSection(
     isEs: Boolean,
@@ -5410,23 +6740,70 @@ private fun IdDocumentPhotoSection(
     subtitle: String,
     fileName: String,
     refreshTrigger: Int,
+    onStartExternalPicker: () -> Unit = {},
+    onEndExternalPicker: () -> Unit = {},
     onPhotoChanged: () -> Unit
 ) {
     val context = LocalContext.current
-    val photoFile = remember(fileName, refreshTrigger) {
-        SharedDocumentsAndGuidesStore.getIdPhotoFile(context, fileName)
+    val docFile = remember(fileName, refreshTrigger) {
+        SharedDocumentsAndGuidesStore.getIdDocumentFile(context, fileName)
     }
-    val photoBitmap = remember(photoFile) {
-        photoFile?.let { runCatching { BitmapFactory.decodeFile(it.absolutePath)?.asImageBitmap() }.getOrNull() }
+    val isPdf = remember(docFile) {
+        SharedDocumentsAndGuidesStore.isPdfDocumentFile(docFile)
+    }
+    val photoBitmap = remember(docFile, isPdf) {
+        if (!isPdf) {
+            docFile?.let { runCatching { BitmapFactory.decodeFile(it.absolutePath)?.asImageBitmap() }.getOrNull() }
+        } else null
+    }
+
+    var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        onEndExternalPicker()
+        if (success && pendingCameraUri != null) {
+            SharedDocumentsAndGuidesStore.saveIdDocument(context, pendingCameraUri!!, fileName, "camera.jpg")
+            onPhotoChanged()
+        }
     }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
+        onEndExternalPicker()
         if (uri != null) {
-            SharedDocumentsAndGuidesStore.saveIdPhoto(context, uri, fileName)
+            val originalName = queryFileName(context, uri)
+            SharedDocumentsAndGuidesStore.saveIdDocument(context, uri, fileName, originalName)
             onPhotoChanged()
         }
+    }
+
+    val pdfPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        onEndExternalPicker()
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+            val originalName = queryFileName(context, uri) ?: "document.pdf"
+            SharedDocumentsAndGuidesStore.saveIdDocument(context, uri, fileName, originalName)
+            onPhotoChanged()
+        }
+    }
+
+    fun launchCamera() {
+        onStartExternalPicker()
+        runCatching {
+            val tempFile = File(context.cacheDir, "camera_id_${System.currentTimeMillis()}.jpg")
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", tempFile)
+            pendingCameraUri = uri
+            cameraLauncher.launch(uri)
+        }.onFailure { onEndExternalPicker() }
     }
 
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
@@ -5457,7 +6834,91 @@ private fun IdDocumentPhotoSection(
             Text(text = subtitle, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(12.dp))
 
-            if (photoBitmap != null) {
+            if (isPdf && docFile != null && docFile.exists() && docFile.length() > 0L) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onStartExternalPicker()
+                            openDocumentFile(context, docFile.absolutePath)
+                        }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("📄", fontSize = 34.sp)
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isEs) "Documento PDF Adjunto" else "Attached PDF Document",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            val sizeKb = (docFile.length() / 1024L).coerceAtLeast(1L)
+                            Text(
+                                text = "${docFile.name} · ${sizeKb} KB · " + if (isEs) "Toca para abrir ↗️" else "Tap to open ↗️",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Text("↗️", fontSize = 18.sp)
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = { launchCamera() },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "📸 Cámara" else "📸 Camera", fontSize = 12.sp)
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            onStartExternalPicker()
+                            photoPickerLauncher.launch("image/*")
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "🖼️ Galería" else "🖼️ Gallery", fontSize = 12.sp)
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            onStartExternalPicker()
+                            pdfPickerLauncher.launch(arrayOf("application/pdf", "*/*"))
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "📄 Cambiar" else "📄 Change", fontSize = 12.sp)
+                    }
+                    IconButton(
+                        onClick = {
+                            confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
+                                itemName = title,
+                                itemTypeEs = "documento de identidad",
+                                itemTypeEn = "identity document",
+                                isEs = isEs,
+                                onConfirm = {
+                                    SharedDocumentsAndGuidesStore.deleteIdDocument(context, fileName)
+                                    onPhotoChanged()
+                                }
+                            )
+                        }
+                    ) {
+                        Text("🗑️", fontSize = 16.sp)
+                    }
+                }
+            } else if (photoBitmap != null) {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
@@ -5497,29 +6958,86 @@ private fun IdDocumentPhotoSection(
                     }
                 }
                 Spacer(Modifier.height(12.dp))
-                AppButtonRow(
-                    primaryText = if (isEs) "🔄 Cambiar Foto" else "🔄 Change Photo",
-                    onPrimaryClick = { photoPickerLauncher.launch("image/*") },
-                    secondaryText = if (isEs) "🗑️ Quitar Foto" else "🗑️ Delete Photo",
-                    onSecondaryClick = {
-                        confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
-                            itemName = title,
-                            itemTypeEs = "foto de identidad oficial",
-                            itemTypeEn = "official identity photo",
-                            isEs = isEs,
-                            onConfirm = {
-                                SharedDocumentsAndGuidesStore.deleteIdPhoto(context, fileName)
-                                onPhotoChanged()
-                            }
-                        )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = { launchCamera() },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "📸 Cámara" else "📸 Camera", fontSize = 12.sp)
                     }
-                )
+                    OutlinedButton(
+                        onClick = {
+                            onStartExternalPicker()
+                            photoPickerLauncher.launch("image/*")
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "🖼️ Galería" else "🖼️ Gallery", fontSize = 12.sp)
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            onStartExternalPicker()
+                            pdfPickerLauncher.launch(arrayOf("application/pdf", "*/*"))
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "📄 PDF" else "📄 PDF", fontSize = 12.sp)
+                    }
+                    IconButton(
+                        onClick = {
+                            confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
+                                itemName = title,
+                                itemTypeEs = "foto de identidad oficial",
+                                itemTypeEn = "official identity photo",
+                                isEs = isEs,
+                                onConfirm = {
+                                    SharedDocumentsAndGuidesStore.deleteIdDocument(context, fileName)
+                                    onPhotoChanged()
+                                }
+                            )
+                        }
+                    ) {
+                        Text("🗑️", fontSize = 16.sp)
+                    }
+                }
             } else {
-                AppPrimaryButton(
-                    text = if (isEs) "📷 Seleccionar Foto (Galería / Drive)" else "📷 Select Photo (Gallery / Drive)",
-                    onClick = { photoPickerLauncher.launch("image/*") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AppPrimaryButton(
+                        text = if (isEs) "📸 Cámara" else "📸 Camera",
+                        onClick = { launchCamera() },
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedButton(
+                        onClick = {
+                            onStartExternalPicker()
+                            photoPickerLauncher.launch("image/*")
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "🖼️ Galería" else "🖼️ Gallery", fontSize = 13.sp)
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            onStartExternalPicker()
+                            pdfPickerLauncher.launch(arrayOf("application/pdf", "*/*"))
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "📄 PDF" else "📄 PDF", fontSize = 13.sp)
+                    }
+                }
             }
         }
     }
@@ -5530,6 +7048,8 @@ private fun CustomIdDocumentItemCard(
     isEs: Boolean,
     item: CustomIdDocumentItem,
     refreshTrigger: Int,
+    onStartExternalPicker: () -> Unit = {},
+    onEndExternalPicker: () -> Unit = {},
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onPhotoChanged: () -> Unit
@@ -5538,17 +7058,43 @@ private fun CustomIdDocumentItemCard(
     val photoFile = remember(item.fileName, refreshTrigger) {
         SharedDocumentsAndGuidesStore.getIdPhotoFile(context, item.fileName)
     }
-    val photoBitmap = remember(photoFile) {
-        photoFile?.let { runCatching { BitmapFactory.decodeFile(it.absolutePath)?.asImageBitmap() }.getOrNull() }
+    val isPdf = item.isPdf
+    val photoBitmap = remember(photoFile, isPdf) {
+        if (!isPdf) {
+            photoFile?.let { runCatching { BitmapFactory.decodeFile(it.absolutePath)?.asImageBitmap() }.getOrNull() }
+        } else null
     }
 
-    val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            SharedDocumentsAndGuidesStore.saveIdPhoto(context, uri, item.fileName)
+    var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        onEndExternalPicker()
+        if (success && pendingCameraUri != null) {
+            SharedDocumentsAndGuidesStore.updateCustomIdDocumentFile(context, item.id, pendingCameraUri!!, "camera.jpg")
             onPhotoChanged()
         }
+    }
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        onEndExternalPicker()
+        if (uri != null) {
+            val originalName = queryFileName(context, uri)
+            SharedDocumentsAndGuidesStore.updateCustomIdDocumentFile(context, item.id, uri, originalName)
+            onPhotoChanged()
+        }
+    }
+
+    fun launchCamera() {
+        onStartExternalPicker()
+        runCatching {
+            val tempFile = File(context.cacheDir, "camera_custom_${System.currentTimeMillis()}.jpg")
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", tempFile)
+            pendingCameraUri = uri
+            cameraLauncher.launch(uri)
+        }.onFailure { onEndExternalPicker() }
     }
 
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
@@ -5610,7 +7156,79 @@ private fun CustomIdDocumentItemCard(
 
             Spacer(Modifier.height(10.dp))
 
-            if (photoBitmap != null) {
+            if (isPdf && photoFile != null && photoFile.exists() && photoFile.length() > 0L) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            openDocumentFile(context, photoFile.absolutePath)
+                        }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("📄", fontSize = 34.sp)
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isEs) "Documento PDF Adjunto" else "Attached PDF Document",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = if (isEs) "Toca para abrir en visor de PDF externo" else "Tap to open in PDF viewer",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Text("↗️", fontSize = 16.sp)
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = { launchCamera() },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "📸 Cámara" else "📸 Camera", fontSize = 12.sp)
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            onStartExternalPicker()
+                            filePickerLauncher.launch("*/*")
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "📄 Cambiar" else "📄 Change", fontSize = 12.sp)
+                    }
+                    IconButton(
+                        onClick = {
+                            confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
+                                itemName = item.title,
+                                itemTypeEs = "archivo del documento",
+                                itemTypeEn = "document file",
+                                isEs = isEs,
+                                onConfirm = {
+                                    SharedDocumentsAndGuidesStore.deleteIdPhoto(context, item.fileName)
+                                    onPhotoChanged()
+                                }
+                            )
+                        }
+                    ) {
+                        Text("🗑️", fontSize = 16.sp)
+                    }
+                }
+            } else if (photoBitmap != null) {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
@@ -5650,23 +7268,45 @@ private fun CustomIdDocumentItemCard(
                     }
                 }
                 Spacer(Modifier.height(10.dp))
-                AppButtonRow(
-                    primaryText = if (isEs) "🔄 Cambiar Foto" else "🔄 Change Photo",
-                    onPrimaryClick = { photoPickerLauncher.launch("image/*") },
-                    secondaryText = if (isEs) "🗑️ Quitar Foto" else "🗑️ Remove Photo",
-                    onSecondaryClick = {
-                        confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
-                            itemName = item.title,
-                            itemTypeEs = "foto del documento",
-                            itemTypeEn = "document photo",
-                            isEs = isEs,
-                            onConfirm = {
-                                SharedDocumentsAndGuidesStore.deleteIdPhoto(context, item.fileName)
-                                onPhotoChanged()
-                            }
-                        )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = { launchCamera() },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "📸 Cámara" else "📸 Camera", fontSize = 12.sp)
                     }
-                )
+                    OutlinedButton(
+                        onClick = {
+                            onStartExternalPicker()
+                            filePickerLauncher.launch("*/*")
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "📄 Cambiar" else "📄 Change", fontSize = 12.sp)
+                    }
+                    IconButton(
+                        onClick = {
+                            confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
+                                itemName = item.title,
+                                itemTypeEs = "foto del documento",
+                                itemTypeEn = "document photo",
+                                isEs = isEs,
+                                onConfirm = {
+                                    SharedDocumentsAndGuidesStore.deleteIdPhoto(context, item.fileName)
+                                    onPhotoChanged()
+                                }
+                            )
+                        }
+                    ) {
+                        Text("🗑️", fontSize = 16.sp)
+                    }
+                }
             } else {
                 Surface(
                     shape = RoundedCornerShape(10.dp),
@@ -5678,16 +7318,28 @@ private fun CustomIdDocumentItemCard(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = if (isEs) "Sin foto adjunta todavía" else "No photo attached yet",
+                            text = if (isEs) "Sin foto ni archivo adjunto todavía" else "No photo or file attached yet",
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(Modifier.height(8.dp))
-                        AppPrimaryButton(
-                            text = if (isEs) "📷 Seleccionar Foto de Galería" else "📷 Select Photo from Gallery",
-                            onClick = { photoPickerLauncher.launch("image/*") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            AppPrimaryButton(
+                                text = if (isEs) "📸 Foto Cámara" else "📸 Camera Photo",
+                                onClick = { launchCamera() },
+                                modifier = Modifier.weight(1f)
+                            )
+                            OutlinedButton(
+                                onClick = { filePickerLauncher.launch("*/*") },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text(text = if (isEs) "📄 Adjuntar Archivo/PDF" else "📄 Attach File/PDF", fontSize = 12.sp)
+                            }
+                        }
                     }
                 }
             }
@@ -5700,20 +7352,47 @@ private fun CustomIdDocumentItemCard(
 private fun CustomIdDocumentEditorModalSheet(
     isEs: Boolean,
     initialDoc: CustomIdDocumentItem?,
+    onStartExternalPicker: () -> Unit = {},
+    onEndExternalPicker: () -> Unit = {},
     onDismiss: () -> Unit,
-    onSave: (title: String, subtitle: String, photoUri: Uri?) -> Unit
+    onSave: (title: String, subtitle: String, fileUri: Uri?, originalName: String?) -> Unit
 ) {
     var titleText by rememberSaveable { mutableStateOf(initialDoc?.title ?: "") }
     var subtitleText by rememberSaveable { mutableStateOf(initialDoc?.subtitle ?: "") }
-    var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedFileName by remember { mutableStateOf<String?>(null) }
+    var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+    val context = LocalContext.current
     val isNew = initialDoc == null
 
-    val photoPickerLauncher = rememberLauncherForActivityResult(
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        onEndExternalPicker()
+        if (success && pendingCameraUri != null) {
+            selectedFileUri = pendingCameraUri
+            selectedFileName = "camera_capture.jpg"
+        }
+    }
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
+        onEndExternalPicker()
         if (uri != null) {
-            selectedPhotoUri = uri
+            selectedFileUri = uri
+            selectedFileName = queryFileName(context, uri) ?: "document"
         }
+    }
+
+    fun launchCamera() {
+        onStartExternalPicker()
+        runCatching {
+            val tempFile = File(context.cacheDir, "camera_edit_${System.currentTimeMillis()}.jpg")
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", tempFile)
+            pendingCameraUri = uri
+            cameraLauncher.launch(uri)
+        }.onFailure { onEndExternalPicker() }
     }
 
     val presets = remember(isEs) {
@@ -5747,7 +7426,8 @@ private fun CustomIdDocumentEditorModalSheet(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp, vertical = 10.dp)
-                .navigationBarsPadding(),
+                .navigationBarsPadding()
+                .imePadding(),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Text(
@@ -5762,9 +7442,9 @@ private fun CustomIdDocumentEditorModalSheet(
 
             Text(
                 text = if (isEs) {
-                    "Guarda certificados de vacunación, recetas médicas para aduanas, carnet internacional de conducir, visados o cualquier otro documento sensible."
+                    "Guarda certificados de vacunación, recetas médicas para aduanas, carnet internacional de conducir, visados o cualquier otro documento sensible en foto o PDF."
                 } else {
-                    "Store vaccination certificates, prescriptions for customs, international permits, visas or sensitive documents."
+                    "Store vaccination certificates, prescriptions for customs, international permits, visas or sensitive documents in photo or PDF."
                 },
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -5826,32 +7506,43 @@ private fun CustomIdDocumentEditorModalSheet(
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        text = if (isEs) "Foto del Documento" else "Document Photo",
+                        text = if (isEs) "Foto o Archivo del Documento" else "Document Photo or File",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = if (selectedPhotoUri != null) {
-                            if (isEs) "✅ Foto seleccionada lista para guardar" else "✅ Photo selected and ready to save"
+                        text = if (selectedFileUri != null) {
+                            if (isEs) "✅ Seleccionado: ${selectedFileName ?: "Archivo"}" else "✅ Selected: ${selectedFileName ?: "File"}"
                         } else if (initialDoc != null) {
-                            if (isEs) "ℹ️ Foto actual guardada en bóveda (puedes cambiarla)" else "ℹ️ Current photo saved in vault (can be changed)"
+                            if (isEs) "ℹ️ Archivo actual: ${initialDoc.fileName}" else "ℹ️ Current file: ${initialDoc.fileName}"
                         } else {
-                            if (isEs) "Selecciona una foto desde tu galería o archivos" else "Select a photo from gallery or files"
+                            if (isEs) "Puedes tomar una foto con la cámara o adjuntar PDF / imagen" else "Take a camera photo or attach a PDF / image"
                         },
                         fontSize = 12.sp,
-                        color = if (selectedPhotoUri != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (selectedFileUri != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.height(8.dp))
-                    AppPrimaryButton(
-                        text = if (selectedPhotoUri != null || initialDoc != null) {
-                            if (isEs) "🔄 Elegir otra foto" else "🔄 Choose different photo"
-                        } else {
-                            if (isEs) "📷 Seleccionar Foto de Galería" else "📷 Select Photo from Gallery"
-                        },
-                        onClick = { photoPickerLauncher.launch("image/*") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { launchCamera() },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text(text = if (isEs) "📸 Cámara" else "📸 Camera", fontSize = 12.sp)
+                        }
+                        AppPrimaryButton(
+                            text = if (isEs) "📄 PDF / Galería" else "📄 PDF / Gallery",
+                            onClick = {
+                                onStartExternalPicker()
+                                filePickerLauncher.launch("*/*")
+                            },
+                            modifier = Modifier.weight(1.2f)
+                        )
+                    }
                 }
             }
 
@@ -5861,7 +7552,7 @@ private fun CustomIdDocumentEditorModalSheet(
                 primaryText = if (isEs) "💾 Guardar Documento" else "💾 Save Document",
                 onPrimaryClick = {
                     if (titleText.isNotBlank()) {
-                        onSave(titleText, subtitleText, selectedPhotoUri)
+                        onSave(titleText, subtitleText, selectedFileUri, selectedFileName)
                     }
                 },
                 secondaryText = if (isEs) "Cancelar" else "Cancel",
@@ -5913,12 +7604,21 @@ private fun BookingsVaultScreen(isEs: Boolean) {
 
     var editingDoc by remember { mutableStateOf<TravelDocumentItem?>(null) }
     var isCreatingDoc by remember { mutableStateOf(false) }
+    var viewingPassDoc by remember { mutableStateOf<TravelDocumentItem?>(null) }
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
 
     AppConfirmationDialog(
         state = confirmationDialogState,
         onDismiss = { confirmationDialogState = null }
     )
+
+    if (viewingPassDoc != null) {
+        WalletTicketPassDialog(
+            doc = viewingPassDoc!!,
+            isEs = isEs,
+            onDismiss = { viewingPassDoc = null }
+        )
+    }
 
     if (isCreatingDoc || editingDoc != null) {
         val initialDoc = editingDoc ?: TravelDocumentItem(
@@ -6057,6 +7757,22 @@ private fun BookingsVaultScreen(isEs: Boolean) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
+                    if (!doc.locatorCode.isNullOrBlank()) {
+                        Spacer(Modifier.height(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                        ) {
+                            Text(
+                                text = "🎫 ${doc.locatorCode}",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
                     val attachedPath = doc.fileUri ?: doc.internalUriPath
                     if (attachedPath != null) {
                         Spacer(Modifier.height(8.dp))
@@ -6080,31 +7796,177 @@ private fun BookingsVaultScreen(isEs: Boolean) {
                                 Spacer(Modifier.height(6.dp))
                             }
                         }
-                        AppSecondaryButton(
-                            text = if (isEs) "📄 Abrir Documento / PDF" else "📄 Open Attached Document / PDF",
-                            onClick = { openDocumentFile(context, attachedPath) },
-                            modifier = Modifier.fillMaxWidth()
-                        )
                     }
 
-                    Spacer(Modifier.height(12.dp))
-                    AppButtonRow(
-                        primaryText = if (isEs) "✏️ Editar" else "✏️ Edit",
-                        onPrimaryClick = {
-                            isCreatingDoc = false
-                            editingDoc = doc
-                        },
-                        secondaryText = if (isEs) "🗑️ Eliminar" else "🗑️ Delete",
-                        onSecondaryClick = {
-                            confirmationDialogState = ConfirmationDialogBuilder.buildDeleteConfirmation(
-                                itemName = doc.title,
-                                itemTypeEs = "documento",
-                                itemTypeEn = "document",
-                                isEs = isEs,
-                                onConfirm = { SharedDocumentsAndGuidesStore.deleteDocument(doc.id) }
-                            )
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (attachedPath != null) {
+                            OutlinedButton(
+                                onClick = { openDocumentFile(context, attachedPath) },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                modifier = Modifier
+                                    .height(34.dp)
+                                    .weight(1.2f)
+                            ) {
+                                Text(if (isEs) "📄 Archivo" else "📄 File", fontSize = 12.sp, maxLines = 1)
+                            }
                         }
+                        if (!doc.locatorCode.isNullOrBlank()) {
+                            OutlinedButton(
+                                onClick = { viewingPassDoc = doc },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                modifier = Modifier
+                                    .height(34.dp)
+                                    .weight(1.2f)
+                            ) {
+                                Text(if (isEs) "🎫 Pase QR" else "🎫 Pass QR", fontSize = 12.sp, maxLines = 1)
+                            }
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                isCreatingDoc = false
+                                editingDoc = doc
+                            },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                            modifier = Modifier
+                                .height(34.dp)
+                                .weight(1.1f)
+                        ) {
+                            Text(if (isEs) "✏️ Editar" else "✏️ Edit", fontSize = 12.sp, maxLines = 1)
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                confirmationDialogState = ConfirmationDialogBuilder.buildDeleteConfirmation(
+                                    itemName = doc.title,
+                                    itemTypeEs = "documento",
+                                    itemTypeEn = "document",
+                                    isEs = isEs,
+                                    onConfirm = { SharedDocumentsAndGuidesStore.deleteDocument(doc.id) }
+                                )
+                            },
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                            modifier = Modifier.height(34.dp)
+                        ) {
+                            Text("🗑️", fontSize = 13.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WalletTicketPassDialog(
+    doc: TravelDocumentItem,
+    isEs: Boolean,
+    onDismiss: () -> Unit
+) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    InfoTagPill(
+                        text = doc.category.badgeCode,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     )
+                    Text(
+                        text = if (isEs) "Pase Digital Offline" else "Digital Offline Pass",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
+
+                Spacer(Modifier.height(14.dp))
+
+                Text(
+                    text = doc.title,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+
+                if (doc.referenceOrNotes.isNotBlank()) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = doc.referenceOrNotes,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                Spacer(Modifier.height(18.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color.White,
+                    border = BorderStroke(1.dp, Color(0xFFDDDDDD)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "🎫 █║▌║█║▌│║▌║▌█║ 🎫",
+                            fontSize = 24.sp,
+                            color = Color.Black,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            text = doc.locatorCode ?: doc.id,
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.Black,
+                            letterSpacing = 2.sp
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(14.dp))
+
+                Text(
+                    text = if (isEs) "💡 Sube el brillo de la pantalla para escanear en tornos o controles" else "💡 Increase screen brightness when scanning at gates",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = if (isEs) "Cerrar Pase" else "Close Pass", fontSize = 14.sp)
                 }
             }
         }
@@ -6124,24 +7986,47 @@ private fun DocumentEditorModalSheet(
     val context = LocalContext.current
     var titleText by rememberSaveable { mutableStateOf(initialDoc.title) }
     var notesText by rememberSaveable { mutableStateOf(initialDoc.referenceOrNotes) }
+    var locatorText by rememberSaveable { mutableStateOf(initialDoc.locatorCode ?: "") }
     var selectedCategory by rememberSaveable { mutableStateOf(initialDoc.category) }
     var isPinned by rememberSaveable { mutableStateOf(initialDoc.isPinned) }
     var attachedFilePath by rememberSaveable { mutableStateOf(initialDoc.fileUri ?: initialDoc.internalUriPath) }
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
+    var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
 
     AppConfirmationDialog(
         state = confirmationDialogState,
         onDismiss = { confirmationDialogState = null }
     )
 
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && pendingCameraUri != null) {
+            val saved = SharedDocumentsAndGuidesStore.saveDocumentAttachment(context, pendingCameraUri!!, "ticket_camera.jpg")
+            if (saved != null) {
+                attachedFilePath = saved
+            }
+        }
+    }
+
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            val saved = SharedDocumentsAndGuidesStore.saveDocumentAttachment(context, uri, uri.lastPathSegment)
+            val originalName = queryFileName(context, uri) ?: uri.lastPathSegment
+            val saved = SharedDocumentsAndGuidesStore.saveDocumentAttachment(context, uri, originalName)
             if (saved != null) {
                 attachedFilePath = saved
             }
+        }
+    }
+
+    fun launchCamera() {
+        runCatching {
+            val tempFile = File(context.cacheDir, "camera_ticket_${System.currentTimeMillis()}.jpg")
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", tempFile)
+            pendingCameraUri = uri
+            cameraLauncher.launch(uri)
         }
     }
 
@@ -6154,7 +8039,8 @@ private fun DocumentEditorModalSheet(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp, vertical = 10.dp)
-                .navigationBarsPadding(),
+                .navigationBarsPadding()
+                .imePadding(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
@@ -6171,6 +8057,15 @@ private fun DocumentEditorModalSheet(
                 value = titleText,
                 onValueChange = { titleText = it },
                 label = { Text(if (isEs) "Título (ej. Entrada teamLab / Hotel)" else "Title", fontSize = 15.sp) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = locatorText,
+                onValueChange = { locatorText = it },
+                label = { Text(if (isEs) "Localizador / Código QR (Opcional)" else "Locator / QR Code (Optional)", fontSize = 15.sp) },
+                placeholder = { Text("ej. PNR-789012 o JR-PASS-2026", fontSize = 13.sp) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -6209,7 +8104,7 @@ private fun DocumentEditorModalSheet(
             OutlinedTextField(
                 value = notesText,
                 onValueChange = { notesText = it },
-                label = { Text(if (isEs) "Localizador, hora de entrada o notas" else "Booking ref, entry time, notes", fontSize = 15.sp) },
+                label = { Text(if (isEs) "Notas, horario de entrada o asientos" else "Notes, entry time or seats", fontSize = 15.sp) },
                 minLines = 2,
                 maxLines = 4,
                 modifier = Modifier.fillMaxWidth()
@@ -6259,11 +8154,23 @@ private fun DocumentEditorModalSheet(
                     }
                 }
             } else {
-                AppSecondaryButton(
-                    text = if (isEs) "📎 Adjuntar PDF o Foto" else "📎 Attach PDF or Photo",
-                    onClick = { filePickerLauncher.launch("*/*") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { launchCamera() },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "📸 Cámara" else "📸 Camera", fontSize = 12.sp)
+                    }
+                    AppPrimaryButton(
+                        text = if (isEs) "📄 PDF / Foto" else "📄 PDF / Photo",
+                        onClick = { filePickerLauncher.launch("*/*") },
+                        modifier = Modifier.weight(1.2f)
+                    )
+                }
             }
 
             AppButtonRow(
@@ -6272,6 +8179,7 @@ private fun DocumentEditorModalSheet(
                     val updated = initialDoc.copy(
                         title = titleText.ifBlank { if (isEs) "Documento" else "Document" },
                         referenceOrNotes = notesText,
+                        locatorCode = locatorText.trim().ifBlank { null },
                         category = selectedCategory,
                         isPinned = isPinned,
                         fileUri = attachedFilePath,
@@ -6318,11 +8226,14 @@ private fun DocumentEditorModalSheet(
 private fun TravelGuidesScreen(isEs: Boolean) {
     val guides by SharedDocumentsAndGuidesStore.guidesState.collectAsState()
     var searchQuery by rememberSaveable { mutableStateOf("") }
-    val filteredGuides = remember(guides, searchQuery) {
-        DocumentsFilterUseCase.filterGuides(guides, null, searchQuery)
+    var selectedSortOrder by rememberSaveable { mutableStateOf(GuideSortOrder.PINNED_FIRST) }
+    var selectedCityFilter by rememberSaveable { mutableStateOf<String?>(null) }
+    val filteredGuides = remember(guides, searchQuery, selectedCityFilter, selectedSortOrder) {
+        DocumentsFilterUseCase.filterGuides(guides, selectedCityFilter, searchQuery, selectedSortOrder)
     }
 
     var editingGuide by remember { mutableStateOf<TravelGuideArticle?>(null) }
+    var viewingFullGuide by remember { mutableStateOf<TravelGuideArticle?>(null) }
     var isCreatingGuide by remember { mutableStateOf(false) }
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
 
@@ -6330,6 +8241,14 @@ private fun TravelGuidesScreen(isEs: Boolean) {
         state = confirmationDialogState,
         onDismiss = { confirmationDialogState = null }
     )
+
+    if (viewingFullGuide != null) {
+        FullGuideReaderDialog(
+            guide = viewingFullGuide!!,
+            isEs = isEs,
+            onDismiss = { viewingFullGuide = null }
+        )
+    }
 
     if (isCreatingGuide || editingGuide != null) {
         val initialGuide = editingGuide ?: TravelGuideArticle(
@@ -6367,6 +8286,33 @@ private fun TravelGuidesScreen(isEs: Boolean) {
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Sorting & Filter bar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AppOptionButton(
+                        text = if (isEs) "📌 Fijadas" else "📌 Pinned",
+                        selected = selectedSortOrder == GuideSortOrder.PINNED_FIRST,
+                        onClick = { selectedSortOrder = GuideSortOrder.PINNED_FIRST },
+                        modifier = Modifier.width(105.dp)
+                    )
+                    AppOptionButton(
+                        text = if (isEs) "🔤 A - Z" else "🔤 A - Z",
+                        selected = selectedSortOrder == GuideSortOrder.TITLE_AZ,
+                        onClick = { selectedSortOrder = GuideSortOrder.TITLE_AZ },
+                        modifier = Modifier.width(95.dp)
+                    )
+                    AppOptionButton(
+                        text = if (isEs) "🏙️ Por Ciudad" else "🏙️ By City",
+                        selected = selectedSortOrder == GuideSortOrder.CITY_REGION,
+                        onClick = { selectedSortOrder = GuideSortOrder.CITY_REGION },
+                        modifier = Modifier.width(125.dp)
+                    )
+                }
+
                 AppPrimaryButton(
                     text = if (isEs) "➕ Crear Nueva Guía" else "➕ Create New Guide",
                     onClick = {
@@ -6412,8 +8358,8 @@ private fun TravelGuidesScreen(isEs: Boolean) {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = guide.title,
-                            fontSize = 18.sp,
+                            text = if (guide.isPinned) "📌 ${guide.title}" else guide.title,
+                            fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.weight(1f)
                         )
@@ -6422,28 +8368,143 @@ private fun TravelGuidesScreen(isEs: Boolean) {
                     Spacer(Modifier.height(8.dp))
                     Text(
                         text = guide.markdownSummary,
-                        fontSize = 15.sp,
+                        fontSize = 14.sp,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    Spacer(Modifier.height(12.dp))
-                    AppButtonRow(
-                        primaryText = if (isEs) "✏️ Editar" else "✏️ Edit",
-                        onPrimaryClick = {
-                            isCreatingGuide = false
-                            editingGuide = guide
-                        },
-                        secondaryText = if (isEs) "🗑️ Eliminar" else "🗑️ Delete",
-                        onSecondaryClick = {
-                            confirmationDialogState = ConfirmationDialogBuilder.buildDeleteConfirmation(
-                                itemName = guide.title,
-                                itemTypeEs = "guía de viaje",
-                                itemTypeEn = "travel guide",
-                                isEs = isEs,
-                                onConfirm = { SharedDocumentsAndGuidesStore.deleteGuide(guide.id) }
-                            )
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = { viewingFullGuide = guide },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                            modifier = Modifier
+                                .height(34.dp)
+                                .weight(1.3f)
+                        ) {
+                            Text(if (isEs) "📖 Leer Guía" else "📖 Read Guide", fontSize = 12.sp, maxLines = 1)
                         }
+                        OutlinedButton(
+                            onClick = {
+                                isCreatingGuide = false
+                                editingGuide = guide
+                            },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                            modifier = Modifier
+                                .height(34.dp)
+                                .weight(1.1f)
+                        ) {
+                            Text(if (isEs) "✏️ Editar" else "✏️ Edit", fontSize = 12.sp, maxLines = 1)
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                confirmationDialogState = ConfirmationDialogBuilder.buildDeleteConfirmation(
+                                    itemName = guide.title,
+                                    itemTypeEs = "guía de viaje",
+                                    itemTypeEn = "travel guide",
+                                    isEs = isEs,
+                                    onConfirm = { SharedDocumentsAndGuidesStore.deleteGuide(guide.id) }
+                                )
+                            },
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                            modifier = Modifier.height(34.dp)
+                        ) {
+                            Text("🗑️", fontSize = 13.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FullGuideReaderDialog(
+    guide: TravelGuideArticle,
+    isEs: Boolean,
+    onDismiss: () -> Unit
+) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+            modifier = Modifier
+                .fillMaxWidth(0.94f)
+                .fillMaxHeight(0.85f)
+                .padding(vertical = 16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    InfoTagPill(text = guide.cityRegion)
+                    IconButton(onClick = onDismiss) {
+                        Text("✕", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                Text(
+                    text = guide.title,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                if (guide.tags.isNotEmpty()) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = guide.tags.joinToString(" · ") { "#$it" },
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium
                     )
+                }
+
+                Spacer(Modifier.height(14.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                Spacer(Modifier.height(14.dp))
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        text = guide.markdownSummary,
+                        fontSize = 16.sp,
+                        lineHeight = 25.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                Spacer(Modifier.height(14.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp)
+                ) {
+                    Text(if (isEs) "Cerrar Lectura" else "Close Reader", fontSize = 14.sp)
                 }
             }
         }
@@ -6479,7 +8540,8 @@ private fun GuideEditorModalSheet(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp, vertical = 10.dp)
-                .navigationBarsPadding(),
+                .navigationBarsPadding()
+                .imePadding(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
@@ -6727,7 +8789,10 @@ private fun JsonPortabilityModalSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp, vertical = 10.dp)
+                .navigationBarsPadding()
+                .imePadding()
         ) {
             Text(
                 text = if (isEs) "Gestión de Plan: Demo, IA y JSON" else "Plan Manager: Demo, AI & JSON",
@@ -6886,6 +8951,8 @@ private fun QuickConnectivitySwitcherContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .navigationBarsPadding()
+            .imePadding()
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {

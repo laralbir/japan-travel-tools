@@ -54,9 +54,13 @@ Este documento recoge la fase de **Análisis** del flujo SDD para traducir las e
     - **Retroalimentación Reactiva de UI**: Gestión de estado asíncrono con corrutinas (`isLoading`, `CircularProgressIndicator`, bloqueo de doble toque) e insignia de procedencia (`Gemini Cloud` vs `Experto Offline`) y hora de respuesta.
     - **Acciones Rápidas**: Copiado al portapapeles con confirmación visual, exportación directa a la Bóveda de Guías (`SharedDocumentsAndGuidesStore.createGuide`) e inyección al itinerario (`AiPlanBuilderEngine`).
     - **Configuración Amigable de Clave de API (`GeminiApiKeyHelper` & `GeminiApiKeySetupCard`)**: Enlace directo a Google AI Studio (`aistudio.google.com/app/apikey`), guía visual en 4 pasos, botón de pegado automático desde el portapapeles de Android, conmutador de visibilidad (`👁️/🙈`) y validación de formato `AIzaSy...`.
-  - **Google ML Kit On-Device Translation (`com.google.mlkit:translate`) + Text Recognition Japanese (`com.google.mlkit:text-recognition-japanese`)**: Traducción simultánea 100% offline `ES/EN <-> JA` y OCR de caracteres japoneses (`Kanji/Kana`), combinados con `SpeechRecognizer` y `TextToSpeech` de Android para conversación en vivo cara a cara.
+  - **Google ML Kit Text Recognition Japanese (`com.google.mlkit:text-recognition-japanese`) + Motor de Traducción de Carteles Robusto**:
+    - **Selector de Región Estilo Google Fotos y Multizona (`OcrTextZone`)**: Interfaz no destructiva con previsualización completa de la imagen, recuadros delimitadores estilo visor de fotos de Google y soporte para seleccionar o combinar múltiples zonas de texto detectadas por ML Kit.
+    - **Diccionario Offline Masivo y Tokenizador Morfológico (`OfflineTranslatorEngine`)**: Catálogo offline ampliado con cientos de términos categorizados (estaciones, transportes, platos, bebidas, advertencias, señalización) y segmentación morfológica que descompone líneas complejas en vocablos individuales, eliminando el fallo de *"Traducción directa no disponible offline"*.
+    - **Traducción Reactiva en Línea en Segundo Plano (`OnlineTranslatorClient`)**: Consulta asíncrona automática a la API de traducción cuando hay conexión activa a internet para refinar las líneas de carteles con traducción contextual fluida completa.
 - **Seguridad, Licencias Open Source e Internacionalización**:
-  - **AndroidX Biometric (`BiometricPrompt`)** para protección de Pasaporte, DNI y Documentos Personalizados con tarjeta de seguridad dedicada e independiente (`🔒 Bloqueo Biométrico / PIN`).
+  - **AndroidX Biometric (`BiometricPrompt`) + Gestión de Sesión Temporal**: Protección obligatoria de Pasaporte, DNI y Documentos Personalizados con sesión activa de 120 segundos gestionada por marca temporal persistida en `rememberSaveable` (`lastUnlockTimestamp`). Evita la pérdida de estado y el rebloqueo biométrico espurio durante la invocación de cámaras nativas o selectores de archivos externos (`isLaunchingExternalPicker`).
+  - **Detección Binaria de Archivos por Magic Bytes (`detectFileFormatByMagicBytes`)**: Inspección directa de los primeros bytes (`%PDF-`, `0xFF, 0xD8`, `0x89, 0x50, 0x4E, 0x47`) en `SharedDocumentsAndGuidesStore` para identificar de forma unívoca archivos PDF e imágenes en ranuras de identidad (`passport_data_page`, `dni_front`, `dni_back`) sin depender de extensiones o tipos MIME ambiguos devueltos por proveedores SAF externos.
   - **Bóveda de Documentos de Identidad Personalizados (`CustomIdDocumentItem`)**: almacenamiento privado de certificados de vacunas, recetas médicas para aduanas japonesas, carnet internacional de conducir, visados y pólizas en `Context.filesDir/id_vault/custom_id_docs.json` con soporte completo de zoom táctil, edición y borrado con doble check.
   - **AndroidX AppCompat (`AppCompatDelegate.setApplicationLocales`)** para soporte nativo multiidioma por aplicación (`es`, `en`).
   - **AboutLibraries (`com.mikepenz:aboutlibraries-compose-m3`)**: Plugin de Gradle que inspecciona automáticamente el árbol de dependencias en tiempo de compilación y empaqueta un JSON local en el APK con todas las librerías open source de terceros, autores, versiones y textos de licencia para mostrarlos 100% offline en Material Design 3.
@@ -106,9 +110,9 @@ flowchart TD
   - `data/`: `TransportPlannerDao`, `AirportAndStationCatalog` (catálogo offline de aeropuertos internacionales/japoneses `MAD`, `BCN`, `DOH`, `HND`, `NRT`, `KIX` y principales estaciones de Japón como `Tokyo`, `Shinjuku`, `Shibuya`, `Kyoto`, `Shin-Osaka`, `Kanazawa`, `Hiroshima` con sus `ZoneId`, nombres en japonés y coordenadas).
   - `ui/`: `TransportPlannerScreen`, `FlightSegmentTimelineCard`, `TrainMetroBusSegmentCard`, `LayoverTransferConnectorCard`, `TransportEditorSheet`, `TransportPlannerViewModel`.
 - `feature/ai_translator/` (Asistente IA Gemini y Acceso Directo a Traducción Simultánea):
-  - `domain/`: `AskGeminiAssistantUseCase`, `AnalyzeJapaneseImageWithGeminiUseCase`, `SimultaneousTranslateUseCase`, `TransliterateToRomajiUseCase`, `AiAssistantRepository`, `OfflineTranslatorRepository`.
-  - `data/`: `GeminiClientAdapter`, `MlKitOfflineTranslator`, `JapaneseOcrProcessor`, `AiConversationDao`.
-  - `ui/`: `SimultaneousTranslatorScreen` (modo conversación cara a cara 180° + cámara OCR + acceso directo global), `GeminiAssistantScreen`, `AiTranslatorViewModel`.
+  - `domain/`: `AskGeminiAssistantUseCase`, `AnalyzeJapaneseImageWithGeminiUseCase`, `SimultaneousTranslateUseCase`, `TransliterateToRomajiUseCase`, `AiAssistantRepository`, `OfflineTranslatorRepository`, `TranslatorTabMode` (`VOICE`, `TEXT`, `CAMERA`), `ImageCropPreset`, `CropBounds`, `calculateCropBounds`.
+  - `data/`: `GeminiClientAdapter`, `MlKitOfflineTranslator`, `JapaneseOcrProcessor`, `AiConversationDao`, `ExifBitmapDecoder` (decodificación con orientación vertical automática por metadatos EXIF y rotación manual 90°).
+  - `ui/`: `SimultaneousTranslatorScreen` / `VoiceTranslatorScreen` (navegación por 3 pestañas estilo botón: `VOICE` conversación hablada + frases, `TEXT` traductor de texto multilínea independiente + inserción rápida, `CAMERA` cámara, selector interactivo de región/recorte OCR de carteles/menús y rotación 90°), `SelectImageRegionDialog`, `GeminiAssistantScreen`, `AiTranslatorViewModel`.
 
 ---
 
@@ -142,7 +146,10 @@ data class UserPreferences(
   - Fallo/Cancelación: `vaultUnlocked = false`, `authErrorText = errString`.
 - **Auto-Bloqueo por Temporizador y Ciclo de Vida**:
   - **Temporizador de Sesión**: Cuando `vaultUnlocked == true` e `isLockMandatory == true`, una corrutina en `LaunchedEffect(vaultUnlocked)` espera 120 segundos (`120_000L`); al transcurrir el tiempo, ejecuta `vaultUnlocked = false`.
-  - **Ciclo de Vida (Background)**: Mediante `DisposableEffect` con `LifecycleEventObserver`, si el usuario sale de la app (`ON_STOP`/`ON_PAUSE`), apaga la pantalla o cambia de pantalla, `vaultUnlocked` se conmuta inmediatamente a `false`.
+  - **Ciclo de Vida y Excepción de Selectores Externos**: Mediante `DisposableEffect` con `LifecycleEventObserver`, si el usuario sale de la aplicación a otra app (`ON_STOP`) o cambia de pantalla, `vaultUnlocked` se conmuta a `false`. Sin embargo, al invocar la cámara o el selector de archivos del sistema (`isLaunchingExternalPicker == true`), el ciclo de vida no bloquea la sesión para evitar que el modal biométrico interrumpa el flujo al regresar con la foto o el PDF.
+- **Soporte Multiformato (PDF e Imagen) en Pasaporte y DNI**:
+  - Tanto la tarjeta de Pasaporte como el DNI (anverso y reverso) soportan indistintamente fotos (`.jpg`, `.png`, `.webp`) y documentos **PDF** (`.pdf`).
+  - Si el archivo es un PDF, la interfaz muestra la tarjeta interactiva con metadatos y acceso al visor de PDF externo. Si es una imagen, se renderiza con visor zoom táctil a pantalla completa.
 - **Botón "Bloquear"**:
   - Mientras `vaultUnlocked == true`, se muestra de forma fija el botón de acción rápida `🔒 Bloquear`, permitiendo al usuario revocar el acceso y bloquear la pantalla de inmediato.
 
@@ -263,6 +270,11 @@ data class UserPreferences(
   - **Estrategia Híbrida**:
     - **Online**: Llamada en segundo plano al endpoint de traducción rápida en tiempo real para traducir libremente cualquier locución cuando hay conectividad.
     - **100% Offline-First**: Analizador léxico y de términos de viaje directo (`OfflineTranslatorEngine`) que traduce exactamente palabras, preguntas, direcciones, precios, alimentos y cortesía de forma literal, garantizando cero desfases sin inventar respuestas.
+- **Sección Unificada de Frases Habituales de Viaje en Japonés**:
+  - Eliminación de listas de preguntas predefinidas del interior de las 3 tarjetas de traducción individuales.
+  - Consolidación al pie de la pantalla en una tarjeta única y desduplicada (`OfflineTranslatorEngine.travelerQuickPhrases`).
+  - Representación obligatoria dual: texto en español (o inglés) y texto en japonés (`Kanji/Kana`) con lectura fonética en Romaji.
+  - Botón de audio directo `🔊` que locuta la frase inmediatamente en japonés (`Locale.JAPAN`).
 
 ### 3.7. Portabilidad JSON Legible (`TravelPlanJsonCodec`) y Constructor/Optimizador IA (`AiPlanBuilderEngine`)
 - **`PortableTravelPlanBundle` (`schemaVersion = "japan-travel-plan.v1"`)**:
