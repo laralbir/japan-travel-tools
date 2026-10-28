@@ -348,6 +348,57 @@ object SharedDocumentsAndGuidesStore {
         return getIdDocumentFile(getIdVaultDir(context), slotKey)
     }
 
+    fun detectFileFormatByMagicBytes(bytes: ByteArray): String? {
+        if (bytes.size >= 4 &&
+            bytes[0] == 0x25.toByte() && // %
+            bytes[1] == 0x50.toByte() && // P
+            bytes[2] == 0x44.toByte() && // D
+            bytes[3] == 0x46.toByte()    // F
+        ) {
+            return "pdf"
+        }
+        if (bytes.size >= 2 &&
+            bytes[0] == 0xFF.toByte() &&
+            bytes[1] == 0xD8.toByte()
+        ) {
+            return "jpg"
+        }
+        if (bytes.size >= 4 &&
+            bytes[0] == 0x89.toByte() &&
+            bytes[1] == 0x50.toByte() && // P
+            bytes[2] == 0x4E.toByte() && // N
+            bytes[3] == 0x47.toByte()    // G
+        ) {
+            return "png"
+        }
+        if (bytes.size >= 12 &&
+            bytes[0] == 'R'.code.toByte() &&
+            bytes[1] == 'I'.code.toByte() &&
+            bytes[2] == 'F'.code.toByte() &&
+            bytes[3] == 'F'.code.toByte() &&
+            bytes[8] == 'W'.code.toByte() &&
+            bytes[9] == 'E'.code.toByte() &&
+            bytes[10] == 'B'.code.toByte() &&
+            bytes[11] == 'P'.code.toByte()
+        ) {
+            return "webp"
+        }
+        return null
+    }
+
+    fun saveIdDocumentBytesWithAutoDetect(
+        vaultDir: File,
+        sourceBytes: ByteArray,
+        slotKey: String,
+        suggestedName: String? = null
+    ): File {
+        val detected = detectFileFormatByMagicBytes(sourceBytes)
+        val ext = detected
+            ?: suggestedName?.substringAfterLast('.', "")?.takeIf { it.length in 2..5 }
+            ?: "jpg"
+        return saveIdDocument(vaultDir, sourceBytes, slotKey, ext)
+    }
+
     fun saveIdDocument(
         vaultDir: File,
         sourceBytes: ByteArray,
@@ -371,15 +422,30 @@ object SharedDocumentsAndGuidesStore {
         return runCatching {
             val vaultDir = getIdVaultDir(context)
             val baseName = getIdDocumentSlotBaseName(slotKey)
-            val ext = resolveFileExtension(context, sourceUri, originalName)
-            deleteIdDocument(vaultDir, slotKey)
-            val target = File(vaultDir, "$baseName.$ext")
-            context.contentResolver.openInputStream(sourceUri)?.use { input ->
-                target.outputStream().use { output ->
-                    input.copyTo(output)
+
+            // Leemos primero a un archivo temporal para inspeccionar su cabecera binaria con seguridad
+            val tempFile = File.createTempFile("id_doc_tmp", ".bin", context.cacheDir)
+            try {
+                context.contentResolver.openInputStream(sourceUri)?.use { input ->
+                    tempFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
                 }
+                if (!tempFile.exists() || tempFile.length() == 0L) return null
+
+                val header = ByteArray(32.coerceAtMost(tempFile.length().toInt()))
+                tempFile.inputStream().use { it.read(header) }
+
+                val detectedExt = detectFileFormatByMagicBytes(header)
+                val ext = detectedExt ?: resolveFileExtension(context, sourceUri, originalName)
+
+                deleteIdDocument(vaultDir, slotKey)
+                val target = File(vaultDir, "$baseName.$ext")
+                tempFile.copyTo(target, overwrite = true)
+                if (target.exists() && target.length() > 0) target else null
+            } finally {
+                tempFile.delete()
             }
-            if (target.exists() && target.length() > 0) target else null
         }.getOrNull()
     }
 

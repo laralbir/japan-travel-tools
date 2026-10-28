@@ -226,10 +226,10 @@ for serial in ${CONNECTED_SERIALS}; do
     echo "📲 Instalando y lanzando en dispositivo autorizado: ${device_label} (${serial})..."
     # Despertar pantalla si está en modo reposo/Doze para que la instalación no se congele por el OS
     run_with_timeout 2 "${ADB_BIN}" -s "${serial}" shell input keyevent 224 >/dev/null 2>&1 || true
-    if command -v android >/dev/null 2>&1; then
-      run_with_timeout 60 android install --device="${serial}" --apks="${APK_PATH}" || "${ADB_BIN}" -s "${serial}" install -r -t "${APK_PATH}"
-    else
-      "${ADB_BIN}" -s "${serial}" install -r -t "${APK_PATH}"
+    echo "📦 Instalando APK mediante adb install en ${serial}..."
+    if ! run_with_timeout 35 "${ADB_BIN}" -s "${serial}" install -r -d -t "${APK_PATH}"; then
+      echo "⚠️  Reintentando instalación estándar..."
+      run_with_timeout 35 "${ADB_BIN}" -s "${serial}" install -r -t "${APK_PATH}" || true
     fi
     "${ADB_BIN}" -s "${serial}" shell am force-stop "${APP_ID}" >/dev/null 2>&1 || true
     "${ADB_BIN}" -s "${serial}" shell am start -S -n "${MAIN_ACTIVITY}"

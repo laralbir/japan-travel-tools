@@ -58,14 +58,18 @@ Permitir al viajero llevar siempre a mano y **100% offline**:
    - La protección biométrica para documentos confidenciales (Pasaporte, DNI y documentos personalizados) es **estrictamente obligatoria** cuando el dispositivo tiene configurada huella dactilar, reconocimiento facial o PIN/patrón/contraseña (`BiometricManager.from(context).canAuthenticate(BIOMETRIC_STRONG or DEVICE_CREDENTIAL) == BIOMETRIC_SUCCESS`).
    - **Eliminación del Conmutador (Toggle)**: No existe toggle para desactivar la seguridad, eliminando cualquier riesgo de desprotección involuntaria o bypass. La tarjeta de cabecera informa el estado de protección activa obligatoria.
    - Si el dispositivo carece de método biométrico o PIN configurado en los ajustes de Android, se permite el acceso directo mostrando un aviso de advertencia de seguridad recomendando configurar una clave en el sistema operativo.
-3. **Estado Bloqueado Obligatorio por Defecto (Efímero en Memoria)**:
-   - Cada vez que el usuario accede a la sección de Identificación, la vista nace **siempre bloqueada por defecto** (`vaultUnlocked = false`) mostrando la tarjeta `"🔒 Identificación Bloqueada"`.
-   - El estado de desbloqueo es estrictamente efímero en memoria (`remember`) y **nunca** se persiste en el `savedInstanceState` (`rememberSaveable`), obligando siempre a una nueva verificación de biometría en cada entrada o reinicio.
+3. **Gestión de Sesión Biométrica Activa y Estado Bloqueado por Defecto**:
+   - Cada vez que el usuario accede por primera vez o tras el cierre de la aplicación, la vista nace bloqueada por defecto (`!isSessionValid`) mostrando la tarjeta `"🔒 Identificación Bloqueada"`.
+   - La sesión activa se gestiona con una marca temporal en `rememberSaveable` (`lastUnlockTimestamp`); si el usuario se autentica con éxito, la sesión es válida durante **120 segundos** (`VaultSecurityPolicy.AUTO_LOCK_TIMEOUT_MILLIS`). Esto previene que recreaciones de la actividad (rotación de pantalla o vuelta desde la cámara de alta resolución) reinicien el estado a falso provocando que el modal biométrico vuelva a saltar indeseadamente.
 4. **Auto-Bloqueo por Tiempo de Seguridad y Ciclo de Vida**:
-   - Al desbloquearse la bóveda, se inicia un temporizador de seguridad de **120 segundos** (2 minutos); superado dicho tiempo, la bóveda se bloquea automáticamente (`vaultUnlocked = false`) ocultando los documentos.
-   - Si la aplicación pasa a segundo plano (`Lifecycle.Event.ON_STOP`), la bóveda se bloquea por seguridad.
-   - **Excepción para Selectores de Cámara y Archivos Externos**: Al invocar la cámara del sistema (`TakePicture`) o el selector de archivos/galería/PDF (`GetContent`), la transición temporal de la actividad no debe bloquear la bóveda ni provocar que vuelva a saltar el modal de autenticación biométrica cuando el usuario regresa con el archivo capturado o seleccionado.
-5. **Botón de Bloqueo Manual ("Bloquear")**:
+   - Al desbloquearse la bóveda, se mantiene activa la sesión durante **120 segundos** (2 minutos); superado dicho tiempo o al pulsar el botón `"🔒 Bloquear"`, `lastUnlockTimestamp = 0L` y la bóveda se bloquea automáticamente ocultando los documentos.
+   - Si la aplicación pasa a segundo plano hacia el launcher u otra aplicación (`Lifecycle.Event.ON_STOP` con `!isLaunchingExternalPicker`), la sesión se invalida por seguridad inmediata.
+   - **Excepción Robusta para Selectores Externos y Visores**: Al invocar la cámara del sistema (`TakePicture`), el selector de archivos (`OpenDocument`) o el visor externo de PDF, se activa `isLaunchingExternalPicker = true`. La sesión no se invalida al detenerse la actividad, permitiendo capturar fotos o seleccionar PDFs sin que salte de nuevo el modal biométrico al volver.
+5. **Adjuntar Documentos PDF y Fotos de Pasaporte y DNI**:
+   - Soporte para adjuntar tanto fotografías como documentos PDF oficiales en todas las ranuras (`passport_data_page`, `dni_front`, `dni_back`).
+   - **Detección Binaria por Magic Bytes**: Detección del tipo de archivo analizando los primeros bytes de la cabecera (`%PDF-` para PDF, `0xFF, 0xD8` para JPEG, `0x89, 0x50, 0x4E, 0x47` para PNG) para garantizar que los PDFs nunca se guarden erróneamente como `.jpg` aunque el proveedor de contenido no proporcione extensión ni tipo MIME correcto.
+   - **Selector SAF `OpenDocument`**: Uso del contrato `ActivityResultContracts.OpenDocument()` con tipos MIME `arrayOf("application/pdf", "*/*")` para permitir al usuario seleccionar archivos PDF desde cualquier origen (Almacenamiento Local, Descargas, Google Drive, etc.).
+6. **Botón de Bloqueo Manual ("Bloquear")**:
    - Mientras los documentos estén visibles (`vaultUnlocked = true`), se muestra un botón con el texto conciso **"Bloquear"** (`🔒 Bloquear`), que permite al usuario forzar el bloqueo inmediato en cualquier instante con un solo toque.
 
 ### RF-03.4: Repositorio de Documentos y Entradas de Viaje (Vuelos, Hoteles, Entradas y Museos)

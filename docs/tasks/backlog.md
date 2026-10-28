@@ -254,5 +254,24 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
   - Implementar selección de región de imagen (`ImageCropPreset` y `calculateCropBounds`) con presets rápidos (`Toda la foto`, `Superior`, `Centro`, `Inferior`, `Personalizada`).
   - Implementar diálogo/panel `SelectImageRegionDialog` con controles de márgenes y previsualización interactiva de la caja delimitadora para enviar únicamente el sub-mapa de bits recortado a ML Kit OCR.
 
+---
+
+## Hito 16: Robustez de Adjuntos PDF en Bóveda, Prevención Definitiva de Rebloqueo Biométrico y Fix Despliegue ADB Pixel 9
+
+### Bóveda de Identidad y PDF (`SPEC-03`)
+- [x] **TASK-715 (TDD)**: Detección Binaria de Archivos por Magic Bytes y Selector SAF en `SharedDocumentsAndGuidesStore` (`SPEC-03 RF-03.3`):
+  - Implementar `detectFileFormatByMagicBytes` para identificar encabezados `%PDF-`, `0xFF, 0xD8` (JPEG) y `0x89, 0x50` (PNG).
+  - Usar la detección binaria en `saveIdDocument` para asignar la extensión correcta (`pdf`, `jpg`, `png`) sin depender de nombres o tipos MIME imprecisos.
+  - Migrar `pdfPickerLauncher` y selectores a `ActivityResultContracts.OpenDocument()` con `arrayOf("application/pdf", "*/*")` y persistencia de permisos URI.
+- [x] **TASK-716 (UI/Lifecycle)**: Sesión Temporal con `rememberSaveable` y Prevención de Rebloqueo en Bóveda (`SPEC-03 RF-03.3`):
+  - Migrar el estado de sesión a `var lastUnlockTimestamp by rememberSaveable { mutableStateOf(0L) }`.
+  - Evaluar `isSessionValid = !VaultSecurityPolicy.isSessionExpired(lastUnlockTimestamp, System.currentTimeMillis())`.
+  - Ajustar `Lifecycle.Event.ON_STOP` y `onDispose` para no invalidar `lastUnlockTimestamp` cuando `isLaunchingExternalPicker` es verdadero.
+  - Sincronizar auto-bloqueo tras 120s o al pulsar el botón `🔒 Bloquear`.
+- [x] **TASK-717 (DevOps)**: Optimización del Script de Despliegue ADB para Evitar Cuelgues en Pixel 9:
+  - Eliminar la llamada a `android install` con delta-install que se cuelga en Android 15.
+  - Usar directamente `adb install -r -d -t` con timeout de 35 segundos para una instalación fluida y sin bloqueos.
+
+
 
 
