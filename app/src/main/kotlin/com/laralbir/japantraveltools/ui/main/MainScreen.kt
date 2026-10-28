@@ -72,10 +72,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import android.graphics.Matrix
+import android.media.ExifInterface
+import androidx.compose.material3.Slider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -96,8 +100,14 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.window.Dialog
+import com.laralbir.japantraveltools.feature.ai.CropBounds
+import com.laralbir.japantraveltools.feature.ai.ImageCropPreset
+import com.laralbir.japantraveltools.feature.ai.TranslatorTabMode
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.NavKey
 import com.laralbir.japantraveltools.core.cloud.GoogleDriveSyncCard
@@ -320,7 +330,9 @@ private fun AppOptionButton(
     text: String,
     selected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    fontSize: TextUnit = 14.sp,
+    horizontalPadding: Dp = 10.dp
 ) {
     val containerColor = if (selected) {
         MaterialTheme.colorScheme.primaryContainer
@@ -350,11 +362,11 @@ private fun AppOptionButton(
             contentAlignment = Alignment.Center,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 12.dp)
+                .padding(horizontal = horizontalPadding)
         ) {
             Text(
                 text = text,
-                fontSize = 14.sp,
+                fontSize = fontSize,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                 color = contentColor,
                 maxLines = 1,
@@ -3510,10 +3522,212 @@ private fun TransportSegmentEditorModalSheet(
 // 6. VOICE & CAMERA TRANSLATOR SCREEN (BIDIRECTIONAL STT + CAMERA OCR)
 // ============================================================================
 @Composable
+private fun SelectImageRegionDialog(
+    bitmap: Bitmap,
+    initialPreset: ImageCropPreset,
+    initialLeft: Float,
+    initialTop: Float,
+    initialRight: Float,
+    initialBottom: Float,
+    isEs: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (preset: ImageCropPreset, left: Float, top: Float, right: Float, bottom: Float) -> Unit
+) {
+    var selectedPreset by remember { mutableStateOf(initialPreset) }
+    var left by remember { mutableFloatStateOf(initialLeft) }
+    var top by remember { mutableFloatStateOf(initialTop) }
+    var right by remember { mutableFloatStateOf(initialRight) }
+    var bottom by remember { mutableFloatStateOf(initialBottom) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(18.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = if (isEs) "✂️ Seleccionar Zona a Traducir" else "✂️ Select Area to Translate",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = if (isEs) {
+                        "Elige una zona o ajusta los márgenes para que el OCR traduzca solo esa parte del cartel o menú:"
+                    } else {
+                        "Choose a zone or adjust margins so OCR translates only that portion of the sign or menu:"
+                    },
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(12.dp))
+
+                // Previsualización de la imagen
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                ) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(6.dp)
+                    ) {
+                        Image(
+                            bitmap = bitmap.asImageBitmap(),
+                            contentDescription = "Previsualización para recorte",
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                Text(
+                    text = if (isEs) "Zonas Rápidas:" else "Quick Zones:",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf(
+                        ImageCropPreset.FULL,
+                        ImageCropPreset.TOP_HALF,
+                        ImageCropPreset.CENTER,
+                        ImageCropPreset.BOTTOM_HALF
+                    ).forEach { preset ->
+                        val isSel = selectedPreset == preset
+                        AppOptionButton(
+                            text = if (isEs) preset.labelEs else preset.labelEn,
+                            selected = isSel,
+                            onClick = {
+                                selectedPreset = preset
+                                left = preset.leftFraction
+                                top = preset.topFraction
+                                right = preset.rightFraction
+                                bottom = preset.bottomFraction
+                            },
+                            fontSize = 11.5.sp,
+                            horizontalPadding = 6.dp
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(12.dp))
+
+                Text(
+                    text = if (isEs) "Ajuste Fino de Márgenes:" else "Fine Margin Tuning:",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(Modifier.height(6.dp))
+
+                Text(
+                    text = if (isEs) "Superior: ${(top * 100).toInt()}%" else "Top: ${(top * 100).toInt()}%",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Slider(
+                    value = top,
+                    onValueChange = {
+                        top = it.coerceAtMost(bottom - 0.1f)
+                        selectedPreset = ImageCropPreset.CUSTOM
+                    },
+                    valueRange = 0f..0.85f
+                )
+
+                Text(
+                    text = if (isEs) "Inferior: ${(bottom * 100).toInt()}%" else "Bottom: ${(bottom * 100).toInt()}%",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Slider(
+                    value = bottom,
+                    onValueChange = {
+                        bottom = it.coerceAtLeast(top + 0.1f)
+                        selectedPreset = ImageCropPreset.CUSTOM
+                    },
+                    valueRange = 0.15f..1f
+                )
+
+                Text(
+                    text = if (isEs) "Izquierda: ${(left * 100).toInt()}%" else "Left: ${(left * 100).toInt()}%",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Slider(
+                    value = left,
+                    onValueChange = {
+                        left = it.coerceAtMost(right - 0.1f)
+                        selectedPreset = ImageCropPreset.CUSTOM
+                    },
+                    valueRange = 0f..0.85f
+                )
+
+                Text(
+                    text = if (isEs) "Derecha: ${(right * 100).toInt()}%" else "Right: ${(right * 100).toInt()}%",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Slider(
+                    value = right,
+                    onValueChange = {
+                        right = it.coerceAtLeast(left + 0.1f)
+                        selectedPreset = ImageCropPreset.CUSTOM
+                    },
+                    valueRange = 0.15f..1f
+                )
+
+                Spacer(Modifier.height(14.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(if (isEs) "Cancelar" else "Cancel")
+                    }
+                    Button(
+                        onClick = {
+                            onConfirm(selectedPreset, left, top, right, bottom)
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(if (isEs) "🔍 Traducir" else "🔍 Translate")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    var translatorMode by rememberSaveable { mutableIntStateOf(0) } // 0: Voz, 1: Cámara
+    var translatorMode by rememberSaveable { mutableIntStateOf(0) } // 0: Voz, 1: Texto, 2: Cámara / Carteles
 
     // --- MODO 0: VOZ SIMULTÁNEA ---
     var phraseInput by rememberSaveable { mutableStateOf("¿Dónde está el andén del Shinkansen?") }
@@ -3524,13 +3738,21 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
     var customOnlineTranslationEsToJa by rememberSaveable { mutableStateOf<String?>(null) }
     var rotateJapaneseCard180 by rememberSaveable { mutableStateOf(false) }
 
-    // --- MODO 0: TRADUCTOR DE TEXTO (ESPAÑOL ➔ JAPONÉS) ---
+    // --- MODO 1: TRADUCTOR DE TEXTO (ESPAÑOL ➔ JAPONÉS) ---
     var textTranslatorInput by rememberSaveable { mutableStateOf("") }
     var textTranslatedItem by rememberSaveable { mutableStateOf<SimultaneousTranslationItem?>(null) }
     var textOnlineTranslationJa by rememberSaveable { mutableStateOf<String?>(null) }
 
-    // --- MODO 1: CÁMARA & OCR DE CARTELES ---
-    var capturedBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    // --- MODO 2: CÁMARA & OCR DE CARTELES ---
+    var originalCapturedBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var activeCroppedBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var activeCropPreset by remember { mutableStateOf(ImageCropPreset.FULL) }
+    var showRegionCropDialog by remember { mutableStateOf(false) }
+    var customCropLeft by remember { mutableFloatStateOf(0f) }
+    var customCropTop by remember { mutableFloatStateOf(0f) }
+    var customCropRight by remember { mutableFloatStateOf(1f) }
+    var customCropBottom by remember { mutableFloatStateOf(1f) }
+
     var isProcessingOcr by remember { mutableStateOf(false) }
     var ocrRawText by rememberSaveable {
         mutableStateOf(OfflineTranslatorEngine.sampleJapaneseSigns.first().sampleJapaneseOcr)
@@ -3548,6 +3770,36 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
         onDispose {
             ocrRecognizer.close()
         }
+    }
+
+    fun rotateBitmap(source: Bitmap, degrees: Float): Bitmap {
+        if (degrees == 0f || degrees % 360f == 0f) return source
+        val matrix = Matrix().apply { postRotate(degrees) }
+        return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
+    }
+
+    fun decodeAndOrientBitmap(ctx: Context, uri: Uri): Bitmap? {
+        return runCatching {
+            val rotationDegrees = ctx.contentResolver.openInputStream(uri)?.use { stream ->
+                val exif = ExifInterface(stream)
+                when (exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
+                    ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+                    ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+                    ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+                    else -> 0f
+                }
+            } ?: 0f
+
+            val rawBitmap = ctx.contentResolver.openInputStream(uri)?.use { stream ->
+                BitmapFactory.decodeStream(stream)
+            } ?: return null
+
+            if (rotationDegrees != 0f) {
+                rotateBitmap(rawBitmap, rotationDegrees)
+            } else {
+                rawBitmap
+            }
+        }.getOrNull()
     }
 
     // Motor TTS local
@@ -3606,7 +3858,7 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
     fun processOcrImage(inputImage: InputImage, previewBitmap: Bitmap?) {
         isProcessingOcr = true
         ocrErrorMessage = null
-        capturedBitmap = previewBitmap
+        activeCroppedBitmap = previewBitmap
         ocrRecognizer.process(inputImage)
             .addOnSuccessListener { visionText ->
                 isProcessingOcr = false
@@ -3615,9 +3867,9 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
                     ocrRawText = recognizedText
                 } else {
                     ocrErrorMessage = if (isEs) {
-                        "No se detectó texto en la imagen. Intenta enfocar más de cerca el cartel o menú."
+                        "No se detectó texto en la zona seleccionada. Intenta seleccionar otra área o enfocar más de cerca el cartel o menú."
                     } else {
-                        "No text detected in the image. Please focus closer to the sign or menu."
+                        "No text detected in the selected area. Please select another area or focus closer to the sign or menu."
                     }
                 }
             }
@@ -3631,6 +3883,39 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
             }
     }
 
+    fun applyCropAndRunOcr(
+        preset: ImageCropPreset,
+        leftFrac: Float = if (preset == ImageCropPreset.CUSTOM) customCropLeft else preset.leftFraction,
+        topFrac: Float = if (preset == ImageCropPreset.CUSTOM) customCropTop else preset.topFraction,
+        rightFrac: Float = if (preset == ImageCropPreset.CUSTOM) customCropRight else preset.rightFraction,
+        bottomFrac: Float = if (preset == ImageCropPreset.CUSTOM) customCropBottom else preset.bottomFraction
+    ) {
+        activeCropPreset = preset
+        if (preset == ImageCropPreset.CUSTOM) {
+            customCropLeft = leftFrac
+            customCropTop = topFrac
+            customCropRight = rightFrac
+            customCropBottom = bottomFrac
+        }
+        val orig = originalCapturedBitmap ?: return
+        val bounds = OfflineTranslatorEngine.calculateCropBounds(
+            imageWidth = orig.width,
+            imageHeight = orig.height,
+            leftFraction = leftFrac,
+            topFraction = topFrac,
+            rightFraction = rightFrac,
+            bottomFraction = bottomFrac
+        )
+        val cropped = if (bounds.left == 0 && bounds.top == 0 && bounds.width == orig.width && bounds.height == orig.height) {
+            orig
+        } else {
+            Bitmap.createBitmap(orig, bounds.left, bounds.top, bounds.width, bounds.height)
+        }
+        activeCroppedBitmap = cropped
+        val inputImage = InputImage.fromBitmap(cropped, 0)
+        processOcrImage(inputImage, cropped)
+    }
+
     var tempCameraImageUri by remember { mutableStateOf<Uri?>(null) }
 
     val takePictureLauncher = rememberLauncherForActivityResult(
@@ -3639,14 +3924,10 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
         if (success) {
             val uri = tempCameraImageUri
             if (uri != null) {
-                val decodedBitmap = runCatching {
-                    context.contentResolver.openInputStream(uri)?.use { stream ->
-                        BitmapFactory.decodeStream(stream)
-                    }
-                }.getOrNull()
-                if (decodedBitmap != null) {
-                    val inputImage = InputImage.fromBitmap(decodedBitmap, 0)
-                    processOcrImage(inputImage, decodedBitmap)
+                val orientedBitmap = decodeAndOrientBitmap(context, uri)
+                if (orientedBitmap != null) {
+                    originalCapturedBitmap = orientedBitmap
+                    applyCropAndRunOcr(ImageCropPreset.FULL)
                 }
             }
         }
@@ -3656,8 +3937,8 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
         contract = ActivityResultContracts.TakePicturePreview()
     ) { bitmap ->
         if (bitmap != null) {
-            val inputImage = InputImage.fromBitmap(bitmap, 0)
-            processOcrImage(inputImage, bitmap)
+            originalCapturedBitmap = bitmap
+            applyCropAndRunOcr(ImageCropPreset.FULL)
         }
     }
 
@@ -3709,14 +3990,10 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         if (uri != null) {
-            val decodedBitmap = runCatching {
-                context.contentResolver.openInputStream(uri)?.use { stream ->
-                    BitmapFactory.decodeStream(stream)
-                }
-            }.getOrNull()
-            if (decodedBitmap != null) {
-                val inputImage = InputImage.fromBitmap(decodedBitmap, 0)
-                processOcrImage(inputImage, decodedBitmap)
+            val orientedBitmap = decodeAndOrientBitmap(context, uri)
+            if (orientedBitmap != null) {
+                originalCapturedBitmap = orientedBitmap
+                applyCropAndRunOcr(ImageCropPreset.FULL)
             }
         }
     }
@@ -3821,201 +4098,46 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // SELECTOR DE MODO: VOZ vs CÁMARA
+        // SELECTOR DE MODO: VOZ vs TEXTO vs CÁMARA
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 AppOptionButton(
-                    text = if (isEs) "🎙️ Voz y Texto" else "🎙️ Voice & Text",
+                    text = if (isEs) "🎙️ Voz" else "🎙️ Voice",
                     selected = translatorMode == 0,
                     onClick = { translatorMode = 0 },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    fontSize = 13.sp,
+                    horizontalPadding = 4.dp
                 )
                 AppOptionButton(
-                    text = if (isEs) "📷 Cámara / Carteles" else "📷 Camera / Signs",
+                    text = if (isEs) "✍️ Texto" else "✍️ Text",
                     selected = translatorMode == 1,
                     onClick = { translatorMode = 1 },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    fontSize = 13.sp,
+                    horizontalPadding = 4.dp
+                )
+                AppOptionButton(
+                    text = if (isEs) "📷 Carteles / Cámara" else "📷 Camera / Signs",
+                    selected = translatorMode == 2,
+                    onClick = { translatorMode = 2 },
+                    modifier = Modifier.weight(1.35f),
+                    fontSize = 12.sp,
+                    horizontalPadding = 4.dp
                 )
             }
         }
 
-        if (translatorMode == 0) {
-            // SECCIÓN / TARJETA DEDICADA: TRADUCTOR DE TEXTO (ESPAÑOL ➔ JAPONÉS)
-            item {
-                KotlinConfCard {
-                    Text(
-                        text = if (isEs) "Traductor de Texto (Español ➔ Japonés)" else "Text Translator (Spanish ➔ Japanese)",
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = if (isEs) {
-                            "Escribe frases o preguntas en español (o inglés) para traducirlas a caracteres japoneses (Kanji/Kana) con fonética Romaji y locución en audio japonés."
-                        } else {
-                            "Type phrases or questions in Spanish (or English) to translate into Japanese (Kanji/Kana) with Romaji pronunciation and Japanese audio speech."
-                        },
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Spacer(Modifier.height(14.dp))
-
-                    OutlinedTextField(
-                        value = textTranslatorInput,
-                        onValueChange = { textTranslatorInput = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = {
-                            Text(if (isEs) "Escribe en español o inglés" else "Type in Spanish or English")
-                        },
-                        placeholder = {
-                            Text(if (isEs) "Ej. ¿Dónde está el baño? / La cuenta, por favor" else "E.g. Where is the restroom? / The bill, please")
-                        },
-                        trailingIcon = {
-                            if (textTranslatorInput.isNotBlank()) {
-                                IconButton(
-                                    onClick = {
-                                        textTranslatorInput = ""
-                                        textTranslatedItem = null
-                                        textOnlineTranslationJa = null
-                                    }
-                                ) {
-                                    Text(
-                                        "✕",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        },
-                        singleLine = false,
-                        maxLines = 3,
-                        keyboardOptions = KeyboardOptions(
-                            imeAction = ImeAction.Done,
-                            keyboardType = KeyboardType.Text
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onDone = {
-                                if (textTranslatorInput.isNotBlank()) {
-                                    performTextTranslation(textTranslatorInput)
-                                }
-                            }
-                        )
-                    )
-
-                    Spacer(Modifier.height(12.dp))
-
-                    AppButtonRow(
-                        primaryText = if (isEs) "🇯🇵 Traducir a Japonés" else "🇯🇵 Translate to Japanese",
-                        onPrimaryClick = {
-                            if (textTranslatorInput.isNotBlank()) {
-                                performTextTranslation(textTranslatorInput)
-                            }
-                        },
-                        secondaryText = if (isEs) "🔊 Escuchar en Japonés" else "🔊 Speak in Japanese",
-                        onSecondaryClick = {
-                            val target = textOnlineTranslationJa ?: textTranslatedItem?.japaneseText
-                            if (!target.isNullOrBlank()) {
-                                speakOutLoud(target, Locale.JAPAN)
-                            } else if (textTranslatorInput.isNotBlank()) {
-                                performTextTranslation(textTranslatorInput, autoSpeak = true)
-                            }
-                        }
-                    )
-
-                    // Visualización del resultado con traducción en japonés (Kanji/Kana), pronunciación Romaji y botón de altavoz
-                    val displayJa = textOnlineTranslationJa ?: textTranslatedItem?.japaneseText
-                    if (!displayJa.isNullOrBlank()) {
-                        Spacer(Modifier.height(14.dp))
-                        Surface(
-                            shape = RoundedCornerShape(14.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    val badge = textTranslatedItem?.categoryBadge
-                                    if (!badge.isNullOrBlank()) {
-                                        Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = MaterialTheme.colorScheme.primaryContainer
-                                        ) {
-                                            Text(
-                                                text = badge,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                            )
-                                        }
-                                    } else {
-                                        Spacer(Modifier.width(1.dp))
-                                    }
-
-                                    IconButton(
-                                        onClick = {
-                                            speakOutLoud(displayJa, Locale.JAPAN)
-                                        }
-                                    ) {
-                                        Text("🔊", fontSize = 20.sp)
-                                    }
-                                }
-
-                                Spacer(Modifier.height(6.dp))
-
-                                Text(
-                                    text = displayJa,
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-
-                                val romaji = textTranslatedItem?.romaji
-                                if (!romaji.isNullOrBlank()) {
-                                    Spacer(Modifier.height(6.dp))
-                                    Text(
-                                        text = "🗣️ $romaji",
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-
-                                Spacer(Modifier.height(12.dp))
-
-                                Button(
-                                    onClick = {
-                                        speakOutLoud(displayJa, Locale.JAPAN)
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary
-                                    )
-                                ) {
-                                    Text(
-                                        text = if (isEs) "🔊 Escuchar en Japonés" else "🔊 Speak in Japanese",
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // MODO VOZ - TARJETA 1: HABLA JAPONÉS ➔ SE CAPTURA TEXTO JAPONÉS ➔ SE TRADUCE AL ESPAÑOL ➔ SE HABLA EN ESPAÑOL
-            item {
-                KotlinConfCard {
-                    Text(
-                        text = if (isEs) "1. Habla Japonés ➔ Traduce y Habla en Español" else "1. Speaks Japanese ➔ Translates and Speaks in Spanish",
+        when (translatorMode) {
+            0 -> {
+                // MODO VOZ - TARJETA 1: HABLA JAPONÉS ➔ SE CAPTURA TEXTO JAPONÉS ➔ SE TRADUCE AL ESPAÑOL ➔ SE HABLA EN ESPAÑOL
+                item {
+                    KotlinConfCard {
+                        Text(
+                            text = if (isEs) "1. Habla Japonés ➔ Traduce y Habla en Español" else "1. Speaks Japanese ➔ Translates and Speaks in Spanish",
                         fontSize = 19.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -4326,71 +4448,436 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
                     }
                 }
             }
-        } else {
-            // MODO CÁMARA & CARTELES - CARD 1: CAPTURA Y FOTO
-            item {
-                KotlinConfCard {
-                    Text(
-                        text = if (isEs) "📷 Traductor de Carteles y Menús" else "📷 Sign & Menu Camera Translator",
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = if (isEs) {
-                            "Reconoce caracteres japoneses (Kanji, Hiragana, Katakana), platos, precios en Yenes y carteles 100% offline."
-                        } else {
-                            "Recognizes Japanese text (Kanji, Hiragana, Katakana), dish names, Yen prices, and station signs 100% offline."
-                        },
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+        }
+        1 -> {
+                // ==================== MODO 1: TEXTO ====================
+                // SECCIÓN / TARJETA DEDICADA: TRADUCTOR DE TEXTO (ESPAÑOL ➔ JAPONÉS)
+                item {
+                    KotlinConfCard {
+                        Text(
+                            text = if (isEs) "Traductor de Texto (Español ➔ Japonés)" else "Text Translator (Spanish ➔ Japanese)",
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = if (isEs) {
+                                "Escribe frases o preguntas en español (o inglés) para traducirlas a caracteres japoneses (Kanji/Kana) con fonética Romaji y locución en audio japonés."
+                            } else {
+                                "Type phrases or questions in Spanish (or English) to translate into Japanese (Kanji/Kana) with Romaji pronunciation and Japanese audio speech."
+                            },
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
 
-                    Spacer(Modifier.height(14.dp))
-
-                    AppButtonRow(
-                        primaryText = if (isEs) "📷 Abrir Cámara" else "📷 Open Camera",
-                        onPrimaryClick = {
-                            checkAndLaunchCamera()
-                        },
-                        secondaryText = if (isEs) "🖼️ Elegir Imagen" else "🖼️ Pick Image",
-                        onSecondaryClick = {
-                            runCatching {
-                                pickImageLauncher.launch("image/*")
-                            }
-                        }
-                    )
-
-                    if (capturedBitmap != null) {
                         Spacer(Modifier.height(14.dp))
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(8.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+
+                        OutlinedTextField(
+                            value = textTranslatorInput,
+                            onValueChange = { textTranslatorInput = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = {
+                                Text(if (isEs) "Escribe en español o inglés" else "Type in Spanish or English")
+                            },
+                            placeholder = {
+                                Text(if (isEs) "Ej. ¿Dónde está el baño? / La cuenta, por favor" else "E.g. Where is the restroom? / The bill, please")
+                            },
+                            trailingIcon = {
+                                if (textTranslatorInput.isNotBlank()) {
+                                    IconButton(
+                                        onClick = {
+                                            textTranslatorInput = ""
+                                            textTranslatedItem = null
+                                            textOnlineTranslationJa = null
+                                        }
+                                    ) {
+                                        Text(
+                                            "✕",
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            },
+                            singleLine = false,
+                            maxLines = 3,
+                            keyboardOptions = KeyboardOptions(
+                                imeAction = ImeAction.Done,
+                                keyboardType = KeyboardType.Text
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = {
+                                    if (textTranslatorInput.isNotBlank()) {
+                                        performTextTranslation(textTranslatorInput)
+                                    }
+                                }
+                            )
+                        )
+
+                        Spacer(Modifier.height(12.dp))
+
+                        AppButtonRow(
+                            primaryText = if (isEs) "🇯🇵 Traducir a Japonés" else "🇯🇵 Translate to Japanese",
+                            onPrimaryClick = {
+                                if (textTranslatorInput.isNotBlank()) {
+                                    performTextTranslation(textTranslatorInput)
+                                }
+                            },
+                            secondaryText = if (isEs) "🔊 Escuchar en Japonés" else "🔊 Speak in Japanese",
+                            onSecondaryClick = {
+                                val target = textOnlineTranslationJa ?: textTranslatedItem?.japaneseText
+                                if (!target.isNullOrBlank()) {
+                                    speakOutLoud(target, Locale.JAPAN)
+                                } else if (textTranslatorInput.isNotBlank()) {
+                                    performTextTranslation(textTranslatorInput, autoSpeak = true)
+                                }
+                            }
+                        )
+
+                        // Visualización del resultado con traducción en japonés (Kanji/Kana), pronunciación Romaji y botón de altavoz
+                        val displayJa = textOnlineTranslationJa ?: textTranslatedItem?.japaneseText
+                        if (!displayJa.isNullOrBlank()) {
+                            Spacer(Modifier.height(14.dp))
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Image(
-                                    bitmap = capturedBitmap!!.asImageBitmap(),
-                                    contentDescription = "Foto capturada",
-                                    contentScale = ContentScale.Fit,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(160.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                )
-                                Spacer(Modifier.height(6.dp))
-                                AppOptionButton(
-                                    text = if (isEs) "🗑️ Quitar foto" else "🗑️ Clear photo",
-                                    selected = false,
-                                    onClick = { capturedBitmap = null },
-                                    modifier = Modifier.fillMaxWidth(0.5f)
-                                )
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        val badge = textTranslatedItem?.categoryBadge
+                                        if (!badge.isNullOrBlank()) {
+                                            Surface(
+                                                shape = RoundedCornerShape(6.dp),
+                                                color = MaterialTheme.colorScheme.primaryContainer
+                                            ) {
+                                                Text(
+                                                    text = badge,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                        } else {
+                                            Spacer(Modifier.width(1.dp))
+                                        }
+
+                                        IconButton(
+                                            onClick = {
+                                                speakOutLoud(displayJa, Locale.JAPAN)
+                                            }
+                                        ) {
+                                            Text("🔊", fontSize = 20.sp)
+                                        }
+                                    }
+
+                                    Spacer(Modifier.height(6.dp))
+
+                                    Text(
+                                        text = displayJa,
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+
+                                    val romaji = textTranslatedItem?.romaji
+                                    if (!romaji.isNullOrBlank()) {
+                                        Spacer(Modifier.height(6.dp))
+                                        Text(
+                                            text = "🗣️ $romaji",
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+
+                                    Spacer(Modifier.height(12.dp))
+
+                                    Button(
+                                        onClick = {
+                                            speakOutLoud(displayJa, Locale.JAPAN)
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.primary
+                                        )
+                                    ) {
+                                        Text(
+                                            text = if (isEs) "🔊 Escuchar en Japonés" else "🔊 Speak in Japanese",
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
+                }
+
+                // FRASES RÁPIDAS DE VIAJE PARA INSERTAR Y TRADUCIR
+                item {
+                    KotlinConfCard {
+                        Text(
+                            text = if (isEs) "💡 Frases Rápidas para Traducir" else "💡 Quick Phrases to Translate",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = if (isEs) {
+                                "Toca cualquier frase para insertarla en el traductor de texto, ver su traducción y escuchar su pronunciación:"
+                            } else {
+                                "Tap any phrase to insert it into the text translator, view translation and hear pronunciation:"
+                            },
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(14.dp))
+
+                        var selectedCategoryFilter by remember { mutableStateOf<String?>(null) }
+                        val categories = remember {
+                            listOf("TODAS") + OfflineTranslatorEngine.travelerQuickPhrases.map { it.categoryBadge }.distinct()
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            categories.forEach { category ->
+                                val isSelected = (selectedCategoryFilter == null && category == "TODAS") || selectedCategoryFilter == category
+                                AppOptionButton(
+                                    text = category,
+                                    selected = isSelected,
+                                    onClick = {
+                                        selectedCategoryFilter = if (category == "TODAS") null else category
+                                    }
+                                )
+                            }
+                        }
+
+                        Spacer(Modifier.height(14.dp))
+
+                        val filteredPhrases = remember(selectedCategoryFilter) {
+                            if (selectedCategoryFilter == null) OfflineTranslatorEngine.travelerQuickPhrases
+                            else OfflineTranslatorEngine.travelerQuickPhrases.filter { it.categoryBadge == selectedCategoryFilter }
+                        }
+
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            filteredPhrases.forEach { phrase ->
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            textTranslatorInput = phrase.sourceEs
+                                            performTextTranslation(phrase.sourceEs, autoSpeak = true)
+                                        }
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(14.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Surface(
+                                                shape = RoundedCornerShape(4.dp),
+                                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+                                                modifier = Modifier.padding(bottom = 6.dp)
+                                            ) {
+                                                Text(
+                                                    text = phrase.categoryBadge,
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                            Text(
+                                                text = if (isEs) phrase.sourceEs else phrase.sourceEn,
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                            Spacer(Modifier.height(4.dp))
+                                            Text(
+                                                text = phrase.japaneseText,
+                                                fontSize = 19.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                            Spacer(Modifier.height(2.dp))
+                                            Text(
+                                                text = "🗣️ ${phrase.romaji}",
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        Spacer(Modifier.width(8.dp))
+                                        IconButton(
+                                            onClick = {
+                                                speakOutLoud(phrase.japaneseText, Locale.JAPAN)
+                                            }
+                                        ) {
+                                            Text("🔊", fontSize = 22.sp)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else -> {
+                // ==================== MODO 2: CÁMARA & CARTELES ====================
+                // MODO CÁMARA & CARTELES - CARD 1: CAPTURA Y FOTO
+                item {
+                    KotlinConfCard {
+                        Text(
+                            text = if (isEs) "📷 Traductor de Carteles y Menús" else "📷 Sign & Menu Camera Translator",
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = if (isEs) {
+                                "Reconoce caracteres japoneses (Kanji, Hiragana, Katakana), platos, precios en Yenes y carteles 100% offline."
+                            } else {
+                                "Recognizes Japanese text (Kanji, Hiragana, Katakana), dish names, Yen prices, and station signs 100% offline."
+                            },
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(Modifier.height(14.dp))
+
+                        AppButtonRow(
+                            primaryText = if (isEs) "📷 Abrir Cámara" else "📷 Open Camera",
+                            onPrimaryClick = {
+                                checkAndLaunchCamera()
+                            },
+                            secondaryText = if (isEs) "🖼️ Elegir Imagen" else "🖼️ Pick Image",
+                            onSecondaryClick = {
+                                runCatching {
+                                    pickImageLauncher.launch("image/*")
+                                }
+                            }
+                        )
+
+                        val currentPhoto = activeCroppedBitmap ?: originalCapturedBitmap
+                        if (currentPhoto != null) {
+                            Spacer(Modifier.height(14.dp))
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(10.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Image(
+                                        bitmap = currentPhoto.asImageBitmap(),
+                                        contentDescription = "Foto capturada",
+                                        contentScale = ContentScale.Fit,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(180.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                    )
+
+                                    Spacer(Modifier.height(10.dp))
+
+                                    // Acciones directas sobre la foto: Girar 90°, Recortar y Quitar
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        AppOptionButton(
+                                            text = if (isEs) "🔄 Girar 90°" else "🔄 Rotate 90°",
+                                            selected = false,
+                                            onClick = {
+                                                val orig = originalCapturedBitmap
+                                                if (orig != null) {
+                                                    val rotated = rotateBitmap(orig, 90f)
+                                                    originalCapturedBitmap = rotated
+                                                    applyCropAndRunOcr(activeCropPreset)
+                                                }
+                                            },
+                                            modifier = Modifier.weight(1f),
+                                            fontSize = 12.sp,
+                                            horizontalPadding = 6.dp
+                                        )
+                                        AppOptionButton(
+                                            text = if (isEs) "✂️ Recortar Área" else "✂️ Crop Area",
+                                            selected = activeCropPreset != ImageCropPreset.FULL,
+                                            onClick = {
+                                                showRegionCropDialog = true
+                                            },
+                                            modifier = Modifier.weight(1f),
+                                            fontSize = 12.sp,
+                                            horizontalPadding = 6.dp
+                                        )
+                                        AppOptionButton(
+                                            text = if (isEs) "🗑️ Quitar" else "🗑️ Clear",
+                                            selected = false,
+                                            onClick = {
+                                                originalCapturedBitmap = null
+                                                activeCroppedBitmap = null
+                                                activeCropPreset = ImageCropPreset.FULL
+                                            },
+                                            modifier = Modifier.weight(0.8f),
+                                            fontSize = 12.sp,
+                                            horizontalPadding = 6.dp
+                                        )
+                                    }
+
+                                    Spacer(Modifier.height(10.dp))
+
+                                    // Selector rápido de presets de área a traducir
+                                    Text(
+                                        text = if (isEs) "Zona a traducir:" else "Zone to translate:",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.align(Alignment.Start)
+                                    )
+                                    Spacer(Modifier.height(6.dp))
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .horizontalScroll(rememberScrollState()),
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        ImageCropPreset.entries.forEach { preset ->
+                                            val isSelected = activeCropPreset == preset
+                                            AppOptionButton(
+                                                text = if (isEs) preset.labelEs else preset.labelEn,
+                                                selected = isSelected,
+                                                onClick = {
+                                                    if (preset == ImageCropPreset.CUSTOM) {
+                                                        showRegionCropDialog = true
+                                                    } else {
+                                                        applyCropAndRunOcr(preset)
+                                                    }
+                                                },
+                                                fontSize = 11.5.sp,
+                                                horizontalPadding = 6.dp
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
 
                     if (isProcessingOcr) {
                         Spacer(Modifier.height(14.dp))
@@ -4566,7 +5053,9 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
                                         text = sample.label,
                                         selected = ocrRawText == sample.sampleJapaneseOcr,
                                         onClick = {
-                                            capturedBitmap = null
+                                            originalCapturedBitmap = null
+                                            activeCroppedBitmap = null
+                                            activeCropPreset = ImageCropPreset.FULL
                                             ocrErrorMessage = null
                                             ocrRawText = sample.sampleJapaneseOcr
                                             speakOutLoud(
@@ -4656,6 +5145,24 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
                 }
             }
         }
+    }
+}
+
+    if (showRegionCropDialog && originalCapturedBitmap != null) {
+        SelectImageRegionDialog(
+            bitmap = originalCapturedBitmap!!,
+            initialPreset = activeCropPreset,
+            initialLeft = customCropLeft,
+            initialTop = customCropTop,
+            initialRight = customCropRight,
+            initialBottom = customCropBottom,
+            isEs = isEs,
+            onDismiss = { showRegionCropDialog = false },
+            onConfirm = { preset, l, t, r, b ->
+                showRegionCropDialog = false
+                applyCropAndRunOcr(preset, l, t, r, b)
+            }
+        )
     }
 }
 

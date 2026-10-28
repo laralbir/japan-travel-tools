@@ -7,6 +7,19 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Traductor de Texto en Pestaña Independiente, Orientación EXIF y Recorte de Región para Carteles 🇯🇵✍️📷
+
+#### ✍️ Pestañas Independientes del Traductor:
+- **Estructuración en 3 Modos por Pestañas**: Separación clara de la pantalla de traducción mediante barra superior estilizada (`AppOptionButton`) en `🎙️ Voz`, `✍️ Texto` y `📷 Carteles / Cámara`.
+- **Pestaña Exclusiva de Texto**: Entorno enfocado para redactar en español/inglés, con traducción instantánea a caracteres japoneses (*Kanji/Kana*), transcripción fonética *Romaji*, locución por voz nativa y acceso a frases de viaje para inserción directa en el cuadro de texto.
+- **Pestaña de Voz y Conversación**: Centralización de la escucha e interpretación por voz bidireccional junto con el catálogo de frases habituales al pie de la pantalla.
+
+#### 📷 Orientación EXIF, Rotación 90° y Selección de Área de Imagen para OCR:
+- **Corrección Automática de Orientación EXIF**: Detección y corrección de la orientación de los sensores de cámara (`ExifInterface.TAG_ORIENTATION`) al capturar fotos desde la app nativa o seleccionar desde la galería, asegurando que las imágenes se procesen siempre en posición vertical real sin giros de 90°.
+- **Botón Manual `🔄 Girar 90°`**: Capacidad para rotar manualmente la foto en incrementos de 90 grados en caso de carteles verticales o fotografías apaisadas.
+- **Selección de Región de Interés (ROI / Crop)**: Capacidad para seleccionar qué parte específica de la imagen procesar antes del reconocimiento OCR, con chips de recorte preestablecidos (*🖼️ Toda la foto*, *⬆️ Zona Superior*, *↔️ Zona Central*, *⬇️ Zona Inferior*, *✂️ Personalizada*).
+- **Diálogo Interactivo `SelectImageRegionDialog`**: Diálogo modal con deslizadores de márgenes y caja delimitadora visual en tiempo real para recortar con precisión y traducir solo el cartel, menú o plato deseado.
+
 ### Bóveda de Identidad con PDF, Prevención de Rebloqueo Biométrico y Frases Rápidas de Viaje Unificadas 🇯🇵🪪🗣️
 
 #### 🪪 Pasaporte y DNI con Soporte Multi-Formato PDF y Prevención de Rebloqueo:

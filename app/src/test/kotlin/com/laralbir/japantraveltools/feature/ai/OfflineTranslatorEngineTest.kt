@@ -189,4 +189,84 @@ class OfflineTranslatorEngineTest {
             assertTrue("Categoría no debe estar vacía", phrase.categoryBadge.isNotBlank())
         }
     }
+
+    @Test
+    fun `TranslatorTabMode defines voice text and camera modes with localized labels`() {
+        val modes = TranslatorTabMode.entries
+        assertEquals(3, modes.size)
+        assertTrue(modes.contains(TranslatorTabMode.VOICE))
+        assertTrue(modes.contains(TranslatorTabMode.TEXT))
+        assertTrue(modes.contains(TranslatorTabMode.CAMERA))
+
+        for (mode in modes) {
+            assertTrue(mode.id.isNotBlank())
+            assertTrue(mode.iconEmoji.isNotBlank())
+            assertTrue(mode.labelEs.isNotBlank())
+            assertTrue(mode.labelEn.isNotBlank())
+        }
+    }
+
+    @Test
+    fun `ImageCropPreset and calculateCropBounds accurately compute crop coordinates`() {
+        val presets = ImageCropPreset.entries
+        assertTrue(presets.contains(ImageCropPreset.FULL))
+        assertTrue(presets.contains(ImageCropPreset.TOP_HALF))
+        assertTrue(presets.contains(ImageCropPreset.CENTER))
+        assertTrue(presets.contains(ImageCropPreset.BOTTOM_HALF))
+        assertTrue(presets.contains(ImageCropPreset.CUSTOM))
+
+        // Prueba sobre imagen de 1000x2000
+        val fullBounds = OfflineTranslatorEngine.calculateCropBounds(
+            imageWidth = 1000,
+            imageHeight = 2000,
+            leftFraction = ImageCropPreset.FULL.leftFraction,
+            topFraction = ImageCropPreset.FULL.topFraction,
+            rightFraction = ImageCropPreset.FULL.rightFraction,
+            bottomFraction = ImageCropPreset.FULL.bottomFraction
+        )
+        assertEquals(0, fullBounds.left)
+        assertEquals(0, fullBounds.top)
+        assertEquals(1000, fullBounds.width)
+        assertEquals(2000, fullBounds.height)
+
+        val topBounds = OfflineTranslatorEngine.calculateCropBounds(
+            imageWidth = 1000,
+            imageHeight = 2000,
+            leftFraction = ImageCropPreset.TOP_HALF.leftFraction,
+            topFraction = ImageCropPreset.TOP_HALF.topFraction,
+            rightFraction = ImageCropPreset.TOP_HALF.rightFraction,
+            bottomFraction = ImageCropPreset.TOP_HALF.bottomFraction
+        )
+        assertEquals(0, topBounds.left)
+        assertEquals(0, topBounds.top)
+        assertEquals(1000, topBounds.width)
+        assertEquals(1000, topBounds.height)
+
+        val bottomBounds = OfflineTranslatorEngine.calculateCropBounds(
+            imageWidth = 1000,
+            imageHeight = 2000,
+            leftFraction = ImageCropPreset.BOTTOM_HALF.leftFraction,
+            topFraction = ImageCropPreset.BOTTOM_HALF.topFraction,
+            rightFraction = ImageCropPreset.BOTTOM_HALF.rightFraction,
+            bottomFraction = ImageCropPreset.BOTTOM_HALF.bottomFraction
+        )
+        assertEquals(0, bottomBounds.left)
+        assertEquals(1000, bottomBounds.top)
+        assertEquals(1000, bottomBounds.width)
+        assertEquals(1000, bottomBounds.height)
+
+        // Resistencia a valores fuera de rango
+        val clampedBounds = OfflineTranslatorEngine.calculateCropBounds(
+            imageWidth = 500,
+            imageHeight = 800,
+            leftFraction = -0.5f,
+            topFraction = -0.2f,
+            rightFraction = 1.8f,
+            bottomFraction = 2.0f
+        )
+        assertEquals(0, clampedBounds.left)
+        assertEquals(0, clampedBounds.top)
+        assertEquals(500, clampedBounds.width)
+        assertEquals(800, clampedBounds.height)
+    }
 }
