@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.CalendarContract
 import android.provider.MediaStore
+import android.provider.OpenableColumns
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -5059,29 +5060,29 @@ private fun PassportAndCustomsScreen(
                 isCreatingCustomDoc = false
                 editingCustomDoc = null
             },
-            onSave = { title, subtitle, photoUri ->
+            onSave = { title, subtitle, fileUri, originalName ->
                 val docToEdit = editingCustomDoc
                 if (docToEdit != null) {
                     val updated = docToEdit.copy(title = title, subtitle = subtitle)
                     SharedDocumentsAndGuidesStore.upsertCustomIdDoc(updated)
-                    if (photoUri != null) {
-                        SharedDocumentsAndGuidesStore.saveIdPhoto(context, photoUri, docToEdit.fileName)
-                        refreshPhotoCounter++
+                    if (fileUri != null) {
+                        SharedDocumentsAndGuidesStore.updateCustomIdDocumentFile(context, docToEdit.id, fileUri, originalName)
                     }
+                    refreshPhotoCounter++
                 } else {
-                    val newId = "custom_${System.currentTimeMillis()}"
-                    val fileName = "${newId}.jpg"
-                    if (photoUri != null) {
-                        SharedDocumentsAndGuidesStore.saveIdPhoto(context, photoUri, fileName)
+                    if (fileUri != null) {
+                        SharedDocumentsAndGuidesStore.addCustomIdDocumentWithFile(context, title, subtitle, fileUri, originalName)
+                    } else {
+                        val newId = "custom_${System.currentTimeMillis()}"
+                        val newDoc = CustomIdDocumentItem(
+                            id = newId,
+                            title = title,
+                            subtitle = subtitle,
+                            fileName = "${newId}.jpg",
+                            createdAtEpochMs = System.currentTimeMillis()
+                        )
+                        SharedDocumentsAndGuidesStore.upsertCustomIdDoc(newDoc)
                     }
-                    val newDoc = CustomIdDocumentItem(
-                        id = newId,
-                        title = title,
-                        subtitle = subtitle,
-                        fileName = fileName,
-                        createdAtEpochMs = System.currentTimeMillis()
-                    )
-                    SharedDocumentsAndGuidesStore.upsertCustomIdDoc(newDoc)
                     refreshPhotoCounter++
                 }
                 isCreatingCustomDoc = false
@@ -5368,19 +5369,13 @@ private fun PassportAndCustomsScreen(
                                         Spacer(Modifier.height(3.dp))
                                         Text(
                                             text = if (isEs) {
-                                                "Añade cualquier documento oficial con foto (ej. certificado de vacunas, receta médica para aduanas japonesas, carnet internacional de conducir, póliza de seguro o visado)."
+                                                "Añade cualquier documento oficial con foto o PDF (ej. certificado de vacunas, receta médica para aduanas japonesas, carnet internacional de conducir, póliza de seguro o visado) con el botón de añadir arriba."
                                             } else {
-                                                "Add any official photo document (e.g. vaccine certificate, prescription for Japanese customs, international permit, insurance policy or visa)."
+                                                "Add any official photo or PDF document (e.g. vaccine certificate, prescription for Japanese customs, international permit, insurance policy or visa) with the add button above."
                                             },
                                             fontSize = 12.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             textAlign = TextAlign.Center
-                                        )
-                                        Spacer(Modifier.height(12.dp))
-                                        AppPrimaryButton(
-                                            text = if (isEs) "➕ Añadir Documento Personalizado" else "➕ Add Custom Document",
-                                            onClick = { isCreatingCustomDoc = true },
-                                            modifier = Modifier.fillMaxWidth()
                                         )
                                     }
                                 }
@@ -5410,6 +5405,20 @@ private fun PassportAndCustomsScreen(
     }
 }
 
+private fun queryFileName(context: Context, uri: Uri): String? {
+    if (uri.scheme == "content") {
+        runCatching {
+            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (idx >= 0) return cursor.getString(idx)
+                }
+            }
+        }
+    }
+    return uri.lastPathSegment
+}
+
 @Composable
 private fun IdDocumentPhotoSection(
     isEs: Boolean,
@@ -5427,12 +5436,31 @@ private fun IdDocumentPhotoSection(
         photoFile?.let { runCatching { BitmapFactory.decodeFile(it.absolutePath)?.asImageBitmap() }.getOrNull() }
     }
 
+    var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && pendingCameraUri != null) {
+            SharedDocumentsAndGuidesStore.saveIdPhoto(context, pendingCameraUri!!, fileName)
+            onPhotoChanged()
+        }
+    }
+
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
             SharedDocumentsAndGuidesStore.saveIdPhoto(context, uri, fileName)
             onPhotoChanged()
+        }
+    }
+
+    fun launchCamera() {
+        runCatching {
+            val tempFile = File(context.cacheDir, "camera_id_${System.currentTimeMillis()}.jpg")
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", tempFile)
+            pendingCameraUri = uri
+            cameraLauncher.launch(uri)
         }
     }
 
@@ -5504,29 +5532,60 @@ private fun IdDocumentPhotoSection(
                     }
                 }
                 Spacer(Modifier.height(12.dp))
-                AppButtonRow(
-                    primaryText = if (isEs) "🔄 Cambiar Foto" else "🔄 Change Photo",
-                    onPrimaryClick = { photoPickerLauncher.launch("image/*") },
-                    secondaryText = if (isEs) "🗑️ Quitar Foto" else "🗑️ Delete Photo",
-                    onSecondaryClick = {
-                        confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
-                            itemName = title,
-                            itemTypeEs = "foto de identidad oficial",
-                            itemTypeEn = "official identity photo",
-                            isEs = isEs,
-                            onConfirm = {
-                                SharedDocumentsAndGuidesStore.deleteIdPhoto(context, fileName)
-                                onPhotoChanged()
-                            }
-                        )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = { launchCamera() },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "📸 Cámara" else "📸 Camera", fontSize = 12.sp)
                     }
-                )
+                    OutlinedButton(
+                        onClick = { photoPickerLauncher.launch("image/*") },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "🖼️ Galería" else "🖼️ Gallery", fontSize = 12.sp)
+                    }
+                    IconButton(
+                        onClick = {
+                            confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
+                                itemName = title,
+                                itemTypeEs = "foto de identidad oficial",
+                                itemTypeEn = "official identity photo",
+                                isEs = isEs,
+                                onConfirm = {
+                                    SharedDocumentsAndGuidesStore.deleteIdPhoto(context, fileName)
+                                    onPhotoChanged()
+                                }
+                            )
+                        }
+                    ) {
+                        Text("🗑️", fontSize = 16.sp)
+                    }
+                }
             } else {
-                AppPrimaryButton(
-                    text = if (isEs) "📷 Seleccionar Foto (Galería / Drive)" else "📷 Select Photo (Gallery / Drive)",
-                    onClick = { photoPickerLauncher.launch("image/*") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AppPrimaryButton(
+                        text = if (isEs) "📸 Hacer Foto" else "📸 Take Photo",
+                        onClick = { launchCamera() },
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedButton(
+                        onClick = { photoPickerLauncher.launch("image/*") },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "🖼️ Galería" else "🖼️ Gallery", fontSize = 13.sp)
+                    }
+                }
             }
         }
     }
@@ -5545,16 +5604,39 @@ private fun CustomIdDocumentItemCard(
     val photoFile = remember(item.fileName, refreshTrigger) {
         SharedDocumentsAndGuidesStore.getIdPhotoFile(context, item.fileName)
     }
-    val photoBitmap = remember(photoFile) {
-        photoFile?.let { runCatching { BitmapFactory.decodeFile(it.absolutePath)?.asImageBitmap() }.getOrNull() }
+    val isPdf = item.isPdf
+    val photoBitmap = remember(photoFile, isPdf) {
+        if (!isPdf) {
+            photoFile?.let { runCatching { BitmapFactory.decodeFile(it.absolutePath)?.asImageBitmap() }.getOrNull() }
+        } else null
     }
 
-    val photoPickerLauncher = rememberLauncherForActivityResult(
+    var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && pendingCameraUri != null) {
+            SharedDocumentsAndGuidesStore.updateCustomIdDocumentFile(context, item.id, pendingCameraUri!!, "camera.jpg")
+            onPhotoChanged()
+        }
+    }
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            SharedDocumentsAndGuidesStore.saveIdPhoto(context, uri, item.fileName)
+            val originalName = queryFileName(context, uri)
+            SharedDocumentsAndGuidesStore.updateCustomIdDocumentFile(context, item.id, uri, originalName)
             onPhotoChanged()
+        }
+    }
+
+    fun launchCamera() {
+        runCatching {
+            val tempFile = File(context.cacheDir, "camera_custom_${System.currentTimeMillis()}.jpg")
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", tempFile)
+            pendingCameraUri = uri
+            cameraLauncher.launch(uri)
         }
     }
 
@@ -5617,7 +5699,76 @@ private fun CustomIdDocumentItemCard(
 
             Spacer(Modifier.height(10.dp))
 
-            if (photoBitmap != null) {
+            if (isPdf && photoFile != null && photoFile.exists() && photoFile.length() > 0L) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            openDocumentFile(context, photoFile.absolutePath)
+                        }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("📄", fontSize = 34.sp)
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isEs) "Documento PDF Adjunto" else "Attached PDF Document",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = if (isEs) "Toca para abrir en visor de PDF externo" else "Tap to open in PDF viewer",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Text("↗️", fontSize = 16.sp)
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = { launchCamera() },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "📸 Cámara" else "📸 Camera", fontSize = 12.sp)
+                    }
+                    OutlinedButton(
+                        onClick = { filePickerLauncher.launch("*/*") },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "📄 Cambiar" else "📄 Change", fontSize = 12.sp)
+                    }
+                    IconButton(
+                        onClick = {
+                            confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
+                                itemName = item.title,
+                                itemTypeEs = "archivo del documento",
+                                itemTypeEn = "document file",
+                                isEs = isEs,
+                                onConfirm = {
+                                    SharedDocumentsAndGuidesStore.deleteIdPhoto(context, item.fileName)
+                                    onPhotoChanged()
+                                }
+                            )
+                        }
+                    ) {
+                        Text("🗑️", fontSize = 16.sp)
+                    }
+                }
+            } else if (photoBitmap != null) {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
@@ -5657,23 +5808,42 @@ private fun CustomIdDocumentItemCard(
                     }
                 }
                 Spacer(Modifier.height(10.dp))
-                AppButtonRow(
-                    primaryText = if (isEs) "🔄 Cambiar Foto" else "🔄 Change Photo",
-                    onPrimaryClick = { photoPickerLauncher.launch("image/*") },
-                    secondaryText = if (isEs) "🗑️ Quitar Foto" else "🗑️ Remove Photo",
-                    onSecondaryClick = {
-                        confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
-                            itemName = item.title,
-                            itemTypeEs = "foto del documento",
-                            itemTypeEn = "document photo",
-                            isEs = isEs,
-                            onConfirm = {
-                                SharedDocumentsAndGuidesStore.deleteIdPhoto(context, item.fileName)
-                                onPhotoChanged()
-                            }
-                        )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = { launchCamera() },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "📸 Cámara" else "📸 Camera", fontSize = 12.sp)
                     }
-                )
+                    OutlinedButton(
+                        onClick = { filePickerLauncher.launch("*/*") },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "📄 Cambiar" else "📄 Change", fontSize = 12.sp)
+                    }
+                    IconButton(
+                        onClick = {
+                            confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
+                                itemName = item.title,
+                                itemTypeEs = "foto del documento",
+                                itemTypeEn = "document photo",
+                                isEs = isEs,
+                                onConfirm = {
+                                    SharedDocumentsAndGuidesStore.deleteIdPhoto(context, item.fileName)
+                                    onPhotoChanged()
+                                }
+                            )
+                        }
+                    ) {
+                        Text("🗑️", fontSize = 16.sp)
+                    }
+                }
             } else {
                 Surface(
                     shape = RoundedCornerShape(10.dp),
@@ -5685,16 +5855,28 @@ private fun CustomIdDocumentItemCard(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = if (isEs) "Sin foto adjunta todavía" else "No photo attached yet",
+                            text = if (isEs) "Sin foto ni archivo adjunto todavía" else "No photo or file attached yet",
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(Modifier.height(8.dp))
-                        AppPrimaryButton(
-                            text = if (isEs) "📷 Seleccionar Foto de Galería" else "📷 Select Photo from Gallery",
-                            onClick = { photoPickerLauncher.launch("image/*") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            AppPrimaryButton(
+                                text = if (isEs) "📸 Foto Cámara" else "📸 Camera Photo",
+                                onClick = { launchCamera() },
+                                modifier = Modifier.weight(1f)
+                            )
+                            OutlinedButton(
+                                onClick = { filePickerLauncher.launch("*/*") },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(10.dp)
+                            ) {
+                                Text(text = if (isEs) "📄 Adjuntar Archivo/PDF" else "📄 Attach File/PDF", fontSize = 12.sp)
+                            }
+                        }
                     }
                 }
             }
@@ -5708,18 +5890,40 @@ private fun CustomIdDocumentEditorModalSheet(
     isEs: Boolean,
     initialDoc: CustomIdDocumentItem?,
     onDismiss: () -> Unit,
-    onSave: (title: String, subtitle: String, photoUri: Uri?) -> Unit
+    onSave: (title: String, subtitle: String, fileUri: Uri?, originalName: String?) -> Unit
 ) {
     var titleText by rememberSaveable { mutableStateOf(initialDoc?.title ?: "") }
     var subtitleText by rememberSaveable { mutableStateOf(initialDoc?.subtitle ?: "") }
-    var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedFileName by remember { mutableStateOf<String?>(null) }
+    var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+    val context = LocalContext.current
     val isNew = initialDoc == null
 
-    val photoPickerLauncher = rememberLauncherForActivityResult(
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && pendingCameraUri != null) {
+            selectedFileUri = pendingCameraUri
+            selectedFileName = "camera_capture.jpg"
+        }
+    }
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            selectedPhotoUri = uri
+            selectedFileUri = uri
+            selectedFileName = queryFileName(context, uri) ?: "document"
+        }
+    }
+
+    fun launchCamera() {
+        runCatching {
+            val tempFile = File(context.cacheDir, "camera_edit_${System.currentTimeMillis()}.jpg")
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", tempFile)
+            pendingCameraUri = uri
+            cameraLauncher.launch(uri)
         }
     }
 
@@ -5770,9 +5974,9 @@ private fun CustomIdDocumentEditorModalSheet(
 
             Text(
                 text = if (isEs) {
-                    "Guarda certificados de vacunación, recetas médicas para aduanas, carnet internacional de conducir, visados o cualquier otro documento sensible."
+                    "Guarda certificados de vacunación, recetas médicas para aduanas, carnet internacional de conducir, visados o cualquier otro documento sensible en foto o PDF."
                 } else {
-                    "Store vaccination certificates, prescriptions for customs, international permits, visas or sensitive documents."
+                    "Store vaccination certificates, prescriptions for customs, international permits, visas or sensitive documents in photo or PDF."
                 },
                 fontSize = 13.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -5834,32 +6038,40 @@ private fun CustomIdDocumentEditorModalSheet(
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        text = if (isEs) "Foto del Documento" else "Document Photo",
+                        text = if (isEs) "Foto o Archivo del Documento" else "Document Photo or File",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = if (selectedPhotoUri != null) {
-                            if (isEs) "✅ Foto seleccionada lista para guardar" else "✅ Photo selected and ready to save"
+                        text = if (selectedFileUri != null) {
+                            if (isEs) "✅ Seleccionado: ${selectedFileName ?: "Archivo"}" else "✅ Selected: ${selectedFileName ?: "File"}"
                         } else if (initialDoc != null) {
-                            if (isEs) "ℹ️ Foto actual guardada en bóveda (puedes cambiarla)" else "ℹ️ Current photo saved in vault (can be changed)"
+                            if (isEs) "ℹ️ Archivo actual: ${initialDoc.fileName}" else "ℹ️ Current file: ${initialDoc.fileName}"
                         } else {
-                            if (isEs) "Selecciona una foto desde tu galería o archivos" else "Select a photo from gallery or files"
+                            if (isEs) "Puedes tomar una foto con la cámara o adjuntar PDF / imagen" else "Take a camera photo or attach a PDF / image"
                         },
                         fontSize = 12.sp,
-                        color = if (selectedPhotoUri != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (selectedFileUri != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.height(8.dp))
-                    AppPrimaryButton(
-                        text = if (selectedPhotoUri != null || initialDoc != null) {
-                            if (isEs) "🔄 Elegir otra foto" else "🔄 Choose different photo"
-                        } else {
-                            if (isEs) "📷 Seleccionar Foto de Galería" else "📷 Select Photo from Gallery"
-                        },
-                        onClick = { photoPickerLauncher.launch("image/*") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { launchCamera() },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text(text = if (isEs) "📸 Cámara" else "📸 Camera", fontSize = 12.sp)
+                        }
+                        AppPrimaryButton(
+                            text = if (isEs) "📄 PDF / Galería" else "📄 PDF / Gallery",
+                            onClick = { filePickerLauncher.launch("*/*") },
+                            modifier = Modifier.weight(1.2f)
+                        )
+                    }
                 }
             }
 
@@ -5869,7 +6081,7 @@ private fun CustomIdDocumentEditorModalSheet(
                 primaryText = if (isEs) "💾 Guardar Documento" else "💾 Save Document",
                 onPrimaryClick = {
                     if (titleText.isNotBlank()) {
-                        onSave(titleText, subtitleText, selectedPhotoUri)
+                        onSave(titleText, subtitleText, selectedFileUri, selectedFileName)
                     }
                 },
                 secondaryText = if (isEs) "Cancelar" else "Cancel",

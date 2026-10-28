@@ -45,7 +45,9 @@ data class CustomIdDocumentItem(
     val subtitle: String = "",
     val fileName: String,
     val createdAtEpochMs: Long = System.currentTimeMillis()
-)
+) {
+    val isPdf: Boolean get() = fileName.endsWith(".pdf", ignoreCase = true)
+}
 
 object DefaultTravelGuidesCatalog {
     fun initialDocuments(): List<TravelDocumentItem> = listOf(
@@ -366,14 +368,38 @@ object SharedDocumentsAndGuidesStore {
         saveToDisk()
     }
 
-    fun addCustomIdDocumentWithPhoto(
+    fun resolveFileExtension(context: Context, sourceUri: Uri, originalName: String? = null): String {
+        val fromName = originalName?.substringAfterLast('.', "")
+        if (!fromName.isNullOrBlank() && fromName.length in 2..5) {
+            return fromName.lowercase()
+        }
+        val mime = runCatching { context.contentResolver.getType(sourceUri) }.getOrNull()
+        if (mime != null) {
+            when (mime.lowercase()) {
+                "application/pdf" -> return "pdf"
+                "image/png" -> return "png"
+                "image/jpeg", "image/jpg" -> return "jpg"
+                "image/webp" -> return "webp"
+            }
+        }
+        val path = sourceUri.path
+        val fromPath = path?.substringAfterLast('.', "")
+        if (!fromPath.isNullOrBlank() && fromPath.length in 2..5) {
+            return fromPath.lowercase()
+        }
+        return "jpg"
+    }
+
+    fun addCustomIdDocumentWithFile(
         context: Context,
         title: String,
         subtitle: String,
-        sourceUri: Uri
+        sourceUri: Uri,
+        originalName: String? = null
     ): CustomIdDocumentItem? {
+        val ext = resolveFileExtension(context, sourceUri, originalName)
         val docId = "custom_doc_${System.currentTimeMillis()}"
-        val fileName = "${docId}.jpg"
+        val fileName = "${docId}.$ext"
         val saved = saveIdPhoto(context, sourceUri, fileName)
         if (!saved) return null
         val doc = CustomIdDocumentItem(
@@ -387,18 +413,44 @@ object SharedDocumentsAndGuidesStore {
         return doc
     }
 
+    fun addCustomIdDocumentWithPhoto(
+        context: Context,
+        title: String,
+        subtitle: String,
+        sourceUri: Uri
+    ): CustomIdDocumentItem? = addCustomIdDocumentWithFile(context, title, subtitle, sourceUri, null)
+
+    fun updateCustomIdDocumentFile(
+        context: Context,
+        id: String,
+        sourceUri: Uri,
+        originalName: String? = null
+    ): Boolean {
+        val current = _customIdDocsState.value.firstOrNull { it.id == id } ?: return false
+        val newExt = resolveFileExtension(context, sourceUri, originalName)
+        val currentExt = current.fileName.substringAfterLast('.', "jpg")
+        val targetFileName = if (newExt.equals(currentExt, ignoreCase = true)) {
+            current.fileName
+        } else {
+            deleteIdPhoto(context, current.fileName)
+            "${current.id}.$newExt"
+        }
+        val saved = saveIdPhoto(context, sourceUri, targetFileName)
+        if (saved) {
+            if (targetFileName != current.fileName) {
+                upsertCustomIdDoc(current.copy(fileName = targetFileName))
+            } else {
+                _customIdDocsState.value = _customIdDocsState.value.toList()
+            }
+        }
+        return saved
+    }
+
     fun updateCustomIdDocumentPhoto(
         context: Context,
         id: String,
         sourceUri: Uri
-    ): Boolean {
-        val current = _customIdDocsState.value.firstOrNull { it.id == id } ?: return false
-        val saved = saveIdPhoto(context, sourceUri, current.fileName)
-        if (saved) {
-            _customIdDocsState.value = _customIdDocsState.value.toList()
-        }
-        return saved
-    }
+    ): Boolean = updateCustomIdDocumentFile(context, id, sourceUri, null)
 }
 
 object DocumentsAndGuidesJsonCodec {
