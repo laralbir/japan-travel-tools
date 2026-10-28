@@ -43,7 +43,62 @@ data class CameraSignSample(
     val sampleJapaneseOcr: String
 )
 
+enum class TranslatorTabMode(
+    val id: String,
+    val iconEmoji: String,
+    val labelEs: String,
+    val labelEn: String
+) {
+    VOICE("voice", "🎙️", "Voz", "Voice"),
+    TEXT("text", "✍️", "Texto", "Text"),
+    CAMERA("camera", "📷", "Carteles", "Signs")
+}
+
+data class CropBounds(
+    val left: Int,
+    val top: Int,
+    val width: Int,
+    val height: Int
+)
+
+enum class ImageCropPreset(
+    val id: String,
+    val labelEs: String,
+    val labelEn: String,
+    val leftFraction: Float,
+    val topFraction: Float,
+    val rightFraction: Float,
+    val bottomFraction: Float
+) {
+    FULL("full", "🖼️ Toda la foto", "🖼️ Full photo", 0f, 0f, 1f, 1f),
+    TOP_HALF("top", "⬆️ Zona Superior", "⬆️ Top Half", 0f, 0f, 1f, 0.5f),
+    CENTER("center", "↔️ Zona Central", "↔️ Center", 0.05f, 0.25f, 0.95f, 0.75f),
+    BOTTOM_HALF("bottom", "⬇️ Zona Inferior", "⬇️ Bottom Half", 0f, 0.5f, 1f, 1f),
+    CUSTOM("custom", "✂️ Personalizada", "✂️ Custom Area", 0f, 0f, 1f, 1f)
+}
+
 object OfflineTranslatorEngine {
+
+    fun calculateCropBounds(
+        imageWidth: Int,
+        imageHeight: Int,
+        leftFraction: Float,
+        topFraction: Float,
+        rightFraction: Float,
+        bottomFraction: Float
+    ): CropBounds {
+        val safeLeftFrac = leftFraction.coerceIn(0f, 0.95f)
+        val safeTopFrac = topFraction.coerceIn(0f, 0.95f)
+        val safeRightFrac = rightFraction.coerceIn(safeLeftFrac + 0.05f, 1f)
+        val safeBottomFrac = bottomFraction.coerceIn(safeTopFrac + 0.05f, 1f)
+
+        val x = (imageWidth * safeLeftFrac).toInt().coerceIn(0, (imageWidth - 1).coerceAtLeast(0))
+        val y = (imageHeight * safeTopFrac).toInt().coerceIn(0, (imageHeight - 1).coerceAtLeast(0))
+        val w = ((imageWidth * safeRightFrac).toInt() - x).coerceIn(1, (imageWidth - x).coerceAtLeast(1))
+        val h = ((imageHeight * safeBottomFrac).toInt() - y).coerceIn(1, (imageHeight - y).coerceAtLeast(1))
+
+        return CropBounds(left = x, top = y, width = w, height = h)
+    }
 
     fun isJapaneseText(text: String): Boolean {
         return text.any { char ->

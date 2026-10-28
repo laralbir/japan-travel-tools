@@ -234,3 +234,25 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
   - Implementar en `OfflineTranslatorEngine` la colección consolidada y desduplicada `travelerQuickPhrases` con categorías estructuradas.
   - Diseñar la tarjeta unificada al pie de la pantalla en `VoiceTranslatorScreen` con visualización obligatoria dual (Español y Japonés con Kanji/Kana y fonética Romaji) y botón directo de audio `🔊` en japonés (`Locale.JAPAN`).
 
+---
+
+## Hito 15: Traductor de Texto en Sección Independiente con Botones Estilo Pestaña
+
+### Navegación de Traductor y Pestaña de Texto (`SPEC-06`)
+- [x] **TASK-712 (TDD)**: Modelo de Modos de Navegación por Pestañas del Traductor (`SPEC-06 RF-06.1.3`):
+  - Definir enum `TranslatorTabMode` (`VOICE`, `TEXT`, `CAMERA`) con identificador, icono y etiquetas localizadas en `OfflineTranslatorEngine.kt`.
+  - Crear pruebas unitarias en `OfflineTranslatorEngineTest.kt` validando los modos, títulos y filtrado de contenido de cada pestaña.
+- [x] **TASK-713 (UI/TDD)**: Pestaña Independiente de Traductor de Texto en `VoiceTranslatorScreen` (`SPEC-06 RF-06.1.3`):
+  - Actualizar la barra superior de modos con botones de estilo pestaña (`AppOptionButton`) para `🎙️ Voz`, `✍️ Texto` y `📷 Carteles / Cámara`.
+  - Desplegar la sección de Traductor de Texto exclusivamente en la pestaña `TEXT`, con tarjeta completa de traducción (entrada multilínea, botones de traducción y locución, visor de caracteres japoneses, romaji y audio).
+  - Incorporar en la pestaña `TEXT` la opción de seleccionar/insertar frases rápidas de viaje en el campo de texto.
+  - Mantener en la pestaña `VOICE` las tarjetas de conversación bidireccional y las frases habituales con audio al pie.
+  - Mantener en la pestaña `CAMERA` el traductor OCR de carteles y menús.
+- [x] **TASK-714 (TDD/UI)**: Orientación EXIF de Cámara, Rotación 90° y Selección de Área/Recorte para OCR (`SPEC-06 RF-06.1.4`):
+  - Implementar decodificación con corrección de orientación EXIF (`ExifInterface`) para evitar que las fotos tomadas con la cámara nativa se giren o carguen apaisadas.
+  - Implementar botón de rotación manual `🔄 Girar 90°` en la tarjeta de foto capturada.
+  - Implementar selección de región de imagen (`ImageCropPreset` y `calculateCropBounds`) con presets rápidos (`Toda la foto`, `Superior`, `Centro`, `Inferior`, `Personalizada`).
+  - Implementar diálogo/panel `SelectImageRegionDialog` con controles de márgenes y previsualización interactiva de la caja delimitadora para enviar únicamente el sub-mapa de bits recortado a ML Kit OCR.
+
+
+

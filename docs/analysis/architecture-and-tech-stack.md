@@ -106,9 +106,9 @@ flowchart TD
   - `data/`: `TransportPlannerDao`, `AirportAndStationCatalog` (catálogo offline de aeropuertos internacionales/japoneses `MAD`, `BCN`, `DOH`, `HND`, `NRT`, `KIX` y principales estaciones de Japón como `Tokyo`, `Shinjuku`, `Shibuya`, `Kyoto`, `Shin-Osaka`, `Kanazawa`, `Hiroshima` con sus `ZoneId`, nombres en japonés y coordenadas).
   - `ui/`: `TransportPlannerScreen`, `FlightSegmentTimelineCard`, `TrainMetroBusSegmentCard`, `LayoverTransferConnectorCard`, `TransportEditorSheet`, `TransportPlannerViewModel`.
 - `feature/ai_translator/` (Asistente IA Gemini y Acceso Directo a Traducción Simultánea):
-  - `domain/`: `AskGeminiAssistantUseCase`, `AnalyzeJapaneseImageWithGeminiUseCase`, `SimultaneousTranslateUseCase`, `TransliterateToRomajiUseCase`, `AiAssistantRepository`, `OfflineTranslatorRepository`.
-  - `data/`: `GeminiClientAdapter`, `MlKitOfflineTranslator`, `JapaneseOcrProcessor`, `AiConversationDao`.
-  - `ui/`: `SimultaneousTranslatorScreen` (modo conversación cara a cara 180° + cámara OCR + acceso directo global), `GeminiAssistantScreen`, `AiTranslatorViewModel`.
+  - `domain/`: `AskGeminiAssistantUseCase`, `AnalyzeJapaneseImageWithGeminiUseCase`, `SimultaneousTranslateUseCase`, `TransliterateToRomajiUseCase`, `AiAssistantRepository`, `OfflineTranslatorRepository`, `TranslatorTabMode` (`VOICE`, `TEXT`, `CAMERA`), `ImageCropPreset`, `CropBounds`, `calculateCropBounds`.
+  - `data/`: `GeminiClientAdapter`, `MlKitOfflineTranslator`, `JapaneseOcrProcessor`, `AiConversationDao`, `ExifBitmapDecoder` (decodificación con orientación vertical automática por metadatos EXIF y rotación manual 90°).
+  - `ui/`: `SimultaneousTranslatorScreen` / `VoiceTranslatorScreen` (navegación por 3 pestañas estilo botón: `VOICE` conversación hablada + frases, `TEXT` traductor de texto multilínea independiente + inserción rápida, `CAMERA` cámara, selector interactivo de región/recorte OCR de carteles/menús y rotación 90°), `SelectImageRegionDialog`, `GeminiAssistantScreen`, `AiTranslatorViewModel`.
 
 ---
 
