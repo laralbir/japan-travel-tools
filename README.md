@@ -64,7 +64,7 @@ Aplicación Android **offline-first** con herramientas esenciales para viajar a 
    - **Útil para la IA (`Weather-Aware AI Planner`)**: Inyecta la previsión de Open-Meteo en `AiPlanBuilderEngine` para que la IA adapte automáticamente las paradas del itinerario en días de lluvia añadiendo alternativas cubiertas (*mercados Nishiki/Kuromon*, *galerías Shotengai*, museos).
 9. **Tickets de Compra, Tax-Free y Control de Gastos del Viaje (`SPEC-08`) [Implementado]**
    - Digitalización manual y escaneo inteligente de tickets (cámara, almacenamiento local o Google Drive) con soporte para fotos y documentos PDF (`PdfRenderer`).
-   - Motor híbrido multimodal: **ML Kit OCR trilingüe offline** (Japonés, Inglés, Español) + **Gemini Cloud Vision API**.
+   - Motor híbrido multimodal: **ML Kit OCR trilingüe offline** (Japonés, Inglés, Español) + **Gemini Cloud Vision API** con soporte multidivisa (**Yen JPY, Euro EUR y Dólar USD**) y diálogo de resolución ante ambigüedad.
    - Cálculo automático de elegibilidad para el régimen **Tax-Free** de Japón (umbral de 5.000 ¥ sin tasas, separación de consumibles al 8%, bienes generales al 10% y compras mixtas).
    - Generador de informes consolidados de Tax-Free por tienda y fecha, con desglose de impuestos recuperables en yenes y euros, y exportación en texto, Markdown y JSON.
    - Control integral de presupuesto de viaje con acumulados en ¥ y EUR, categorización (Compras, Comida, Transporte, Ocio, etc.) y balances analíticos por día y ciudad.

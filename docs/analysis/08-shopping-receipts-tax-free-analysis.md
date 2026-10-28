@@ -274,3 +274,9 @@ data class ReceiptScanResult(
    - Fallback graceful a ML Kit/Parser local cuando no hay clave o hay error en Gemini.
    - Decodificación y rasterización de documentos PDF mediante `android.graphics.pdf.PdfRenderer` para OCR.
    - Selección homogénea de fuentes con selector interactivo y botones estándar a 48.dp.
+6. **Tests de Detección Multidivisa (JPY, EUR, USD) y Manejo de Ambigüedad**:
+   - Detección de JPY a partir de símbolos `¥`, `円` o kanjis de comercios.
+   - Detección de EUR a partir de `€` y palabras clave europeas con conversión precisa a Yen.
+   - Detección de USD a partir de `$` / `USD` y normalización cambiaria a Yen.
+   - Detección de ambigüedad cuando no hay divisa y recálculo con `recalculateWithCurrency` tras selección del usuario.
+   - Serialización y deserialización JSON con preservación de divisa original y contravalor en Yen.

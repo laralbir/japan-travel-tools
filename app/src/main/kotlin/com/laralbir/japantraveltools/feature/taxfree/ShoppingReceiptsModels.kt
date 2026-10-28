@@ -1,6 +1,7 @@
 package com.laralbir.japantraveltools.feature.taxfree
 
 import java.time.Instant
+import java.util.Locale
 import java.util.UUID
 
 enum class GoodsType {
@@ -14,6 +15,22 @@ enum class TaxFreeClaimStatus {
     PENDING,
     CUSTOMS_STAMPED,
     REFUNDED
+}
+
+enum class ReceiptCurrency(
+    val code: String,
+    val symbol: String,
+    val displayNameEs: String,
+    val displayNameEn: String
+) {
+    JPY("JPY", "¥", "Yen japonés (¥ / JPY)", "Japanese Yen (¥ / JPY)"),
+    EUR("EUR", "€", "Euro (€ / EUR)", "Euro (€ / EUR)"),
+    USD("USD", "$", "Dólar estadounidense ($ / USD)", "US Dollar ($ / USD)");
+
+    companion object {
+        fun fromCode(code: String?): ReceiptCurrency =
+            values().firstOrNull { it.code.equals(code, ignoreCase = true) } ?: JPY
+    }
 }
 
 enum class ExpenseCategory(val displayNameEs: String, val displayNameEn: String, val icon: String) {
@@ -33,7 +50,12 @@ data class ReceiptProductItem(
     val taxRatePercent: Double = 10.0,
     val subtotalWithoutTaxYen: Double = quantity * unitPriceYen,
     val taxYen: Double = Math.round(subtotalWithoutTaxYen * (taxRatePercent / 100.0)).toDouble(),
-    val totalWithTaxYen: Double = subtotalWithoutTaxYen + taxYen
+    val totalWithTaxYen: Double = subtotalWithoutTaxYen + taxYen,
+    val currency: String = "JPY",
+    val originalUnitPrice: Double = unitPriceYen,
+    val originalSubtotalWithoutTax: Double = quantity * originalUnitPrice,
+    val originalTax: Double = Math.round(originalSubtotalWithoutTax * (taxRatePercent / 100.0) * 100.0) / 100.0,
+    val originalTotalWithTax: Double = originalSubtotalWithoutTax + originalTax
 )
 
 data class ShoppingReceipt(
@@ -45,7 +67,11 @@ data class ShoppingReceipt(
     val subtotalWithoutTaxYen: Double = items.sumOf { it.subtotalWithoutTaxYen },
     val totalTaxYen: Double = items.sumOf { it.taxYen },
     val totalWithTaxYen: Double = items.sumOf { it.totalWithTaxYen },
-    val isTaxFreeEligible: Boolean = subtotalWithoutTaxYen >= 5000.0,
+    val currency: String = "JPY",
+    val originalSubtotal: Double = if (currency == "JPY") subtotalWithoutTaxYen else items.sumOf { it.originalSubtotalWithoutTax },
+    val originalTotalTax: Double = if (currency == "JPY") totalTaxYen else items.sumOf { it.originalTax },
+    val originalTotalWithTax: Double = if (currency == "JPY") totalWithTaxYen else items.sumOf { it.originalTotalWithTax },
+    val isTaxFreeEligible: Boolean = (currency == "JPY" && subtotalWithoutTaxYen >= 5000.0),
     val goodsType: GoodsType = GoodsType.GENERAL_GOODS,
     val taxFreeStatus: TaxFreeClaimStatus = if (isTaxFreeEligible) TaxFreeClaimStatus.PENDING else TaxFreeClaimStatus.NOT_APPLICABLE,
     val category: ExpenseCategory = ExpenseCategory.SHOPPING,
@@ -122,7 +148,9 @@ data class ReceiptScanResult(
     val receipt: ShoppingReceipt,
     val rawText: String,
     val source: ScannerSource,
-    val warning: String? = null
+    val warning: String? = null,
+    val detectedCurrency: String? = null,
+    val isCurrencyAmbiguous: Boolean = (detectedCurrency == null)
 )
 
 object TaxFreeCalculator {
@@ -138,12 +166,35 @@ object TaxFreeCalculator {
         category: ExpenseCategory = ExpenseCategory.SHOPPING,
         taxFreeStatus: TaxFreeClaimStatus? = null,
         photoFilePath: String? = null,
-        notes: String = ""
+        notes: String = "",
+        currency: String = "JPY",
+        originalSubtotal: Double? = null,
+        originalTax: Double? = null,
+        originalTotal: Double? = null,
+        eurToJpyRate: Double = 164.80,
+        usdToEurRate: Double = 1.084
     ): ShoppingReceipt {
-        val subtotalWithoutTax = items.sumOf { it.subtotalWithoutTaxYen }
-        val totalTax = items.sumOf { it.taxYen }
-        val totalWithTax = items.sumOf { it.totalWithTaxYen }
-        val isEligible = subtotalWithoutTax >= TAX_FREE_MIN_YEN
+        val isJpy = currency.equals("JPY", ignoreCase = true)
+        val rateToJpy = when (currency.uppercase(Locale.ROOT)) {
+            "EUR" -> if (eurToJpyRate > 0) eurToJpyRate else 164.80
+            "USD" -> {
+                val eRate = if (eurToJpyRate > 0) eurToJpyRate else 164.80
+                val uRate = if (usdToEurRate > 0) usdToEurRate else 1.084
+                eRate / uRate
+            }
+            else -> 1.0
+        }
+
+        val origSub = originalSubtotal ?: items.sumOf { it.originalSubtotalWithoutTax }
+        val origTax = originalTax ?: items.sumOf { it.originalTax }
+        val origTotal = originalTotal ?: items.sumOf { it.originalTotalWithTax }
+
+        val subtotalWithoutTax = if (isJpy) origSub else Math.round(origSub * rateToJpy).toDouble()
+        val totalTax = if (isJpy) origTax else Math.round(origTax * rateToJpy).toDouble()
+        val totalWithTax = if (isJpy) origTotal else (subtotalWithoutTax + totalTax)
+
+        val isDutyFree = storeName.contains("Duty Free", ignoreCase = true) || storeName.contains("Tax Free", ignoreCase = true)
+        val isEligible = (isJpy || isDutyFree) && subtotalWithoutTax >= TAX_FREE_MIN_YEN
 
         val has8 = items.any { it.taxRatePercent == 8.0 }
         val has10 = items.any { it.taxRatePercent == 10.0 }
@@ -164,6 +215,10 @@ object TaxFreeCalculator {
             subtotalWithoutTaxYen = subtotalWithoutTax,
             totalTaxYen = totalTax,
             totalWithTaxYen = totalWithTax,
+            currency = currency.uppercase(Locale.ROOT),
+            originalSubtotal = origSub,
+            originalTotalTax = origTax,
+            originalTotalWithTax = origTotal,
             isTaxFreeEligible = isEligible,
             goodsType = goodsType,
             taxFreeStatus = finalStatus,
@@ -254,7 +309,9 @@ object AiReceiptScannerEngine {
     fun scanWithFallback(
         rawOcrText: String,
         geminiApiKey: String?,
-        imageBytes: ByteArray?
+        imageBytes: ByteArray?,
+        eurToJpyRate: Double = 164.80,
+        usdToEurRate: Double = 1.084
     ): ReceiptScanResult {
         if (!geminiApiKey.isNullOrBlank() && imageBytes != null && imageBytes.isNotEmpty()) {
             try {
@@ -264,11 +321,19 @@ object AiReceiptScannerEngine {
             }
         }
 
-        val localReceipt = JapaneseReceiptOcrParser.parse(rawOcrText)
+        val detectedCur = JapaneseReceiptOcrParser.detectCurrency(rawOcrText)
+        val localReceipt = JapaneseReceiptOcrParser.parse(
+            rawOcrText = rawOcrText,
+            forcedCurrency = detectedCur,
+            eurToJpyRate = eurToJpyRate,
+            usdToEurRate = usdToEurRate
+        )
         return ReceiptScanResult(
             receipt = localReceipt,
             rawText = rawOcrText,
-            source = ScannerSource.LOCAL_MLKIT_OCR
+            source = ScannerSource.LOCAL_MLKIT_OCR,
+            detectedCurrency = detectedCur,
+            isCurrencyAmbiguous = (detectedCur == null)
         )
     }
 }
@@ -320,6 +385,10 @@ object ShoppingReceiptsJsonCodec {
         sb.appendLine("  \"purchaseDateIso\": \"${escape(receipt.purchaseDateIso)}\",")
         sb.appendLine("  \"storeName\": \"${escape(receipt.storeName)}\",")
         sb.appendLine("  \"location\": \"${escape(receipt.location)}\",")
+        sb.appendLine("  \"currency\": \"${escape(receipt.currency)}\",")
+        sb.appendLine("  \"originalSubtotal\": ${receipt.originalSubtotal},")
+        sb.appendLine("  \"originalTotalTax\": ${receipt.originalTotalTax},")
+        sb.appendLine("  \"originalTotalWithTax\": ${receipt.originalTotalWithTax},")
         sb.appendLine("  \"subtotalWithoutTaxYen\": ${receipt.subtotalWithoutTaxYen},")
         sb.appendLine("  \"totalTaxYen\": ${receipt.totalTaxYen},")
         sb.appendLine("  \"totalWithTaxYen\": ${receipt.totalWithTaxYen},")
@@ -337,6 +406,11 @@ object ShoppingReceiptsJsonCodec {
             sb.appendLine("      \"id\": \"${escape(it.id)}\",")
             sb.appendLine("      \"name\": \"${escape(it.name)}\",")
             sb.appendLine("      \"quantity\": ${it.quantity},")
+            sb.appendLine("      \"currency\": \"${escape(it.currency)}\",")
+            sb.appendLine("      \"originalUnitPrice\": ${it.originalUnitPrice},")
+            sb.appendLine("      \"originalSubtotalWithoutTax\": ${it.originalSubtotalWithoutTax},")
+            sb.appendLine("      \"originalTax\": ${it.originalTax},")
+            sb.appendLine("      \"originalTotalWithTax\": ${it.originalTotalWithTax},")
             sb.appendLine("      \"unitPriceYen\": ${it.unitPriceYen},")
             sb.appendLine("      \"taxRatePercent\": ${it.taxRatePercent},")
             sb.appendLine("      \"subtotalWithoutTaxYen\": ${it.subtotalWithoutTaxYen},")
@@ -354,6 +428,7 @@ object ShoppingReceiptsJsonCodec {
         val purchaseDateIso = extractString(json, "purchaseDateIso") ?: Instant.now().toString()
         val storeName = extractString(json, "storeName") ?: "Store"
         val location = extractString(json, "location") ?: "Tokyo"
+        val currency = extractString(json, "currency") ?: "JPY"
         val goodsTypeStr = extractString(json, "goodsType")
         val goodsType = GoodsType.values().firstOrNull { it.name.equals(goodsTypeStr, ignoreCase = true) } ?: GoodsType.GENERAL_GOODS
         val taxFreeStatusStr = extractString(json, "taxFreeStatus")
@@ -368,7 +443,10 @@ object ShoppingReceiptsJsonCodec {
         val subtotal = extractDouble(json, "subtotalWithoutTaxYen") ?: items.sumOf { it.subtotalWithoutTaxYen }
         val tax = extractDouble(json, "totalTaxYen") ?: items.sumOf { it.taxYen }
         val total = extractDouble(json, "totalWithTaxYen") ?: items.sumOf { it.totalWithTaxYen }
-        val isTaxFreeEligible = extractBoolean(json, "isTaxFreeEligible") ?: (subtotal >= TaxFreeCalculator.TAX_FREE_MIN_YEN)
+        val originalSubtotal = extractDouble(json, "originalSubtotal") ?: if (currency == "JPY") subtotal else items.sumOf { it.originalSubtotalWithoutTax }
+        val originalTotalTax = extractDouble(json, "originalTotalTax") ?: if (currency == "JPY") tax else items.sumOf { it.originalTax }
+        val originalTotalWithTax = extractDouble(json, "originalTotalWithTax") ?: if (currency == "JPY") total else items.sumOf { it.originalTotalWithTax }
+        val isTaxFreeEligible = extractBoolean(json, "isTaxFreeEligible") ?: (currency == "JPY" && subtotal >= TaxFreeCalculator.TAX_FREE_MIN_YEN)
 
         return ShoppingReceipt(
             id = id,
@@ -379,6 +457,10 @@ object ShoppingReceiptsJsonCodec {
             subtotalWithoutTaxYen = subtotal,
             totalTaxYen = tax,
             totalWithTaxYen = total,
+            currency = currency,
+            originalSubtotal = originalSubtotal,
+            originalTotalTax = originalTotalTax,
+            originalTotalWithTax = originalTotalWithTax,
             isTaxFreeEligible = isTaxFreeEligible,
             goodsType = goodsType,
             taxFreeStatus = taxFreeStatus,
@@ -405,6 +487,12 @@ object ShoppingReceiptsJsonCodec {
             val sub = extractDouble(itemJson, "subtotalWithoutTaxYen") ?: (qty * unitPrice)
             val tax = extractDouble(itemJson, "taxYen") ?: Math.round(sub * (taxRate / 100.0)).toDouble()
             val total = extractDouble(itemJson, "totalWithTaxYen") ?: (sub + tax)
+            val cur = extractString(itemJson, "currency") ?: "JPY"
+            val origUnitPrice = extractDouble(itemJson, "originalUnitPrice") ?: if (cur == "JPY") unitPrice else 0.0
+            val origSub = extractDouble(itemJson, "originalSubtotalWithoutTax") ?: (qty * origUnitPrice)
+            val origTax = extractDouble(itemJson, "originalTax") ?: Math.round(origSub * (taxRate / 100.0) * 100.0) / 100.0
+            val origTotal = extractDouble(itemJson, "originalTotalWithTax") ?: (origSub + origTax)
+
             ReceiptProductItem(
                 id = id,
                 name = name,
@@ -413,7 +501,12 @@ object ShoppingReceiptsJsonCodec {
                 taxRatePercent = taxRate,
                 subtotalWithoutTaxYen = sub,
                 taxYen = tax,
-                totalWithTaxYen = total
+                totalWithTaxYen = total,
+                currency = cur,
+                originalUnitPrice = origUnitPrice,
+                originalSubtotalWithoutTax = origSub,
+                originalTax = origTax,
+                originalTotalWithTax = origTotal
             )
         }.toList()
     }

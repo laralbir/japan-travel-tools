@@ -595,4 +595,163 @@ class TaxFreeReceiptsTest {
         assertTrue(deleted)
         assertEquals(0, SharedShoppingReceiptsStore.receiptsState.value.size)
     }
+
+    @Test
+    fun `test ocr parser detects JPY currency from symbols and kanji`() {
+        val ocrJpy = """
+            ドン・キホーテ 道頓堀店
+            2027/03/25 14:30
+            抹茶キットカット 800円
+            小計: 800
+            内消費税: 64
+            合計: 864円
+        """.trimIndent()
+
+        val parsed = JapaneseReceiptOcrParser.parse(ocrJpy)
+        assertEquals("JPY", parsed.currency)
+        assertEquals(800.0, parsed.originalSubtotal, 0.01)
+        assertEquals(864.0, parsed.originalTotalWithTax, 0.01)
+        assertEquals(800.0, parsed.subtotalWithoutTaxYen, 0.01)
+        assertEquals(864.0, parsed.totalWithTaxYen, 0.01)
+        assertFalse(JapaneseReceiptOcrParser.isCurrencyAmbiguous(ocrJpy))
+    }
+
+    @Test
+    fun `test ocr parser detects EUR currency and calculates original and Yen amounts`() {
+        val ocrEur = """
+            RESTAURANTE MADRID TOKYO
+            25/03/2027 13:00
+            Menú del Día 20,00 €
+            BASE IMPONIBLE: 20,00 €
+            IVA 10%: 2,00 €
+            TOTAL A PAGAR: 22,00 €
+        """.trimIndent()
+
+        val parsed = JapaneseReceiptOcrParser.parse(ocrEur, eurToJpyRate = 165.0)
+        assertEquals("EUR", parsed.currency)
+        assertEquals(20.0, parsed.originalSubtotal, 0.01)
+        assertEquals(2.0, parsed.originalTotalTax, 0.01)
+        assertEquals(22.0, parsed.originalTotalWithTax, 0.01)
+        // Convertido a Yen con tasa 165.0
+        assertEquals(3300.0, parsed.subtotalWithoutTaxYen, 0.01)
+        assertEquals(330.0, parsed.totalTaxYen, 0.01)
+        assertEquals(3630.0, parsed.totalWithTaxYen, 0.01)
+        assertFalse(JapaneseReceiptOcrParser.isCurrencyAmbiguous(ocrEur))
+    }
+
+    @Test
+    fun `test ocr parser detects USD currency and calculates original and Yen amounts`() {
+        val ocrUsd = """
+            AIRPORT DUTY FREE SHOP
+            2027/04/01 18:20
+            Perfume Bottle $ 50.00
+            SUBTOTAL: $ 50.00
+            TAX: $ 5.00
+            TOTAL AMOUNT: $ 55.00 USD
+        """.trimIndent()
+
+        val parsed = JapaneseReceiptOcrParser.parse(ocrUsd, eurToJpyRate = 165.0, usdToEurRate = 1.10)
+        // 1 USD = 165.0 / 1.10 = 150.0 JPY
+        assertEquals("USD", parsed.currency)
+        assertEquals(50.0, parsed.originalSubtotal, 0.01)
+        assertEquals(5.0, parsed.originalTotalTax, 0.01)
+        assertEquals(55.0, parsed.originalTotalWithTax, 0.01)
+        assertEquals(7500.0, parsed.subtotalWithoutTaxYen, 0.01)
+        assertEquals(750.0, parsed.totalTaxYen, 0.01)
+        assertEquals(8250.0, parsed.totalWithTaxYen, 0.01)
+        assertFalse(JapaneseReceiptOcrParser.isCurrencyAmbiguous(ocrUsd))
+    }
+
+    @Test
+    fun `test ocr parser flags ambiguous currency when no currency indicator is present`() {
+        val ocrAmbiguous = """
+            Generic Express Store
+            2027/04/02 11:00
+            Item A 10.00
+            SUBTOTAL: 10.00
+            TAX: 1.00
+            TOTAL: 11.00
+        """.trimIndent()
+
+        assertTrue(JapaneseReceiptOcrParser.isCurrencyAmbiguous(ocrAmbiguous))
+        assertEquals(null, JapaneseReceiptOcrParser.detectCurrency(ocrAmbiguous))
+    }
+
+    @Test
+    fun `test recalculating receipt with selected currency updates original and yen values`() {
+        val ocrAmbiguous = """
+            Generic Express Store
+            2027/04/02 11:00
+            Item A 10.00
+            SUBTOTAL: 10.00
+            TAX: 1.00
+            TOTAL: 11.00
+        """.trimIndent()
+
+        // Supongamos que el parser inicialmente asumió cantidades nominales 10.0 / 1.0 / 11.0
+        val initialReceipt = JapaneseReceiptOcrParser.parse(ocrAmbiguous)
+        // El usuario elige "EUR" tras preguntarle la app:
+        val receiptInEur = JapaneseReceiptOcrParser.recalculateWithCurrency(
+            receipt = initialReceipt,
+            targetCurrency = "EUR",
+            eurToJpyRate = 160.0
+        )
+
+        assertEquals("EUR", receiptInEur.currency)
+        assertEquals(10.0, receiptInEur.originalSubtotal, 0.01)
+        assertEquals(1.0, receiptInEur.originalTotalTax, 0.01)
+        assertEquals(11.0, receiptInEur.originalTotalWithTax, 0.01)
+        // Yen equivalente a 160 JPY por EUR
+        assertEquals(1600.0, receiptInEur.subtotalWithoutTaxYen, 0.01)
+        assertEquals(160.0, receiptInEur.totalTaxYen, 0.01)
+        assertEquals(1760.0, receiptInEur.totalWithTaxYen, 0.01)
+    }
+
+    @Test
+    fun `test json codec serializes and deserializes receipt with currency and original amounts`() {
+        val receipt = ShoppingReceipt(
+            id = "test-cur-1",
+            storeName = "Duty Free Terminal",
+            location = "Narita",
+            currency = "USD",
+            originalSubtotal = 40.0,
+            originalTotalTax = 4.0,
+            originalTotalWithTax = 44.0,
+            subtotalWithoutTaxYen = 6000.0,
+            totalTaxYen = 600.0,
+            totalWithTaxYen = 6600.0,
+            isTaxFreeEligible = true,
+            goodsType = GoodsType.GENERAL_GOODS,
+            taxFreeStatus = TaxFreeClaimStatus.PENDING,
+            category = ExpenseCategory.SHOPPING,
+            items = listOf(
+                ReceiptProductItem(
+                    id = "item-1",
+                    name = "Perfume",
+                    quantity = 1,
+                    unitPriceYen = 6000.0,
+                    taxRatePercent = 10.0,
+                    currency = "USD",
+                    originalUnitPrice = 40.0,
+                    originalSubtotalWithoutTax = 40.0,
+                    originalTax = 4.0,
+                    originalTotalWithTax = 44.0
+                )
+            )
+        )
+
+        val json = ShoppingReceiptsJsonCodec.exportReceipt(receipt)
+        val imported = ShoppingReceiptsJsonCodec.importReceipt(json)
+
+        assertEquals("USD", imported.currency)
+        assertEquals(40.0, imported.originalSubtotal, 0.01)
+        assertEquals(4.0, imported.originalTotalTax, 0.01)
+        assertEquals(44.0, imported.originalTotalWithTax, 0.01)
+        assertEquals(6000.0, imported.subtotalWithoutTaxYen, 0.01)
+        assertEquals(600.0, imported.totalTaxYen, 0.01)
+        assertEquals(6600.0, imported.totalWithTaxYen, 0.01)
+        assertEquals(1, imported.items.size)
+        assertEquals("USD", imported.items[0].currency)
+        assertEquals(40.0, imported.items[0].originalUnitPrice, 0.01)
+    }
 }

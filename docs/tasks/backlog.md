@@ -337,6 +337,13 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
   - Extensión de `JapaneseReceiptOcrParser` para reconocer tickets en inglés (recibos Duty-Free internacionales: `SUBTOTAL`, `TAX`, `VAT`, `TOTAL AMOUNT`) y español (`BASE IMPONIBLE`, `IVA 10%`, `TOTAL FACTURA`, `TOTAL A PAGAR`).
   - Detección de formatos de fecha ISO (`YYYY/MM/DD`), europeos (`DD/MM/YYYY`) y era japonesa (`R07/03/15`).
   - Clasificación multilingüe de categorías de gasto y tests unitarios automatizados en `TaxFreeReceiptsTest`.
+- [x] **TASK-814 (TDD/UI)**: Soporte Multidivisa (Yen JPY, Euro EUR, Dólar USD) con Detección OCR y Diálogo de Ambigüedad:
+  - Extensión de `JapaneseReceiptOcrParser` con `detectCurrency` e `isCurrencyAmbiguous`.
+  - Normalización de importes con `parsePriceString` soportando formato decimal europeo (coma) e internacional (punto), así como etiquetas de divisa integradas (`$ 55.00 USD`).
+  - Normalización cambiaria y cálculo de importes equivalentes en yenes (`¥`) y euros (`EUR`).
+  - Diálogo emergente `ReceiptCurrencySelectionDialog` para preguntar activamente al viajero la divisa cuando el OCR no pueda determinarla con certeza.
+  - Inclusión de selector de moneda (`FilterChips`) en `ShoppingReceiptEditorModalSheet` y visualización dual (moneda nativa y equivalente en ¥) en `ShoppingReceiptCard`.
+  - Tests unitarios exhaustivos en `TaxFreeReceiptsTest` superados al 100%.
 
 
 

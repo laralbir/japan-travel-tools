@@ -144,6 +144,22 @@ Cada comprobante registrado en la aplicación debe contener de forma estructurad
      * Fila 1: `➕ Ticket Manual` (Filled Primary) y `✨ Escanear con IA` (Filled Primary).
      * Fila 2: `📁 Local / ☁️ Drive` (Outlined Secondary) y `📄 Informe Aduanas` (Outlined Secondary).
 
+### RF-08.6: Soporte Multidivisa (Yen JPY, Euro EUR y Dólar USD) con Detección Inteligente
+1. **Detección Automática de Moneda en OCR**:
+   - El analizador examina los símbolos y códigos monetarios en el texto extraído:
+     * **Yen Japonés (`JPY`)**: Símbolos `¥`, `￥`, kanji `円`, o cadenas y términos reconocidos en japonés.
+     * **Euro (`EUR`)**: Símbolo `€`, códigos `EUR`, palabras `Euro` / `Euros`.
+     * **Dólar Estadounidense (`USD`)**: Símbolo `$`, códigos `USD`, `US$`, palabras `Dollar` / `Dollars`.
+2. **Pregunta Interactiva al Usuario si la Divisa es Ambigua**:
+   - Si el comprobante contiene cantidades numéricas genéricas sin símbolo monetario explícito o presenta símbolos conflictivos, el motor marca la divisa como no identificada (`isCurrencyAmbiguous = true`).
+   - La aplicación muestra inmediatamente el diálogo emergente `ReceiptCurrencySelectionDialog`:
+     * "¿Cuál es la moneda del ticket?" con opciones `💴 ¥ JPY`, `💶 € EUR` y `💵 $ USD`.
+     * Al pulsar la opción elegida, se recalculan los importes y equivalencias en Yen según los tipos de cambio vigentes antes de abrir el editor.
+3. **Selector Manual en el Editor y Tarjetas de Gasto**:
+   - El editor manual/modal incluye un selector de moneda (`FilterChips`) para cambiar la divisa en cualquier momento.
+   - En las tarjetas del listado se muestra el importe en la moneda nativa del ticket (`22,00 €` o `$55.00`) junto con su contravalor equivalente en yenes (`≈ ¥3.630` o `≈ ¥8.250`).
+   - En el cuadro de mando presupuestario global, todos los gastos se normalizan homogéneamente a ¥ y EUR.
+
 ---
 
 ## 3. Criterios de Aceptación (Escenarios Gherkin)
@@ -176,3 +192,13 @@ Cada comprobante registrado en la aplicación debe contener de forma estructurad
 - **Dado** que el viajero toma una foto de un recibo de "Don Quijote"
 - **Cuando** no hay conexión a internet o no hay API Key de Gemini
 - **Entonces** el motor local `JapaneseReceiptOcrParser` extrae el comercio, la fecha, los artículos con sus tasas del 8% y 10% y el total sin errores.
+
+### Escenario 6: Detección automática de moneda (Euros o Dólares)
+- **Dado** que el viajero escanea un ticket con importes en euros (`20,00 €`) o dólares (`$ 50.00 USD`)
+- **Cuando** el OCR procesa la imagen
+- **Entonces** detecta automáticamente la divisa (`EUR` o `USD`), almacena las cantidades originales y calcula el importe equivalente en yenes (`¥`).
+
+### Escenario 7: Pregunta interactiva si la moneda es ambigua
+- **Dado** que el viajero escanea un comprobante con texto e importes genéricos sin símbolo monetario (`10.00`)
+- **Cuando** el motor OCR no puede inferir la moneda con certeza
+- **Entonces** la aplicación muestra el diálogo "¿Cuál es la moneda del ticket?" para que el usuario elija entre JPY, EUR y USD.
