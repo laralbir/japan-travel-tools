@@ -513,4 +513,36 @@ class TaxFreeReceiptsTest {
         store.deleteReceipt("rc-101")
         assertEquals(0, store.getAllReceipts().size)
     }
+
+    @Test
+    fun `test SharedShoppingReceiptsStore singleton manages receipts and budget`() = runBlocking {
+        val tempDir = Files.createTempDirectory("shared_receipts_test").toFile()
+        SharedShoppingReceiptsStore.initForTesting(tempDir)
+
+        assertEquals(0, SharedShoppingReceiptsStore.receiptsState.value.size)
+
+        val receipt = TaxFreeCalculator.createReceipt(
+            id = "shared-1",
+            storeName = "Bic Camera Shinjuku",
+            location = "Tokyo",
+            purchaseDateIso = "2027-03-22T10:00:00Z",
+            items = listOf(ReceiptProductItem("p1", "Lens", 1, 40000.0, 10.0)),
+            category = ExpenseCategory.SHOPPING,
+            taxFreeStatus = TaxFreeClaimStatus.PENDING
+        )
+
+        SharedShoppingReceiptsStore.saveReceipt(receipt)
+        assertEquals(1, SharedShoppingReceiptsStore.receiptsState.value.size)
+        assertEquals("Bic Camera Shinjuku", SharedShoppingReceiptsStore.receiptsState.value[0].storeName)
+
+        val budget = SharedShoppingReceiptsStore.calculateBudgetSummary(eurToJpyRate = 160.0)
+        assertEquals(44000.0, budget.totalSpentYen, 0.01)
+
+        val report = SharedShoppingReceiptsStore.generateTaxFreeReport(eurToJpyRate = 160.0)
+        assertEquals(4000.0, report.totalRecoverableTaxYen, 0.01)
+
+        val deleted = SharedShoppingReceiptsStore.deleteReceipt("shared-1")
+        assertTrue(deleted)
+        assertEquals(0, SharedShoppingReceiptsStore.receiptsState.value.size)
+    }
 }

@@ -319,11 +319,15 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
   - Extracción multimodal vía Gemini Vision con fallback automático a ML Kit local offline ante errores o falta de red/clave.
 - [x] **TASK-809 (Test)**: Suite de Tests Unitarios Exhaustiva (`TaxFreeReceiptsTest`):
   - Verificación de cálculos fiscales, reglas de umbral, parser OCR japonés, informes Tax-Free, control de gastos y escaneo híbrido.
-- [ ] **TASK-810 (UI/Integration)**: Pantalla de Tickets, Tax-Free y Presupuesto (`ShoppingReceiptsScreen`):
+- [x] **TASK-810 (UI/Integration)**: Pantalla de Tickets, Tax-Free y Presupuesto (`ShoppingReceiptsScreen`):
   - Pantalla adaptativa con listado de tickets, formulario de alta manual / OCR / Cloud IA (cámara, Drive o archivo local).
   - Resumen visual de gastos (¥ y EUR) por categoría y tarjeta de saldo para reembolso Tax-Free.
   - Generador y visor del informe de solicitud de Tax-Free para aduanas con exportación a portapapeles/archivo.
-  - Integración en la navegación principal y selector de herramientas.
+  - Integración en la navegación principal y selector de herramientas (`TAX_FREE_RECEIPTS`).
+- [x] **TASK-811 (Lifecycle/Android)**: Prevención de Reinicio de App al Cambiar de Aplicación en Android:
+  - Configuración de `android:launchMode="singleTask"` e implementación de `onNewIntent` en `MainActivity`.
+  - Configuración de `android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize|uiMode"` para evitar destrucciones innecesarias de la Activity.
+  - Persistencia reactiva de `lastSelectedDestination` en `UserPreferencesRepository` para restaurar la herramienta activa tras suspensiones o cierres en segundo plano.
 
 
 
