@@ -12,8 +12,13 @@
 * **Fechas:** 15 al 25 de Marzo de 2027 (11 días / 9 noches).
 * **Alojamiento:** Habitación Individual — **Categoría C (Hoteles Superiores / 4★)**.
 * **Importe total cerrado:** **5.676,30 €** (5.487,00 € viaje con vuelos Lufthansa + 189,30 € Seguro GOLD de anulación y asistencia).
+* **Modalidad de pago:** **Pago directo sin financiación** (al contado / tarjeta).
+  * **Depósito entregado (27/10/2026):** 1.500,00 € (bloqueo en firme de circuito y vuelos).
+  * **Seguro GOLD abonado (27/10/2026):** 189,30 € (cobertura médica y de anulación activa desde el momento de contratación).
+  * **Total pagado hasta la fecha:** **1.689,30 €**.
+  * **Pendiente restante:** **3.987,00 €** (a liquidar en pago final directo antes de la salida, según fecha límite indicada por El Corte Inglés).
+  * **Documentación pendiente:** César enviará el documento de confirmación oficial con los localizadores definitivos del turoperador (Icárion / W2M).
 * **Promoción:** 100 € en tarjeta regalo digital de El Corte Inglés.
-* **Financiación:** 6 meses sin intereses con Tarjeta de Compra El Corte Inglés.
 
 ---
 
