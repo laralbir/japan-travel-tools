@@ -555,6 +555,7 @@ fun JapanTravelToolsAppContent(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
+                        .imePadding()
                 ) {
                     ActiveToolContent(
                         destination = selectedDestination,
@@ -609,6 +610,7 @@ fun JapanTravelToolsAppContent(
                         .fillMaxSize()
                         .padding(innerPadding)
                         .navigationBarsPadding()
+                        .imePadding()
                 ) {
                     ActiveToolContent(
                         destination = selectedDestination,
@@ -1603,7 +1605,8 @@ private fun CityWeatherEditorModalSheet(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp, vertical = 10.dp)
-                .navigationBarsPadding(),
+                .navigationBarsPadding()
+                .imePadding(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
@@ -2415,7 +2418,8 @@ private fun ItineraryStopEditorModalSheet(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp, vertical = 10.dp)
-                .navigationBarsPadding(),
+                .navigationBarsPadding()
+                .imePadding(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
@@ -2638,7 +2642,8 @@ private fun PlanEditorModalSheet(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp, vertical = 10.dp)
-                .navigationBarsPadding(),
+                .navigationBarsPadding()
+                .imePadding(),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Text(
@@ -2728,7 +2733,8 @@ private fun PlanSwitcherModalSheet(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp, vertical = 10.dp)
-                .navigationBarsPadding(),
+                .navigationBarsPadding()
+                .imePadding(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
@@ -3279,7 +3285,8 @@ private fun TransportSegmentEditorModalSheet(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp, vertical = 10.dp)
-                .navigationBarsPadding(),
+                .navigationBarsPadding()
+                .imePadding(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
@@ -5747,7 +5754,8 @@ private fun CustomIdDocumentEditorModalSheet(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp, vertical = 10.dp)
-                .navigationBarsPadding(),
+                .navigationBarsPadding()
+                .imePadding(),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Text(
@@ -6154,7 +6162,8 @@ private fun DocumentEditorModalSheet(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp, vertical = 10.dp)
-                .navigationBarsPadding(),
+                .navigationBarsPadding()
+                .imePadding(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
@@ -6479,7 +6488,8 @@ private fun GuideEditorModalSheet(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp, vertical = 10.dp)
-                .navigationBarsPadding(),
+                .navigationBarsPadding()
+                .imePadding(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
@@ -6727,7 +6737,10 @@ private fun JsonPortabilityModalSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 18.dp, vertical = 10.dp)
+                .navigationBarsPadding()
+                .imePadding()
         ) {
             Text(
                 text = if (isEs) "Gestión de Plan: Demo, IA y JSON" else "Plan Manager: Demo, AI & JSON",
@@ -6886,6 +6899,8 @@ private fun QuickConnectivitySwitcherContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .navigationBarsPadding()
+            .imePadding()
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
