@@ -201,6 +201,24 @@ class DocumentsAndGuidesUseCaseTest {
         assertFalse(imageDoc.isPdf)
         assertFalse(pngDoc.isPdf)
     }
+
+    @Test
+    fun `TravelDocumentItem supports locatorCode serialization and deserialization`() {
+        val doc = TravelDocumentItem(
+            id = "doc-ticket-smart-ex",
+            title = "Shinkansen Nozomi 45 Tokyo - Shin-Osaka",
+            category = DocumentCategory.TRANSPORT,
+            referenceOrNotes = "Seat 12D Car 5 · SmartEX QR",
+            locatorCode = "EX-JPN-8890-412"
+        )
+        val json = DocumentsAndGuidesJsonCodec.exportDocumentsJson(listOf(doc))
+        assertTrue(json.contains("EX-JPN-8890-412"))
+
+        val imported = DocumentsAndGuidesJsonCodec.importDocumentsJson(json)
+        assertEquals(1, imported.size)
+        assertEquals("EX-JPN-8890-412", imported[0].locatorCode)
+    }
 }
+
 
 

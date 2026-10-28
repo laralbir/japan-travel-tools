@@ -26,7 +26,8 @@ data class TravelDocumentItem(
     val isPinned: Boolean = false,
     val internalUriPath: String? = null,
     val lastReadPage: Int = 1,
-    val fileUri: String? = internalUriPath
+    val fileUri: String? = internalUriPath,
+    val locatorCode: String? = null
 )
 
 data class TravelGuideArticle(
@@ -467,6 +468,8 @@ object DocumentsAndGuidesJsonCodec {
             sb.appendLine("      \"referenceOrNotes\": \"${escape(doc.referenceOrNotes)}\",")
             val fileUriStr = if (doc.fileUri != null) "\"${escape(doc.fileUri)}\"" else "null"
             sb.appendLine("      \"fileUri\": $fileUriStr,")
+            val locStr = if (doc.locatorCode != null) "\"${escape(doc.locatorCode)}\"" else "null"
+            sb.appendLine("      \"locatorCode\": $locStr,")
             sb.appendLine("      \"isPinned\": ${doc.isPinned}")
             sb.appendLine("    }$comma")
         }
@@ -485,6 +488,7 @@ object DocumentsAndGuidesJsonCodec {
             val cat = runCatching { DocumentCategory.valueOf(catName) }.getOrDefault(DocumentCategory.TICKET)
             val notes = extractString(obj, "referenceOrNotes") ?: ""
             val fileUri = extractString(obj, "fileUri")
+            val locatorCode = extractString(obj, "locatorCode")
             val isPinned = extractBoolean(obj, "isPinned") ?: false
             TravelDocumentItem(
                 id = id,
@@ -492,7 +496,8 @@ object DocumentsAndGuidesJsonCodec {
                 category = cat,
                 referenceOrNotes = notes,
                 fileUri = fileUri,
-                isPinned = isPinned
+                isPinned = isPinned,
+                locatorCode = locatorCode
             )
         }
     }

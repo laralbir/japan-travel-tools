@@ -6133,12 +6133,21 @@ private fun BookingsVaultScreen(isEs: Boolean) {
 
     var editingDoc by remember { mutableStateOf<TravelDocumentItem?>(null) }
     var isCreatingDoc by remember { mutableStateOf(false) }
+    var viewingPassDoc by remember { mutableStateOf<TravelDocumentItem?>(null) }
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
 
     AppConfirmationDialog(
         state = confirmationDialogState,
         onDismiss = { confirmationDialogState = null }
     )
+
+    if (viewingPassDoc != null) {
+        WalletTicketPassDialog(
+            doc = viewingPassDoc!!,
+            isEs = isEs,
+            onDismiss = { viewingPassDoc = null }
+        )
+    }
 
     if (isCreatingDoc || editingDoc != null) {
         val initialDoc = editingDoc ?: TravelDocumentItem(
@@ -6277,6 +6286,22 @@ private fun BookingsVaultScreen(isEs: Boolean) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
+                    if (!doc.locatorCode.isNullOrBlank()) {
+                        Spacer(Modifier.height(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                        ) {
+                            Text(
+                                text = "🎫 ${doc.locatorCode}",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
                     val attachedPath = doc.fileUri ?: doc.internalUriPath
                     if (attachedPath != null) {
                         Spacer(Modifier.height(8.dp))
@@ -6300,31 +6325,177 @@ private fun BookingsVaultScreen(isEs: Boolean) {
                                 Spacer(Modifier.height(6.dp))
                             }
                         }
-                        AppSecondaryButton(
-                            text = if (isEs) "📄 Abrir Documento / PDF" else "📄 Open Attached Document / PDF",
-                            onClick = { openDocumentFile(context, attachedPath) },
-                            modifier = Modifier.fillMaxWidth()
-                        )
                     }
 
-                    Spacer(Modifier.height(12.dp))
-                    AppButtonRow(
-                        primaryText = if (isEs) "✏️ Editar" else "✏️ Edit",
-                        onPrimaryClick = {
-                            isCreatingDoc = false
-                            editingDoc = doc
-                        },
-                        secondaryText = if (isEs) "🗑️ Eliminar" else "🗑️ Delete",
-                        onSecondaryClick = {
-                            confirmationDialogState = ConfirmationDialogBuilder.buildDeleteConfirmation(
-                                itemName = doc.title,
-                                itemTypeEs = "documento",
-                                itemTypeEn = "document",
-                                isEs = isEs,
-                                onConfirm = { SharedDocumentsAndGuidesStore.deleteDocument(doc.id) }
-                            )
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (attachedPath != null) {
+                            OutlinedButton(
+                                onClick = { openDocumentFile(context, attachedPath) },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                modifier = Modifier
+                                    .height(34.dp)
+                                    .weight(1.2f)
+                            ) {
+                                Text(if (isEs) "📄 Archivo" else "📄 File", fontSize = 12.sp, maxLines = 1)
+                            }
                         }
+                        if (!doc.locatorCode.isNullOrBlank()) {
+                            OutlinedButton(
+                                onClick = { viewingPassDoc = doc },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                modifier = Modifier
+                                    .height(34.dp)
+                                    .weight(1.2f)
+                            ) {
+                                Text(if (isEs) "🎫 Pase QR" else "🎫 Pass QR", fontSize = 12.sp, maxLines = 1)
+                            }
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                isCreatingDoc = false
+                                editingDoc = doc
+                            },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                            modifier = Modifier
+                                .height(34.dp)
+                                .weight(1.1f)
+                        ) {
+                            Text(if (isEs) "✏️ Editar" else "✏️ Edit", fontSize = 12.sp, maxLines = 1)
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                confirmationDialogState = ConfirmationDialogBuilder.buildDeleteConfirmation(
+                                    itemName = doc.title,
+                                    itemTypeEs = "documento",
+                                    itemTypeEn = "document",
+                                    isEs = isEs,
+                                    onConfirm = { SharedDocumentsAndGuidesStore.deleteDocument(doc.id) }
+                                )
+                            },
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                            modifier = Modifier.height(34.dp)
+                        ) {
+                            Text("🗑️", fontSize = 13.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WalletTicketPassDialog(
+    doc: TravelDocumentItem,
+    isEs: Boolean,
+    onDismiss: () -> Unit
+) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    InfoTagPill(
+                        text = doc.category.badgeCode,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     )
+                    Text(
+                        text = if (isEs) "Pase Digital Offline" else "Digital Offline Pass",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
+
+                Spacer(Modifier.height(14.dp))
+
+                Text(
+                    text = doc.title,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+
+                if (doc.referenceOrNotes.isNotBlank()) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = doc.referenceOrNotes,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                Spacer(Modifier.height(18.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color.White,
+                    border = BorderStroke(1.dp, Color(0xFFDDDDDD)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(18.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "🎫 █║▌║█║▌│║▌║▌█║ 🎫",
+                            fontSize = 24.sp,
+                            color = Color.Black,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            text = doc.locatorCode ?: doc.id,
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.Black,
+                            letterSpacing = 2.sp
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(14.dp))
+
+                Text(
+                    text = if (isEs) "💡 Sube el brillo de la pantalla para escanear en tornos o controles" else "💡 Increase screen brightness when scanning at gates",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(text = if (isEs) "Cerrar Pase" else "Close Pass", fontSize = 14.sp)
                 }
             }
         }
@@ -6344,24 +6515,47 @@ private fun DocumentEditorModalSheet(
     val context = LocalContext.current
     var titleText by rememberSaveable { mutableStateOf(initialDoc.title) }
     var notesText by rememberSaveable { mutableStateOf(initialDoc.referenceOrNotes) }
+    var locatorText by rememberSaveable { mutableStateOf(initialDoc.locatorCode ?: "") }
     var selectedCategory by rememberSaveable { mutableStateOf(initialDoc.category) }
     var isPinned by rememberSaveable { mutableStateOf(initialDoc.isPinned) }
     var attachedFilePath by rememberSaveable { mutableStateOf(initialDoc.fileUri ?: initialDoc.internalUriPath) }
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
+    var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
 
     AppConfirmationDialog(
         state = confirmationDialogState,
         onDismiss = { confirmationDialogState = null }
     )
 
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && pendingCameraUri != null) {
+            val saved = SharedDocumentsAndGuidesStore.saveDocumentAttachment(context, pendingCameraUri!!, "ticket_camera.jpg")
+            if (saved != null) {
+                attachedFilePath = saved
+            }
+        }
+    }
+
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            val saved = SharedDocumentsAndGuidesStore.saveDocumentAttachment(context, uri, uri.lastPathSegment)
+            val originalName = queryFileName(context, uri) ?: uri.lastPathSegment
+            val saved = SharedDocumentsAndGuidesStore.saveDocumentAttachment(context, uri, originalName)
             if (saved != null) {
                 attachedFilePath = saved
             }
+        }
+    }
+
+    fun launchCamera() {
+        runCatching {
+            val tempFile = File(context.cacheDir, "camera_ticket_${System.currentTimeMillis()}.jpg")
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", tempFile)
+            pendingCameraUri = uri
+            cameraLauncher.launch(uri)
         }
     }
 
@@ -6392,6 +6586,15 @@ private fun DocumentEditorModalSheet(
                 value = titleText,
                 onValueChange = { titleText = it },
                 label = { Text(if (isEs) "Título (ej. Entrada teamLab / Hotel)" else "Title", fontSize = 15.sp) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = locatorText,
+                onValueChange = { locatorText = it },
+                label = { Text(if (isEs) "Localizador / Código QR (Opcional)" else "Locator / QR Code (Optional)", fontSize = 15.sp) },
+                placeholder = { Text("ej. PNR-789012 o JR-PASS-2026", fontSize = 13.sp) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -6430,7 +6633,7 @@ private fun DocumentEditorModalSheet(
             OutlinedTextField(
                 value = notesText,
                 onValueChange = { notesText = it },
-                label = { Text(if (isEs) "Localizador, hora de entrada o notas" else "Booking ref, entry time, notes", fontSize = 15.sp) },
+                label = { Text(if (isEs) "Notas, horario de entrada o asientos" else "Notes, entry time or seats", fontSize = 15.sp) },
                 minLines = 2,
                 maxLines = 4,
                 modifier = Modifier.fillMaxWidth()
@@ -6480,11 +6683,23 @@ private fun DocumentEditorModalSheet(
                     }
                 }
             } else {
-                AppSecondaryButton(
-                    text = if (isEs) "📎 Adjuntar PDF o Foto" else "📎 Attach PDF or Photo",
-                    onClick = { filePickerLauncher.launch("*/*") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { launchCamera() },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(text = if (isEs) "📸 Cámara" else "📸 Camera", fontSize = 12.sp)
+                    }
+                    AppPrimaryButton(
+                        text = if (isEs) "📄 PDF / Foto" else "📄 PDF / Photo",
+                        onClick = { filePickerLauncher.launch("*/*") },
+                        modifier = Modifier.weight(1.2f)
+                    )
+                }
             }
 
             AppButtonRow(
@@ -6493,6 +6708,7 @@ private fun DocumentEditorModalSheet(
                     val updated = initialDoc.copy(
                         title = titleText.ifBlank { if (isEs) "Documento" else "Document" },
                         referenceOrNotes = notesText,
+                        locatorCode = locatorText.trim().ifBlank { null },
                         category = selectedCategory,
                         isPinned = isPinned,
                         fileUri = attachedFilePath,
