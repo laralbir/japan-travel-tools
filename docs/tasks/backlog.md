@@ -272,6 +272,24 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
   - Eliminar la llamada a `android install` con delta-install que se cuelga en Android 15.
   - Usar directamente `adb install -r -d -t` con timeout de 35 segundos para una instalación fluida y sin bloqueos.
 
+---
+
+## Hito 17: Traducción Robusta de Carteles (Offline + Online) y Selector Multizona Estilo Google Fotos
+
+### Motor de Traducción de Carteles y Menús (`SPEC-06`)
+- [ ] **TASK-718 (TDD)**: Diccionario Offline Ampliado y Tokenizador Morfológico para Carteles en `OfflineTranslatorEngine` (`SPEC-06 RF-06.1.6`):
+  - Expandir el diccionario offline a cientos de términos y expresiones habituales de viaje (carteles, estaciones, salidas, andenes, advertencias, normas, platos de comida, bebidas, precios, etc.).
+  - Implementar segmentación/tokenización morfológica: si una línea de texto japonesa no coincide de forma exacta, descomponerla en vocablos y kanjis conocidos para traducir cada elemento, eliminando el fallo de *"Traducción directa no disponible offline"*.
+  - Crear tests unitarios en `OfflineTranslatorEngineTest.kt` comprobando la traducción de carteles urbanos, estaciones, comida, advertencias y segmentación morfológica.
+- [ ] **TASK-719 (Async/TDD)**: Traducción Fluida en Línea en Segundo Plano para OCR (`SPEC-06 RF-06.1.6`):
+  - Conectar el resultado de OCR con `OnlineTranslatorClient` para ejecutar traducciones en segundo plano cuando el dispositivo esté conectado y no se encuentre en modo offline forzado.
+  - Actualizar reactivamente las líneas del cartel con la traducción fluida completa sin bloquear la interfaz.
+- [ ] **TASK-720 (UI/TDD)**: Selector de Zonas de Foto no Destructivo Estilo Google Fotos y Soporte Multizona (`SPEC-06 RF-06.1.5`):
+  - Modelo `OcrTextZone` con coordenadas normalizadas, texto detectado e identificador numérico.
+  - Diseñar el diálogo/visor interactivo con overlay no destructivo: imagen completa con máscara atenuada (`scrim`), recuadros visuales con tiradores estilo visor de fotos de Google y selección multizona (activar/desactivar zonas individuales o todas las zonas).
+  - Vincular las zonas seleccionadas al procesamiento OCR y visualización de resultados por zona.
+
+
 
 
 
