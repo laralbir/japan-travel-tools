@@ -29,11 +29,12 @@ Aplicación Android **offline-first** con herramientas esenciales para viajar a 
    - Conversión bidireccional instantánea entre Euro (`EUR`), Yen Japonés (`JPY`) y otras divisas soportadas.
    - Descarga y actualización de tasas de cambio desde fuente open-source (**Frankfurter API** - datos del Banco Central Europeo).
    - Caché local persistente con fecha de última actualización y tasa semilla inicial para funcionar 100% offline desde el primer arranque.
-3. **Bóveda de Documentos de Identidad (Pasaporte, DNI y Documentos Personalizados con Zoom) [En Especificación - Beta]**
-   - Acceso rápido offline a las fotografías de tu Pasaporte y DNI/documento de identidad (anverso/reverso) para mostrar en controles, hoteles o compras *Tax-Free*.
-   - **Documentos Personalizados con Foto**: Añade certificados de vacunas, recetas médicas para aduanas japonesas (*Yakkan Shoumei*), carnet internacional de conducir, visados o pólizas con editor modal y chips de sugerencias rápidas.
-   - **Visor a Pantalla Completa con Zoom Táctil**: Toca cualquier foto (pasaporte, DNI o documento personalizado) para abrirla en pantalla completa con fondo oscuro y zoom fluido pellizcando (`1.0x` a `5.0x`), desplazamiento panorámico y alternador por doble toque.
-   - **Tarjeta de Seguridad Dedicada**: Interruptor independiente `🔒 Bloqueo Biométrico / PIN` con explicación clara para proteger tus documentos con huella, rostro o PIN del dispositivo.
+3. **Bóveda de Documentos de Identidad (Pasaporte, DNI y Documentos Personalizados con Zoom y PDF) [En Especificación - Beta]**
+   - Acceso rápido offline a las fotografías o PDFs de tu Pasaporte y DNI/documento de identidad (anverso/reverso) para mostrar en controles, hoteles o compras *Tax-Free*.
+   - **Soporte Multi-Formato PDF e Imágenes**: Permite adjuntar y previsualizar tanto fotos como documentos PDF oficiales para pasaporte y DNI, además de documentos personalizados.
+   - **Bloqueo Biométrico Obligatorio con Excepción de Ciclo de Vida**: Protección biométrica/PIN estricta sin toggles superfluos, con gestión inteligente de ciclo de vida para evitar rebloqueos al tomar fotos con la cámara o seleccionar archivos del sistema.
+   - **Documentos Personalizados con Foto o PDF**: Añade certificados de vacunas, recetas médicas para aduanas japonesas (*Yakkan Shoumei*), carnet internacional de conducir, visados o pólizas con editor modal y chips de sugerencias rápidas.
+   - **Visor a Pantalla Completa con Zoom Táctil**: Toca cualquier foto para abrirla en pantalla completa con fondo oscuro y zoom fluido pellizcando (`1.0x` a `5.0x`), desplazamiento panorámico y alternador por doble toque.
 4. **Repositorio de Documentos y Guías de Viaje [En Especificación - Beta]**
    - Gestión y visualización offline de PDFs e imágenes de billetes de vuelo, reservas de hotel, JR Pass, seguros de viaje y entradas.
    - **Gestor y Creador de Guías de Viaje**: Permite tanto importar guías externas (PDF con marcador de página, Markdown, mapas en imagen) como crear y editar guías propias por ciudad/región con texto enriquecido y fotos adjuntas offline.
@@ -52,6 +53,7 @@ Aplicación Android **offline-first** con herramientas esenciales para viajar a 
    - **Calculador de Escalas y Transbordos (`Layovers & Transfers`)**: Tiempo total de conexión, margen hasta el siguiente embarque o cambio de andén/terminal, alerta de conexión ajustada y acceso directo a tarjetas de embarque o billetes QR (`SPEC-03`).
 7. **Asistente IA con Google Gemini y Acceso Directo a Traducción Simultánea [En Especificación - Beta]**
    - **Acceso Directo Global a Traducción Simultánea (`ES/EN <-> Japonés`)**: Modo conversación cara a cara por voz y texto (con pantalla dividida reversible 180°, pronunciación en *Romaji*, OCR de cámara para menús/carteles con ML Kit Offline y salto rápido a *Google Translate / Pixel Live Translate*).
+   - **Frases de Viaje Unificadas y Deduplicadas**: Sección unificada al pie del traductor con 28 frases esenciales categorizadas (*Cortesía, Restaurante, Transporte, Compras, Emergencias*), texto bilingüe (español/inglés + kanji/kana), transcripción fonética en Romaji y botón instantáneo de locución `🔊` en japonés nativo (`ja-JP`).
    - **Asistente de Viaje con Gemini (`Gemini API` + `Gemini Nano On-Device` en Pixel 9/10 Pro XL)**: Análisis visual de cartas de restaurantes japoneses (con conversión automática de precios a `EUR`), recomendaciones contextuales y **Creador / Optimizador de Planes de Viaje (`AI Plan Builder`)** capaz de generar nuevos itinerarios y mejorar los planes existentes en la app (resolviendo conflictos horarios y añadiendo nuevas jornadas y conexiones Shinkansen/vuelos).
    - **Método Amigable para Obtener la API Key**: Botón directo de 1 toque a Google AI Studio (`aistudio.google.com/app/apikey`), tutorial interactivo en 4 pasos, botón de pegado automático desde el portapapeles y conmutador de visibilidad (`GeminiApiKeySetupCard`).
 8. **Previsión Meteorológica y Planificación Climática con Open-Meteo (`SPEC-07`) [En Especificación - Beta]**

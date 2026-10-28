@@ -7,6 +7,17 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Bóveda de Identidad con PDF, Prevención de Rebloqueo Biométrico y Frases Rápidas de Viaje Unificadas 🇯🇵🪪🗣️
+
+#### 🪪 Pasaporte y DNI con Soporte Multi-Formato PDF y Prevención de Rebloqueo:
+- **Soporte de Documentos PDF en Pasaporte y DNI**: Extensión de las ranuras principales de identidad (`passport_data_page`, `dni_front`, `dni_back`) para permitir adjuntar tanto imágenes como archivos PDF con visor externo nativo de Android.
+- **Excepción de Ciclo de Vida para Lanzadores Externos**: Flag reactivo `isLaunchingExternalPicker` para evitar que la bóveda se bloquee y vuelva a pedir la biometría al abrir o regresar de la cámara nativa o del selector del sistema de archivos (`ActivityResultLauncher`).
+
+#### 🗣️ Frases de Viaje Unificadas y Deduplicadas en el Traductor:
+- **Consolidación en Tarjeta Única**: Eliminación de las listas de preguntas duplicadas incrustadas en las tres tarjetas superiores del traductor, centralizándolas al final de la pantalla en una sección unificada sin frases repetidas.
+- **Visualización Bilingüe con Audio Inmediato**: Cada frase muestra su texto en español/inglés, caracteres japoneses (*Kanji/Kana*), transcripción *Romaji* y botón directo de audio `🔊` en japonés nativo (`Locale.JAPAN`).
+- **Filtrado por Categorías Temáticas**: Chips de acceso rápido para explorar frases por contexto (*Todas, Cortesía, Restaurante, Transporte, Compras / Tax-Free, Emergencias*).
+
 ### Mejoras Globales, Ajustes de Teclado, Bóveda, Reservas y Guías — Issues #6, #7, #8, #9 y #10 🇯🇵✨
 
 #### ⌨️ Corrección de Visibilidad del Teclado Virtual (IME) — Issue #7:
