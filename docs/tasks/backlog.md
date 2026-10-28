@@ -287,6 +287,11 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 - [x] **TASK-720 (UI/TDD)**: Selector de Zonas de Foto no Destructivo Estilo Google Fotos y Soporte Multizona (`SPEC-06 RF-06.1.5`):
   - Diseñar el diálogo/visor interactivo `SelectImageRegionDialog` con encuadre no destructivo sobre la foto original (sin recortar el archivo base): imagen completa, máscara atenuada (`scrim`), cuadrícula de tercios y los 4 brackets de esquinas icónicos `┌ ┐ └ ┘`.
   - Soporte Multizona (`OcrTextZone`): selector rápido de presets individuales (`Toda la foto`, `Superior`, `Centro`, `Inferior`, `Izquierda`, `Derecha`) y modo multizona con procesamiento en bloque y agrupación de resultados traducidos por zona (`📍 Zona 1`, `📍 Zona 2`, etc.).
+- [x] **TASK-721 (UI/Touch)**: Arrastre Táctil Directo para Encuadre de Carteles y Maximización de Pantalla (`SPEC-06 RF-06.1.5`):
+  - Reemplazo completo de deslizadores numéricos por gestos multitáctiles en Compose (`pointerInput` + `detectDragGestures`).
+  - Redimensionamiento arrastrando con el dedo esquinas (`TOP_LEFT`, `TOP_RIGHT`, `BOTTOM_LEFT`, `BOTTOM_RIGHT`) y bordes (`EDGE_TOP`, `EDGE_BOTTOM`, `EDGE_LEFT`, `EDGE_RIGHT`).
+  - Desplazamiento/paneo completo del recuadro de encuadre tocando y arrastrando el interior (`MOVE_BOX`).
+  - Maximización del área visual de la imagen en pantalla a 380.dp de altura y ancho completo (`usePlatformDefaultWidth = false`), permitiendo inspeccionar cómodamente los textos antes de traducir.
 
 ---
 
@@ -314,6 +319,11 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
   - Extracción multimodal vía Gemini Vision con fallback automático a ML Kit local offline ante errores o falta de red/clave.
 - [x] **TASK-809 (Test)**: Suite de Tests Unitarios Exhaustiva (`TaxFreeReceiptsTest`):
   - Verificación de cálculos fiscales, reglas de umbral, parser OCR japonés, informes Tax-Free, control de gastos y escaneo híbrido.
+- [ ] **TASK-810 (UI/Integration)**: Pantalla de Tickets, Tax-Free y Presupuesto (`ShoppingReceiptsScreen`):
+  - Pantalla adaptativa con listado de tickets, formulario de alta manual / OCR / Cloud IA (cámara, Drive o archivo local).
+  - Resumen visual de gastos (¥ y EUR) por categoría y tarjeta de saldo para reembolso Tax-Free.
+  - Generador y visor del informe de solicitud de Tax-Free para aduanas con exportación a portapapeles/archivo.
+  - Integración en la navegación principal y selector de herramientas.
 
 
 

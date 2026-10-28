@@ -18,14 +18,18 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import com.laralbir.japantraveltools.feature.ai.CameraOcrLine
 import com.laralbir.japantraveltools.feature.ai.CameraOcrResult
 import com.laralbir.japantraveltools.feature.ai.OcrTextZone
+import kotlin.math.abs
+import kotlin.math.hypot
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -3528,6 +3532,12 @@ private fun TransportSegmentEditorModalSheet(
 // ============================================================================
 // 6. VOICE & CAMERA TRANSLATOR SCREEN (BIDIRECTIONAL STT + CAMERA OCR)
 // ============================================================================
+private enum class CropDragHandle {
+    NONE, TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT,
+    EDGE_TOP, EDGE_BOTTOM, EDGE_LEFT, EDGE_RIGHT,
+    MOVE_BOX
+}
+
 @Composable
 private fun SelectImageRegionDialog(
     bitmap: Bitmap,
@@ -3548,19 +3558,23 @@ private fun SelectImageRegionDialog(
     var bottom by remember { mutableFloatStateOf(initialBottom) }
     var multiZoneMode by remember { mutableStateOf(initialSelectedZones.size > 1) }
     val selectedZones = remember { mutableStateListOf<String>().apply { addAll(initialSelectedZones) } }
+    var activeDragHandle by remember { mutableStateOf(CropDragHandle.NONE) }
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         Surface(
             shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 6.dp,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 12.dp)
+                .padding(horizontal = 14.dp, vertical = 12.dp)
         ) {
             Column(
                 modifier = Modifier
-                    .padding(16.dp)
+                    .padding(14.dp)
                     .verticalScroll(rememberScrollState())
             ) {
                 Row(
@@ -3569,7 +3583,7 @@ private fun SelectImageRegionDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (isEs) "📸 Selector de Zona (Google Photos)" else "📸 Region Selector (Google Photos)",
+                        text = if (isEs) "📸 Selector de Zona (Arrastre Táctil)" else "📸 Region Selector (Touch Drag)",
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -3577,26 +3591,146 @@ private fun SelectImageRegionDialog(
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = if (isEs) {
-                        "Encuadra la zona del cartel sin recortar la foto original, o activa Multizona para traducir varios bloques a la vez:"
+                        "Arrastra con el dedo las esquinas o bordes para encuadrar el cartel sin recortar la foto original:"
                     } else {
-                        "Frame the area without cropping original photo, or enable Multi-Zone to translate multiple text blocks:"
+                        "Drag corners or edges with your finger to frame the sign without cropping original photo:"
                     },
-                    fontSize = 12.5.sp,
+                    fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(8.dp))
 
-                // Previsualización no destructiva estilo Google Photos (con scrim oscuro y brackets de esquinas)
+                // Previsualización no destructiva maximizada estilo Google Photos (con arrastre táctil)
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFF161616),
+                    color = Color(0xFF141414),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(240.dp)
+                        .height(380.dp)
                 ) {
                     Box(
                         contentAlignment = Alignment.Center,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(bitmap) {
+                                val boxW = size.width.toFloat()
+                                val boxH = size.height.toFloat()
+                                val aspectBitmap = bitmap.width.toFloat() / bitmap.height.toFloat().coerceAtLeast(1f)
+                                val aspectBox = boxW / boxH.coerceAtLeast(1f)
+
+                                val imgW: Float
+                                val imgH: Float
+                                val imgX: Float
+                                val imgY: Float
+                                if (aspectBox > aspectBitmap) {
+                                    imgH = boxH
+                                    imgW = imgH * aspectBitmap
+                                    imgX = (boxW - imgW) / 2f
+                                    imgY = 0f
+                                } else {
+                                    imgW = boxW
+                                    imgH = imgW / aspectBitmap
+                                    imgX = 0f
+                                    imgY = (boxH - imgH) / 2f
+                                }
+
+                                val cornerSlop = 40.dp.toPx()
+                                val edgeSlop = 28.dp.toPx()
+
+                                detectDragGestures(
+                                    onDragStart = { offset ->
+                                        val cropL = imgX + imgW * left
+                                        val cropT = imgY + imgH * top
+                                        val cropR = imgX + imgW * right
+                                        val cropB = imgY + imgH * bottom
+
+                                        val tx = offset.x
+                                        val ty = offset.y
+
+                                        activeDragHandle = when {
+                                            // 1. Esquinas (prioridad táctil máxima)
+                                            hypot(tx - cropL, ty - cropT) <= cornerSlop -> CropDragHandle.TOP_LEFT
+                                            hypot(tx - cropR, ty - cropT) <= cornerSlop -> CropDragHandle.TOP_RIGHT
+                                            hypot(tx - cropL, ty - cropB) <= cornerSlop -> CropDragHandle.BOTTOM_LEFT
+                                            hypot(tx - cropR, ty - cropB) <= cornerSlop -> CropDragHandle.BOTTOM_RIGHT
+
+                                            // 2. Bordes
+                                            abs(ty - cropT) <= edgeSlop && tx >= (cropL - 10f) && tx <= (cropR + 10f) -> CropDragHandle.EDGE_TOP
+                                            abs(ty - cropB) <= edgeSlop && tx >= (cropL - 10f) && tx <= (cropR + 10f) -> CropDragHandle.EDGE_BOTTOM
+                                            abs(tx - cropL) <= edgeSlop && ty >= (cropT - 10f) && ty <= (cropB + 10f) -> CropDragHandle.EDGE_LEFT
+                                            abs(tx - cropR) <= edgeSlop && ty >= (cropT - 10f) && ty <= (cropB + 10f) -> CropDragHandle.EDGE_RIGHT
+
+                                            // 3. Interior del recuadro para desplazar/panear
+                                            tx in cropL..cropR && ty in cropT..cropB -> CropDragHandle.MOVE_BOX
+
+                                            else -> CropDragHandle.NONE
+                                        }
+                                        if (activeDragHandle != CropDragHandle.NONE) {
+                                            selectedPreset = ImageCropPreset.CUSTOM
+                                        }
+                                    },
+                                    onDragEnd = {
+                                        activeDragHandle = CropDragHandle.NONE
+                                    },
+                                    onDragCancel = {
+                                        activeDragHandle = CropDragHandle.NONE
+                                    },
+                                    onDrag = { change, dragAmount ->
+                                        if (activeDragHandle == CropDragHandle.NONE) return@detectDragGestures
+                                        change.consume()
+
+                                        val dx = if (imgW > 0f) dragAmount.x / imgW else 0f
+                                        val dy = if (imgH > 0f) dragAmount.y / imgH else 0f
+                                        val minSpan = 0.08f
+
+                                        when (activeDragHandle) {
+                                            CropDragHandle.TOP_LEFT -> {
+                                                left = (left + dx).coerceIn(0f, right - minSpan)
+                                                top = (top + dy).coerceIn(0f, bottom - minSpan)
+                                            }
+                                            CropDragHandle.TOP_RIGHT -> {
+                                                right = (right + dx).coerceIn(left + minSpan, 1f)
+                                                top = (top + dy).coerceIn(0f, bottom - minSpan)
+                                            }
+                                            CropDragHandle.BOTTOM_LEFT -> {
+                                                left = (left + dx).coerceIn(0f, right - minSpan)
+                                                bottom = (bottom + dy).coerceIn(top + minSpan, 1f)
+                                            }
+                                            CropDragHandle.BOTTOM_RIGHT -> {
+                                                right = (right + dx).coerceIn(left + minSpan, 1f)
+                                                bottom = (bottom + dy).coerceIn(top + minSpan, 1f)
+                                            }
+                                            CropDragHandle.EDGE_TOP -> {
+                                                top = (top + dy).coerceIn(0f, bottom - minSpan)
+                                            }
+                                            CropDragHandle.EDGE_BOTTOM -> {
+                                                bottom = (bottom + dy).coerceIn(top + minSpan, 1f)
+                                            }
+                                            CropDragHandle.EDGE_LEFT -> {
+                                                left = (left + dx).coerceIn(0f, right - minSpan)
+                                            }
+                                            CropDragHandle.EDGE_RIGHT -> {
+                                                right = (right + dx).coerceIn(left + minSpan, 1f)
+                                            }
+                                            CropDragHandle.MOVE_BOX -> {
+                                                val curW = right - left
+                                                val curH = bottom - top
+                                                var newL = left + dx
+                                                var newT = top + dy
+                                                if (newL < 0f) newL = 0f
+                                                if (newL + curW > 1f) newL = 1f - curW
+                                                if (newT < 0f) newT = 0f
+                                                if (newT + curH > 1f) newT = 1f - curH
+                                                left = newL
+                                                right = newL + curW
+                                                top = newT
+                                                bottom = newT + curH
+                                            }
+                                            CropDragHandle.NONE -> {}
+                                        }
+                                    }
+                                )
+                            }
                     ) {
                         Image(
                             bitmap = bitmap.asImageBitmap(),
@@ -3665,31 +3799,56 @@ private fun SelectImageRegionDialog(
                                 style = Stroke(width = 1.5.dp.toPx())
                             )
 
-                            // 4. Brackets de esquina icónicos estilo Google Photos ┌ ┐ └ ┘
-                            val bracketLen = 18.dp.toPx().coerceAtMost(cropW / 3f).coerceAtMost(cropH / 3f)
-                            val bracketStroke = 3.5.dp.toPx()
+                            // 4. Brackets de esquina icónicos estilo Google Photos ┌ ┐ └ ┘ con puntos de toque
+                            val bracketLen = 22.dp.toPx().coerceAtMost(cropW / 3f).coerceAtMost(cropH / 3f)
+                            val bracketStroke = 4.dp.toPx()
                             val bracketColor = Color.White
+                            val handleCircleRadius = 5.dp.toPx()
 
                             // Top-Left ┌
                             drawLine(bracketColor, Offset(cropL, cropT), Offset(cropL + bracketLen, cropT), strokeWidth = bracketStroke)
                             drawLine(bracketColor, Offset(cropL, cropT), Offset(cropL, cropT + bracketLen), strokeWidth = bracketStroke)
+                            drawCircle(bracketColor, radius = handleCircleRadius, center = Offset(cropL, cropT))
 
                             // Top-Right ┐
                             drawLine(bracketColor, Offset(cropR, cropT), Offset(cropR - bracketLen, cropT), strokeWidth = bracketStroke)
                             drawLine(bracketColor, Offset(cropR, cropT), Offset(cropR, cropT + bracketLen), strokeWidth = bracketStroke)
+                            drawCircle(bracketColor, radius = handleCircleRadius, center = Offset(cropR, cropT))
 
                             // Bottom-Left └
                             drawLine(bracketColor, Offset(cropL, cropB), Offset(cropL + bracketLen, cropB), strokeWidth = bracketStroke)
                             drawLine(bracketColor, Offset(cropL, cropB), Offset(cropL, cropB - bracketLen), strokeWidth = bracketStroke)
+                            drawCircle(bracketColor, radius = handleCircleRadius, center = Offset(cropL, cropB))
 
                             // Bottom-Right ┘
                             drawLine(bracketColor, Offset(cropR, cropB), Offset(cropR - bracketLen, cropB), strokeWidth = bracketStroke)
                             drawLine(bracketColor, Offset(cropR, cropB), Offset(cropR, cropB - bracketLen), strokeWidth = bracketStroke)
+                            drawCircle(bracketColor, radius = handleCircleRadius, center = Offset(cropR, cropB))
                         }
                     }
                 }
 
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(8.dp))
+
+                // Indicador táctil de ayuda
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = if (isEs) {
+                            "👆 Arrastra con el dedo las esquinas/bordes para cambiar el tamaño. Toca y arrastra el centro para mover el recuadro."
+                        } else {
+                            "👆 Drag corners/edges with your finger to resize. Tap and drag inside the box to move it."
+                        },
+                        fontSize = 11.5.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
+                }
+
+                Spacer(Modifier.height(8.dp))
 
                 // Selector de modo Multizona
                 Row(
@@ -3718,7 +3877,7 @@ private fun SelectImageRegionDialog(
                     )
                 }
 
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
 
                 Text(
                     text = if (isEs) "Zonas Rápidas y Presets:" else "Quick Zones & Presets:",
@@ -3781,75 +3940,6 @@ private fun SelectImageRegionDialog(
                             horizontalPadding = 6.dp
                         )
                     }
-                }
-
-                if (!multiZoneMode) {
-                    Spacer(Modifier.height(10.dp))
-                    HorizontalDivider()
-                    Spacer(Modifier.height(10.dp))
-
-                    Text(
-                        text = if (isEs) "Ajuste Fino de Márgenes:" else "Fine Margin Tuning:",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(Modifier.height(4.dp))
-
-                    Text(
-                        text = if (isEs) "Superior: ${(top * 100).toInt()}%" else "Top: ${(top * 100).toInt()}%",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Slider(
-                        value = top,
-                        onValueChange = {
-                            top = it.coerceAtMost(bottom - 0.1f)
-                            selectedPreset = ImageCropPreset.CUSTOM
-                        },
-                        valueRange = 0f..0.85f
-                    )
-
-                    Text(
-                        text = if (isEs) "Inferior: ${(bottom * 100).toInt()}%" else "Bottom: ${(bottom * 100).toInt()}%",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Slider(
-                        value = bottom,
-                        onValueChange = {
-                            bottom = it.coerceAtLeast(top + 0.1f)
-                            selectedPreset = ImageCropPreset.CUSTOM
-                        },
-                        valueRange = 0.15f..1f
-                    )
-
-                    Text(
-                        text = if (isEs) "Izquierda: ${(left * 100).toInt()}%" else "Left: ${(left * 100).toInt()}%",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Slider(
-                        value = left,
-                        onValueChange = {
-                            left = it.coerceAtMost(right - 0.1f)
-                            selectedPreset = ImageCropPreset.CUSTOM
-                        },
-                        valueRange = 0f..0.85f
-                    )
-
-                    Text(
-                        text = if (isEs) "Derecha: ${(right * 100).toInt()}%" else "Right: ${(right * 100).toInt()}%",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Slider(
-                        value = right,
-                        onValueChange = {
-                            right = it.coerceAtLeast(left + 0.1f)
-                            selectedPreset = ImageCropPreset.CUSTOM
-                        },
-                        valueRange = 0.15f..1f
-                    )
                 }
 
                 Spacer(Modifier.height(14.dp))
