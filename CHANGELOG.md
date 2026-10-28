@@ -7,6 +7,27 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Mejoras Globales, Ajustes de Teclado, Bóveda, Reservas y Guías — Issues #6, #7, #8, #9 y #10 🇯🇵✨
+
+#### ⌨️ Corrección de Visibilidad del Teclado Virtual (IME) — Issue #7:
+- **`Modifier.imePadding()` en Contenedores Raíz**: Incorporación de padding reactivo de teclado en las pantallas principales (`ActiveToolContent`) para teléfono y tableta, impidiendo que el teclado virtual tape los campos de texto activos (#7).
+- **Soporte IME y Desplazamiento Vertical en Hojas Modales**: Aplicación de `.navigationBarsPadding().imePadding().verticalScroll(rememberScrollState())` en las 8 hojas modales del sistema (paradas, transportes, documentos, guías, ciudades del tiempo, documentos de identidad y conectividad), garantizando que cualquier formulario sea desplazable y visible mientras se escribe (#7).
+
+#### 🪪 Bóveda de Identidad y Documentos con Cámara y PDF — Issue #6:
+- **Captura Fotográfica con Cámara Nativa (`TakePicture`)**: Soporte directo para fotografiar el pasaporte, el DNI (anverso y reverso) o documentos personalizados mediante el contrato de cámara de Android con FileProvider (#6).
+- **Soporte de Documentos PDF y Cualquier Extensión**: Capacidad para adjuntar certificados y documentos en formato PDF con tarjeta dedicada de previsualización y apertura mediante el visor externo de Android (#6).
+- **Unificación del Botón de Añadir Documentos**: Eliminación del botón duplicado en el estado vacío, manteniendo un único botón compacto y accesible en la cabecera de la sección (#6).
+
+#### 🎫 Reservas y Billetes con Botones Compactos, Cámara y Pases QR Offline — Issue #9:
+- **Estandarización de Botones a Fila Compacta (34dp)**: Reemplazo de los botones grandes invasivos por una fila sutil y compacta de 34dp alineada con el resto de la aplicación (`📄 Archivo`, `🎫 Pase QR`, `✏️ Editar`, `🗑️`) (#9).
+- **Captura Fotográfica de Billetes y Entradas**: Soporte para tomar fotos de entradas de papel o billetes físicos directamente desde la cámara al crear o editar documentos (#9).
+- **Pase Digital Estilo Wallet Offline (`WalletTicketPassDialog`)**: Soporte de código localizador con visor de pase de alta visibilidad y recomendación de brillo para escaneo rápido en tornos de tren o parques (#9).
+
+#### 📖 Guías de Viaje con Botones Compactos, Visor Completo y Ordenación — Issue #10:
+- **Botones Compactos y Vista Previa Resumida**: Sustitución de botones grandes por la fila estilizada de 34dp (`📖 Leer Guía`, `✏️ Editar`, `🗑️`) y truncado del texto a 3 líneas con puntos suspensivos en las tarjetas de lista (#10).
+- **Visor Modal de Lectura Cómoda (`FullGuideReaderDialog`)**: Despliegue de la guía completa en diálogo amplio con tipografía cómoda de lectura (16sp/25sp) y etiquetas (#10).
+- **Selector de Ordenación Dinámico (`GuideSortOrder`)**: Selector de ordenación para alternar entre *📌 Fijadas*, *🔤 A - Z* o *🏙️ Por Ciudad* (#10).
+
 ### Traductor de Texto Bidireccional y Locución en Japonés — Issue #8 🇯🇵🗣️
 
 #### ✍️ Traductor de Texto (Español / Inglés ➔ Japonés):
