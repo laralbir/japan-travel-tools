@@ -645,6 +645,12 @@ object DocumentsAndGuidesJsonCodec {
     }
 }
 
+enum class GuideSortOrder(val labelEs: String, val labelEn: String) {
+    PINNED_FIRST("Fijadas", "Pinned first"),
+    TITLE_AZ("A - Z", "Title A-Z"),
+    CITY_REGION("Ciudad", "City / Region")
+}
+
 object DocumentsFilterUseCase {
     fun filterDocuments(
         documents: List<TravelDocumentItem>,
@@ -666,20 +672,30 @@ object DocumentsFilterUseCase {
     fun filterGuides(
         guides: List<TravelGuideArticle>,
         cityFilter: String?,
-        searchQuery: String
+        searchQuery: String,
+        sortOrder: GuideSortOrder = GuideSortOrder.PINNED_FIRST
     ): List<TravelGuideArticle> {
         val q = searchQuery.trim().lowercase()
-        return guides
-            .filter { guide ->
-                val matchesCity = cityFilter.isNullOrBlank() ||
-                    cityFilter == "All" ||
-                    guide.cityRegion.equals(cityFilter, ignoreCase = true)
-                val matchesQuery = q.isEmpty() ||
-                    guide.title.lowercase().contains(q) ||
-                    guide.markdownSummary.lowercase().contains(q) ||
-                    guide.tags.any { it.lowercase().contains(q) }
-                matchesCity && matchesQuery
-            }
-            .sortedByDescending { it.isPinned }
+        val filtered = guides.filter { guide ->
+            val matchesCity = cityFilter.isNullOrBlank() ||
+                cityFilter == "All" ||
+                cityFilter == "Todas" ||
+                cityFilter == "Todos" ||
+                guide.cityRegion.equals(cityFilter, ignoreCase = true)
+            val matchesQuery = q.isEmpty() ||
+                guide.title.lowercase().contains(q) ||
+                guide.markdownSummary.lowercase().contains(q) ||
+                guide.tags.any { it.lowercase().contains(q) }
+            matchesCity && matchesQuery
+        }
+        return when (sortOrder) {
+            GuideSortOrder.PINNED_FIRST -> filtered.sortedWith(
+                compareByDescending<TravelGuideArticle> { it.isPinned }.thenBy { it.title.lowercase() }
+            )
+            GuideSortOrder.TITLE_AZ -> filtered.sortedBy { it.title.lowercase() }
+            GuideSortOrder.CITY_REGION -> filtered.sortedWith(
+                compareBy<TravelGuideArticle> { it.cityRegion.lowercase() }.thenBy { it.title.lowercase() }
+            )
+        }
     }
 }
