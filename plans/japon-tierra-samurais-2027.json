@@ -42,7 +42,7 @@
       "placeNameJapanese": "関西国際空港 (KIX)",
       "latitude": 34.4347,
       "longitude": 135.2441,
-      "notes": "Control de pasaportes con código QR de Visit Japan Web. Recogida de maleta y encuentro con el asistente de Icárion."
+      "notes": "Control de pasaportes con código QR de Visit Japan Web. Recogida de maleta y encuentro con el asistente de Icárion. Sacar efectivo en cajero Seven Bank y gestionar tarjeta ICOCA en las máquinas de KIX (solo efectivo en yenes)."
     },
     {
       "id": "stop-d02-hotel-osaka",
@@ -81,7 +81,7 @@
       "placeNameJapanese": "大阪城 · 西の丸庭園",
       "latitude": 34.6873,
       "longitude": 135.5262,
-      "notes": "Visita exterior de las murallas megalíticas y fosos del castillo de Toyotomi Hideyoshi rodeado de cerezos tempranos."
+      "notes": "Visita exterior de las murallas megalíticas y fosos del castillo de Toyotomi Hideyoshi rodeado de cerezos tempranos. Comprar el cuaderno Goshuincho en el Santuario Hokoku (en el recinto del castillo) para inaugurar la colección de caligrafía y sellos sagrados."
     },
     {
       "id": "stop-d03-nara-park",
@@ -336,12 +336,12 @@
       "dateIso": "2027-03-22",
       "startTime": "17:30",
       "endTime": "19:30",
-      "title": "Check-in Toshi Center Hotel Tokyo · Recepción de Maletas",
+      "title": "Check-in Tokyo Dome Hotel · Recepción de Maletas",
       "category": "HOTEL",
-      "placeNameJapanese": "都市センターホテル (千代田区平河町)",
-      "latitude": 35.683,
-      "longitude": 139.7397,
-      "notes": "Hotel Cat. C en el distrito gubernamental de Nagatacho/Akasaka. Reencuentro con la maleta grande de 23kg enviada desde Kioto."
+      "placeNameJapanese": "東京ドームホテル (文京区後楽)",
+      "latitude": 35.7032,
+      "longitude": 139.7523,
+      "notes": "Hotel Cat. C en Bunkyo junto al Tokyo Dome. Torre de 43 plantas, a 2 min de la estación JR Suidobashi. Reencuentro con la maleta grande de 23kg enviada desde Kioto."
     },
     {
       "id": "stop-d09-tokyo-tower",
@@ -604,9 +604,9 @@
       "departureTerminalOrPlatform": "Muelle Lago Ashi",
       "departureTimeIso": "2027-03-22T09:30",
       "arrivalCode": "TYO",
-      "arrivalName": "Toshi Center Hotel Tokyo",
+      "arrivalName": "Tokyo Dome Hotel",
       "arrivalZoneId": "Asia/Tokyo",
-      "arrivalTerminalOrPlatform": "Nagatacho / Akasaka",
+      "arrivalTerminalOrPlatform": "Bunkyo / Suidobashi",
       "arrivalTimeIso": "2027-03-22T17:30",
       "seatOrCarInfo": "Pase Hakone + Autocar a Tokio",
       "stationExitOrBelt": "Recepción Hotel Tokio",
