@@ -386,14 +386,14 @@
       "id": "stop-d09-ginza",
       "dayNumber": 9,
       "dateIso": "2027-03-23",
-      "startTime": "16:30",
-      "endTime": "18:00",
-      "title": "Avenida de Ginza · Tiendas de Arquitectura y Lujo",
+      "startTime": "15:30",
+      "endTime": "17:00",
+      "title": "Ginza · Numismática en Ginza Coin y Avenidas",
       "category": "SHOPPING",
-      "placeNameJapanese": "銀座通り · GINZA SIX",
-      "latitude": 35.6719,
-      "longitude": 139.765,
-      "notes": "Paseo por el distrito comercial más elegante de Tokio: Ginza Place, grandes almacenes Wako y papelería histórica Itoya."
+      "placeNameJapanese": "銀座コイン (銀座ファイブ 1F) · 銀座通り",
+      "latitude": 35.6723,
+      "longitude": 139.7618,
+      "notes": "Visita a la prestigiosa tienda numismática Ginza Coin en Ginza Five (1F) para adquirir monedas de plata (Ichibugin samurái, 1 Yen Meiji o Dragon Ball). Paseo por la avenida de Ginza."
     },
     {
       "id": "stop-d09-shibuya-evening",
@@ -432,7 +432,7 @@
       "placeNameJapanese": "秋葉原電気街 · ラジオ会館",
       "latitude": 35.6983,
       "longitude": 139.773,
-      "notes": "Exploración de tiendas de retro-gaming (Super Potato), figuras de colección (AmiAmi, Mandarake) y centros de gashapon. Alternativa destacada de mañana: Museo Ghibli en Mitaka (a 25 min en tren directo JR Chuo desde el hotel)."
+      "notes": "Exploración de tiendas de retro-gaming (Super Potato), figuras de colección (AmiAmi, Mandarake Complex con vitrinas de medallas oficiales y piezas de Dragon Ball) y centros de gashapon. Alternativa destacada: Museo Ghibli en Mitaka y parada numismática en Nakano Broadway."
     },
     {
       "id": "stop-d10-shibuya-sky",
