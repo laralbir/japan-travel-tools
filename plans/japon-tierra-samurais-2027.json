@@ -399,14 +399,14 @@
       "id": "stop-d09-shibuya-evening",
       "dayNumber": 9,
       "dateIso": "2027-03-23",
-      "startTime": "18:30",
-      "endTime": "21:30",
+      "startTime": "17:00",
+      "endTime": "21:00",
       "title": "Cruce de Shibuya y Estatua de Hachiko (Tarde Libre)",
       "category": "SIGHTSEEING",
       "placeNameJapanese": "渋谷スクランブル交差点 · 忠犬ハチ公像",
       "latitude": 35.6591,
       "longitude": 139.7006,
-      "notes": "Metro Ginza Line directo desde Ginza (16 min). Cruzar el paso de peatones más concurrido del planeta entre pantallas gigantes."
+      "notes": "Metro Ginza Line directo desde Ginza (16 min). Cruzar el paso de peatones más concurrido, Hachiko y cena temprana. Vuelta en tren JR a las 21:00 para estar en el hotel a las 21:30."
     },
     {
       "id": "stop-d10-tsukiji",
@@ -451,14 +451,14 @@
       "id": "stop-d10-shinjuku-omoide",
       "dayNumber": 10,
       "dateIso": "2027-03-24",
-      "startTime": "20:00",
-      "endTime": "22:30",
+      "startTime": "19:00",
+      "endTime": "21:30",
       "title": "Shinjuku Nocturno · Omoide Yokocho y Kabukicho",
       "category": "FOOD",
       "placeNameJapanese": "新宿 · 思い出横丁 · 歌舞伎町",
       "latitude": 35.6938,
       "longitude": 139.7003,
-      "notes": "Cena de despedida en los callejones tradicionales de yakitori Omoide Yokocho y foto con la cabeza gigante de Godzilla."
+      "notes": "Cena de despedida en los callejones tradicionales de yakitori Omoide Yokocho y foto con Godzilla. Tren JR directo a Suidobashi a las 21:30 para estar en el hotel a las 22:00."
     },
     {
       "id": "stop-d11-haneda-dutyfree",
