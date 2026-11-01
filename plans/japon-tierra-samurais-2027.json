@@ -406,7 +406,7 @@
       "placeNameJapanese": "渋谷スクランブル交差点 · タワーレコード渋谷店",
       "latitude": 35.6591,
       "longitude": 139.7006,
-      "notes": "Metro Ginza Line directo. Cruce de Shibuya, Hachiko, atardecer en Shibuya Sky, Tower Records Shibuya (9 plantas), cena en Shibuya Yokocho y compras en MEGA Don Quijote. Tren de vuelta a las 23:00 (en el hotel a las 23:25)."
+      "notes": "Metro Ginza Line directo. Cruce de Shibuya, estatua Hachiko, pantalla 3D del perro Akita, atardecer en Shibuya Sky, Tower Records Shibuya (9 plantas), cena en Shibuya Yokocho y MEGA Don Quijote. Regreso a las 23:00 (hotel a las 23:25)."
     },
     {
       "id": "stop-d10-korakuen",
@@ -464,14 +464,14 @@
       "id": "stop-d10-shinjuku-omoide",
       "dayNumber": 10,
       "dateIso": "2027-03-24",
-      "startTime": "19:30",
+      "startTime": "19:15",
       "endTime": "21:30",
-      "title": "Shinjuku Nocturno · Omoide Yokocho y Kabukicho",
+      "title": "Shinjuku Nocturno · Gato 3D, Omoide Yokocho y Kabukicho",
       "category": "FOOD",
-      "placeNameJapanese": "新宿 · 思い出横丁 · 歌舞伎町",
+      "placeNameJapanese": "新宿 · クロス新宿ビジョン (猫3D) · 思い出横丁",
       "latitude": 35.6938,
       "longitude": 139.7003,
-      "notes": "Cena de despedida en los callejones tradicionales de yakitori Omoide Yokocho y foto con Godzilla. Tren JR directo a Suidobashi a las 21:30 para estar en el hotel a las 22:00."
+      "notes": "Pantalla 3D del gato gigante en Cross Shinjuku Vision frente a la Salida Este. Cena en los callejones tradicionales de Omoide Yokocho y fotos con Godzilla. Tren JR directo a Suidobashi a las 21:30 (hotel a las 22:00)."
     },
     {
       "id": "stop-d11-haneda-dutyfree",
