@@ -409,17 +409,17 @@
       "notes": "Metro Ginza Line directo. Cruce de Shibuya, Hachiko, atardecer en Shibuya Sky, Tower Records Shibuya (9 plantas), cena en Shibuya Yokocho y compras en MEGA Don Quijote. Tren de vuelta a las 23:00 (en el hotel a las 23:25)."
     },
     {
-      "id": "stop-d10-tsukiji",
+      "id": "stop-d10-korakuen",
       "dayNumber": 10,
       "dateIso": "2027-03-24",
-      "startTime": "08:30",
-      "endTime": "10:30",
-      "title": "Mercado Exterior de Tsukiji · Pescado Fresco y Street Food",
-      "category": "FOOD",
-      "placeNameJapanese": "築地場外市場",
-      "latitude": 35.6655,
-      "longitude": 139.7707,
-      "notes": "Desayuno de sushi fresco de atún toro, brochetas de wagyu flameadas, tamagoyaki y cuchillerías tradicionales de Tsukiji."
+      "startTime": "09:00",
+      "endTime": "10:15",
+      "title": "Jardín de Cerezos Koishikawa Korakuen (Junto al Hotel)",
+      "category": "SIGHTSEEING",
+      "placeNameJapanese": "小石川後楽園 · しだれ桜",
+      "latitude": 35.7051,
+      "longitude": 139.7497,
+      "notes": "Jardín tradicional fundado en 1629 a 2 min a pie del hotel. Espectacular floración de cerezos llorones (shidarezakura) sobre el estanque y puentes feudales."
     },
     {
       "id": "stop-d10-ghibli-mitaka",
