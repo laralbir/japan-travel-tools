@@ -97,12 +97,12 @@ class GoogleDriveSyncHelperTest {
         val city = sampleCity()
         val prefs = UserPreferences(
             themeMode = AppThemeMode.DARK,
-            googleAccountEmail = "carlos.travel.japan@gmail.com",
+            googleAccountEmail = "viajero.japon@gmail.com",
             originZoneId = "Europe/Madrid"
         )
 
         val bundle = GoogleDriveSyncHelper.buildSyncBundle(
-            accountEmail = "carlos.travel.japan@gmail.com",
+            accountEmail = "viajero.japon@gmail.com",
             deviceModel = "Google Pixel 10 Pro XL",
             plans = listOf(plan),
             guides = listOf(guide),
@@ -113,7 +113,7 @@ class GoogleDriveSyncHelperTest {
         )
 
         assertEquals(1, bundle.schemaVersion)
-        assertEquals("carlos.travel.japan@gmail.com", bundle.accountEmail)
+        assertEquals("viajero.japon@gmail.com", bundle.accountEmail)
         assertEquals("Google Pixel 10 Pro XL", bundle.deviceModel)
         assertEquals(1, bundle.travelPlans.size)
         assertEquals(1, bundle.travelGuides.size)
@@ -129,10 +129,10 @@ class GoogleDriveSyncHelperTest {
         val guide = sampleGuide()
         val doc = sampleDocument()
         val city = sampleCity()
-        val prefs = UserPreferences(googleAccountEmail = "carlos@gmail.com")
+        val prefs = UserPreferences(googleAccountEmail = "viajero@gmail.com")
 
         val originalBundle = GoogleDriveSyncHelper.buildSyncBundle(
-            accountEmail = "carlos@gmail.com",
+            accountEmail = "viajero@gmail.com",
             deviceModel = "TCL NXTPAPER 11 Plus",
             plans = listOf(plan),
             guides = listOf(guide),
@@ -143,7 +143,7 @@ class GoogleDriveSyncHelperTest {
         )
 
         val json = GoogleDriveSyncHelper.exportCloudBackupJson(originalBundle)
-        assertTrue(json.contains("\"accountEmail\": \"carlos@gmail.com\""))
+        assertTrue(json.contains("\"accountEmail\": \"viajero@gmail.com\""))
         assertTrue(json.contains("\"deviceModel\": \"TCL NXTPAPER 11 Plus\""))
         assertTrue(json.contains("Templo Senso-ji"))
         assertTrue(json.contains("Guía de Kioto"))
@@ -248,8 +248,8 @@ class GoogleDriveSyncHelperTest {
 
     @Test
     fun `getCloudBackupFileName produces clean and safe file name`() {
-        val fileName = GoogleDriveSyncHelper.getCloudBackupFileName("carlos.travel.japan@gmail.com")
-        assertEquals("japan-travel-backup-carlos.travel.japan.json", fileName)
+        val fileName = GoogleDriveSyncHelper.getCloudBackupFileName("viajero.japon@gmail.com")
+        assertEquals("japan-travel-backup-viajero.japon.json", fileName)
 
         val fallback = GoogleDriveSyncHelper.getCloudBackupFileName("")
         assertEquals("japan-travel-backup.json", fallback)
@@ -257,12 +257,12 @@ class GoogleDriveSyncHelperTest {
 
     @Test
     fun `GoogleAccountSelectorHelper validates and masks account email properly`() {
-        assertTrue(GoogleAccountSelectorHelper.isValidGoogleEmail("carlos@gmail.com"))
+        assertTrue(GoogleAccountSelectorHelper.isValidGoogleEmail("viajero@gmail.com"))
         assertTrue(GoogleAccountSelectorHelper.isValidGoogleEmail("user.travel@googlemail.com"))
         assertFalse(GoogleAccountSelectorHelper.isValidGoogleEmail("invalid"))
         assertFalse(GoogleAccountSelectorHelper.isValidGoogleEmail(""))
 
-        assertEquals("c***s@gmail.com", GoogleAccountSelectorHelper.maskAccountEmail("carlos@gmail.com"))
+        assertEquals("v***o@gmail.com", GoogleAccountSelectorHelper.maskAccountEmail("viajero@gmail.com"))
         assertEquals("u***r@domain.com", GoogleAccountSelectorHelper.maskAccountEmail("user@domain.com"))
         assertEquals("t***t@test.com", GoogleAccountSelectorHelper.maskAccountEmail("test@test.com"))
         assertEquals("a***@test.com", GoogleAccountSelectorHelper.maskAccountEmail("ab@test.com"))
