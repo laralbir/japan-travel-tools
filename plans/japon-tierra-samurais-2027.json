@@ -42,7 +42,7 @@
       "placeNameJapanese": "関西国際空港 (KIX)",
       "latitude": 34.4347,
       "longitude": 135.2441,
-      "notes": "Control de pasaportes con código QR de Visit Japan Web. Recogida de maleta y encuentro con el asistente de Icárion. Sacar efectivo en cajero Seven Bank y gestionar tarjeta ICOCA en las máquinas de KIX (solo efectivo en yenes)."
+      "notes": "Control de pasaportes con código QR de Visit Japan Web. Recogida de maleta y encuentro con el asistente de llegada. Sacar efectivo en cajero Seven Bank y gestionar tarjeta ICOCA en las máquinas de KIX (solo efectivo en yenes)."
     },
     {
       "id": "stop-d02-hotel-osaka",
@@ -542,14 +542,14 @@
       "arrivalTerminalOrPlatform": "Terminal 1",
       "arrivalTimeIso": "2027-03-16T07:55",
       "seatOrCarInfo": "Airbus A350-900 (Pasillo preferente)",
-      "stationExitOrBelt": "Cinta Equipajes T1 · Asistente Icárion",
+      "stationExitOrBelt": "Cinta Equipajes T1 · Asistente de Traslado",
       "passOrPaymentBadge": "Billete Confirmado"
     },
     {
       "id": "seg-bus-kix-osaka-3",
       "order": 3,
       "type": "BUS",
-      "operatorName": "Icárion Transfer",
+      "operatorName": "Traslado Aeropuerto",
       "lineOrNumber": "Autocar Circuito Privado",
       "departureCode": "KIX",
       "departureName": "Kansai Airport T1",
@@ -561,7 +561,7 @@
       "arrivalZoneId": "Asia/Tokyo",
       "arrivalTerminalOrPlatform": "Recepción Hotel",
       "arrivalTimeIso": "2027-03-16T10:45",
-      "seatOrCarInfo": "Grupo Icárion Cat. C",
+      "seatOrCarInfo": "Autocar Circuito",
       "stationExitOrBelt": "Shinmachi Nishi-ku",
       "passOrPaymentBadge": "Incluido Circuito"
     },
@@ -569,7 +569,7 @@
       "id": "seg-bus-osaka-nara-kyoto-4",
       "order": 4,
       "type": "BUS",
-      "operatorName": "Icárion Tour Bus",
+      "operatorName": "Autocar Circuito",
       "lineOrNumber": "Excursión Nara y Kioto",
       "departureCode": "OSA",
       "departureName": "Osaka Shinmachi",

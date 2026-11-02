@@ -357,7 +357,7 @@ Primera versión oficial de producción para viajeros a Japón. Suite integral 1
     - 📄 **Cualquier documento oficial o privado personalizado**.
   - **Editor Modal con Sugerencias Rápidas (`CustomIdDocumentEditorModalSheet`)**:
     - Chips horizontales interactivos con presets habituales que rellenan el título con un solo toque.
-    - Campos de texto para nombre del documento y notas/referencia/caducidad (ej. *"Hospital Carlos III · Válido hasta 2028"*).
+    - Campos de texto para nombre del documento y notas/referencia/caducidad (ej. *"Centro de Vacunación Internacional · Válido hasta 2028"*).
     - Selector integrado de fotos desde galería o archivos con previsualización de estado.
   - **Visor Inmersivo con Zoom Táctil (`pinch-to-zoom`)**:
     - Cada documento personalizado cuenta con acceso inmediato al visor a pantalla completa sobre fondo negro (`FullScreenZoomableImageViewerDialog`) con zoom de `1.0x` a `5.0x`, arrastre panorámico, alternador por doble toque y restablecimiento.

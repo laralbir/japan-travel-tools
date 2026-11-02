@@ -358,7 +358,7 @@ class TravelPlanJsonPortabilityTest {
         val parsed = TravelPlanJsonCodec.importFromJson(planJson)
 
         assertEquals("Japón, Tierra de Samurais 2027", parsed.tripTitle)
-        assertEquals(37, parsed.itineraryStops.size)
+        assertEquals(38, parsed.itineraryStops.size)
         assertEquals(9, parsed.transportSegments.size)
 
         // Stop 1 is Madrid Airport: should infer or contain Europe/Madrid and UTC ISO

@@ -7493,7 +7493,7 @@ private fun CustomIdDocumentEditorModalSheet(
                 value = subtitleText,
                 onValueChange = { subtitleText = it },
                 label = { Text(if (isEs) "Notas / Referencia / Caducidad (Opcional)" else "Notes / Expiration (Optional)") },
-                placeholder = { Text(if (isEs) "ej. Hospital Carlos III · Válido hasta 2028" else "e.g. Valid until 2028") },
+                placeholder = { Text(if (isEs) "ej. Centro de Vacunación Internacional · Válido hasta 2028" else "e.g. Valid until 2028") },
                 singleLine = false,
                 maxLines = 3,
                 modifier = Modifier.fillMaxWidth()

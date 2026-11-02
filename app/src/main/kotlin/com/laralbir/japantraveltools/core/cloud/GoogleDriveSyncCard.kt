@@ -174,7 +174,7 @@ fun GoogleDriveSyncCard(
             accountPickerLauncher.launch(intent)
         } catch (_: ActivityNotFoundException) {
             // Fallback for emulators without Play Services
-            val defaultEmail = "carlos.travel.japan@gmail.com"
+            val defaultEmail = "viajero.japon@gmail.com"
             prefsRepository.setGoogleAccountSync(
                 email = defaultEmail,
                 lastSyncedMillis = prefs.lastCloudSyncEpochMillis
