@@ -258,12 +258,12 @@
       "dateIso": "2027-03-20",
       "startTime": "18:00",
       "endTime": "21:30",
-      "title": "Check-in Takayama Green Hotel · Cena y Baños Onsen",
+      "title": "Check-in Takayama Green Hotel · Cena en Hotel y Baños Onsen",
       "category": "ACTIVITY",
       "placeNameJapanese": "高山グリーンホテル · 飛騨高山温泉",
       "latitude": 36.1422,
       "longitude": 137.2458,
-      "notes": "Cena japonesa tradicional incluida y experiencia termal en el rotenburo (baño caliente al aire libre rodeado de naturaleza)."
+      "notes": "Cena en el hotel incluida (servicio buffet/menú del hotel para Cat. C) y experiencia termal en el rotenburo (baño caliente al aire libre rodeado de naturaleza)."
     },
     {
       "id": "stop-d07-miyagawa-market",
@@ -297,12 +297,12 @@
       "dateIso": "2027-03-21",
       "startTime": "17:30",
       "endTime": "22:00",
-      "title": "Check-in Yumoto Fujiya Hotel · Hakone Onsen y Cena Kaiseki",
+      "title": "Check-in Yumoto Fujiya Hotel · Hakone Onsen y Cena en Hotel",
       "category": "ACTIVITY",
       "placeNameJapanese": "湯本富士屋ホテル · 箱根湯本温泉",
       "latitude": 35.2319,
       "longitude": 139.1036,
-      "notes": "Hotel balneario histórico en la puerta del Parque Nacional de Hakone. Aguas termales volcánicas y cena kaiseki en yukata."
+      "notes": "Hotel balneario histórico en la puerta del Parque Nacional de Hakone. Aguas termales volcánicas y cena en el hotel incluida (servicio buffet/menú para Cat. C)."
     },
     {
       "id": "stop-d08-owakudani",
