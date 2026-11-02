@@ -151,7 +151,7 @@ class DocumentsAndGuidesUseCaseTest {
             CustomIdDocumentItem(
                 id = "custom-1",
                 title = "Certificado de Vacunación Fiebre Amarilla",
-                subtitle = "Válido internacionalmente · Hospital Carlos III",
+                subtitle = "Válido internacionalmente · Centro de Vacunación Internacional",
                 fileName = "custom_doc_1.jpg"
             ),
             CustomIdDocumentItem(
@@ -171,7 +171,7 @@ class DocumentsAndGuidesUseCaseTest {
         assertEquals(2, imported.size)
         assertEquals("custom-1", imported[0].id)
         assertEquals("Certificado de Vacunación Fiebre Amarilla", imported[0].title)
-        assertEquals("Válido internacionalmente · Hospital Carlos III", imported[0].subtitle)
+        assertEquals("Válido internacionalmente · Centro de Vacunación Internacional", imported[0].subtitle)
         assertEquals("custom_doc_1.jpg", imported[0].fileName)
 
         assertEquals("custom-2", imported[1].id)

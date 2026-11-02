@@ -1,115 +1,142 @@
 # Japan Travel Tools 🇯🇵✈️
 
-Aplicación Android **offline-first** con herramientas esenciales para viajar a Japón, desarrollada en **Kotlin** y **Jetpack Compose** siguiendo metodologías **SDD (Spec-Driven Development)** y **TDD (Test-Driven Development)** para agentes de Inteligencia Artificial.
+Aplicación Android **offline-first** con la suite definitiva de herramientas esenciales para viajar a Japón, desarrollada en **Kotlin** y **Jetpack Compose** siguiendo metodologías estrictas de **Spec-Driven Development (SDD)** y **Test-Driven Development (TDD)**.
 
-> **Estado actual del proyecto**: `v1.2.0` (Versión Oficial Estable de Producción — Suite integral 100% offline-first para viajeros a Japón con Comprobantes de Compra, Tax-Free y Control de Gastos del Viaje `SPEC-08`, Escaneo Inteligente Híbrido IA con Gemini Cloud + ML Kit OCR Trilingüe en Japonés, Inglés y Español, Selector de Origen de Tickets con Cámara, Archivo Local y Google Drive con decodificación nativa de facturas PDF, Reconocimiento Multidivisa en Yenes JPY, Euros EUR y Dólares USD con diálogo de resolución ante ambigüedad y conversión dual en tiempo real, Selector de Zona Estilo Google Fotos con Arrastre Táctil Interactivo, previsualización maximizada y soporte multizona, Traducción Robusta de Carteles con diccionario offline masivo y consulta contextual en segundo plano, Prevención Robusta de Reinicio de App al cambiar de aplicación con `singleTask` y persistencia de pantalla activa, Portabilidad JSON Centralizada en Ajustes vía Storage Access Framework SAF con detector inteligente de contenido, Formateo Regional de Fechas completas y Horas con husos locales y almacenamiento ISO UTC `TravelDateTimeFormatter`, Bóveda de Documentos e Identidad con Detección por Magic Bytes, Bloqueo Biométrico Estricto Obligatorio por Diseño sin Toggle, Auto-bloqueo de 120s y en segundo plano, Sincronización Automática Periódica en Segundo Plano para Previsión Meteorológica (6h) y Conversor de Divisas (24h) con WorkManager, Asistente de IA con Renderizado Nativo de Markdown, Gemini Flash-Lite ultrarrápido (<1s) como modelo recomendado predeterminado libre de timeouts y cuotas, Compilación Completa y Firma para Google Play Store con generación dual de Android App Bundle firmado `app-release.aab` y APK firmado `app-release.apk`, Bóveda de Documentos con fotos y zoom `pinch-to-zoom`, Planificador de Vuelos, Trenes Shinkansen, Metros y Autobuses, y Traductor de Voz Fiel y Literal Bidireccional `Japonés <-> Español/Inglés`).
-
----
-
-## Características Principales
-
-### Configuración Global y Base (Core)
-- **Multiidioma**: Español e Inglés. Selecciona automáticamente el idioma del sistema (con **Inglés** como idioma por defecto si el sistema usa otro idioma) y permite cambiarlo manualmente dentro de la app.
-- **Tema Personalizable e Inspiración Visual (`KotlinConf App` + Colores de Japón)**:
-  - Basado en el moderno sistema de diseño de **[JetBrains KotlinConf App](https://jetbrains.github.io/kotlinconf-app/)** (tarjetas con bordes nítidos de `1.dp`, selectores de agenda por días/horarios, chips de filtrado rápidos y tipografía tabular de alta legibilidad).
-  - **Paleta Tradicional Japonesa (`Nippon Dentōshoku`)**: Modo Claro inspirado en el papel *Washi* (`#FAF7F2`), Modo Oscuro inspirado en la tinta *Sumi* (`#0F1115` OLED) y acentos en rojo bermellón *Akabeni / Torii* (`#C9171E`), índigo japonés *Ai-iro* (`#165E83`), verde *Matcha* y rosa *Sakura*. Soporta Modo Claro, Oscuro o Automático según el sistema (por defecto).
-  - **Iconografía Moderna, Adaptive Icon y Splash Screen**: Set de iconos vectoriales modernos (`Material Symbols Rounded / Lucide`), icono de aplicación adaptativo con capa monocromática para *Material You* (Pixel Launcher) y pantalla de arranque nativa (`SplashScreen API`) sincronizada con el tema claro/oscuro.
-- **100% Persistente, Offline-First y Sincronizable con Cuenta de Google**: Todas las preferencias, cachés de datos externos, itinerarios, transportes, guías y documentos del viajero se persisten localmente en el dispositivo para funcionar sin conexión a internet, y pueden **sincronizarse automáticamente entre varios dispositivos (móvil Pixel + tablet TCL NXTPAPER)** iniciando sesión con la misma **Cuenta de Google** (descargando copia local completa en cada dispositivo para uso offline).
-- **Indicador de Conexión en Vivo y Selector Rápido (`Wi-Fi / SIM / eSIM / Offline`)**: Píldora interactiva en el Home/Cabecera que muestra en tiempo real qué conexión se está usando (distinguiendo entre Wi-Fi/Pocket Wi-Fi, SIM física, eSIM de datos en Japón, alerta de Roaming o modo Offline) y permite cambiar entre Wi-Fi, SIM y eSIM con un toque mediante el panel flotante nativo de Android (`Settings.Panel.ACTION_INTERNET_CONNECTIVITY`) y el gestor de SIMs.
-- **Optimización para Dispositivos Objetivo (Smartphones Pro XL y Tablet NXTPAPER)**:
-  - **Google Pixel 10 Pro XL y Pixel 9 Pro XL (6.8" 20:9 LTPO OLED 120Hz)**: Diseño *Edge-to-Edge*, ergonomía a una mano con controles principales en la zona inferior y modo oscuro OLED de alto rendimiento.
-  - **Tablet TCL NXTPAPER 11 Plus (11.5" 2.2K ratio 3:2 120Hz)**: Interfaz adaptativa con barra lateral (`NavigationRail`), vista de doble panel en el Planificador (Horario + Mapa de Google Maps lado a lado), vista Maestro-Detalle para lectura de Guías/PDFs y contraste nítido optimizado para los modos *Ink Paper* y *Color Paper*.
-- **Transparencia y Open Source ("Acerca de")**: Apartado integrado que muestra la versión exacta de la aplicación (`0.0.1-beta.X` / `0.0.1`), las fuentes de datos abiertas utilizadas y el listado completo de todas las librerías open source de terceros con sus respectivas licencias accesibles offline.
-
-### Herramientas Incluidas en la Especificación (v0.0.1)
-1. **Relojes Duales (Hora Local / Japón / País de Origen) [En Especificación - Beta]**
-   - Visualización simultánea de la hora actual según ubicación GPS/red, hora de Japón (`Asia/Tokyo`) y hora del país/zona horaria de origen seleccionada por el usuario.
-   - Indicador de diferencia horaria y tramo del día (mañana/tarde/noche) para evitar llamadas a deshoras.
-2. **Conversor de Divisa Offline-First (`EUR <-> JPY` por defecto) [En Especificación - Beta]**
-   - Conversión bidireccional instantánea entre Euro (`EUR`), Yen Japonés (`JPY`) y otras divisas soportadas.
-   - Descarga y actualización de tasas de cambio desde fuente open-source (**Frankfurter API** - datos del Banco Central Europeo).
-   - Caché local persistente con fecha de última actualización y tasa semilla inicial para funcionar 100% offline desde el primer arranque.
-3. **Bóveda de Documentos de Identidad (Pasaporte, DNI y Documentos Personalizados con Zoom y PDF) [En Especificación - Beta]**
-   - Acceso rápido offline a las fotografías o PDFs de tu Pasaporte y DNI/documento de identidad (anverso/reverso) para mostrar en controles, hoteles o compras *Tax-Free*.
-   - **Soporte Multi-Formato PDF e Imágenes**: Permite adjuntar y previsualizar tanto fotos como documentos PDF oficiales para pasaporte y DNI, además de documentos personalizados.
-   - **Bloqueo Biométrico Obligatorio con Excepción de Ciclo de Vida**: Protección biométrica/PIN estricta sin toggles superfluos, con gestión inteligente de ciclo de vida para evitar rebloqueos al tomar fotos con la cámara o seleccionar archivos del sistema.
-   - **Documentos Personalizados con Foto o PDF**: Añade certificados de vacunas, recetas médicas para aduanas japonesas (*Yakkan Shoumei*), carnet internacional de conducir, visados o pólizas con editor modal y chips de sugerencias rápidas.
-   - **Visor a Pantalla Completa con Zoom Táctil**: Toca cualquier foto para abrirla en pantalla completa con fondo oscuro y zoom fluido pellizcando (`1.0x` a `5.0x`), desplazamiento panorámico y alternador por doble toque.
-4. **Repositorio de Documentos y Guías de Viaje [En Especificación - Beta]**
-   - Gestión y visualización offline de PDFs e imágenes de billetes de vuelo, reservas de hotel, JR Pass, seguros de viaje y entradas.
-   - **Gestor y Creador de Guías de Viaje**: Permite tanto importar guías externas (PDF con marcador de página, Markdown, mapas en imagen) como crear y editar guías propias por ciudad/región con texto enriquecido y fotos adjuntas offline.
-   - **Exportación e Importación JSON en Ajustes**: Exporta e importa colecciones de Guías de Viaje y Billetes/Reservas mediante archivos JSON legibles desde almacenamiento local o Google Drive.
-5. **Planificador de Viaje con Fotos, Google Maps, Calendario y Horarios [En Especificación - Beta]**
-   - Calendario de viaje por días y línea temporal de horarios (`Timeline` en zona horaria local del destino y persistencia ISO UTC) con detección de solapamientos.
-   - **Fechas Regionales del Sistema y Zonas Horarias Locales**: Visualización de la fecha completa según la configuración regional del sistema (`FormatStyle.FULL`) y de las horas en el huso local de cada destino (ej. Múnich `UTC+1`, Osaka/Tokio `UTC+9`) indicando siempre el desfase y la ciudad.
-   - **Diseño Ergonómico de Botones**: Tarjetas de itinerario con botones compactos y sutiles (`🗺️ Mapa`, `📅 Cal.`, `✏️ Editar`, `🗑️`) que reducen la altura y el ruido visual.
-   - Galería de fotos offline asociada a cada parada o actividad del itinerario.
-   - **Integración dual con Google Maps**: Mapa interactivo embebido (`Maps Compose`) con marcadores numerados de la ruta del día + almacenamiento offline de coordenadas/direcciones en japonés y lanzamiento directo de rutas en la app de Google Maps.
-   - Sincronización/exportación opcional al Calendario del sistema / Google Calendar, vinculación directa con PDFs de reservas y guías de viaje, y **exportación/importación en formato `JSON` legible (`japan-travel-plan.v1`) desde Ajustes (Almacenamiento Local o Drive con SAF)**.
-6. **Planificador de Vuelos, Trenes, Metros y Autobuses [En Especificación - Beta]**
-   - Gestión de trayectos multimodales (vuelos internacionales/domésticos, trenes **Shinkansen / JR**, líneas de **Metro** y **Autobuses** interurbanos/urbanos) 100% offline e **importables/exportables en `JSON` legible desde Ajustes**.
-   - **Vuelos**: Apertura de check-in online, hora de facturación en mostrador y cierre de equipaje, hora de embarque, puerta, asiento, salida, llegada (`+1`/`+2` días), visualización de zonas horarias de origen y destino con desfases UTC, y cálculo automático de duración real entre zonas horarias.
-   - **Trenes, Metros y Autobuses**: Línea y color oficial, códigos de estación (`G19` ➔ `G01`), nombres en japonés para paneles, andén (`Platform`), número de coche/vagón recomendado, asiento, reserva de maletas grandes en Shinkansen, cobertura **JR Pass / Suica**, **número exacto de salida de estación (`Exit`)** y dársena de autobús (`Bus Bay`).
-   - **Calculador de Escalas y Transbordos (`Layovers & Transfers`)**: Tiempo total de conexión, margen hasta el siguiente embarque o cambio de andén/terminal, alerta de conexión ajustada y acceso directo a tarjetas de embarque o billetes QR (`SPEC-03`).
-7. **Asistente IA con Google Gemini y Acceso Directo a Traducción Simultánea [En Especificación - Beta]**
-   - **Acceso Directo Global a Traducción Simultánea (`ES/EN <-> Japonés`)**: Modo conversación cara a cara por voz y texto (con selector en pestañas estilizadas `🎙️ Voz`, `✍️ Texto` y `📷 Carteles / Cámara`, pantalla dividida reversible 180°, pronunciación en *Romaji*, OCR de cámara para menús/carteles con ML Kit Offline y salto rápido a *Google Translate / Pixel Live Translate*).
-   - **Orientación EXIF, Rotación 90° y Selección de Región de Imagen**: Corrección automática de la rotación de sensor de cámara (`ExifInterface`) para evitar fotos apaisadas o giradas, botón manual `🔄 Girar 90°` y diálogo interactivo con presets (`Toda la foto`, `Superior`, `Centro`, `Inferior`, `Personalizada`) para seleccionar qué parte de la imagen recortar y traducir.
-   - **Frases de Viaje Unificadas y Deduplicadas**: Sección unificada al pie del traductor con 28 frases esenciales categorizadas (*Cortesía, Restaurante, Transporte, Compras, Emergencias*), texto bilingüe (español/inglés + kanji/kana), transcripción fonética en Romaji y botón instantáneo de locución `🔊` en japonés nativo (`ja-JP`).
-   - **Asistente de Viaje con Gemini (`Gemini API` + `Gemini Nano On-Device` en Pixel 9/10 Pro XL)**: Análisis visual de cartas de restaurantes japoneses (con conversión automática de precios a `EUR`), recomendaciones contextuales y **Creador / Optimizador de Planes de Viaje (`AI Plan Builder`)** capaz de generar nuevos itinerarios y mejorar los planes existentes en la app (resolviendo conflictos horarios y añadiendo nuevas jornadas y conexiones Shinkansen/vuelos).
-   - **Método Amigable para Obtener la API Key**: Botón directo de 1 toque a Google AI Studio (`aistudio.google.com/app/apikey`), tutorial interactivo en 4 pasos, botón de pegado automático desde el portapapeles y conmutador de visibilidad (`GeminiApiKeySetupCard`).
-8. **Previsión Meteorológica y Planificación Climática con Open-Meteo (`SPEC-07`) [En Especificación - Beta]**
-   - Integración con **Open-Meteo API** (modelos globales + **JMA — Japan Meteorological Agency**, 100% open-source y sin API Key) con semilla estacional y caché **Offline-First** para *Tokio*, *Kioto*, *Osaka* y *Hakone / Monte Fuji*.
-   - **Búsqueda Predictiva y Coordenadas de Google Maps**: Sugerencias predictivas instantáneas reactivas mientras se escribe el nombre de la ciudad y obtención automática de coordenadas geográficas de Google Maps y Open-Meteo con catálogo local (>50 ciudades y destinos turísticos) 100% offline.
-   - **Útil para el Usuario**: Clasificación diaria (`⛩️ Ideal Exterior` vs. `🏛️ Recomendado Cubierto`), avisos de paraguas (`☔ %`), temperaturas máx/mín y **porcentaje de visibilidad del Monte Fuji (`🗻 %`)** integrado en cada día del Planificador de Viaje.
-   - **Útil para la IA (`Weather-Aware AI Planner`)**: Inyecta la previsión de Open-Meteo en `AiPlanBuilderEngine` para que la IA adapte automáticamente las paradas del itinerario en días de lluvia añadiendo alternativas cubiertas (*mercados Nishiki/Kuromon*, *galerías Shotengai*, museos).
-9. **Tickets de Compra, Tax-Free y Control de Gastos del Viaje (`SPEC-08`) [Implementado]**
-   - Digitalización manual y escaneo inteligente de tickets (cámara, almacenamiento local o Google Drive) con soporte para fotos y documentos PDF (`PdfRenderer`).
-   - Motor híbrido multimodal: **ML Kit OCR trilingüe offline** (Japonés, Inglés, Español) + **Gemini Cloud Vision API** con soporte multidivisa (**Yen JPY, Euro EUR y Dólar USD**) y diálogo de resolución ante ambigüedad.
-   - Cálculo automático de elegibilidad para el régimen **Tax-Free** de Japón (umbral de 5.000 ¥ sin tasas, separación de consumibles al 8%, bienes generales al 10% y compras mixtas).
-   - Generador de informes consolidados de Tax-Free por tienda y fecha, con desglose de impuestos recuperables en yenes y euros, y exportación en texto, Markdown y JSON.
-   - Control integral de presupuesto de viaje con acumulados en ¥ y EUR, categorización (Compras, Comida, Transporte, Ocio, etc.) y balances analíticos por día y ciudad.
+> **Estado actual del proyecto**: `v1.2.0` (Versión Oficial Estable de Producción). Publicada con APK firmado adjunto en [GitHub Releases](https://github.com/laralbir/japan-travel-tools/releases/tag/v1.2.0).
 
 ---
 
-## Metodología de Desarrollo (SDD + TDD + Gitflow)
+## 🌟 Características Principales y Arquitectura
 
-Este proyecto se rige por las directrices definidas en [`AGENTS.md`](AGENTS.md):
+### 🏛️ Configuración Global y Base (Core)
+- **100% Offline-First**: Toda herramienta funciona sin conexión a internet. Los datos remotos (tasas de cambio del BCE vía Frankfurter API, meteorología con Open-Meteo) se cachean localmente en `Context.filesDir` con marcas de tiempo y disponen de semillas offline precargadas.
+- **Multiidioma (i18n)**: Soporte completo en **Español** e **Inglés**, adoptando por defecto el idioma del sistema con fallback a inglés y selector manual per-app en Ajustes.
+- **Inspiración Visual (`KotlinConf App` + Colores Tradicionales de Japón)**:
+  - Sistema de diseño moderno inspirado en **[JetBrains KotlinConf App](https://jetbrains.github.io/kotlinconf-app/)**: tarjetas con bordes nítidos de `1.dp`, selectores de agenda interactivos, chips rápidos de filtrado y tipografía tabular de alta legibilidad.
+  - **Paleta Tradicional Japonesa (`Nippon Dentōshoku`)**: Modo Claro inspirado en el papel *Washi* (`#FAF7F2`), Modo Oscuro OLED inspirado en la tinta *Sumi* (`#0F1115`) y acentos en rojo bermellón *Akabeni / Torii* (`#C9171E`), índigo japonés *Ai-iro* (`#165E83`), verde *Matcha* y rosa *Sakura*. Soporte para Modo Claro, Oscuro o Automático según el sistema.
+- **Diseño Adaptativo para Dispositivos Objetivo**:
+  - **Smartphones Pro XL (Google Pixel 10 Pro XL y Pixel 9 Pro XL)**: Diseño *Edge-to-Edge*, ergonomía a una mano con controles en la zona inferior y modo oscuro OLED de alto contraste.
+  - **Tablets (TCL NXTPAPER 11 Plus)**: Interfaz adaptativa con barra de navegación lateral (`NavigationRail`), vista de doble panel en el Planificador (Horario + Mapa de Google Maps interactivo en paralelo), vista Maestro-Detalle para Guías y lectura optimizada para *Ink Paper* y *Color Paper*.
+- **Indicador de Conexión en Vivo y Selector Rápido (`Wi-Fi / SIM / eSIM / Offline`)**: Píldora interactiva en la cabecera que detecta la conexión activa y abre de inmediato el panel de conectividad nativo de Android (`Settings.Panel.ACTION_INTERNET_CONNECTIVITY`).
+- **Portabilidad JSON y Copia de Seguridad en Google Drive**: Exportación e importación completa de planes, transportes, guías y reservas mediante archivos `.json` legibles mediante Storage Access Framework (SAF) local o en Google Drive.
+- **Seguridad y Privacidad Local**: Almacenamiento seguro en directorio privado de la aplicación (`Context.filesDir`). Sin telemetría invasiva, sin trackers y con protección biométrica para documentos confidenciales.
 
-1. **Especificación (`/docs/specs/`)** -> **Análisis (`/docs/analysis/`)** -> **Tareas (`/docs/tasks/`)** -> **Implementación (TDD)**.
-2. **Gitflow**:
-   - `main`: Releases estables y betas publicadas con su correspondiente APK en GitHub Releases.
+---
+
+## 🧰 Suite de Herramientas Integradas (9 Herramientas)
+
+### 1. 🕒 Relojes y Ubicación (`SPEC-01`)
+- Visualización simultánea de la hora local por red/GPS, hora de Japón (`Asia/Tokyo`) y hora del país de origen seleccionado.
+- Cálculo automático de diferencia horaria e indicador visual del tramo del día (mañana, tarde, noche) para evitar llamadas a deshoras.
+
+### 2. 💱 Conversor de Divisas Offline-First (`SPEC-02`)
+- Conversión instantánea bidireccional entre Euro (`EUR`), Yen Japonés (`JPY`) y Dólar estadounidense (`USD`).
+- Sincronización automática desatendida en segundo plano con WorkManager (cada 24 horas) con Frankfurter API (Banco Central Europeo) y persistencia reactiva en disco.
+- Modo 100% offline garantizado con fecha de última actualización y tasas de respaldo semilla.
+
+### 3. 🪪 Bóveda de Documentos e Identidad (`SPEC-03`)
+- Almacenamiento seguro de Pasaporte, DNI (anverso y reverso) y certificados médicos o de vacunación internacional.
+- Soporte multiformato para **imágenes y documentos PDF** con visor integrado y apertura externa.
+- **Detección Binaria de Formatos por Magic Bytes (`detectFileFormatByMagicBytes`)**: Reconocimiento inequívoco de PDFs (`%PDF-`) e imágenes JPG/PNG independientemente de la extensión o MIME type retornado por el selector SAF.
+- **Protección Biométrica Obligatoria (`BiometricPrompt` / PIN)**: Bloqueo estricto por diseño sin conmutadores superfluos, auto-bloqueo tras 120 segundos de inactividad o al minimizar la aplicación, y preservación de sesión biométrica ante lanzadores de cámara nativa o selectores de archivos.
+- Visor a pantalla completa con zoom fluido táctil (`pinch-to-zoom` de `1.0x` a `5.0x`).
+
+### 4. 📂 Repositorio de Documentos, Billetes y Guías de Viaje (`SPEC-03`)
+- Gestión offline de billetes de vuelo, reservas de hotel, pases JR Pass y entradas a atracciones.
+- **Pases Digitales Estilo Wallet Offline (`WalletTicketPassDialog`)**: Visor de alta legibilidad con código localizador QR para escaneo rápido en tornos o controles.
+- Captura directa con la cámara nativa de Android (`FileProvider`) para fotografiar tickets de papel o entradas físicas.
+- **Gestor y Lector Cómodo de Guías de Viaje**: Importación y redacción de guías enriquecidas en Markdown, visor modal de lectura (`FullGuideReaderDialog`) y ordenación dinámica (*Fijadas*, *A-Z*, *Por Ciudad*).
+- Exportación e importación modular en formato JSON desde Ajustes.
+
+### 5. 🗺️ Planificador de Viaje con Fotos, Horarios y Google Maps (`SPEC-04`)
+- Itinerario interactivo por días con línea temporal de horarios (`Timeline`) y detección de solapamientos.
+- **Formateo Regional de Fechas y Husos Locales (`TravelDateTimeFormatter`)**: Fechas completas en formato regional del sistema (`FormatStyle.FULL`) y horas en el huso local de cada destino (ej. Múnich `UTC+1`, Tokio `UTC+9`) con indicación del desfase.
+- **Persistencia Canónica en ISO UTC**: Almacenamiento estándar en formato UTC (`Instant.toString()`) con compatibilidad retroactiva total en `TravelPlanJsonCodec`.
+- **Integración con Google Maps**: Mapa interactivo embebido (`Maps Compose`) con marcadores numerados de la ruta diaria y apertura directa de rutas en la aplicación Google Maps.
+- Sincronización directa con el Calendario de Android / Google Calendar y exportación/importación en formato JSON (`japan-travel-plan.v1`).
+
+### 6. 🚆 Planificador Multimodal de Transportes (`SPEC-05`)
+- Gestión integral de trayectos: vuelos internacionales y domésticos, trenes bala **Shinkansen / JR**, líneas de metro y autobuses.
+- **Vuelos**: Tiempos de facturación en mostrador, apertura y cierre de embarque, terminales, puertas, asientos, zonas horarias y duración real de vuelo.
+- **Trenes y Metros**: Línea y color oficial, códigos de estación (`G19` ➔ `G01`), andenes recomendados, coche/vagón, reserva de equipaje voluminoso en Shinkansen, cobertura JR Pass / Suica y número exacto de salida de estación (`Exit`).
+- **Calculador de Escalas y Transbordos (`Layovers & Transfers`)**: Cálculo automático de tiempos de conexión, alertas de conexión ajustada y vinculación directa con billetes QR.
+
+### 7. 🤖 Asistente de Viaje IA (Gemini) y Traductor Simultáneo (`SPEC-06`)
+- **Traductor Simultáneo en 3 Pestañas (`🎙️ Voz`, `✍️ Texto`, `📷 Carteles / Cámara`)**:
+  - Pestaña de voz y conversación cara a cara con pantalla reversible 180°.
+  - Pestaña de texto independiente con locución nativa en japonés (`ja-JP` / `Locale.JAPAN`) y catálogo temático de frases rápidas de viaje.
+  - Traducción visual de carteles con ML Kit Japanese OCR offline y consulta contextual en segundo plano.
+- **Selector de Región Estilo Google Fotos (Arrastre Táctil, Maximizado y Multizona)**:
+  - Encuadre interactivo arrastrando esquinas y bordes con el dedo (`detectDragGestures`).
+  - Previsualización maximizada a 380.dp con máscara translúcida y cuadrícula de tercios sin recortar destructivamente la foto original.
+  - Modo multizona (`OcrTextZone`) para traducir bloques independientes simultáneamente.
+- **Orientación EXIF y Rotación 90°**: Corrección automática de sensores de cámara y botón manual de giro.
+- **Asistente de Viaje con Google Gemini**:
+  - Modelo ultrarrápido **Gemini Flash-Lite** por defecto (<1s de respuesta).
+  - Soporte para modelos avanzados (`gemini-3.5-flash`, `gemini-pro-latest`) con selector directo en cabecera y diagnóstico específico de cuota en nivel gratuito (Error 429).
+  - Análisis multimodal de cartas de restaurantes y optimizador inteligente de planes de viaje (`AI Plan Builder`).
+
+### 8. ⛅ Previsión Meteorológica y Planificación Climática (`SPEC-07`)
+- Integración con **Open-Meteo API** (modelos globales + JMA de Japón) sin requerir API Key, con caché offline persistente para Tokio, Kioto, Osaka, Hakone y destinos del viaje.
+- Sincronización automática periódica en segundo plano mediante WorkManager (cada 6 horas).
+- Catálogo geográfico predictivo offline con más de 50 ciudades y destinos turísticos de Japón e internacionales.
+- Índices de actividad (`⛩️ Ideal Exterior` vs. `🏛️ Recomendado Cubierto`), alertas de lluvia y probabilidad de visibilidad del Monte Fuji (`🗻 %`).
+- **Planificador Sensible al Clima (`Weather-Aware AI Planner`)**: La IA adapta automáticamente el itinerario en días lluviosos sugiriendo galerías cubiertas (*Shotengai*), museos o templos techados.
+
+### 9. 🧾 Tickets de Compra, Tax-Free y Control de Gastos (`SPEC-08`)
+- **Digitalización Inteligente Híbrida**: Procesamiento de comprobantes desde la cámara, galería local o Google Drive (SAF), con decodificación nativa de facturas PDF mediante `PdfRenderer`.
+- **Motor OCR Trilingüe (Japonés, Inglés, Español)**: Extracción determinista de fechas, importes, impuestos y tiendas de tickets japoneses (era Reiwa, Don Quijote, Bic Camera, Uniqlo, 7-Eleven), recibos duty-free en inglés y facturas en español.
+- **Soporte Multidivisa (JPY, EUR, USD)**: Detección automática de moneda con diálogo interactivo ante ambigüedad (`ReceiptCurrencySelectionDialog`) y contravalor simultáneo en Yenes.
+- **Reglas Fiscales Tax-Free de Japón**: Comprobación automática del umbral de 5.000 ¥ sin tasas, desglose de consumibles (8%), bienes generales (10%) y seguimiento del estado aduanero (*Pendiente*, *Sellado*, *Reembolsado*).
+- **Control de Presupuesto del Viaje**: Cuadro de mando analítico de gastos acumulados en ¥ y EUR, categorización (Compras, Comida, Transporte, Ocio, etc.) y balances diarios por ciudad.
+- **Generador de Informes para Aduanas**: Exportación consolidada de compras Tax-Free en formato Texto, Markdown y JSON con copia rápida al portapapeles.
+
+---
+
+## 🚀 Metodología de Desarrollo (SDD + TDD + Gitflow)
+
+Este proyecto se desarrolla bajo estrictas directrices de ingeniería de software definidas en [`AGENTS.md`](AGENTS.md):
+
+1. **Flujo SDD + TDD**:
+   - **Especificación (`/docs/specs/`)**: Requisitos, modelos de datos, reglas offline y casos de uso.
+   - **Análisis (`/docs/analysis/`)**: Arquitectura técnica, repositorios, esquemas y estrategia de testing.
+   - **Tareas (`/docs/tasks/`)**: Desglose atómico secuencial.
+   - **Ciclo TDD**: **RED** (escribir el test que falla) ➔ **GREEN** (código mínimo para superar el test) ➔ **REFACTOR** (limpieza y optimización manteniendo todos los tests en verde).
+2. **Gitflow Estricto**:
+   - `main`: Rama de producción y releases estables publicadas.
    - `develop`: Rama de integración continua de desarrollo.
    - `feature/*`, `release/*`, `hotfix/*`: Ramas de trabajo.
 3. **Conventional Commits v1.0.0**: Historial semántico estandarizado (`feat`, `fix`, `docs`, `test`, `refactor`, `chore`).
-4. **Política de Versiones y Releases**:
-   - Comenzamos en la versión `0.0.1`.
-   - Toda herramienta no implementada al 100%, probada y aprobada mantiene la versión en estado **Beta** (`-beta.X`).
-   - Cada publicación en `main` genera su tag y una **GitHub Release** con el archivo `.apk` funcional adjunto.
-5. **Revisión y Respuesta Activa a GitHub Issues**:
-   - Durante el desarrollo se revisan periódicamente los **Issues de GitHub**, analizando técnicamente si procede o no su reparación, respondiendo siempre en el propio issue y aplicando el ciclo SDD + TDD para los issues aceptados.
-6. **Despliegue ADB Debug en Dispositivos Autorizados (Sin Commitear)**:
-   - Permite instalar y lanzar la versión Debug mediante ADB simultáneamente en la lista local de dispositivos autorizados (`authorized-devices.local.conf`, excluido en `.gitignore`) ejecutando `./gradlew installAuthorizedDebug` con auto-descubrimiento mDNS en redes Wi-Fi (ver plantilla en [`authorized-devices.example.conf`](authorized-devices.example.conf)).
+4. **Política de Releases**:
+   - Cada publicación en `main` genera su tag anotado y una **GitHub Release** oficial con el APK compilado y firmado adjunto.
+5. **Prevención de Reinicio de App en Android**:
+   - Configuración de `singleTask` en `AndroidManifest.xml` y manejo de `onNewIntent` en `MainActivity`.
+   - Control de `configChanges` y persistencia de pantalla activa en `UserPreferencesRepository`.
+6. **Despliegue ADB en Dispositivos Autorizados (Sin Commitear)**:
+   - Configuración local de dispositivos autorizados (`authorized-devices.local.conf`, ignorado en Git).
+   - Tarea `./gradlew installAuthorizedDebug` y script `./scripts/deploy-authorized-devices.sh` con instalación directa y segura por ADB.
 
 ---
 
-## Estructura de Documentación (`/docs`)
+## 📚 Estructura de Documentación (`/docs`)
 
-Toda la documentación técnica y funcional se encuentra en español dentro del directorio [`/docs`](docs/):
+Toda la documentación técnica y funcional se encuentra detallada en español dentro del directorio [`/docs`](docs/):
 
 - **[Índice General de Documentación](docs/index.md)**
-- **Especificaciones (SDD)**:
-  - [00 - Visión General, Configuración, Idioma, Tema y Offline-First](docs/specs/00-core-configuration-spec.md)
-  - [01 - Herramienta: Relojes y Ubicación (Hora Local y País Origen)](docs/specs/01-world-clock-spec.md)
-  - [02 - Herramienta: Conversor de Divisa Offline-First (EUR <-> JPY)](docs/specs/02-currency-converter-spec.md)
+- **Especificaciones Funcionales (SDD)**:
+  - [00 - Core: Configuración, Idiomas, Tema y Arquitectura Offline-First](docs/specs/00-core-configuration-spec.md)
+  - [01 - Herramienta: Relojes y Ubicación (Hora Local, Japón y Origen)](docs/specs/01-world-clock-spec.md)
+  - [02 - Herramienta: Conversor de Divisas Offline-First (EUR / JPY / USD)](docs/specs/02-currency-converter-spec.md)
   - [03 - Herramienta: Pasaporte/DNI, Repositorio de Documentos y Guías de Viaje](docs/specs/03-documents-and-id-vault-spec.md)
   - [04 - Herramienta: Planificador de Viaje (Fotos, Google Maps, Calendario y Horarios)](docs/specs/04-trip-planner-spec.md)
   - [05 - Herramienta: Planificador de Transporte (Vuelos, Trenes/Shinkansen, Metros y Autobuses)](docs/specs/05-flight-planner-spec.md)
-  - [06 - Herramienta: Asistente IA con Gemini y Acceso Directo a Traducción Simultánea](docs/specs/06-gemini-ai-and-translator-spec.md)
-  - [07 - Herramienta: Previsión Meteorológica con Open-Meteo para Planificación de Usuario e IA](docs/specs/07-weather-open-meteo-spec.md)
-  - [08 - Herramienta: Tickets de Compra, Tax-Free y Control de Gastos del Viaje con Escaneo Inteligente](docs/specs/08-shopping-receipts-tax-free-spec.md)
+  - [06 - Herramienta: Asistente IA con Gemini y Traductor Simultáneo](docs/specs/06-gemini-ai-and-translator-spec.md)
+  - [07 - Herramienta: Previsión Meteorológica con Open-Meteo y Planificación Climática](docs/specs/07-weather-open-meteo-spec.md)
+  - [08 - Herramienta: Tickets de Compra, Tax-Free y Control de Gastos del Viaje](docs/specs/08-shopping-receipts-tax-free-spec.md)
   - [09 - Guía y Esquema JSON para Generación con IA y Portabilidad](docs/specs/08-travel-plan-json-schema-guide.md)
 - **Análisis Técnico**:
   - [Arquitectura, Stack Tecnológico y Estrategia TDD](docs/analysis/architecture-and-tech-stack.md)
+  - [Análisis Técnico Módulo Tax-Free y Gastos](docs/analysis/08-shopping-receipts-tax-free-analysis.md)
 - **Planificación de Tareas**:
   - [Backlog y Desglose de Tareas SDD + TDD](docs/tasks/backlog.md)
 - **Guías**:
@@ -118,20 +145,21 @@ Toda la documentación técnica y funcional se encuentra en español dentro del 
 
 ---
 
-## Próximos Pasos (TODO Inmediato)
-- [x] **Template moderno seleccionado (`TASK-004`)**: Basado en **[JetBrains KotlinConf App](https://jetbrains.github.io/kotlinconf-app/)** con paleta de colores tradicionales de Japón (*Washi*, *Sumi*, *Akabeni Torii*, *Ai-iro Indigo*, *Matcha*).
-- [x] **Scaffolding del proyecto Android y compilación `0.0.1-beta.1` (`TASK-005`, `TASK-006`)**: Proyecto Kotlin + Jetpack Compose compilando con éxito y tests unitarios en verde.
-- [x] **Suite Completa Funcional `v0.0.1-beta.1` Implementada con TDD (`Hitos 2 al 8`)**:
-  - Relojes duales/triples con ubicación offline + Conversor `EUR <-> JPY` con Frankfurter API y semilla offline.
-  - Planificador de viaje con fotos, mapa numerado e integración con Google Maps y Calendar.
-  - Planificador multimodal de Vuelos, Trenes Shinkansen, Metros y Autobuses con calculador de escalas y transbordos.
-  - Bóveda de Pasaporte y DNI + Repositorio de Documentos y Guías de Viaje offline.
-  - Asistente IA con Gemini (con conversor de precios de menús en `¥` a `EUR`) y Traducción Simultánea 180°.
-  - Indicador de conexión en vivo (`Wi-Fi / SIM / eSIM / Offline`) con selector rápido, Ajustes persistentes, Sincronización con Cuenta de Google y apartado Acerca de / Licencias Open Source.
-- [ ] **Probar en Google Pixel 10 Pro XL vía ADB Wireless Debugging (`./gradlew installAuthorizedDebug`)** y validar feedback del usuario (`Hito 9`).
+## 🎯 Estado de Hitos del Proyecto
+
+- [x] **Hito 1 - Configuración Base y Tema Visual Moderno KotlinConf** (`SPEC-00`): Scaffold, colores tradicionales de Japón, multiidioma ES/EN y soporte adaptativo teléfono/tablet.
+- [x] **Hito 2 - Relojes Duales/Triples y Conversor de Divisas con Sincronización Automática** (`SPEC-01`, `SPEC-02`): Frankfurter API, caché persistente y WorkManager periódico.
+- [x] **Hito 3 - Bóveda de Identidad y Documentos con Seguridad Biométrica Obligatoria** (`SPEC-03`): Detección por Magic Bytes, soporte universal PDF/imágenes, BiometricPrompt estricto y zoom táctil.
+- [x] **Hito 4 - Planificador de Viaje con Fotos, Horarios UTC y Mapas** (`SPEC-04`): Fechas regionales completas, husos locales con desfases UTC, mapas interactivos Maps Compose y enlaces a Google Calendar.
+- [x] **Hito 5 - Planificador Multimodal de Vuelos, Trenes Shinkansen, Metros y Autobuses** (`SPEC-05`): Calculador de escalas/transbordos, códigos de andén y estación, salidas recomendadas y alertas.
+- [x] **Hito 6 - Asistente IA con Gemini y Traductor Simultáneo Trilingüe** (`SPEC-06`): Gemini Flash-Lite ultrarrápido, selector de área táctil Google Fotos, rotación EXIF 90° y audio nativo en japonés.
+- [x] **Hito 7 - Previsión Meteorológica con Open-Meteo y Planificador Sensible al Clima** (`SPEC-07`): Sincronización en segundo plano (6h), índice del Monte Fuji y adaptación ante lluvia.
+- [x] **Hito 8 - Módulo de Tickets de Compra, Tax-Free y Control de Gastos** (`SPEC-08`): Escaneo híbrido con IA y OCR trilingüe local, soporte multidivisa JPY/EUR/USD, selector de origen y exportación de informes para aduanas.
+- [x] **Hito 9 - Validación y Despliegue en Dispositivos Físicos Autorizados**: Verificación directa por ADB en Google Pixel y Tablet TCL NXTPAPER 11 Plus.
+- [x] **Hito 10 - Publicación de Versión de Producción v1.2.0**: Publicada en GitHub Releases con APK firmado adjunto.
 
 ---
 
-## Historial de Cambios
+## 📜 Historial de Cambios
 
-Consulta el archivo [`CHANGELOG.md`](CHANGELOG.md) para ver el detalle de cada versión.
+Para consultar el registro pormenorizado de todas las versiones, mejoras y correcciones, revisa el archivo [`CHANGELOG.md`](CHANGELOG.md).

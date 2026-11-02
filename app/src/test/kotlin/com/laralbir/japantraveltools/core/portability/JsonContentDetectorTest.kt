@@ -18,9 +18,9 @@ class JsonContentDetectorTest {
         val detected = JsonContentDetector.inspect(json)
         assertEquals(JsonContentType.TRAVEL_PLAN, detected.type)
         assertEquals("Japón, Tierra de Samurais 2027", detected.title)
-        assertEquals(37, detected.stopCount)
+        assertEquals(38, detected.stopCount)
         assertEquals(9, detected.transportCount)
-        assertTrue(detected.summaryEs.contains("37 paradas"))
+        assertTrue(detected.summaryEs.contains("38 paradas"))
         assertTrue(detected.summaryEs.contains("9 tramos"))
     }
 

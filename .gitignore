@@ -34,3 +34,9 @@ authorized-devices.local.conf
 authorized-devices.local.json
 .devices.local
 
+# Private Personal Travel Data & Confidential Context (NEVER COMMIT)
+docs/*CONTEXT*.md
+docs/TRIP_PLAN_*.md
+*.personal.json
+*.local.md
+
