@@ -98,11 +98,13 @@ Permite además **encadenar tramos multimodales** en un mismo trayecto (por ejem
      - Borde de advertencia (`Akabeni` / ámbar) e insignia destacada (`[⚠️ Facturación en 45m]` / `[🚨 ¡Embarque en curso!]`).
    - **Campos de Facturación y Embarque en el Editor**:
      - Formulario `TransportSegmentEditorModalSheet` con inputs opcionales para `Hora de Facturación (HH:mm)` y `Hora de Embarque (HH:mm)`.
-   - **Botón de Prueba y Simulación Inmediata**:
-     - Control accesible para disparar alertas de prueba en cualquier momento y validar tanto la advertencia visual como la notificación en el dispositivo físico.
+   - **Panel de Prueba y Comprobación de Permisos en Ajustes**:
+     - Tarjeta dedicada en **Ajustes y Preferencias** para comprobar el estado real de los permisos de notificaciones del sistema (`NotificationManagerCompat.areNotificationsEnabled()`).
+     - Si las notificaciones están desactivadas, muestra advertencia visual explicativa y botones directos para solicitar el permiso de runtime (`POST_NOTIFICATIONS` en Android 13+) o abrir los Ajustes de la App en Android (`ACTION_APP_NOTIFICATION_SETTINGS` / `ACTION_APPLICATION_DETAILS_SETTINGS`).
+     - Controles para disparar alertas de prueba en cualquier momento (`🚨 Embarque`, `🧳 Facturación`, `🚄 Tren Salida`), avisando al usuario si no tiene permisos antes de enviarlas.
 3. **Notificaciones del Sistema Android (100% Offline)**:
    - **Canal de Notificaciones**: `id = "transport_alerts"`, `name = "Avisos de Transporte y Vuelos"`, con importancia alta (`IMPORTANCE_HIGH`), sonido y vibración.
-   - **Permisos**: Declaración y solicitud en tiempo de ejecución de `android.permission.POST_NOTIFICATIONS` para Android 13+ (API 33+).
+   - **Permisos**: Declaración y solicitud en tiempo de ejecución de `android.permission.POST_NOTIFICATIONS` para Android 13+ (API 33+) y detección reactiva mediante `Lifecycle.Event.ON_RESUME`.
    - **Notificación Enriquecida**: Con título claro, indicación de puerta/mostrador/andén y apertura directa de la app al pulsar.
 
 ### RF-05.6: Creación y Edición de Tramos con Formulario Limpio (`Empty State on Create`)

@@ -7,7 +7,9 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -36,6 +38,47 @@ object TransportAlertNotificationHelper {
             }
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
             manager?.createNotificationChannel(channel)
+        }
+    }
+
+    /** Comprueba si las notificaciones están permitidas para la app en el dispositivo. */
+    fun areNotificationsEnabled(context: Context): Boolean {
+        return NotificationManagerCompat.from(context).areNotificationsEnabled()
+    }
+
+    /** Indica si se requiere el permiso de runtime POST_NOTIFICATIONS (Android 13+). */
+    fun isPostNotificationsPermissionRequired(): Boolean {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+    }
+
+    /** Construye el Intent para abrir la pantalla de Ajustes de Notificaciones de la aplicación en Android. */
+    fun buildNotificationSettingsIntent(packageName: String): Intent {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+            }
+        } else {
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.fromParts("package", packageName, null)
+            }
+        }
+    }
+
+    /** Abre la pantalla de Ajustes de Notificaciones o de la aplicación en el sistema Android. */
+    fun openNotificationSettings(context: Context) {
+        val intent = buildNotificationSettingsIntent(context.packageName)
+        val launched = runCatching {
+            context.startActivity(intent)
+            true
+        }.getOrDefault(false)
+
+        if (!launched) {
+            runCatching {
+                val fallbackIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.fromParts("package", context.packageName, null)
+                }
+                context.startActivity(fallbackIntent)
+            }
         }
     }
 

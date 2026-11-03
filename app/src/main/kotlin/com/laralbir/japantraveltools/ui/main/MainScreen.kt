@@ -8,9 +8,12 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.provider.CalendarContract
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import android.provider.Settings
+import androidx.core.app.NotificationManagerCompat
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -2373,35 +2376,6 @@ private fun TripPlannerTabScreen(
 
             Spacer(Modifier.width(8.dp))
 
-            // Botón compacto "➕ Parada"
-            Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .height(48.dp)
-                    .clickable {
-                        editingStop = null
-                        isCreatingStop = true
-                    }
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .padding(horizontal = 12.dp)
-                ) {
-                    Text(
-                        text = if (isEs) "➕ Parada" else "➕ Stop",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        maxLines = 1
-                    )
-                }
-            }
-
-            Spacer(Modifier.width(6.dp))
-
             // Menú desplegable para gestionar días y paradas (Añadir Parada, Añadir Día, Eliminar Día)
             Box {
                 var isDayMenuOpen by remember { mutableStateOf(false) }
@@ -3287,74 +3261,7 @@ private fun TransportTabScreen(
             }
         }
 
-        // 2. ALERT TEST & SIMULATION CONTROL CARD
-        item {
-            KotlinConfCard {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (isEs) "🔔 Avisos de Facturación y Embarque" else "🔔 Flight & Transport Alerts",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    InfoTagPill(text = if (alerts.isNotEmpty()) "${alerts.size} activas" else if (isEs) "Activo" else "Active")
-                }
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = if (isEs) {
-                        "La app detecta automáticamente la proximidad de la facturación, el embarque y la salida de tus vuelos y trenes, mostrando advertencias visuales y notificaciones al móvil."
-                    } else {
-                        "The app automatically alerts you when check-in, boarding or departure approaches with visual warnings and push notifications."
-                    },
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    text = if (isEs) "Probar aviso en este dispositivo:" else "Test alert on this device:",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(Modifier.height(6.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = {
-                            SharedTransportAlertStore.triggerSimulation(context, TransportAlertType.BOARDING_NOW, isEs)
-                        },
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
-                    ) {
-                        Text(if (isEs) "🚨 Embarque" else "🚨 Boarding", fontSize = 11.sp, maxLines = 1)
-                    }
-                    OutlinedButton(
-                        onClick = {
-                            SharedTransportAlertStore.triggerSimulation(context, TransportAlertType.CHECK_IN_APPROACHING, isEs)
-                        },
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
-                    ) {
-                        Text(if (isEs) "🧳 Facturación" else "🧳 Check-in", fontSize = 11.sp, maxLines = 1)
-                    }
-                    OutlinedButton(
-                        onClick = {
-                            SharedTransportAlertStore.triggerSimulation(context, TransportAlertType.DEPARTURE_IMMINENT, isEs)
-                        },
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
-                    ) {
-                        Text(if (isEs) "🚄 Tren Salida" else "🚄 Train Dep", fontSize = 11.sp, maxLines = 1)
-                    }
-                }
-            }
-        }
-
-        // 3. TRANSPORT FILTER BUTTONS & ACTIONS
+        // 2. TRANSPORT FILTER BUTTONS & ACTIONS
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
@@ -8889,6 +8796,10 @@ private fun SettingsPreferencesScreen(
         }
 
         item {
+            TransportAlertsNotificationCard(isEs = isEs)
+        }
+
+        item {
             GoogleDriveSyncCard(
                 isEs = isEs,
                 prefs = prefs,
@@ -8960,6 +8871,229 @@ private fun SettingsPreferencesScreen(
                     )
                 }
             }
+        }
+    }
+}
+
+/** Tarjeta en Ajustes para verificar permisos de notificaciones del sistema y simular alertas de transporte. */
+@Composable
+private fun TransportAlertsNotificationCard(isEs: Boolean) {
+    val context = LocalContext.current
+    var areNotificationsEnabled by remember {
+        mutableStateOf(TransportAlertNotificationHelper.areNotificationsEnabled(context))
+    }
+    var showPermissionWarningDialog by remember { mutableStateOf(false) }
+    var simulationFeedback by remember { mutableStateOf<String?>(null) }
+
+    // Launcher para pedir permiso en Android 13+ (API 33+)
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        areNotificationsEnabled = TransportAlertNotificationHelper.areNotificationsEnabled(context)
+    }
+
+    // Observar ciclo de vida para refrescar areNotificationsEnabled al volver de los Ajustes del SO
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                areNotificationsEnabled = TransportAlertNotificationHelper.areNotificationsEnabled(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    if (showPermissionWarningDialog) {
+        AppConfirmationDialog(
+            state = ConfirmationDialogState(
+                title = if (isEs) "🔔 Permiso de Notificaciones Requerido" else "🔔 Notification Permission Required",
+                message = if (isEs) {
+                    "Las notificaciones están desactivadas para Japan Travel Tools en este dispositivo. Para ver las alertas de facturación y embarque en la barra del sistema, activa el permiso en los ajustes de Android."
+                } else {
+                    "Notifications are currently disabled for Japan Travel Tools on this device. To receive flight and boarding alerts in your system shade, please enable permissions in Android settings."
+                },
+                confirmButtonText = if (isEs) "⚙️ Abrir Ajustes de Android" else "⚙️ Open Android Settings",
+                dismissButtonText = if (isEs) "Cancelar" else "Cancel",
+                isDestructive = false,
+                onConfirm = {
+                    showPermissionWarningDialog = false
+                    TransportAlertNotificationHelper.openNotificationSettings(context)
+                }
+            ),
+            onDismiss = { showPermissionWarningDialog = false }
+        )
+    }
+
+    KotlinConfCard {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (isEs) "🔔 Notificaciones y Avisos" else "🔔 Flight & Transport Alerts",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+            if (areNotificationsEnabled) {
+                InfoTagPill(text = if (isEs) "✅ Activo" else "Active")
+            } else {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.errorContainer
+                ) {
+                    Text(
+                        text = if (isEs) "⚠️ Desactivado" else "⚠️ Disabled",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = if (isEs) {
+                "La aplicación detecta automáticamente la proximidad de la facturación, el embarque y la salida de tus vuelos y trenes, enviando alertas prioritarias a tu dispositivo."
+            } else {
+                "The app automatically alerts you when flight check-in, boarding or train departure approaches with high-priority notifications."
+            },
+            fontSize = 13.5.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        if (!areNotificationsEnabled) {
+            Spacer(Modifier.height(10.dp))
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("⚠️", fontSize = 16.sp)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = if (isEs) {
+                                "El permiso de notificaciones no está concedido. Sin él, Android bloqueará los avisos cuando la app esté en segundo plano."
+                            } else {
+                                "Notification permission is not granted. Android will block background flight alerts until enabled."
+                            },
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (TransportAlertNotificationHelper.isPostNotificationsPermissionRequired()) {
+                            OutlinedButton(
+                                onClick = {
+                                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f).height(38.dp),
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = if (isEs) "🔔 Solicitar Permiso" else "🔔 Request Permission",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                        Button(
+                            onClick = {
+                                TransportAlertNotificationHelper.openNotificationSettings(context)
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError
+                            ),
+                            modifier = Modifier.weight(1.2f).height(38.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = if (isEs) "⚙️ Ajustes de Android" else "⚙️ Android Settings",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = if (isEs) "Probar avisos en este dispositivo:" else "Test alerts on this device:",
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(Modifier.height(6.dp))
+
+        fun handleTriggerSimulation(type: TransportAlertType) {
+            if (!areNotificationsEnabled) {
+                showPermissionWarningDialog = true
+            } else {
+                SharedTransportAlertStore.triggerSimulation(context, type, isEs)
+                simulationFeedback = when (type) {
+                    TransportAlertType.BOARDING_NOW -> if (isEs) "🚨 Alerta de embarque despachada." else "🚨 Boarding alert sent."
+                    TransportAlertType.CHECK_IN_APPROACHING -> if (isEs) "🧳 Alerta de facturación despachada." else "🧳 Check-in alert sent."
+                    TransportAlertType.DEPARTURE_IMMINENT -> if (isEs) "🚄 Alerta de tren despachada." else "🚄 Train departure alert sent."
+                    else -> if (isEs) "✅ Notificación enviada." else "✅ Notification sent."
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(
+                onClick = { handleTriggerSimulation(TransportAlertType.BOARDING_NOW) },
+                modifier = Modifier.weight(1f).height(38.dp),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
+            ) {
+                Text(if (isEs) "🚨 Embarque" else "🚨 Boarding", fontSize = 11.5.sp, maxLines = 1)
+            }
+            OutlinedButton(
+                onClick = { handleTriggerSimulation(TransportAlertType.CHECK_IN_APPROACHING) },
+                modifier = Modifier.weight(1f).height(38.dp),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
+            ) {
+                Text(if (isEs) "🧳 Facturación" else "🧳 Check-in", fontSize = 11.5.sp, maxLines = 1)
+            }
+            OutlinedButton(
+                onClick = { handleTriggerSimulation(TransportAlertType.DEPARTURE_IMMINENT) },
+                modifier = Modifier.weight(1f).height(38.dp),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
+            ) {
+                Text(if (isEs) "🚄 Tren Salida" else "🚄 Train Dep", fontSize = 11.5.sp, maxLines = 1)
+            }
+        }
+
+        if (simulationFeedback != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = simulationFeedback!!,
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
