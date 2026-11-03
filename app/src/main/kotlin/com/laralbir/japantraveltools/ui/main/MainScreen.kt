@@ -60,6 +60,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -209,7 +211,9 @@ import com.laralbir.japantraveltools.ui.theme.JapanTravelToolsTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.TextStyle
 import java.util.Locale
 
 enum class DrawerSection(val titleEs: String, val titleEn: String) {
@@ -344,6 +348,7 @@ private fun AppOptionButton(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    height: Dp = 44.dp,
     fontSize: TextUnit = 14.sp,
     horizontalPadding: Dp = 10.dp
 ) {
@@ -368,7 +373,7 @@ private fun AppOptionButton(
         color = containerColor,
         border = BorderStroke(1.dp, borderColor),
         modifier = modifier
-            .height(44.dp)
+            .height(height)
             .clickable(onClick = onClick)
     ) {
         Box(
@@ -385,6 +390,125 @@ private fun AppOptionButton(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+        }
+    }
+}
+
+/** Formatea una fecha corta con día de la semana para los botones del selector de días (ej. "Lun 15 Mar" o "Mon, Mar 15"). */
+private fun formatDayDateLabel(
+    dayNum: Int,
+    startDateIso: String,
+    allStops: List<ItineraryStopItem>,
+    isEs: Boolean
+): String? {
+    val stopDate = allStops.firstOrNull { it.dayNumber == dayNum && it.dateIso.isNotBlank() }?.dateIso
+    val dateString = if (!stopDate.isNullOrBlank()) {
+        stopDate
+    } else if (startDateIso.isNotBlank()) {
+        runCatching {
+            val start = LocalDate.parse(startDateIso)
+            start.plusDays((dayNum - 1).toLong()).toString()
+        }.getOrNull()
+    } else {
+        null
+    }
+
+    if (dateString.isNullOrBlank()) return null
+
+    return runCatching {
+        val date = LocalDate.parse(dateString)
+        val locale = if (isEs) Locale.forLanguageTag("es-ES") else Locale.US
+        val dayOfWeek = date.dayOfWeek.getDisplayName(TextStyle.SHORT, locale).replaceFirstChar { it.titlecase(locale) }.removeSuffix(".")
+        val month = date.month.getDisplayName(TextStyle.SHORT, locale).replaceFirstChar { it.titlecase(locale) }.removeSuffix(".")
+        if (isEs) {
+            "$dayOfWeek ${date.dayOfMonth} $month"
+        } else {
+            "$dayOfWeek, $month ${date.dayOfMonth}"
+        }
+    }.getOrNull()
+}
+
+/** Calcula la fecha estimada para un nuevo día en función del plan o del último día existente. */
+private fun calculateNextDayDateIso(
+    dayNum: Int,
+    startDateIso: String,
+    allStops: List<ItineraryStopItem>
+): String {
+    val prevStopDate = allStops.filter { it.dayNumber < dayNum && it.dateIso.isNotBlank() }
+        .maxByOrNull { it.dayNumber }?.dateIso
+    if (!prevStopDate.isNullOrBlank()) {
+        val nextDate = runCatching {
+            LocalDate.parse(prevStopDate).plusDays(1).toString()
+        }.getOrNull()
+        if (nextDate != null) return nextDate
+    }
+    if (startDateIso.isNotBlank()) {
+        val nextDate = runCatching {
+            LocalDate.parse(startDateIso).plusDays((dayNum - 1).toLong()).toString()
+        }.getOrNull()
+        if (nextDate != null) return nextDate
+    }
+    return String.format(Locale.US, "2027-03-%02d", (14 + dayNum).coerceAtMost(31))
+}
+
+/** Chip compacto para el selector de día con indicación de fecha exacta en dos líneas legibles. */
+@Composable
+private fun DaySelectorChip(
+    dayNum: Int,
+    dateLabel: String?,
+    isEs: Boolean,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val containerColor = if (selected) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val borderColor = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outline
+    }
+
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = containerColor,
+        border = BorderStroke(if (selected) 1.5.dp else 1.dp, borderColor),
+        modifier = modifier
+            .height(48.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .fillMaxHeight()
+                .padding(horizontal = 10.dp, vertical = 3.dp)
+        ) {
+            Text(
+                text = if (isEs) "Día $dayNum" else "Day $dayNum",
+                fontSize = 13.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                color = contentColor,
+                maxLines = 1
+            )
+            if (!dateLabel.isNullOrBlank()) {
+                Spacer(Modifier.height(1.dp))
+                Text(
+                    text = dateLabel,
+                    fontSize = 10.5.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = if (selected) contentColor else contentColor.copy(alpha = 0.85f),
+                    maxLines = 1
+                )
+            }
         }
     }
 }
@@ -2044,7 +2168,7 @@ private fun TripPlannerTabScreen(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // TOP CARD: ACTIVE TRAVEL PLAN & MULTI-PLAN MANAGEMENT
+        // TOP CARD: ACTIVE TRAVEL PLAN & COMPACT ACTIONS (CON INTEGRACIÓN JSON)
         KotlinConfCard {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -2054,195 +2178,381 @@ private fun TripPlannerTabScreen(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "🗓️ ${portablePlan.tripTitle}",
-                        fontSize = 20.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        text = "Inicio: ${portablePlan.startDateIso} · ${availableDays.size} días · ${allStops.size} paradas",
-                        fontSize = 13.sp,
+                        text = "${availableDays.size} días · ${allStops.size} paradas" +
+                            if (portablePlan.startDateIso.isNotBlank()) " · Inicio: ${portablePlan.startDateIso}" else "",
+                        fontSize = 12.5.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 if (allPlans.size > 1) {
-                    AppOptionButton(
-                        text = "📑 ${allPlans.size} planes",
-                        selected = false,
-                        onClick = { isSwitchingPlan = true },
-                        modifier = Modifier.width(110.dp)
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                        modifier = Modifier
+                            .height(30.dp)
+                            .clickable { isSwitchingPlan = true }
+                    ) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 8.dp)) {
+                            Text(
+                                text = "📑 ${allPlans.size} planes",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
 
+            // Botones de acción del plan discretos y compactos (altura 32dp)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                AppOptionButton(
-                    text = if (isEs) "➕ Nuevo Plan" else "➕ New Plan",
-                    selected = false,
-                    onClick = { isCreatingPlan = true },
-                    modifier = Modifier.weight(1f)
-                )
-                AppOptionButton(
-                    text = if (isEs) "✏️ Editar Plan" else "✏️ Edit Plan",
-                    selected = false,
-                    onClick = { isEditingPlan = true },
-                    modifier = Modifier.weight(1f)
-                )
-                if (allPlans.size > 1) {
-                    AppOptionButton(
-                        text = if (isEs) "📑 Cambiar" else "📑 Switch",
-                        selected = false,
-                        onClick = { isSwitchingPlan = true },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                AppOptionButton(
-                    text = if (isEs) "🗑️ Borrar Plan" else "🗑️ Delete Plan",
-                    selected = false,
-                    onClick = {
-                        confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
-                            itemName = portablePlan.tripTitle,
-                            itemTypeEs = "plan de viaje completo",
-                            itemTypeEn = "complete travel plan",
-                            isEs = isEs,
-                            onConfirm = { SharedTravelPlanStore.deleteCurrentPlan() }
+                // Botón "➕ Nuevo Plan" con menú integrado para JSON / Drive
+                Box(modifier = Modifier.weight(1f)) {
+                    var isNewPlanMenuOpen by remember { mutableStateOf(false) }
+
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(32.dp)
+                            .clickable { isNewPlanMenuOpen = true }
+                    ) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp)) {
+                            Text(
+                                text = if (isEs) "➕ Nuevo ▾" else "➕ New ▾",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
+                            )
+                        }
+                    }
+
+                    DropdownMenu(
+                        expanded = isNewPlanMenuOpen,
+                        onDismissRequest = { isNewPlanMenuOpen = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(if (isEs) "✏️ Crear Plan desde cero" else "✏️ Create Blank Plan") },
+                            onClick = {
+                                isNewPlanMenuOpen = false
+                                isCreatingPlan = true
+                            }
                         )
-                    },
-                    modifier = Modifier.weight(1f)
-                )
+                        DropdownMenuItem(
+                            text = { Text(if (isEs) "📂 Importar Plan (JSON / Drive)" else "📂 Import Plan (JSON / Drive)") },
+                            onClick = {
+                                isNewPlanMenuOpen = false
+                                onOpenJsonPortability()
+                            }
+                        )
+                    }
+                }
+
+                // Botón "✏️ Editar"
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(32.dp)
+                        .clickable { isEditingPlan = true }
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp)) {
+                        Text(
+                            text = if (isEs) "✏️ Editar" else "✏️ Edit",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
+                }
+
+                // Botón "📑 Cambiar" (si hay varios planes)
+                if (allPlans.size > 1) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(32.dp)
+                            .clickable { isSwitchingPlan = true }
+                    ) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp)) {
+                            Text(
+                                text = if (isEs) "📑 Cambiar" else "📑 Switch",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+
+                // Botón "🗑️ Borrar"
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(32.dp)
+                        .clickable {
+                            confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
+                                itemName = portablePlan.tripTitle,
+                                itemTypeEs = "plan de viaje completo",
+                                itemTypeEn = "complete travel plan",
+                                isEs = isEs,
+                                onConfirm = { SharedTravelPlanStore.deleteCurrentPlan() }
+                            )
+                        }
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp)) {
+                        Text(
+                            text = if (isEs) "🗑️ Borrar" else "🗑️ Delete",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.error,
+                            maxLines = 1
+                        )
+                    }
+                }
             }
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(10.dp))
 
-        // Day selector row + Add Day button
+        // FILA DE SELECTOR DE DÍAS (CON FECHA EXACTA) + BOTÓN PARADA COMPACTO + MENÚ DE ACCIONES
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            availableDays.forEach { dayNum ->
-                AppOptionButton(
-                    text = if (isEs) "Día $dayNum" else "Day $dayNum",
-                    selected = selectedDay == dayNum,
-                    onClick = { selectedDay = dayNum },
-                    modifier = Modifier.width(92.dp)
-                )
-            }
-            AppOptionButton(
-                text = if (isEs) "➕ Día" else "➕ Day",
-                selected = false,
-                onClick = {
-                    val nextDay = (availableDays.maxOrNull() ?: 0) + 1
-                    selectedDay = nextDay
-                    editingStop = ItineraryStopItem(
-                        id = "stop-${System.currentTimeMillis()}",
-                        dayNumber = nextDay,
-                        dateIso = String.format(Locale.US, "2026-11-%02d", (10 + nextDay).coerceAtMost(30)),
-                        startTime = "09:30",
-                        endTime = "11:00",
-                        title = "",
-                        category = StopCategory.SIGHTSEEING,
-                        placeNameJapanese = "",
-                        latitude = 35.6762,
-                        longitude = 139.6503,
-                        notes = ""
+            // Scroll horizontal de días con fecha exacta
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                availableDays.forEach { dayNum ->
+                    val dateLabel = formatDayDateLabel(
+                        dayNum = dayNum,
+                        startDateIso = portablePlan.startDateIso,
+                        allStops = allStops,
+                        isEs = isEs
                     )
-                    isCreatingStop = true
+                    DaySelectorChip(
+                        dayNum = dayNum,
+                        dateLabel = dateLabel,
+                        isEs = isEs,
+                        selected = selectedDay == dayNum,
+                        onClick = { selectedDay = dayNum }
+                    )
+                }
+            }
+
+            Spacer(Modifier.width(8.dp))
+
+            // Botón compacto "➕ Parada"
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .height(48.dp)
+                    .clickable {
+                        editingStop = null
+                        isCreatingStop = true
+                    }
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .padding(horizontal = 12.dp)
+                ) {
+                    Text(
+                        text = if (isEs) "➕ Parada" else "➕ Stop",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        maxLines = 1
+                    )
+                }
+            }
+
+            Spacer(Modifier.width(6.dp))
+
+            // Menú desplegable para gestionar días y paradas (Añadir Parada, Añadir Día, Eliminar Día)
+            Box {
+                var isDayMenuOpen by remember { mutableStateOf(false) }
+
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clickable { isDayMenuOpen = true }
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "⋮",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                DropdownMenu(
+                    expanded = isDayMenuOpen,
+                    onDismissRequest = { isDayMenuOpen = false }
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                if (isEs) "➕ Añadir Parada (Día $selectedDay)" else "➕ Add Stop (Day $selectedDay)",
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        },
+                        onClick = {
+                            isDayMenuOpen = false
+                            editingStop = null
+                            isCreatingStop = true
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(if (isEs) "📅 Añadir Nuevo Día" else "📅 Add New Day")
+                        },
+                        onClick = {
+                            isDayMenuOpen = false
+                            val nextDay = (availableDays.maxOrNull() ?: 0) + 1
+                            selectedDay = nextDay
+                            val nextDateIso = calculateNextDayDateIso(nextDay, portablePlan.startDateIso, allStops)
+                            editingStop = ItineraryStopItem(
+                                id = "stop-${System.currentTimeMillis()}",
+                                dayNumber = nextDay,
+                                dateIso = nextDateIso,
+                                startTime = "09:30",
+                                endTime = "11:00",
+                                title = "",
+                                category = StopCategory.SIGHTSEEING,
+                                placeNameJapanese = "",
+                                latitude = 35.6762,
+                                longitude = 139.6503,
+                                notes = ""
+                            )
+                            isCreatingStop = true
+                        }
+                    )
+                    if (availableDays.size > 1) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    if (isEs) "🗑️ Eliminar Día $selectedDay" else "🗑️ Delete Day $selectedDay",
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            },
+                            onClick = {
+                                isDayMenuOpen = false
+                                confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
+                                    itemName = if (isEs) "Día $selectedDay (${dayStops.size} paradas)" else "Day $selectedDay (${dayStops.size} stops)",
+                                    itemTypeEs = "día completo del itinerario",
+                                    itemTypeEn = "full itinerary day",
+                                    isEs = isEs,
+                                    onConfirm = { SharedTravelPlanStore.deleteDay(selectedDay) }
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        // Fila sutil con información meteorológica del día y contador de paradas
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            InfoTagPill(
+                text = "${dayWeather.condition.emoji} ${dayWeather.tempMinC.toInt()}°/${dayWeather.tempMaxC.toInt()}°C · ☔ ${dayWeather.precipitationProbabilityMax}%"
+            )
+            Text(
+                text = if (isEs) {
+                    if (dayStops.size == 1) "📍 1 parada" else "📍 ${dayStops.size} paradas"
+                } else {
+                    if (dayStops.size == 1) "📍 1 stop" else "📍 ${dayStops.size} stops"
                 },
-                modifier = Modifier.width(92.dp)
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
         Spacer(Modifier.height(10.dp))
 
-        // Standardized 2-button toolbar: Add Stop + Plan Options / Clear
-        AppButtonRow(
-            primaryText = if (isEs) "➕ Añadir Parada" else "➕ Add Stop",
-            onPrimaryClick = {
-                editingStop = null
-                isCreatingStop = true
-            },
-            secondaryText = if (isEs) "⚙️ JSON / Vaciar" else "⚙️ JSON / Clear",
-            onSecondaryClick = onOpenJsonPortability
-        )
-
-        if (dayStops.isNotEmpty()) {
-            Spacer(Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                InfoTagPill(
-                    text = "${dayWeather.condition.emoji} ${dayWeather.tempMinC.toInt()}°/${dayWeather.tempMaxC.toInt()}°C · ☔ ${dayWeather.precipitationProbabilityMax}%"
-                )
-                AppOptionButton(
-                    text = if (isEs) "🗑️ Borrar Día $selectedDay" else "🗑️ Delete Day $selectedDay",
-                    selected = false,
-                    onClick = {
-                        confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
-                            itemName = if (isEs) "Día $selectedDay (${dayStops.size} paradas)" else "Day $selectedDay (${dayStops.size} stops)",
-                            itemTypeEs = "día completo del itinerario",
-                            itemTypeEn = "full itinerary day",
-                            isEs = isEs,
-                            onConfirm = { SharedTravelPlanStore.deleteDay(selectedDay) }
-                        )
-                    },
-                    modifier = Modifier.width(150.dp)
-                )
-            }
-        }
-
-        Spacer(Modifier.height(12.dp))
-
         if (dayStops.isEmpty()) {
             KotlinConfCard {
                 Text(
-                    text = if (isEs) "No hay paradas en este día" else "No stops on this day",
-                    fontSize = 19.sp,
+                    text = if (isEs) "No hay paradas en el Día $selectedDay" else "No stops on Day $selectedDay",
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
                     text = if (isEs) {
-                        "Pulsa «➕ Añadir Parada» para crear tu propio itinerario paso a paso, o «⚙️ JSON / Vaciar» para importar un plan o cargar la demo."
+                        "Pulsa «➕ Parada» para añadir la primera visita o actividad a este día."
                     } else {
-                        "Tap «➕ Add Stop» to create your own itinerary, or «⚙️ JSON / Clear» to import a plan or load demo data."
+                        "Tap «➕ Stop» to add the first visit or activity to this day."
                     },
-                    fontSize = 15.sp,
+                    fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.height(14.dp))
-                AppButtonRow(
-                    primaryText = if (isEs) "➕ Crear Parada" else "➕ Create Stop",
-                    onPrimaryClick = {
-                        editingStop = null
-                        isCreatingStop = true
-                    },
-                    secondaryText = if (isEs) "🔄 Cargar Demo" else "🔄 Load Demo",
-                    onSecondaryClick = {
-                        confirmationDialogState = ConfirmationDialogState(
-                            title = if (isEs) "¿Cargar datos demo?" else "Load demo data?",
-                            message = if (isEs) {
-                                "Se sobrescribirá el itinerario actual con los datos de prueba. ¿Deseas continuar?"
-                            } else {
-                                "The current itinerary will be overwritten with sample data. Continue?"
-                            },
-                            confirmButtonText = if (isEs) "🔄 Cargar" else "🔄 Load",
-                            dismissButtonText = if (isEs) "Cancelar" else "Cancel",
-                            isDestructive = true,
-                            onConfirm = { SharedTravelPlanStore.resetToDefaults() }
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp)
+                        .clickable {
+                            editingStop = null
+                            isCreatingStop = true
+                        }
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                        Text(
+                            text = if (isEs) "➕ Añadir Primera Parada" else "➕ Add First Stop",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
                     }
-                )
+                }
             }
         } else {
             LazyColumn(
@@ -3071,14 +3381,15 @@ private fun TransportTabScreen(
                     )
                 }
 
-                AppButtonRow(
-                    primaryText = if (isEs) "➕ Añadir Transporte" else "➕ Add Transport",
-                    onPrimaryClick = {
+                AppPrimaryButton(
+                    text = if (isEs) "➕ Añadir Transporte" else "➕ Add Transport",
+                    onClick = {
                         editingSegment = null
                         isCreatingSegment = true
                     },
-                    secondaryText = if (isEs) "⚙️ JSON / Vaciar" else "⚙️ JSON / Clear",
-                    onSecondaryClick = onOpenJsonPortability
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp)
                 )
             }
         }
@@ -4974,124 +5285,6 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
                                             text = if (isEs) "🔊 Escuchar en Japonés" else "🔊 Speak in Japanese",
                                             fontWeight = FontWeight.Bold
                                         )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // FRASES RÁPIDAS DE VIAJE PARA INSERTAR Y TRADUCIR
-                item {
-                    KotlinConfCard {
-                        Text(
-                            text = if (isEs) "💡 Frases Rápidas para Traducir" else "💡 Quick Phrases to Translate",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = if (isEs) {
-                                "Toca cualquier frase para insertarla en el traductor de texto, ver su traducción y escuchar su pronunciación:"
-                            } else {
-                                "Tap any phrase to insert it into the text translator, view translation and hear pronunciation:"
-                            },
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.height(14.dp))
-
-                        var selectedCategoryFilter by remember { mutableStateOf<String?>(null) }
-                        val categories = remember {
-                            listOf("TODAS") + OfflineTranslatorEngine.travelerQuickPhrases.map { it.categoryBadge }.distinct()
-                        }
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            categories.forEach { category ->
-                                val isSelected = (selectedCategoryFilter == null && category == "TODAS") || selectedCategoryFilter == category
-                                AppOptionButton(
-                                    text = category,
-                                    selected = isSelected,
-                                    onClick = {
-                                        selectedCategoryFilter = if (category == "TODAS") null else category
-                                    }
-                                )
-                            }
-                        }
-
-                        Spacer(Modifier.height(14.dp))
-
-                        val filteredPhrases = remember(selectedCategoryFilter) {
-                            if (selectedCategoryFilter == null) OfflineTranslatorEngine.travelerQuickPhrases
-                            else OfflineTranslatorEngine.travelerQuickPhrases.filter { it.categoryBadge == selectedCategoryFilter }
-                        }
-
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            filteredPhrases.forEach { phrase ->
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            textTranslatorInput = phrase.sourceEs
-                                            performTextTranslation(phrase.sourceEs, autoSpeak = true)
-                                        }
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(14.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Surface(
-                                                shape = RoundedCornerShape(4.dp),
-                                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-                                                modifier = Modifier.padding(bottom = 6.dp)
-                                            ) {
-                                                Text(
-                                                    text = phrase.categoryBadge,
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                )
-                                            }
-                                            Text(
-                                                text = if (isEs) phrase.sourceEs else phrase.sourceEn,
-                                                fontSize = 15.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                            Spacer(Modifier.height(4.dp))
-                                            Text(
-                                                text = phrase.japaneseText,
-                                                fontSize = 19.sp,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
-                                            Spacer(Modifier.height(2.dp))
-                                            Text(
-                                                text = "🗣️ ${phrase.romaji}",
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Medium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                        Spacer(Modifier.width(8.dp))
-                                        IconButton(
-                                            onClick = {
-                                                speakOutLoud(phrase.japaneseText, Locale.JAPAN)
-                                            }
-                                        ) {
-                                            Text("🔊", fontSize = 22.sp)
-                                        }
                                     }
                                 }
                             }
@@ -8718,6 +8911,56 @@ private fun SettingsPreferencesScreen(
                 prefsRepository = prefsRepository
             )
         }
+
+        item {
+            KotlinConfCard {
+                Text(
+                    text = if (isEs) "Restablecer Datos de Demostración" else "Reset Demo Data",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = if (isEs) {
+                        "Si deseas reiniciar la aplicación con los itinerarios y datos de prueba predeterminados, puedes restablecerlos aquí."
+                    } else {
+                        "If you wish to reset the application with the default sample itineraries and data, you can restore them here."
+                    },
+                    fontSize = 13.5.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(12.dp))
+                var showResetConfirm by remember { mutableStateOf(false) }
+                OutlinedButton(
+                    onClick = { showResetConfirm = true },
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    modifier = Modifier.fillMaxWidth().height(40.dp)
+                ) {
+                    Text(if (isEs) "🔄 Restablecer Itinerarios Demo" else "🔄 Reset Demo Itineraries", fontSize = 13.sp)
+                }
+                if (showResetConfirm) {
+                    AppConfirmationDialog(
+                        state = ConfirmationDialogState(
+                            title = if (isEs) "¿Restablecer itinerario demo?" else "Reset demo itinerary?",
+                            message = if (isEs) {
+                                "Se recargarán los planes y paradas de prueba originales. ¿Deseas continuar?"
+                            } else {
+                                "The original sample plans and stops will be reloaded. Continue?"
+                            },
+                            confirmButtonText = if (isEs) "🔄 Restablecer" else "🔄 Reset",
+                            dismissButtonText = if (isEs) "Cancelar" else "Cancel",
+                            isDestructive = true,
+                            onConfirm = {
+                                showResetConfirm = false
+                                SharedTravelPlanStore.resetToDefaults()
+                            }
+                        ),
+                        onDismiss = { showResetConfirm = false }
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -8795,16 +9038,16 @@ private fun JsonPortabilityModalSheet(
                 .imePadding()
         ) {
             Text(
-                text = if (isEs) "Gestión de Plan: Demo, IA y JSON" else "Plan Manager: Demo, AI & JSON",
+                text = if (isEs) "Gestión de Plan: IA y JSON" else "Plan Manager: AI & JSON",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
             Spacer(Modifier.height(6.dp))
             Text(
                 text = if (isEs) {
-                    "Los planes iniciales son de demostración. Puedes vaciarlos para empezar de cero, restaurarlos o importar/exportar JSON."
+                    "Edita, importa o comparte tu plan de viaje en formato JSON compatible (v1), o mejóralo con el asistente de IA."
                 } else {
-                    "Initial plans are demo seed data. You can clear them, restore them, or import/export JSON."
+                    "Edit, import, or share your travel plan in compatible JSON format (v1), or optimize it with AI."
                 },
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -8812,9 +9055,9 @@ private fun JsonPortabilityModalSheet(
 
             Spacer(Modifier.height(14.dp))
 
-            AppButtonRow(
-                primaryText = if (isEs) "✨ Añadir Osaka (IA)" else "✨ Add Osaka (AI)",
-                onPrimaryClick = {
+            AppPrimaryButton(
+                text = if (isEs) "✨ Añadir Osaka (IA)" else "✨ Add Osaka (AI)",
+                onClick = {
                     val improved = AiPlanBuilderEngine.improveAndExpandPlan(
                         currentPlan = currentPlan,
                         userInstruction = "Añadir Osaka"
@@ -8823,50 +9066,7 @@ private fun JsonPortabilityModalSheet(
                     jsonEditorText = SharedTravelPlanStore.exportCurrentJson()
                     statusMessage = improved.aiOptimizationSummary
                 },
-                secondaryText = if (currentPlan.itineraryStops.isNotEmpty()) {
-                    if (isEs) "🗑️ Vaciar Demo" else "🗑️ Clear Demo"
-                } else {
-                    if (isEs) "🔄 Cargar Demo" else "🔄 Load Demo"
-                },
-                onSecondaryClick = {
-                    if (currentPlan.itineraryStops.isNotEmpty()) {
-                        confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
-                            itemName = currentPlan.tripTitle.ifBlank { if (isEs) "Itinerario activo" else "Active itinerary" },
-                            itemTypeEs = "todas las paradas y tramos del itinerario",
-                            itemTypeEn = "all stops and transport segments in itinerary",
-                            isEs = isEs,
-                            onConfirm = {
-                                SharedTravelPlanStore.updatePlan(
-                                    PortableTravelPlanBundle(
-                                        schemaVersion = 1,
-                                        tripTitle = currentPlan.tripTitle.ifBlank { "Mi Viaje a Japón" },
-                                        itineraryStops = emptyList(),
-                                        transportSegments = emptyList()
-                                    )
-                                )
-                                jsonEditorText = SharedTravelPlanStore.exportCurrentJson()
-                                statusMessage = if (isEs) "✅ Datos eliminados." else "✅ Data cleared."
-                            }
-                        )
-                    } else {
-                        confirmationDialogState = ConfirmationDialogState(
-                            title = if (isEs) "¿Cargar datos demo?" else "Load demo data?",
-                            message = if (isEs) {
-                                "Se restaurará el itinerario de prueba inicial con paradas en Tokio y Kioto."
-                            } else {
-                                "Initial demo itinerary with Tokyo and Kyoto stops will be restored."
-                            },
-                            confirmButtonText = if (isEs) "🔄 Cargar" else "🔄 Load",
-                            dismissButtonText = if (isEs) "Cancelar" else "Cancel",
-                            isDestructive = false,
-                            onConfirm = {
-                                SharedTravelPlanStore.resetToDefaults()
-                                jsonEditorText = SharedTravelPlanStore.exportCurrentJson()
-                                statusMessage = if (isEs) "✅ Datos demo restaurados." else "✅ Demo data restored."
-                            }
-                        )
-                    }
-                }
+                modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(Modifier.height(10.dp))
