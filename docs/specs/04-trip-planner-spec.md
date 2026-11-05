@@ -109,22 +109,27 @@ Proporcionar una herramienta integral y **100% funcional offline** para planific
 4. **Botones Compactos y No Invasivos**:
    - Se reemplazan los bloques masivos apilados (`AppButtonRow` de 120dp) por una única fila compacta de botones (`height` 32-36dp) con acceso rápido a `🗺️ Mapa`, `📅 Calendario`, `✏️ Editar` y `🗑️ Eliminar`.
 
-### RF-04.10: Mapa Integrado de Visitas del Día con Localización Actual y Trazado de Ruta
+### RF-04.10: Mapa Integrado de Visitas del Día con Localización Actual y Selector de Capas
 1. **Alternador de Vista en el Planificador**:
    - La pantalla del planificador permite alternar limpiamente entre la vista de **Horario (`📋 Horario`)** y la vista de **Mapa del Día (`🗺️ Mapa del Día`)**.
-2. **Representación de Paradas del Día en el Mapa**:
-   - Muestra todas las paradas del día seleccionado mediante **marcadores circulares numerados (`1`, `2`, `3`...)** según su orden cronológico de visita.
+2. **Representación de Paradas del Día en el Mapa (Sin Líneas Conectoras)**:
+   - Muestra todas las paradas del día seleccionado mediante **marcadores circulares numerados (`1`, `2`, `3`...)** según su orden cronológico de visita, sin trazar líneas rectas entre puntos para mantener la limpieza visual sobre el callejero.
    - Cada marcador luce el color temático de su categoría (Templo, Comida, Transporte, Hotel, Ocio, Compras) y etiqueta con título y horario.
-   - Se dibuja una polilínea continua que une secuencialmente todas las paradas del día en orden horario, mostrando la distancia total acumulada y entre tramos calculada mediante fórmula de Haversine.
-3. **Localización Actual en Tiempo Real**:
+3. **Selector Configurable de Capas Cartográficas (`MapTileLayerType`)**:
+   - El usuario puede seleccionar y alternar en tiempo real entre tres capas de mapas directamente desde los controles del visor:
+     - **🗺️ Google Maps (Estándar)** *(Por defecto)*: Cartografía oficial de Google Maps (`mt1.google.com/vt/lyrs=m`) localizada automáticamente al idioma activo de la aplicación (`hl=es` o `hl=en`), mostrando nombres de ciudades, barrios y estaciones en español/romaji junto al japonés.
+     - **🛰️ Google Satélite (Híbrido)**: Ortofoto satelital de alta resolución con etiquetas de calles y lugares superpuestas (`mt1.google.com/vt/lyrs=y`).
+     - **🌍 OpenStreetMap (OSM)**: Cartografía detallada de senderos peatonales, recintos de templos y parques (`tile.openstreetmap.org`).
+   - El cambio de capa se aplica instantáneamente en caliente sin perder el nivel de zoom ni la posición actual del mapa.
+4. **Localización Actual y Botón de Re-centrado Rápido**:
    - Detección reactiva de la posición GPS/red del usuario (`android.permission.ACCESS_FINE_LOCATION` / `ACCESS_COARSE_LOCATION`).
    - Marcador distintivo azul pulsante con halo de precisión y etiqueta *"📍 Tú estás aquí"* / *"📍 You are here"*.
-   - Botón de acción rápida: **"🎯 Centrar en mi ubicación"** para navegar la cámara inmediatamente a la posición del viajero.
-   - Botón de acción rápida: **"🔍 Ajustar a la ruta"** para calcular la caja delimitadora (`bounding box`) y encuadrar automáticamente todas las paradas del día y la ubicación del usuario.
-   - Controles de zoom interactivos `[+]` y `[-]`, además de gestos táctiles de arrastre (pan) y pellizco (pinch-to-zoom).
-4. **Resiliencia 100% Offline**:
-   - El motor de proyección Mercator y la cuadrícula vectorial funcionan sin necesidad de conexión ni claves de API de terceros.
-   - Se ofrece un botón directo para **"Abrir ruta del día en Google Maps"** como fallback externo para navegación guiada por voz.
+   - Botón destacado **"🎯 Centrar Visitas"** en la esquina superior derecha (y en la botonera flotante) para re-encuadrar inmediatamente todas las paradas del día cuando el usuario ha desplazado o hecho zoom en el mapa.
+   - Botón **"📍 Mi ubicación"** para centrar la cámara en la posición GPS del viajero.
+   - Controles de zoom interactivos `[+]` y `[-]`, además de gestos táctiles fluidos de arrastre (pan) y pellizco (pinch-to-zoom).
+5. **Resiliencia Offline**:
+   - El contenedor del mapa dispone de una cuadrícula vectorial milimétrica en CSS como respaldo visual inmediato sin red y cachea las teselas visitadas.
+   - Se ofrece un botón directo para **"🗺️ Ruta en Maps"** como acceso externo a Google Maps nativo.
 
 ### RF-04.11: Ficha de Detalle de Parada con Guías y Billetes Relacionados
 1. **Apertura de Detalle al Tocar un Marcador**:

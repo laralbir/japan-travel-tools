@@ -50,7 +50,10 @@ Aplicación Android **offline-first** con la suite definitiva de herramientas es
 
 ### 5. 🗺️ Planificador de Viaje con Fotos, Horarios y Google Maps (`SPEC-04`)
 - Itinerario interactivo por días con alternador de vista superior: **`[ 📋 Horario | 🗺️ Mapa del Día ]`**.
-- **Mapa Integrado del Día 100% Offline (`DayItineraryMapView`)**: Proyección Web Mercator sobre lienzo Compose con gestos fluidos de arrastre y zoom, marcadores numerados `1..N` según orden cronológico, polilínea de ruta con cálculo de distancia acumulada en km y ubicación GPS en vivo (`📍 Tú estás aquí`).
+- **Mapa Integrado del Día con Selector de Capas Cartográficas (`DayItineraryMapView`)**:
+  - Proyección Web Mercator sobre lienzo Compose con caché local en disco y memoria, gestos fluidos de arrastre y zoom, y respaldo vectorial offline automático.
+  - **Selector de Capas Cartográficas**: Conmutador interactivo entre **`🗺️ Google Maps`** (por defecto, con nombres de calles y estaciones en español/romaji + japonés), **`🛰️ Google Satélite Híbrido`** y **`🌍 OpenStreetMap`**.
+  - **Marcadores Numerados Limpios y Botón `[ 🎯 Centrar Visitas ]`**: Visualización despejada de las paradas numeradas (`1..N`) por orden cronológico sin líneas conectoras que saturen el mapa, botón prominente **`[ 🎯 Centrar Visitas ]`** para reencuadrar todas las visitas del día al instante y ubicación GPS en vivo (`📍 Tú estás aquí`).
 - **Ficha Modal de Detalle Interactivo de Parada (`StopDetailMapModalSheet`)**: Al pulsar cualquier punto del mapa, se despliega una ficha con nombre en japonés en gran formato con botón de copia rápida para taxistas/locales, vinculación inteligente de Guías de Viaje (`TravelGuideArticle`) con botón para leer la guía completa, billetes digitales asociados (`TravelDocumentItem` / `TransportSegmentItem`) con visor QR ampliado y brillo al 100%, y botón para navegación paso a paso en Google Maps.
 - **Formateo Regional de Fechas y Husos Locales (`TravelDateTimeFormatter`)**: Fechas completas en formato regional del sistema (`FormatStyle.FULL`) y horas en el huso local de cada destino (ej. Múnich `UTC+1`, Tokio `UTC+9`) con indicación del desfase.
 - **Persistencia Canónica en ISO UTC**: Almacenamiento estándar en formato UTC (`Instant.toString()`) con compatibilidad retroactiva total en `TravelPlanJsonCodec`.
@@ -110,8 +113,8 @@ Este proyecto se desarrolla bajo estrictas directrices de ingeniería de softwar
 3. **Conventional Commits v1.0.0**: Historial semántico estandarizado (`feat`, `fix`, `docs`, `test`, `refactor`, `chore`).
 4. **Política de Releases**:
    - Cada publicación en `main` genera su tag anotado y una **GitHub Release** oficial con el APK compilado y firmado adjunto.
-5. **Prevención de Reinicio de App en Android**:
-   - Configuración de `singleTask` en `AndroidManifest.xml` y manejo de `onNewIntent` en `MainActivity`.
+5. **Prevención de Reinicio de App y Bloqueo de Orientación Vertical en Android**:
+   - Configuración de `singleTask` y bloqueo de orientación vertical (`android:screenOrientation="portrait"`) en `AndroidManifest.xml` con manejo de `onNewIntent` en `MainActivity`, evitando rotaciones accidentales de la interfaz al sujetar el teléfono durante el viaje.
    - Control de `configChanges` y persistencia de pantalla activa en `UserPreferencesRepository`.
 6. **Despliegue ADB en Dispositivos Autorizados (Sin Commitear)**:
    - Configuración local de dispositivos autorizados (`authorized-devices.local.conf`, ignorado en Git).

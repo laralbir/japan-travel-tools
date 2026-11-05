@@ -57,6 +57,22 @@ object GeoProjectionUtils {
 }
 ```
 
+### 2.1 Selector Configurable de Capas Cartográficas (`MapTileLayerType`)
+```kotlin
+enum class MapTileLayerType {
+    GOOGLE_STREETS,
+    GOOGLE_HYBRID,
+    OPENSTREETMAP;
+
+    fun label(isEs: Boolean): String
+    fun shortLabel(isEs: Boolean): String
+    fun resolveTileUrl(isEs: Boolean): String
+}
+```
+- **`GOOGLE_STREETS`** *(Por defecto)*: `https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl={es|en}` (presenta topónimos de Japón en español/romaji junto al japonés).
+- **`GOOGLE_HYBRID`**: `https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&hl={es|en}` (vista satelital con nombres de calles y estaciones superpuestos).
+- **`OPENSTREETMAP`**: `https://tile.openstreetmap.org/{z}/{x}/{y}.png` (cartografía comunitaria detallada en senderos de templos y parques).
+
 ---
 
 ## 3. Motor de Vinculación Inteligente (`ItineraryLinkedResourcesResolver`)

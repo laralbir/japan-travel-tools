@@ -126,6 +126,7 @@ fun DayItineraryMapView(
     val currentStops by rememberUpdatedState(validStops)
     val currentOnStopClick by rememberUpdatedState(onStopClick)
 
+    var selectedLayer by remember { mutableStateOf(MapTileLayerType.GOOGLE_STREETS) }
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
     var isMapLoaded by remember { mutableStateOf(false) }
 
@@ -177,6 +178,16 @@ fun DayItineraryMapView(
     LaunchedEffect(validStops, selectedStop, userLocation, isMapLoaded) {
         if (isMapLoaded) {
             updateMapData(webViewRef)
+        }
+    }
+
+    LaunchedEffect(selectedLayer, isEs, isMapLoaded) {
+        if (isMapLoaded) {
+            val tileUrl = selectedLayer.resolveTileUrl(isEs)
+            webViewRef?.evaluateJavascript(
+                "if (typeof setTileLayer === 'function') { setTileLayer('$tileUrl'); }",
+                null
+            )
         }
     }
 
@@ -258,6 +269,7 @@ fun DayItineraryMapView(
                     val initialUserLat = userLocation?.latitude ?: 0.0
                     val initialUserLng = userLocation?.longitude ?: 0.0
                     val initialSelectedId = selectedStop?.id.orEmpty()
+                    val initialTileUrl = selectedLayer.resolveTileUrl(isEs)
 
                     val html = """
                         <!DOCTYPE html>
@@ -346,11 +358,18 @@ fun DayItineraryMapView(
                                 attributionControl: false
                             }).setView([35.6762, 139.6503], 12);
 
-                            // Clean OpenStreetMap tiles
-                            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                                maxZoom: 19,
-                                attribution: '&copy; OpenStreetMap contributors'
+                            var currentTileLayer = L.tileLayer('$initialTileUrl', {
+                                maxZoom: 19
                             }).addTo(map);
+
+                            function setTileLayer(url) {
+                                if (currentTileLayer && map) {
+                                    map.removeLayer(currentTileLayer);
+                                }
+                                currentTileLayer = L.tileLayer(url, {
+                                    maxZoom: 19
+                                }).addTo(map);
+                            }
 
                             var markersLayer = L.layerGroup().addTo(map);
                             var userLayer = L.layerGroup().addTo(map);
@@ -543,6 +562,43 @@ fun DayItineraryMapView(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
+            }
+        }
+
+        // Bottom-Start: Configurable Map Layer Selector (Google Maps | Satélite | OSM)
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+            shadowElevation = 4.dp,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(3.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                MapTileLayerType.entries.forEach { layer ->
+                    val isSelected = selectedLayer == layer
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface.copy(alpha = 0f),
+                        border = if (isSelected) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable { selectedLayer = layer }
+                    ) {
+                        Text(
+                            text = layer.shortLabel(isEs),
+                            fontSize = 11.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                        )
+                    }
+                }
             }
         }
 

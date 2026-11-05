@@ -42,4 +42,11 @@
   - Ejecutar `./gradlew testDebugUnitTest` y verificar 100% verde.
   - Compilar y desplegar con `./scripts/deploy-authorized-devices.sh`.
 
+- [x] **Tarea 7: Selector Configurable de Capas de Mapa (`MapTileLayerType` - TDD)**
+  - Añadir tests unitarios en `GeoProjectionUtilsTest.kt` (RED) validando:
+    - Generación de URLs de teselas localizadas (`hl=es` / `hl=en`) para Google Maps Estándar (`GOOGLE_STREETS`), Google Satélite (`GOOGLE_HYBRID`) y OpenStreetMap (`OPENSTREETMAP`).
+    - Etiquetas de interfaz bilingües y rotación de capas.
+  - Implementar `MapTileLayerType` y el selector visual de capas en `DayItineraryMapView.kt` con cambio en caliente mediante `setTileLayer()` en Leaflet (GREEN).
+  - Desplegar y verificar en Google Pixel 9 Pro XL (REFACTOR).
+
 

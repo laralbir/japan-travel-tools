@@ -86,5 +86,59 @@ class GeoProjectionUtilsTest {
 
         assertEquals(leg1 + leg2, total, 0.001)
     }
-}
 
+    @Test
+    fun `MapTileLayerType resolves localized tile URLs for Google Streets, Hybrid, and OSM`() {
+        assertEquals(
+            "https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=es",
+            MapTileLayerType.GOOGLE_STREETS.resolveTileUrl(isEs = true)
+        )
+        assertEquals(
+            "https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=en",
+            MapTileLayerType.GOOGLE_STREETS.resolveTileUrl(isEs = false)
+        )
+
+        assertEquals(
+            "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&hl=es",
+            MapTileLayerType.GOOGLE_HYBRID.resolveTileUrl(isEs = true)
+        )
+        assertEquals(
+            "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&hl=en",
+            MapTileLayerType.GOOGLE_HYBRID.resolveTileUrl(isEs = false)
+        )
+
+        assertEquals(
+            "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            MapTileLayerType.OPENSTREETMAP.resolveTileUrl(isEs = true)
+        )
+        assertEquals(
+            "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            MapTileLayerType.OPENSTREETMAP.resolveTileUrl(isEs = false)
+        )
+    }
+
+    @Test
+    fun `MapTileLayerType returns localized labels and shortLabels`() {
+        assertEquals("🗺️ Google Maps", MapTileLayerType.GOOGLE_STREETS.label(isEs = true))
+        assertEquals("🗺️ Google Maps", MapTileLayerType.GOOGLE_STREETS.label(isEs = false))
+        assertEquals("🗺️ Google", MapTileLayerType.GOOGLE_STREETS.shortLabel(isEs = true))
+        assertEquals("🗺️ Google", MapTileLayerType.GOOGLE_STREETS.shortLabel(isEs = false))
+
+        assertEquals("🛰️ Satélite", MapTileLayerType.GOOGLE_HYBRID.label(isEs = true))
+        assertEquals("🛰️ Satellite", MapTileLayerType.GOOGLE_HYBRID.label(isEs = false))
+        assertEquals("🛰️ Satélite", MapTileLayerType.GOOGLE_HYBRID.shortLabel(isEs = true))
+        assertEquals("🛰️ Sat.", MapTileLayerType.GOOGLE_HYBRID.shortLabel(isEs = false))
+
+        assertEquals("🌍 OpenStreetMap", MapTileLayerType.OPENSTREETMAP.label(isEs = true))
+        assertEquals("🌍 OpenStreetMap", MapTileLayerType.OPENSTREETMAP.label(isEs = false))
+        assertEquals("🌍 OSM", MapTileLayerType.OPENSTREETMAP.shortLabel(isEs = true))
+        assertEquals("🌍 OSM", MapTileLayerType.OPENSTREETMAP.shortLabel(isEs = false))
+    }
+
+    @Test
+    fun `MapTileLayerType next cycles through all layers in order`() {
+        assertEquals(MapTileLayerType.GOOGLE_HYBRID, MapTileLayerType.GOOGLE_STREETS.next())
+        assertEquals(MapTileLayerType.OPENSTREETMAP, MapTileLayerType.GOOGLE_HYBRID.next())
+        assertEquals(MapTileLayerType.GOOGLE_STREETS, MapTileLayerType.OPENSTREETMAP.next())
+    }
+}

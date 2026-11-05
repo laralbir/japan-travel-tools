@@ -7,9 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
-### Mapa Integrado de Visitas del Día, Ubicación GPS y Detalle de Guías y Billetes 🗺️📍🎫✨
-- **Lienzo de Mapa Interactivo 100% Offline (`DayItineraryMapView`)**: Proyección Web Mercator en un lienzo nativo de Compose con soporte para gestos táctiles de arrastre fluido (pan) y pellizco para zoom (pinch-to-zoom). Funciona sin conexión a internet y sin necesidad de claves de API externas.
-- **Marcadores Numerados y Trazado de Ruta Cronológica**: Cada visita del día se renderiza como un marcador circular numerado (`1..N`) con el color de su categoría (`SIGHTSEEING`, `TRANSPORT`, `FOOD`, `HOTEL`, `ACTIVITY`, `SHOPPING`), etiqueta con horario y nombre resumido, y una polilínea discontinua que une las paradas consecutivas con cálculo acumulado de distancia en kilómetros (`haversineDistanceKm`).
+### Mapa Integrado de Visitas del Día, Selector de Capas Cartográficas, Ubicación GPS y Detalle de Guías y Billetes 🗺️📍🎫✨
+- **Lienzo de Mapa Interactivo con Caché Offline (`DayItineraryMapView`)**: Proyección Web Mercator en un lienzo nativo de Compose con soporte para gestos táctiles de arrastre fluido (pan), pellizco para zoom (pinch-to-zoom), caché persistente de teselas en memoria y disco (`MapTileProvider`) y respaldo vectorial 100% offline.
+- **Selector de Capas Cartográficas (`MapTileStyle`)**: Conmutador interactivo en la barra del mapa que permite elegir en tiempo real entre tres estilos cartográficos:
+  - **`🗺️ Google Maps` (Por defecto)**: Cartografía detallada con nombres de calles, barrios y estaciones legibles en español/romaji junto al nombre japonés (`hl=es`).
+  - **`🛰️ Google Satélite Híbrido`**: Fotografía aérea de alta resolución combinada con etiquetas de vías y puntos de interés.
+  - **`🌍 OpenStreetMap`**: Cartografía colaborativa estándar de OpenStreetMap.
+- **Visualización Limpia de Marcadores Numerados (`1..N`) y Botón Prominente `[ 🎯 Centrar Visitas ]`**:
+  - Cada visita del día se renderiza como un marcador circular numerado (`1..N`) con el color de su categoría (`SIGHTSEEING`, `TRANSPORT`, `FOOD`, `HOTEL`, `ACTIVITY`, `SHOPPING`) y etiqueta con horario y nombre resumido, eliminando las líneas conectoras entre paradas para ofrecer una lectura limpia de calles y manzanas.
+  - Botón prominente **`[ 🎯 Centrar Visitas ]`** en la cabecera del mapa para reencuadrar automáticamente todas las visitas del día tras desplazarse o hacer zoom.
 - **Ubicación en Tiempo Real del Usuario (`📍 Tú estás aquí`)**: Marcador azul interactivo con halo de precisión y recentrado rápido (`🎯`) mediante `UserLocationHelper` y permiso `ACCESS_FINE_LOCATION`, permitiendo al viajero orientarse respecto a los templos y paradas de su itinerario.
 - **Ficha Modal de Detalle Completo de la Parada (`StopDetailMapModalSheet`)**: Al tocar cualquier marcador del mapa, se despliega una hoja modal con:
   - Nombre en japonés en tipografía grande con botón de copia rápida al portapapeles para mostrar a taxistas o transeúntes.
@@ -18,6 +24,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
   - **Billetes y reservas asociadas (`TravelDocumentItem` / `TransportSegmentItem`)**: Detección automática por fecha, ciudad y tramo, con botón directo `📱 Ver Billete / Código QR` que abre el visor a pantalla completa con brillo al 100%.
   - Botones de acción directa: `🗺️ Google Maps` para navegación guiada paso a paso y `✏️ Editar Parada`.
 - **Alternador Rápido de Vista `[ 📋 Horario | 🗺️ Mapa del Día ]`**: Integrado en la cabecera del planificador de viaje (`TripPlannerTabScreen`), permitiendo alternar al instante entre la lista cronológica detallada y la vista espacial en el mapa.
+- **Bloqueo de Orientación Vertical (`portrait`) en `MainActivity`**: Configuración de `android:screenOrientation="portrait"` en `AndroidManifest.xml` para evitar rotaciones accidentales de la interfaz a modo apaisado al sujetar el teléfono o consultar mapas y billetes en movimiento.
 
 ### Extracción Inteligente y Sincronización de Ciudades en Meteorología ☀️🌧️
 - **Botón `➕ Ciudades del Plan` Totalmente Funcional**: Corrección del flujo de sincronización manual para restablecer exclusiones previas (`forceResetDeleted = true`) y proporcionar retroalimentación clara e inmediata al viajero con el número exacto de ciudades añadidas o el estado de sincronización completo.

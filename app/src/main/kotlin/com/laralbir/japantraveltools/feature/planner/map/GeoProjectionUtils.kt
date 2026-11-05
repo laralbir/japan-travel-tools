@@ -24,6 +24,40 @@ data class GeoBoundingBox(
     val centerLng: Double
 )
 
+enum class MapTileLayerType {
+    GOOGLE_STREETS,
+    GOOGLE_HYBRID,
+    OPENSTREETMAP;
+
+    fun resolveTileUrl(isEs: Boolean): String {
+        val lang = if (isEs) "es" else "en"
+        return when (this) {
+            GOOGLE_STREETS -> "https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=$lang"
+            GOOGLE_HYBRID -> "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&hl=$lang"
+            OPENSTREETMAP -> "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        }
+    }
+
+    fun label(isEs: Boolean): String = when (this) {
+        GOOGLE_STREETS -> "🗺️ Google Maps"
+        GOOGLE_HYBRID -> if (isEs) "🛰️ Satélite" else "🛰️ Satellite"
+        OPENSTREETMAP -> "🌍 OpenStreetMap"
+    }
+
+    fun shortLabel(isEs: Boolean): String = when (this) {
+        GOOGLE_STREETS -> "🗺️ Google"
+        GOOGLE_HYBRID -> if (isEs) "🛰️ Satélite" else "🛰️ Sat."
+        OPENSTREETMAP -> "🌍 OSM"
+    }
+
+    fun next(): MapTileLayerType = when (this) {
+        GOOGLE_STREETS -> GOOGLE_HYBRID
+        GOOGLE_HYBRID -> OPENSTREETMAP
+        OPENSTREETMAP -> GOOGLE_STREETS
+    }
+}
+
+
 object GeoProjectionUtils {
 
     private const val EARTH_RADIUS_KM = 6371.0
@@ -130,4 +164,3 @@ object GeoProjectionUtils {
         return total
     }
 }
-
