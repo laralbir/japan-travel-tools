@@ -7,6 +7,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-05
+
 ### Mapa Integrado de Visitas del Día, Selector de Capas Cartográficas, Ubicación GPS y Detalle de Guías y Billetes 🗺️📍🎫✨
 - **Lienzo de Mapa Interactivo con Caché Offline (`DayItineraryMapView`)**: Proyección Web Mercator en un lienzo nativo de Compose con soporte para gestos táctiles de arrastre fluido (pan), pellizco para zoom (pinch-to-zoom), caché persistente de teselas en memoria y disco (`MapTileProvider`) y respaldo vectorial 100% offline.
 - **Selector de Capas Cartográficas (`MapTileStyle`)**: Conmutador interactivo en la barra del mapa que permite elegir en tiempo real entre tres estilos cartográficos:
