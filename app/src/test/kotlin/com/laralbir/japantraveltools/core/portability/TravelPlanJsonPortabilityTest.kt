@@ -381,4 +381,100 @@ class TravelPlanJsonPortabilityTest {
         assertNotNull(seg1.departureTimeUtcIso)
         assertEquals("2027-03-15T06:25:00Z", seg1.departureTimeUtcIso) // 07:25 CET in Madrid is 06:25 UTC
     }
+
+    @Test
+    fun `exportToPrettyJson and importFromJson preserve barcode and linkedDocumentId fields`() {
+        val segment = TransportSegmentItem(
+            id = "seg-pkpass-test",
+            order = 1,
+            type = TransportMode.TRAIN_SHINKANSEN,
+            operatorName = "Renfe",
+            lineOrNumber = "AVE 05181",
+            departureCode = "VAL",
+            departureName = "València Joaquín Sorolla",
+            departureZoneId = "Europe/Madrid",
+            departureTerminalOrPlatform = "Vía 1",
+            departureTimeIso = "2027-03-14T18:32",
+            arrivalCode = "MAD",
+            arrivalName = "Madrid Puerta de Atocha",
+            arrivalZoneId = "Europe/Madrid",
+            arrivalTerminalOrPlatform = "Planta 1",
+            arrivalTimeIso = "2027-03-14T20:38",
+            seatOrCarInfo = "Coche 7 · Asiento 1B",
+            stationExitOrBelt = "Localizador: WEHI1SHC",
+            passOrPaymentBadge = "Apple Wallet (.pkpass)",
+            barcodeMessage = "1455286897676010720518114/03/202718:32",
+            barcodeFormat = "PKBarcodeFormatAztec",
+            barcodeAltText = "1455286897676",
+            linkedDocumentId = "doc-pass-123"
+        )
+        val bundle = PortableTravelPlanBundle(
+            itineraryStops = emptyList(),
+            transportSegments = listOf(segment)
+        )
+
+        val json = TravelPlanJsonCodec.exportToPrettyJson(bundle)
+        val imported = TravelPlanJsonCodec.importFromJson(json)
+        val importedSeg = imported.transportSegments.first()
+
+        assertEquals("1455286897676010720518114/03/202718:32", importedSeg.barcodeMessage)
+        assertEquals("PKBarcodeFormatAztec", importedSeg.barcodeFormat)
+        assertEquals("1455286897676", importedSeg.barcodeAltText)
+        assertEquals("doc-pass-123", importedSeg.linkedDocumentId)
+    }
+
+    @Test
+    fun `SharedTravelPlanStore upsertTransportSegment orders segments chronologically`() {
+        SharedTravelPlanStore.clearAll()
+        val segMarch26 = TransportSegmentItem(
+            id = "seg-later",
+            order = 1,
+            type = TransportMode.TRAIN_SHINKANSEN,
+            operatorName = "Renfe",
+            lineOrNumber = "AVE 05070",
+            departureCode = "MAD",
+            departureName = "Madrid",
+            departureZoneId = "Europe/Madrid",
+            departureTerminalOrPlatform = "Vía 1",
+            departureTimeIso = "2027-03-26T07:30",
+            arrivalCode = "VAL",
+            arrivalName = "Valencia",
+            arrivalZoneId = "Europe/Madrid",
+            arrivalTerminalOrPlatform = "Vía 1",
+            arrivalTimeIso = "2027-03-26T09:30",
+            seatOrCarInfo = "Coche 3"
+        )
+        val segMarch14 = TransportSegmentItem(
+            id = "seg-earlier",
+            order = 2,
+            type = TransportMode.TRAIN_SHINKANSEN,
+            operatorName = "Renfe",
+            lineOrNumber = "AVE 05181",
+            departureCode = "VAL",
+            departureName = "Valencia",
+            departureZoneId = "Europe/Madrid",
+            departureTerminalOrPlatform = "Vía 1",
+            departureTimeIso = "2027-03-14T18:32",
+            arrivalCode = "MAD",
+            arrivalName = "Madrid",
+            arrivalZoneId = "Europe/Madrid",
+            arrivalTerminalOrPlatform = "Vía 1",
+            arrivalTimeIso = "2027-03-14T20:38",
+            seatOrCarInfo = "Coche 7"
+        )
+
+        SharedTravelPlanStore.upsertTransportSegment(segMarch26)
+        SharedTravelPlanStore.upsertTransportSegment(segMarch14)
+
+        val segments = SharedTravelPlanStore.planState.value.transportSegments
+        assertEquals(2, segments.size)
+        // segMarch14 must be ordered first with order = 1
+        assertEquals("seg-earlier", segments[0].id)
+        assertEquals(1, segments[0].order)
+        assertEquals("2027-03-14T18:32", segments[0].departureTimeIso)
+
+        assertEquals("seg-later", segments[1].id)
+        assertEquals(2, segments[1].order)
+        assertEquals("2027-03-26T07:30", segments[1].departureTimeIso)
+    }
 }

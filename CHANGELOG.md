@@ -7,6 +7,41 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-05
+
+### Mapa Integrado de Visitas del Día, Selector de Capas Cartográficas, Ubicación GPS y Detalle de Guías y Billetes 🗺️📍🎫✨
+- **Lienzo de Mapa Interactivo con Caché Offline (`DayItineraryMapView`)**: Proyección Web Mercator en un lienzo nativo de Compose con soporte para gestos táctiles de arrastre fluido (pan), pellizco para zoom (pinch-to-zoom), caché persistente de teselas en memoria y disco (`MapTileProvider`) y respaldo vectorial 100% offline.
+- **Selector de Capas Cartográficas (`MapTileStyle`)**: Conmutador interactivo en la barra del mapa que permite elegir en tiempo real entre tres estilos cartográficos:
+  - **`🗺️ Google Maps` (Por defecto)**: Cartografía detallada con nombres de calles, barrios y estaciones legibles en español/romaji junto al nombre japonés (`hl=es`).
+  - **`🛰️ Google Satélite Híbrido`**: Fotografía aérea de alta resolución combinada con etiquetas de vías y puntos de interés.
+  - **`🌍 OpenStreetMap`**: Cartografía colaborativa estándar de OpenStreetMap.
+- **Visualización Limpia de Marcadores Numerados (`1..N`) y Columna de Controles del Mapa**:
+  - Cada visita del día se renderiza como un marcador circular numerado (`1..N`) con el color de su categoría (`SIGHTSEEING`, `TRANSPORT`, `FOOD`, `HOTEL`, `ACTIVITY`, `SHOPPING`) y etiqueta con horario y nombre resumido, eliminando las líneas conectoras entre paradas para ofrecer una lectura limpia de calles y manzanas.
+  - Columna de controles en la esquina inferior derecha con botones de zoom `[+]` y `[—]`, botón de chincheta `[📍]` para encuadrar y centrar todas las paradas del día (`fitToMarkers`) e icono vectorial GPS (*My Location*) para centrar en la ubicación actual del viajero (reemplazando el emoji `🎯` y eliminando el botón redundante superior derecho).
+- **Ubicación en Tiempo Real del Usuario (`📍 Tú estás aquí`)**: Marcador azul interactivo con halo de precisión y recentrado rápido mediante el icono vectorial GPS de localización (`UserLocationHelper` y permiso `ACCESS_FINE_LOCATION`), permitiendo al viajero orientarse respecto a los templos y paradas de su itinerario.
+- **Ficha Modal de Detalle Completo de la Parada (`StopDetailMapModalSheet`)**: Al tocar cualquier marcador del mapa, se despliega una hoja modal con:
+  - Nombre en japonés en tipografía grande con botón de copia rápida al portapapeles para mostrar a taxistas o transeúntes.
+  - Horario, duración, categoría y notas/consejos.
+  - **Guía de viaje vinculada (`TravelGuideArticle`)**: Detección automática por ciudad, región o etiquetas temáticas mediante `ItineraryLinkedResourcesResolver` con botón para abrir y leer la guía completa.
+  - **Billetes y reservas asociadas (`TravelDocumentItem` / `TransportSegmentItem`)**: Detección automática por fecha, ciudad y tramo, con botón directo `📱 Ver Billete / Código QR` que abre el visor a pantalla completa con brillo al 100%.
+  - Botones de acción directa: `🗺️ Google Maps` para navegación guiada paso a paso y `✏️ Editar Parada`.
+- **Alternador Rápido de Vista `[ 📋 Horario | 🗺️ Mapa del Día ]`**: Integrado en la cabecera del planificador de viaje (`TripPlannerTabScreen`), permitiendo alternar al instante entre la lista cronológica detallada y la vista espacial en el mapa.
+- **Bloqueo de Orientación Vertical (`portrait`) en `MainActivity`**: Configuración de `android:screenOrientation="portrait"` en `AndroidManifest.xml` para evitar rotaciones accidentales de la interfaz a modo apaisado al sujetar el teléfono o consultar mapas y billetes en movimiento.
+
+### Extracción Inteligente y Sincronización de Ciudades en Meteorología ☀️🌧️
+- **Botón `➕ Ciudades del Plan` Totalmente Funcional**: Corrección del flujo de sincronización manual para restablecer exclusiones previas (`forceResetDeleted = true`) y proporcionar retroalimentación clara e inmediata al viajero con el número exacto de ciudades añadidas o el estado de sincronización completo.
+- **Detección por Proximidad Geográfica (`findClosestKnownCity`)**: Si una visita del itinerario no incluye explícitamente el nombre de la ciudad en su texto, el motor geodésico calcula la distancia geodésica a los núcleos urbanos conocidos (umbral de 35 km) para asociar automáticamente templos, santuarios y parques a su ciudad correspondiente (Kioto, Tokio, Osaka, Nara, Takayama, Hakone, etc.).
+- **Ampliación del Catálogo de Tránsito y Destinos**: Incorporación de ciudades y aeropuertos internacionales frecuentes en las rutas de viaje: Múnich (`MUC`), Valencia (`VLC`), Helsinki (`HEL`), Dubái (`DXB`) y códigos de estación Shinkansen/Hakone (`HAK`, `TAK`, `KNZ`, `NAR`, etc.).
+
+### Importación Apple Wallet (.pkpass), Códigos QR/Aztec y Detección de Duplicados 🎫📱✨
+- **Renderizado de Códigos QR, Aztec y PDF417 (`BarcodeBitmapGenerator`)**: Motor de renderizado 100% offline basado en ZXing para generar códigos de billetes de tren (Renfe AVE en formato Aztec), pases de aerolíneas (Iberia, Lufthansa en Aztec/PDF417) y códigos QR estándar con visualización nítida (`FilterQuality.None`).
+- **Apertura Inmediata del Código QR tras Importar**: Al importar un billete `.pkpass`, la aplicación despliega automáticamente el diálogo modal con el código QR/Aztec de alta luminosidad sobre fondo blanco, listo para escanear en tornos y puertas de embarque.
+- **Modo Pantalla Completa y Brillo Máximo al Tocar el Código (`FullScreenBarcodeDialog`)**: Al pulsar sobre el código QR/Aztec en el diálogo, se expande a pantalla completa absoluta ocupando todo el ancho de la pantalla y elevando automáticamente el brillo del panel al 100% para facilitar la lectura por tornos y revisores de tren/avión bajo cualquier condición de iluminación. Tocar en cualquier parte o pulsar atrás restaura el brillo y cierra la vista ampliada.
+- **Botón «📱 Ver QR» en Tarjetas de Transporte y Documentos**: Acceso directo y en cualquier momento al billete digital interactivo desde el itinerario de transporte y la Bóveda de Documentos.
+- **Ordenación Cronológica Automática (`reorderChronologically`)**: Al añadir, importar o sustituir un billete, los tramos se ordenan automáticamente por fecha y hora de salida (`departureTimeIso`), recalculando los índices `order = 1..N`.
+- **Detección Inteligente de Duplicados (`PkPassDuplicateResolutionDialog`)**: Si un billete importado coincide en código de reserva o en número de servicio y horario con uno existente, la app pregunta si se desea **Sustituir**, **Duplicar** o **Cancelar**.
+
+
 ## [1.2.0] - 2026-10-28
 
 ### Traducción Robusta de Carteles, Selector Multizona Google Fotos y Módulo de Tickets / Tax-Free con IA 🇯🇵📸🧾✨

@@ -2,7 +2,7 @@
 
 Aplicación Android **offline-first** con la suite definitiva de herramientas esenciales para viajar a Japón, desarrollada en **Kotlin** y **Jetpack Compose** siguiendo metodologías estrictas de **Spec-Driven Development (SDD)** y **Test-Driven Development (TDD)**.
 
-> **Estado actual del proyecto**: `v1.2.0` (Versión Oficial Estable de Producción). Publicada con APK firmado adjunto en [GitHub Releases](https://github.com/laralbir/japan-travel-tools/releases/tag/v1.2.0).
+> **Estado actual del proyecto**: `v1.3.0` (Versión Oficial Estable de Producción). Publicada con APK firmado adjunto en [GitHub Releases](https://github.com/laralbir/japan-travel-tools/releases/tag/v1.3.0).
 
 ---
 
@@ -49,10 +49,14 @@ Aplicación Android **offline-first** con la suite definitiva de herramientas es
 - Exportación e importación modular en formato JSON desde Ajustes.
 
 ### 5. 🗺️ Planificador de Viaje con Fotos, Horarios y Google Maps (`SPEC-04`)
-- Itinerario interactivo por días con línea temporal de horarios (`Timeline`) y detección de solapamientos.
+- Itinerario interactivo por días con alternador de vista superior: **`[ 📋 Horario | 🗺️ Mapa del Día ]`**.
+- **Mapa Integrado del Día con Selector de Capas Cartográficas (`DayItineraryMapView`)**:
+  - Proyección Web Mercator sobre lienzo Compose con caché local en disco y memoria, gestos fluidos de arrastre y zoom, y respaldo vectorial offline automático.
+  - **Selector de Capas Cartográficas**: Conmutador interactivo entre **`🗺️ Google Maps`** (por defecto, con nombres de calles y estaciones en español/romaji + japonés), **`🛰️ Google Satélite Híbrido`** y **`🌍 OpenStreetMap`**.
+  - **Marcadores Numerados Limpios y Controles Laterales del Mapa**: Visualización despejada de las paradas numeradas (`1..N`) por orden cronológico sin líneas conectoras que saturen el mapa, y columna de controles en la esquina inferior derecha con zoom (`[+]`, `[—]`), botón `[📍]` para encuadrar y centrar todas las visitas del día (`fitToMarkers`) e icono vectorial GPS (*My Location*) para centrar en la ubicación en tiempo real del viajero (`📍 Tú estás aquí`).
+- **Ficha Modal de Detalle Interactivo de Parada (`StopDetailMapModalSheet`)**: Al pulsar cualquier punto del mapa, se despliega una ficha con nombre en japonés en gran formato con botón de copia rápida para taxistas/locales, vinculación inteligente de Guías de Viaje (`TravelGuideArticle`) con botón para leer la guía completa, billetes digitales asociados (`TravelDocumentItem` / `TransportSegmentItem`) con visor QR ampliado y brillo al 100%, y botón para navegación paso a paso en Google Maps.
 - **Formateo Regional de Fechas y Husos Locales (`TravelDateTimeFormatter`)**: Fechas completas en formato regional del sistema (`FormatStyle.FULL`) y horas en el huso local de cada destino (ej. Múnich `UTC+1`, Tokio `UTC+9`) con indicación del desfase.
 - **Persistencia Canónica en ISO UTC**: Almacenamiento estándar en formato UTC (`Instant.toString()`) con compatibilidad retroactiva total en `TravelPlanJsonCodec`.
-- **Integración con Google Maps**: Mapa interactivo embebido (`Maps Compose`) con marcadores numerados de la ruta diaria y apertura directa de rutas en la aplicación Google Maps.
 - Sincronización directa con el Calendario de Android / Google Calendar y exportación/importación en formato JSON (`japan-travel-plan.v1`).
 
 ### 6. 🚆 Planificador Multimodal de Transportes (`SPEC-05`)
@@ -109,8 +113,8 @@ Este proyecto se desarrolla bajo estrictas directrices de ingeniería de softwar
 3. **Conventional Commits v1.0.0**: Historial semántico estandarizado (`feat`, `fix`, `docs`, `test`, `refactor`, `chore`).
 4. **Política de Releases**:
    - Cada publicación en `main` genera su tag anotado y una **GitHub Release** oficial con el APK compilado y firmado adjunto.
-5. **Prevención de Reinicio de App en Android**:
-   - Configuración de `singleTask` en `AndroidManifest.xml` y manejo de `onNewIntent` en `MainActivity`.
+5. **Prevención de Reinicio de App y Bloqueo de Orientación Vertical en Android**:
+   - Configuración de `singleTask` y bloqueo de orientación vertical (`android:screenOrientation="portrait"`) en `AndroidManifest.xml` con manejo de `onNewIntent` en `MainActivity`, evitando rotaciones accidentales de la interfaz al sujetar el teléfono durante el viaje.
    - Control de `configChanges` y persistencia de pantalla activa en `UserPreferencesRepository`.
 6. **Despliegue ADB en Dispositivos Autorizados (Sin Commitear)**:
    - Configuración local de dispositivos autorizados (`authorized-devices.local.conf`, ignorado en Git).
@@ -156,7 +160,7 @@ Toda la documentación técnica y funcional se encuentra detallada en español d
 - [x] **Hito 7 - Previsión Meteorológica con Open-Meteo y Planificador Sensible al Clima** (`SPEC-07`): Sincronización en segundo plano (6h), índice del Monte Fuji y adaptación ante lluvia.
 - [x] **Hito 8 - Módulo de Tickets de Compra, Tax-Free y Control de Gastos** (`SPEC-08`): Escaneo híbrido con IA y OCR trilingüe local, soporte multidivisa JPY/EUR/USD, selector de origen y exportación de informes para aduanas.
 - [x] **Hito 9 - Validación y Despliegue en Dispositivos Físicos Autorizados**: Verificación directa por ADB en Google Pixel y Tablet TCL NXTPAPER 11 Plus.
-- [x] **Hito 10 - Publicación de Versión de Producción v1.2.0**: Publicada en GitHub Releases con APK firmado adjunto.
+- [x] **Hito 10 - Publicación de Versión de Producción v1.3.0**: Publicada en GitHub Releases con APK firmado adjunto.
 
 ---
 

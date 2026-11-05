@@ -15,8 +15,8 @@ android {
     applicationId = "com.laralbir.japantraveltools"
     minSdk = 26
     targetSdk = 36
-    versionCode = 35
-    versionName = "1.2.0"
+    versionCode = 36
+    versionName = "1.3.0"
   }
 
   signingConfigs {
@@ -70,6 +70,12 @@ android {
     shaders = false
   }
 
+  testOptions {
+    unitTests {
+      isReturnDefaultValues = true
+    }
+  }
+
   packaging {
     resources {
       excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -107,6 +113,7 @@ dependencies {
 
   // Local tests: jUnit, coroutines, Android runner
   testImplementation(libs.junit)
+  testImplementation("org.json:json:20240303")
   testImplementation(libs.kotlinx.coroutines.test)
 
   // Instrumented tests: jUnit rules and runners
@@ -129,6 +136,9 @@ dependencies {
   // WorkManager for Periodic Background Sync (Currency & Weather)
   implementation(libs.androidx.work.runtime.ktx)
   testImplementation(libs.androidx.work.testing)
+
+  // ZXing for Offline QR, Aztec, PDF417 & Barcode Generation
+  implementation(libs.zxing.core)
 }
 
 tasks.register<Exec>("installAuthorizedDebug") {

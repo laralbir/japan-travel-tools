@@ -54,8 +54,7 @@ Proporcionar una herramienta integral y **100% funcional offline** para planific
      - Botón **"Cómo llegar (Ruta)"** (`google.navigation:q=...` o ruta en transporte público) desde la ubicación actual o desde la parada anterior del itinerario.
 2. **Mapa Interactivo Embebido en el Planificador (Punto 2)**:
    - La pantalla del día incluye un **Mapa Interactivo embebido (`Maps Compose`)** que muestra:
-     - Marcadores numerados (`1`, `2`, `3`...) para cada parada del día según su orden horario.
-     - Polilínea conectando secuencialmente el recorrido del día.
+     - Marcadores numerados (`1`, `2`, `3`...) para cada parada del día según su orden horario (sin líneas conectoras para mantener la claridad visual).
      - Al pulsar un marcador del mapa, se resalta la tarjeta del horario correspondiente (con su hora, notas y fotos).
    - **Resiliencia Offline del Mapa**:
      - Aprovecha el cacheo automático de teselas del SDK y, si el dispositivo está completamente sin red en una zona no cacheada, mantiene funcional un modo de esquema vectorial/coordenadas offline y permite lanzar la app nativa de Google Maps (donde el usuario puede tener descargados los mapas offline de Tokio/Kioto).
@@ -109,6 +108,46 @@ Proporcionar una herramienta integral y **100% funcional offline** para planific
 4. **Botones Compactos y No Invasivos**:
    - Se reemplazan los bloques masivos apilados (`AppButtonRow` de 120dp) por una única fila compacta de botones (`height` 32-36dp) con acceso rápido a `🗺️ Mapa`, `📅 Calendario`, `✏️ Editar` y `🗑️ Eliminar`.
 
+### RF-04.10: Mapa Integrado de Visitas del Día con Localización Actual y Selector de Capas
+1. **Alternador de Vista en el Planificador**:
+   - La pantalla del planificador permite alternar limpiamente entre la vista de **Horario (`📋 Horario`)** y la vista de **Mapa del Día (`🗺️ Mapa del Día`)**.
+2. **Representación de Paradas del Día en el Mapa (Sin Líneas Conectoras)**:
+   - Muestra todas las paradas del día seleccionado mediante **marcadores circulares numerados (`1`, `2`, `3`...)** según su orden cronológico de visita, sin trazar líneas rectas entre puntos para mantener la limpieza visual sobre el callejero.
+   - Cada marcador luce el color temático de su categoría (Templo, Comida, Transporte, Hotel, Ocio, Compras) y etiqueta con título y horario.
+3. **Selector Configurable de Capas Cartográficas (`MapTileLayerType`)**:
+   - El usuario puede seleccionar y alternar en tiempo real entre tres capas de mapas directamente desde los controles del visor:
+     - **🗺️ Google Maps (Estándar)** *(Por defecto)*: Cartografía oficial de Google Maps (`mt1.google.com/vt/lyrs=m`) localizada automáticamente al idioma activo de la aplicación (`hl=es` o `hl=en`), mostrando nombres de ciudades, barrios y estaciones en español/romaji junto al japonés.
+     - **🛰️ Google Satélite (Híbrido)**: Ortofoto satelital de alta resolución con etiquetas de calles y lugares superpuestas (`mt1.google.com/vt/lyrs=y`).
+     - **🌍 OpenStreetMap (OSM)**: Cartografía detallada de senderos peatonales, recintos de templos y parques (`tile.openstreetmap.org`).
+   - El cambio de capa se aplica instantáneamente en caliente sin perder el nivel de zoom ni la posición actual del mapa.
+4. **Localización Actual y Controles de Navegación del Mapa**:
+   - Detección reactiva de la posición GPS/red del usuario (`android.permission.ACCESS_FINE_LOCATION` / `ACCESS_COARSE_LOCATION`).
+   - Marcador distintivo azul pulsante con halo de precisión y etiqueta *"📍 Tú estás aquí"* / *"📍 You are here"*.
+   - Columna de controles en la esquina inferior derecha del mapa que integra:
+     - Botones de zoom interactivos `[+]` y `[—]`, además de gestos táctiles fluidos de arrastre (`pan`) y pellizco (`pinch-to-zoom`).
+     - Botón de chincheta `[📍]` para encuadrar y centrar todas las paradas del día (`fitToMarkers`).
+     - Botón con icono vectorial GPS (*My Location*) para centrar la cámara en la ubicación en tiempo real del viajero (sustituyendo el emoji de diana `🎯`).
+5. **Resiliencia Offline**:
+   - El contenedor del mapa dispone de una cuadrícula vectorial milimétrica en CSS como respaldo visual inmediato sin red y cachea las teselas visitadas.
+   - Se ofrece un botón directo para **"🗺️ Ruta en Maps"** como acceso externo a Google Maps nativo.
+
+### RF-04.11: Ficha de Detalle de Parada con Guías y Billetes Relacionados
+1. **Apertura de Detalle al Tocar un Marcador**:
+   - Al pulsar cualquier marcador numerado en el mapa (o seleccionarlo en el carrusel inferior de paradas), se resalta el punto y se despliega una hoja modal inferior de **Detalle Completo de la Parada**.
+2. **Contenido de la Ficha de Detalle**:
+   - **Cabecera**: Número de parada, título, hora de inicio y fin (`HH:mm`), duración estimada y distintivo de categoría.
+   - **Nombre y Dirección en Japonés (`placeNameJapanese`)**: Presentado en gran tamaño con botón de copiado rápido al portapapeles para enseñar a taxistas o transeúntes.
+   - **Notas y Recomendaciones**: Texto descriptivo, consejos de visita y observaciones.
+   - **Guía de Viaje Relacionada (`TravelGuideArticle`)**:
+     - Vinculación inteligente automática: el sistema consulta las guías descargadas en la Bóveda de Documentos que coincidan por ciudad (ej. Kioto, Tokio, Osaka, Nara), por etiquetas (`tags`) o por términos del título.
+     - Si hay coincidencia, muestra la tarjeta de la guía con botón directo **"📖 Leer Guía"**.
+   - **Billetes y Pases Relacionados (`TravelDocumentItem` y `TransportSegmentItem`)**:
+     - Vinculación inteligente automática: busca billetes de tren, vuelos, reservas de hotel o entradas de museos asociadas a la fecha o ciudad del día.
+     - Si el billete dispone de código QR o código de barras, muestra el botón **"📱 Ver QR / Billete"** que abre directamente el código interactivo con brillo al 100%.
+   - **Acciones Rápidas**:
+     - **"🗺️ Cómo Llegar (Google Maps)"**: Abre la navegación exacta hacia las coordenadas `(lat, lng)` de la parada.
+     - **"✏️ Editar Parada"**: Permite editar los datos de la visita directamente desde el mapa sin perder el contexto.
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin / BDD)
@@ -152,3 +191,13 @@ Proporcionar una herramienta integral y **100% funcional offline** para planific
 - **Dado** que el usuario edita el número de días de un plan o el día asignado a una parada
 - **Cuando** pulsa sobre los botones `[-]` o `[+]`
 - **Entonces** el valor se actualiza inmediatamente respetando los límites mínimos, o bien permite introducir dígitos directamente desplegando el teclado numérico.
+
+### Escenario 9: Mapa interactivo integrado del día con ubicación actual y controles de encuadre
+- **Dado** que el usuario se encuentra en el Día 1 con 4 paradas programadas
+- **Cuando** pulsa la pestaña "🗺️ Mapa del Día"
+- **Entonces** el mapa integrado muestra los marcadores numerados `1`, `2`, `3`, `4` en sus coordenadas exactas sin líneas conectoras, dibuja la posición GPS actual del usuario como un marcador azul interactivo y ofrece en la esquina inferior derecha los controles `[+]`, `[—]`, `[📍]` (`fitToMarkers`) y el icono vectorial GPS de localización.
+
+### Escenario 10: Detalle completo de parada al tocar el mapa con guías y billetes vinculados
+- **Dado** que el usuario visualiza el mapa del día y existen guías de Kioto y billetes de Shinkansen/Renfe para esa jornada
+- **Cuando** toca el marcador `#1` en el mapa
+- **Entonces** se despliega la ficha de detalle con su nombre en japonés, notas, acceso a la guía de Kioto relacionada y botón para abrir el billete digital con código QR a pantalla completa.

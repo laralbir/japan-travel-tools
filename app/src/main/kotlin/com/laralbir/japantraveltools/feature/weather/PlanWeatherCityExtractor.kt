@@ -1,6 +1,7 @@
 package com.laralbir.japantraveltools.feature.weather
 
 import com.laralbir.japantraveltools.feature.planner.ItineraryStopItem
+import com.laralbir.japantraveltools.feature.planner.map.GeoProjectionUtils
 import com.laralbir.japantraveltools.feature.transport.TransportSegmentItem
 import java.util.Locale
 
@@ -18,23 +19,23 @@ object PlanWeatherCityExtractor {
         ),
         CityDefinition(
             WeatherCityItem("KYOTO", "Kioto", "Kyoto", 35.0116, 135.7681, isDefault = true),
-            listOf("kyoto", "kioto", "京都", "kyo", "k11", "gion", "arashiyama", "fushimi", "kiyomizu", "kinkaku", "higashiyama", "pontocho")
+            listOf("kyoto", "kioto", "京都", "kyo", "k11", "gion", "arashiyama", "fushimi", "kiyomizu", "kinkaku", "higashiyama", "pontocho", "kamogawa", "nijo")
         ),
         CityDefinition(
             WeatherCityItem("OSAKA", "Osaka", "Osaka", 34.6937, 135.5023, isDefault = true),
-            listOf("osaka", "大阪", "osa", "kix", "itm", "dotonbori", "umeda", "namba", "shin-osaka", "shinosaka", "kuromon")
+            listOf("osaka", "大阪", "osa", "kix", "itm", "dotonbori", "umeda", "namba", "shin-osaka", "shinosaka", "kuromon", "shinmachi")
         ),
         CityDefinition(
             WeatherCityItem("HAKONE_FUJI", "Hakone / Monte Fuji", "Hakone / Mt. Fuji", 35.2324, 139.1069, isDefault = true),
-            listOf("hakone", "fuji", "monte fuji", "mt. fuji", "kawaguchiko", "odawara", "箱根", "富士", "fujikawaguchiko", "ashi")
+            listOf("hakone", "fuji", "monte fuji", "mt. fuji", "kawaguchiko", "odawara", "箱根", "富士", "fujikawaguchiko", "ashi", "hak", "moto-hakone", "hakone-yumoto")
         ),
         CityDefinition(
             WeatherCityItem("NARA", "Nara", "Nara", 34.6851, 135.8048, isDefault = false),
-            listOf("nara", "奈良", "todai-ji", "todaiji", "kasuga")
+            listOf("nara", "奈良", "todai-ji", "todaiji", "kasuga", "nar")
         ),
         CityDefinition(
             WeatherCityItem("HIROSHIMA", "Hiroshima", "Hiroshima", 34.3853, 132.4553, isDefault = false),
-            listOf("hiroshima", "広島", "paz", "peace memorial")
+            listOf("hiroshima", "広島", "paz", "peace memorial", "hij")
         ),
         CityDefinition(
             WeatherCityItem("MIYAJIMA", "Miyajima / Itsukushima", "Miyajima / Itsukushima", 34.2964, 132.3197, isDefault = false),
@@ -50,11 +51,11 @@ object PlanWeatherCityExtractor {
         ),
         CityDefinition(
             WeatherCityItem("TAKAYAMA", "Takayama", "Takayama", 36.1460, 137.2522, isDefault = false),
-            listOf("takayama", "shirakawa", "高山", "shirakawa-go", "shirakawago", "hida")
+            listOf("takayama", "shirakawa", "高山", "shirakawa-go", "shirakawago", "hida", "tak")
         ),
         CityDefinition(
             WeatherCityItem("KANAZAWA", "Kanazawa", "Kanazawa", 36.5613, 136.6562, isDefault = false),
-            listOf("kanazawa", "金沢", "kenrokuen", "higashi chaya")
+            listOf("kanazawa", "金沢", "kenrokuen", "higashi chaya", "kan", "knz")
         ),
         CityDefinition(
             WeatherCityItem("SAPPORO", "Sapporo (Hokkaido)", "Sapporo (Hokkaido)", 43.0618, 141.3545, isDefault = false),
@@ -89,6 +90,14 @@ object PlanWeatherCityExtractor {
             listOf("madrid", "barajas", "mad")
         ),
         CityDefinition(
+            WeatherCityItem("MUNICH", "Múnich", "Munich", 48.1351, 11.5820, isDefault = false),
+            listOf("munich", "múnich", "münchen", "muc", "franz josef")
+        ),
+        CityDefinition(
+            WeatherCityItem("VALENCIA", "Valencia", "Valencia", 39.4699, -0.3763, isDefault = false),
+            listOf("valencia", "vlc", "joaquín sorolla", "estación del norte")
+        ),
+        CityDefinition(
             WeatherCityItem("DOHA", "Doha", "Doha", 25.2854, 51.5310, isDefault = false),
             listOf("doha", "hamad", "doh")
         ),
@@ -98,15 +107,23 @@ object PlanWeatherCityExtractor {
         ),
         CityDefinition(
             WeatherCityItem("NAGANO", "Nagano", "Nagano", 36.6513, 138.1810, isDefault = false),
-            listOf("nagano", "長野", "jigokudani")
+            listOf("nagano", "長野", "jigokudani", "magome", "tsumago", "kiso", "nakasendo")
         ),
         CityDefinition(
             WeatherCityItem("MATSUMOTO", "Matsumoto", "Matsumoto", 36.2380, 137.9720, isDefault = false),
-            listOf("matsumoto", "松本")
+            listOf("matsumoto", "松本", "kamikochi")
         ),
         CityDefinition(
             WeatherCityItem("HIMEJI", "Himeji", "Himeji", 34.8394, 134.6939, isDefault = false),
             listOf("himeji", "姫路")
+        ),
+        CityDefinition(
+            WeatherCityItem("HELSINKI", "Helsinki", "Helsinki", 60.1699, 24.9384, isDefault = false),
+            listOf("helsinki", "hel", "vantaa")
+        ),
+        CityDefinition(
+            WeatherCityItem("DUBAI", "Dubái", "Dubai", 25.2048, 55.2708, isDefault = false),
+            listOf("dubai", "dubái", "dxb")
         )
     )
 
@@ -128,12 +145,12 @@ object PlanWeatherCityExtractor {
         for (def in KNOWN_CITIES) {
             for (alias in def.aliases) {
                 if (alias.length <= 3) {
-                    // For short 3-letter codes or abbreviations (e.g. "mad", "doh", "tyo"), match as an isolated word only
+                    // For short 3-letter codes or abbreviations (e.g. "mad", "doh", "tyo", "muc", "vlc"), match as an isolated word only
                     if (textWords.contains(alias)) {
                         return def.cityItem
                     }
                 } else {
-                    // For words >= 4 chars (e.g. "madrid", "tokyo", "doha", "hamad"), substring match
+                    // For words >= 4 chars (e.g. "madrid", "tokyo", "doha", "hamad", "munich"), substring match
                     if (normText.contains(alias)) {
                         return def.cityItem
                     }
@@ -141,6 +158,18 @@ object PlanWeatherCityExtractor {
             }
         }
         return null
+    }
+
+    /**
+     * Resolves a known city if the given geographic coordinates are within [maxDistanceKm] (default 35 km).
+     */
+    fun findClosestKnownCity(lat: Double, lng: Double, maxDistanceKm: Double = 35.0): WeatherCityItem? {
+        if (lat == 0.0 && lng == 0.0) return null
+        return KNOWN_CITIES.map { it.cityItem }
+            .map { city -> city to GeoProjectionUtils.haversineDistanceKm(lat, lng, city.latitude, city.longitude) }
+            .filter { it.second <= maxDistanceKm }
+            .minByOrNull { it.second }
+            ?.first
     }
 
     fun extractCitiesFromPlan(
@@ -164,9 +193,11 @@ object PlanWeatherCityExtractor {
         // 2. Process itinerary stops
         for (stop in stops) {
             val combinedText = "${stop.title} ${stop.placeNameJapanese} ${stop.notes}"
-            val matched = matchCity(combinedText)
-            if (matched != null) {
-                resultMap[matched.id] = matched
+            val matchedByText = matchCity(combinedText)
+            val matchedCity = matchedByText ?: findClosestKnownCity(stop.latitude, stop.longitude)
+
+            if (matchedCity != null) {
+                resultMap[matchedCity.id] = matchedCity
             } else if (stop.latitude != 0.0 && stop.longitude != 0.0 && stop.title.isNotBlank()) {
                 val cleanTitle = stop.title.take(30).trim()
                 val customId = "CITY_" + cleanTitle.uppercase(Locale.ROOT).replace("[^A-Z0-9]".toRegex(), "_")

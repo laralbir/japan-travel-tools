@@ -8,9 +8,12 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.provider.CalendarContract
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import android.provider.Settings
+import androidx.core.app.NotificationManagerCompat
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -60,6 +63,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -187,6 +192,10 @@ import com.laralbir.japantraveltools.feature.documents.GuideSortOrder
 import com.laralbir.japantraveltools.feature.planner.ItineraryStopItem
 import com.laralbir.japantraveltools.feature.planner.StopCategory
 import com.laralbir.japantraveltools.feature.planner.TripPlannerUseCase
+import com.laralbir.japantraveltools.feature.planner.map.DayItineraryMapView
+import com.laralbir.japantraveltools.feature.planner.map.GeoPoint
+import com.laralbir.japantraveltools.feature.planner.map.StopDetailMapModalSheet
+import com.laralbir.japantraveltools.feature.planner.map.UserLocationHelper
 import com.laralbir.japantraveltools.feature.settings.OpenSourceLibrariesCatalog
 import com.laralbir.japantraveltools.feature.transport.SharedTransportAlertStore
 import com.laralbir.japantraveltools.feature.transport.TransportAlert
@@ -197,6 +206,16 @@ import com.laralbir.japantraveltools.feature.transport.TransportAlertType
 import com.laralbir.japantraveltools.feature.transport.TransportMode
 import com.laralbir.japantraveltools.feature.transport.TransportPlannerUseCase
 import com.laralbir.japantraveltools.feature.transport.TransportSegmentItem
+import androidx.compose.ui.graphics.FilterQuality
+import com.laralbir.japantraveltools.feature.transport.pkpass.BarcodeBitmapGenerator
+import com.laralbir.japantraveltools.feature.transport.pkpass.BarcodeDisplayData
+import com.laralbir.japantraveltools.feature.transport.pkpass.BarcodeRendererView
+import com.laralbir.japantraveltools.feature.transport.pkpass.DuplicateResolutionState
+import com.laralbir.japantraveltools.feature.transport.pkpass.FullScreenBarcodeDialog
+import com.laralbir.japantraveltools.feature.transport.pkpass.ParsedPkPass
+import com.laralbir.japantraveltools.feature.transport.pkpass.PkPassBarcodeViewerDialog
+import com.laralbir.japantraveltools.feature.transport.pkpass.PkPassDuplicateResolutionDialog
+import com.laralbir.japantraveltools.feature.transport.pkpass.PkPassParser
 import com.laralbir.japantraveltools.feature.weather.JapanWeatherCity
 import com.laralbir.japantraveltools.feature.weather.OpenMeteoWeatherUseCase
 import com.laralbir.japantraveltools.feature.weather.PlanningSuitability
@@ -209,7 +228,9 @@ import com.laralbir.japantraveltools.ui.theme.JapanTravelToolsTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.TextStyle
 import java.util.Locale
 
 enum class DrawerSection(val titleEs: String, val titleEn: String) {
@@ -344,6 +365,7 @@ private fun AppOptionButton(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    height: Dp = 44.dp,
     fontSize: TextUnit = 14.sp,
     horizontalPadding: Dp = 10.dp
 ) {
@@ -368,7 +390,7 @@ private fun AppOptionButton(
         color = containerColor,
         border = BorderStroke(1.dp, borderColor),
         modifier = modifier
-            .height(44.dp)
+            .height(height)
             .clickable(onClick = onClick)
     ) {
         Box(
@@ -385,6 +407,125 @@ private fun AppOptionButton(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+        }
+    }
+}
+
+/** Formatea una fecha corta con día de la semana para los botones del selector de días (ej. "Lun 15 Mar" o "Mon, Mar 15"). */
+private fun formatDayDateLabel(
+    dayNum: Int,
+    startDateIso: String,
+    allStops: List<ItineraryStopItem>,
+    isEs: Boolean
+): String? {
+    val stopDate = allStops.firstOrNull { it.dayNumber == dayNum && it.dateIso.isNotBlank() }?.dateIso
+    val dateString = if (!stopDate.isNullOrBlank()) {
+        stopDate
+    } else if (startDateIso.isNotBlank()) {
+        runCatching {
+            val start = LocalDate.parse(startDateIso)
+            start.plusDays((dayNum - 1).toLong()).toString()
+        }.getOrNull()
+    } else {
+        null
+    }
+
+    if (dateString.isNullOrBlank()) return null
+
+    return runCatching {
+        val date = LocalDate.parse(dateString)
+        val locale = if (isEs) Locale.forLanguageTag("es-ES") else Locale.US
+        val dayOfWeek = date.dayOfWeek.getDisplayName(TextStyle.SHORT, locale).replaceFirstChar { it.titlecase(locale) }.removeSuffix(".")
+        val month = date.month.getDisplayName(TextStyle.SHORT, locale).replaceFirstChar { it.titlecase(locale) }.removeSuffix(".")
+        if (isEs) {
+            "$dayOfWeek ${date.dayOfMonth} $month"
+        } else {
+            "$dayOfWeek, $month ${date.dayOfMonth}"
+        }
+    }.getOrNull()
+}
+
+/** Calcula la fecha estimada para un nuevo día en función del plan o del último día existente. */
+private fun calculateNextDayDateIso(
+    dayNum: Int,
+    startDateIso: String,
+    allStops: List<ItineraryStopItem>
+): String {
+    val prevStopDate = allStops.filter { it.dayNumber < dayNum && it.dateIso.isNotBlank() }
+        .maxByOrNull { it.dayNumber }?.dateIso
+    if (!prevStopDate.isNullOrBlank()) {
+        val nextDate = runCatching {
+            LocalDate.parse(prevStopDate).plusDays(1).toString()
+        }.getOrNull()
+        if (nextDate != null) return nextDate
+    }
+    if (startDateIso.isNotBlank()) {
+        val nextDate = runCatching {
+            LocalDate.parse(startDateIso).plusDays((dayNum - 1).toLong()).toString()
+        }.getOrNull()
+        if (nextDate != null) return nextDate
+    }
+    return String.format(Locale.US, "2027-03-%02d", (14 + dayNum).coerceAtMost(31))
+}
+
+/** Chip compacto para el selector de día con indicación de fecha exacta en dos líneas legibles. */
+@Composable
+private fun DaySelectorChip(
+    dayNum: Int,
+    dateLabel: String?,
+    isEs: Boolean,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val containerColor = if (selected) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant
+    }
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val borderColor = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outline
+    }
+
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = containerColor,
+        border = BorderStroke(if (selected) 1.5.dp else 1.dp, borderColor),
+        modifier = modifier
+            .height(48.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .fillMaxHeight()
+                .padding(horizontal = 10.dp, vertical = 3.dp)
+        ) {
+            Text(
+                text = if (isEs) "Día $dayNum" else "Day $dayNum",
+                fontSize = 13.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                color = contentColor,
+                maxLines = 1
+            )
+            if (!dateLabel.isNullOrBlank()) {
+                Spacer(Modifier.height(1.dp))
+                Text(
+                    text = dateLabel,
+                    fontSize = 10.5.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = if (selected) contentColor else contentColor.copy(alpha = 0.85f),
+                    maxLines = 1
+                )
+            }
         }
     }
 }
@@ -1322,16 +1463,22 @@ private fun WeatherToolScreen(isEs: Boolean) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
                             onClick = {
-                                SharedWeatherForecastStore.syncCitiesFromPlan(
+                                val addedCount = SharedWeatherForecastStore.syncCitiesFromPlan(
                                     stops = portablePlan.itineraryStops,
                                     segments = portablePlan.transportSegments,
-                                    forceResetDeleted = false
+                                    forceResetDeleted = true
                                 )
-                                statusMessage = if (isEs) "🔄 Sincronizado con itinerario" else "🔄 Synced with trip plan"
+                                statusMessage = if (isEs) {
+                                    if (addedCount > 0) "✅ Se añadieron $addedCount ciudades del plan"
+                                    else "ℹ️ Todas las ciudades del plan ya están añadidas (${allCities.size} activas)"
+                                } else {
+                                    if (addedCount > 0) "✅ Added $addedCount cities from trip plan"
+                                    else "ℹ️ All trip plan cities already added (${allCities.size} active)"
+                                }
                             },
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                         ) {
-                            Text(if (isEs) "🔄 Plan" else "🔄 Plan", fontSize = 12.sp)
+                            Text(if (isEs) "➕ Ciudades del Plan" else "➕ Plan Cities", fontSize = 12.sp)
                         }
                         Button(
                             onClick = {
@@ -1944,6 +2091,37 @@ private fun TripPlannerTabScreen(
         selectedDay = availableDays.first()
     }
 
+    val allGuides by SharedDocumentsAndGuidesStore.guidesState.collectAsState()
+    val allDocs by SharedDocumentsAndGuidesStore.documentsState.collectAsState()
+
+    var isMapViewActive by rememberSaveable { mutableStateOf(false) }
+    var viewingMapStop by remember { mutableStateOf<ItineraryStopItem?>(null) }
+    var viewingGuideArticle by remember { mutableStateOf<TravelGuideArticle?>(null) }
+    var viewingTicketData by remember { mutableStateOf<BarcodeDisplayData?>(null) }
+
+    var userLocation by remember { mutableStateOf<GeoPoint?>(null) }
+    var hasLocationPermission by remember { mutableStateOf(UserLocationHelper.hasLocationPermission(context)) }
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { perms ->
+        val fine = perms[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        val coarse = perms[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (fine || coarse) {
+            hasLocationPermission = true
+            UserLocationHelper.requestCurrentLocation(context) { loc ->
+                if (loc != null) userLocation = loc
+            }
+        }
+    }
+
+    LaunchedEffect(hasLocationPermission) {
+        if (hasLocationPermission) {
+            UserLocationHelper.requestCurrentLocation(context) { loc ->
+                if (loc != null) userLocation = loc
+            }
+        }
+    }
+
     var editingStop by remember { mutableStateOf<ItineraryStopItem?>(null) }
     var isCreatingStop by remember { mutableStateOf(false) }
     var isCreatingPlan by remember { mutableStateOf(false) }
@@ -1963,6 +2141,84 @@ private fun TripPlannerTabScreen(
     }
     val dayWeather = remember(weatherForecasts, selectedDay) {
         SharedWeatherForecastStore.forecastForDayNumber(selectedDay)
+    }
+
+    if (viewingGuideArticle != null) {
+        FullGuideReaderDialog(
+            guide = viewingGuideArticle!!,
+            isEs = isEs,
+            onDismiss = { viewingGuideArticle = null }
+        )
+    }
+
+    if (viewingTicketData != null) {
+        PkPassBarcodeViewerDialog(
+            data = viewingTicketData!!,
+            isEs = isEs,
+            onDismiss = { viewingTicketData = null }
+        )
+    }
+
+    if (viewingMapStop != null) {
+        val stopIdx = dayStops.indexOfFirst { it.item.id == viewingMapStop!!.id } + 1
+        StopDetailMapModalSheet(
+            stop = viewingMapStop!!,
+            stopIndex = if (stopIdx > 0) stopIdx else 1,
+            isEs = isEs,
+            allGuides = allGuides,
+            allDocuments = allDocs,
+            allSegments = portablePlan.transportSegments,
+            onDismiss = { viewingMapStop = null },
+            onOpenGuide = { guide ->
+                viewingMapStop = null
+                viewingGuideArticle = guide
+            },
+            onViewTicket = { doc, seg ->
+                viewingMapStop = null
+                val displayData = if (seg != null) {
+                    BarcodeDisplayData(
+                        title = "${seg.operatorName} · ${seg.lineOrNumber}",
+                        subtitle = "${seg.departureName} ➔ ${seg.arrivalName}",
+                        extraDetails = "📅 ${seg.departureTimeIso} · 💺 ${seg.seatOrCarInfo}",
+                        barcodeMessage = seg.barcodeMessage ?: doc?.barcodeMessage ?: doc?.locatorCode ?: seg.id,
+                        barcodeFormat = seg.barcodeFormat ?: doc?.barcodeFormat,
+                        barcodeAltText = seg.barcodeAltText ?: doc?.barcodeAltText ?: doc?.locatorCode
+                    )
+                } else if (doc != null) {
+                    val detailLine = doc.referenceOrNotes.lines().firstOrNull { it.contains("Salida") || it.contains("Coche") || it.contains("Fecha") }
+                        ?: doc.referenceOrNotes.lines().firstOrNull { it.isNotBlank() }
+                        ?: ""
+                    BarcodeDisplayData(
+                        title = doc.title,
+                        subtitle = if (isEs) doc.category.labelEs else doc.category.labelEn,
+                        extraDetails = detailLine,
+                        barcodeMessage = doc.barcodeMessage ?: doc.locatorCode ?: doc.id,
+                        barcodeFormat = doc.barcodeFormat,
+                        barcodeAltText = doc.barcodeAltText ?: doc.locatorCode ?: doc.id
+                    )
+                } else null
+
+                if (displayData != null) {
+                    viewingTicketData = displayData
+                }
+            },
+            onOpenInGoogleMaps = { stop ->
+                val uri = Uri.parse("geo:${stop.latitude},${stop.longitude}?q=${Uri.encode(stop.placeNameJapanese.ifBlank { stop.title })}")
+                val mapIntent = Intent(Intent.ACTION_VIEW, uri)
+                mapIntent.setPackage("com.google.android.apps.maps")
+                try {
+                    context.startActivity(mapIntent)
+                } catch (_: Exception) {
+                    val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=${stop.latitude},${stop.longitude}"))
+                    context.startActivity(webIntent)
+                }
+            },
+            onEditStop = { stop ->
+                viewingMapStop = null
+                editingStop = stop
+                isCreatingStop = false
+            }
+        )
     }
 
     if (isCreatingPlan || isEditingPlan) {
@@ -2044,7 +2300,7 @@ private fun TripPlannerTabScreen(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // TOP CARD: ACTIVE TRAVEL PLAN & MULTI-PLAN MANAGEMENT
+        // TOP CARD: ACTIVE TRAVEL PLAN & COMPACT ACTIONS (CON INTEGRACIÓN JSON)
         KotlinConfCard {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -2054,195 +2310,426 @@ private fun TripPlannerTabScreen(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "🗓️ ${portablePlan.tripTitle}",
-                        fontSize = 20.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        text = "Inicio: ${portablePlan.startDateIso} · ${availableDays.size} días · ${allStops.size} paradas",
-                        fontSize = 13.sp,
+                        text = "${availableDays.size} días · ${allStops.size} paradas" +
+                            if (portablePlan.startDateIso.isNotBlank()) " · Inicio: ${portablePlan.startDateIso}" else "",
+                        fontSize = 12.5.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 if (allPlans.size > 1) {
-                    AppOptionButton(
-                        text = "📑 ${allPlans.size} planes",
-                        selected = false,
-                        onClick = { isSwitchingPlan = true },
-                        modifier = Modifier.width(110.dp)
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                        modifier = Modifier
+                            .height(30.dp)
+                            .clickable { isSwitchingPlan = true }
+                    ) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 8.dp)) {
+                            Text(
+                                text = "📑 ${allPlans.size} planes",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
 
+            // Botones de acción del plan discretos y compactos (altura 32dp)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                AppOptionButton(
-                    text = if (isEs) "➕ Nuevo Plan" else "➕ New Plan",
-                    selected = false,
-                    onClick = { isCreatingPlan = true },
-                    modifier = Modifier.weight(1f)
-                )
-                AppOptionButton(
-                    text = if (isEs) "✏️ Editar Plan" else "✏️ Edit Plan",
-                    selected = false,
-                    onClick = { isEditingPlan = true },
-                    modifier = Modifier.weight(1f)
-                )
-                if (allPlans.size > 1) {
-                    AppOptionButton(
-                        text = if (isEs) "📑 Cambiar" else "📑 Switch",
-                        selected = false,
-                        onClick = { isSwitchingPlan = true },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                AppOptionButton(
-                    text = if (isEs) "🗑️ Borrar Plan" else "🗑️ Delete Plan",
-                    selected = false,
-                    onClick = {
-                        confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
-                            itemName = portablePlan.tripTitle,
-                            itemTypeEs = "plan de viaje completo",
-                            itemTypeEn = "complete travel plan",
-                            isEs = isEs,
-                            onConfirm = { SharedTravelPlanStore.deleteCurrentPlan() }
+                // Botón "➕ Nuevo Plan" con menú integrado para JSON / Drive
+                Box(modifier = Modifier.weight(1f)) {
+                    var isNewPlanMenuOpen by remember { mutableStateOf(false) }
+
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(32.dp)
+                            .clickable { isNewPlanMenuOpen = true }
+                    ) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp)) {
+                            Text(
+                                text = if (isEs) "➕ Nuevo ▾" else "➕ New ▾",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
+                            )
+                        }
+                    }
+
+                    DropdownMenu(
+                        expanded = isNewPlanMenuOpen,
+                        onDismissRequest = { isNewPlanMenuOpen = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(if (isEs) "✏️ Crear Plan desde cero" else "✏️ Create Blank Plan") },
+                            onClick = {
+                                isNewPlanMenuOpen = false
+                                isCreatingPlan = true
+                            }
                         )
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
+                        DropdownMenuItem(
+                            text = { Text(if (isEs) "📂 Importar Plan (JSON / Drive)" else "📂 Import Plan (JSON / Drive)") },
+                            onClick = {
+                                isNewPlanMenuOpen = false
+                                onOpenJsonPortability()
+                            }
+                        )
+                    }
+                }
 
-        Spacer(Modifier.height(12.dp))
+                // Botón "✏️ Editar"
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(32.dp)
+                        .clickable { isEditingPlan = true }
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp)) {
+                        Text(
+                            text = if (isEs) "✏️ Editar" else "✏️ Edit",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
+                }
 
-        // Day selector row + Add Day button
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            availableDays.forEach { dayNum ->
-                AppOptionButton(
-                    text = if (isEs) "Día $dayNum" else "Day $dayNum",
-                    selected = selectedDay == dayNum,
-                    onClick = { selectedDay = dayNum },
-                    modifier = Modifier.width(92.dp)
-                )
+                // Botón "📑 Cambiar" (si hay varios planes)
+                if (allPlans.size > 1) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(32.dp)
+                            .clickable { isSwitchingPlan = true }
+                    ) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp)) {
+                            Text(
+                                text = if (isEs) "📑 Cambiar" else "📑 Switch",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+
+                // Botón "🗑️ Borrar"
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(32.dp)
+                        .clickable {
+                            confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
+                                itemName = portablePlan.tripTitle,
+                                itemTypeEs = "plan de viaje completo",
+                                itemTypeEn = "complete travel plan",
+                                isEs = isEs,
+                                onConfirm = { SharedTravelPlanStore.deleteCurrentPlan() }
+                            )
+                        }
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp)) {
+                        Text(
+                            text = if (isEs) "🗑️ Borrar" else "🗑️ Delete",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.error,
+                            maxLines = 1
+                        )
+                    }
+                }
             }
-            AppOptionButton(
-                text = if (isEs) "➕ Día" else "➕ Day",
-                selected = false,
-                onClick = {
-                    val nextDay = (availableDays.maxOrNull() ?: 0) + 1
-                    selectedDay = nextDay
-                    editingStop = ItineraryStopItem(
-                        id = "stop-${System.currentTimeMillis()}",
-                        dayNumber = nextDay,
-                        dateIso = String.format(Locale.US, "2026-11-%02d", (10 + nextDay).coerceAtMost(30)),
-                        startTime = "09:30",
-                        endTime = "11:00",
-                        title = "",
-                        category = StopCategory.SIGHTSEEING,
-                        placeNameJapanese = "",
-                        latitude = 35.6762,
-                        longitude = 139.6503,
-                        notes = ""
-                    )
-                    isCreatingStop = true
-                },
-                modifier = Modifier.width(92.dp)
-            )
         }
 
         Spacer(Modifier.height(10.dp))
 
-        // Standardized 2-button toolbar: Add Stop + Plan Options / Clear
-        AppButtonRow(
-            primaryText = if (isEs) "➕ Añadir Parada" else "➕ Add Stop",
-            onPrimaryClick = {
-                editingStop = null
-                isCreatingStop = true
-            },
-            secondaryText = if (isEs) "⚙️ JSON / Vaciar" else "⚙️ JSON / Clear",
-            onSecondaryClick = onOpenJsonPortability
-        )
-
-        if (dayStops.isNotEmpty()) {
-            Spacer(Modifier.height(8.dp))
+        // FILA DE SELECTOR DE DÍAS (CON FECHA EXACTA) + BOTÓN PARADA COMPACTO + MENÚ DE ACCIONES
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Scroll horizontal de días con fecha exacta
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .weight(1f)
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                InfoTagPill(
-                    text = "${dayWeather.condition.emoji} ${dayWeather.tempMinC.toInt()}°/${dayWeather.tempMaxC.toInt()}°C · ☔ ${dayWeather.precipitationProbabilityMax}%"
-                )
-                AppOptionButton(
-                    text = if (isEs) "🗑️ Borrar Día $selectedDay" else "🗑️ Delete Day $selectedDay",
-                    selected = false,
-                    onClick = {
-                        confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
-                            itemName = if (isEs) "Día $selectedDay (${dayStops.size} paradas)" else "Day $selectedDay (${dayStops.size} stops)",
-                            itemTypeEs = "día completo del itinerario",
-                            itemTypeEn = "full itinerary day",
-                            isEs = isEs,
-                            onConfirm = { SharedTravelPlanStore.deleteDay(selectedDay) }
+                availableDays.forEach { dayNum ->
+                    val dateLabel = formatDayDateLabel(
+                        dayNum = dayNum,
+                        startDateIso = portablePlan.startDateIso,
+                        allStops = allStops,
+                        isEs = isEs
+                    )
+                    DaySelectorChip(
+                        dayNum = dayNum,
+                        dateLabel = dateLabel,
+                        isEs = isEs,
+                        selected = selectedDay == dayNum,
+                        onClick = { selectedDay = dayNum }
+                    )
+                }
+            }
+
+            Spacer(Modifier.width(8.dp))
+
+            // Menú desplegable para gestionar días y paradas (Añadir Parada, Añadir Día, Eliminar Día)
+            Box {
+                var isDayMenuOpen by remember { mutableStateOf(false) }
+
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clickable { isDayMenuOpen = true }
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "⋮",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    },
-                    modifier = Modifier.width(150.dp)
-                )
+                    }
+                }
+
+                DropdownMenu(
+                    expanded = isDayMenuOpen,
+                    onDismissRequest = { isDayMenuOpen = false }
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                if (isEs) "➕ Añadir Parada (Día $selectedDay)" else "➕ Add Stop (Day $selectedDay)",
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        },
+                        onClick = {
+                            isDayMenuOpen = false
+                            editingStop = null
+                            isCreatingStop = true
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(if (isEs) "📅 Añadir Nuevo Día" else "📅 Add New Day")
+                        },
+                        onClick = {
+                            isDayMenuOpen = false
+                            val nextDay = (availableDays.maxOrNull() ?: 0) + 1
+                            selectedDay = nextDay
+                            val nextDateIso = calculateNextDayDateIso(nextDay, portablePlan.startDateIso, allStops)
+                            editingStop = ItineraryStopItem(
+                                id = "stop-${System.currentTimeMillis()}",
+                                dayNumber = nextDay,
+                                dateIso = nextDateIso,
+                                startTime = "09:30",
+                                endTime = "11:00",
+                                title = "",
+                                category = StopCategory.SIGHTSEEING,
+                                placeNameJapanese = "",
+                                latitude = 35.6762,
+                                longitude = 139.6503,
+                                notes = ""
+                            )
+                            isCreatingStop = true
+                        }
+                    )
+                    if (availableDays.size > 1) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    if (isEs) "🗑️ Eliminar Día $selectedDay" else "🗑️ Delete Day $selectedDay",
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            },
+                            onClick = {
+                                isDayMenuOpen = false
+                                confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
+                                    itemName = if (isEs) "Día $selectedDay (${dayStops.size} paradas)" else "Day $selectedDay (${dayStops.size} stops)",
+                                    itemTypeEs = "día completo del itinerario",
+                                    itemTypeEn = "full itinerary day",
+                                    isEs = isEs,
+                                    onConfirm = { SharedTravelPlanStore.deleteDay(selectedDay) }
+                                )
+                            }
+                        )
+                    }
+                }
             }
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(8.dp))
 
-        if (dayStops.isEmpty()) {
+        // Fila sutil con información meteorológica del día y contador de paradas
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            InfoTagPill(
+                text = "${dayWeather.condition.emoji} ${dayWeather.tempMinC.toInt()}°/${dayWeather.tempMaxC.toInt()}°C · ☔ ${dayWeather.precipitationProbabilityMax}%"
+            )
+            Text(
+                text = if (isEs) {
+                    if (dayStops.size == 1) "📍 1 parada" else "📍 ${dayStops.size} paradas"
+                } else {
+                    if (dayStops.size == 1) "📍 1 stop" else "📍 ${dayStops.size} stops"
+                },
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        // Alternador de vista: Horario vs Mapa del Día
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = if (!isMapViewActive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                border = BorderStroke(1.dp, if (!isMapViewActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(34.dp)
+                    .clickable { isMapViewActive = false }
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = if (isEs) "📋 Horario" else "📋 Schedule",
+                        fontSize = 12.5.sp,
+                        fontWeight = if (!isMapViewActive) FontWeight.Bold else FontWeight.Medium,
+                        color = if (!isMapViewActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = if (isMapViewActive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                border = BorderStroke(1.dp, if (isMapViewActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(34.dp)
+                    .clickable { isMapViewActive = true }
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = if (isEs) "🗺️ Mapa del Día" else "🗺️ Day Map",
+                        fontSize = 12.5.sp,
+                        fontWeight = if (isMapViewActive) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isMapViewActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(10.dp))
+
+        if (isMapViewActive) {
+            DayItineraryMapView(
+                stops = dayStops.map { it.item },
+                selectedStop = viewingMapStop,
+                onStopClick = { stop -> viewingMapStop = stop },
+                userLocation = userLocation,
+                hasLocationPermission = hasLocationPermission,
+                onRequestLocationPermission = {
+                    locationPermissionLauncher.launch(
+                        arrayOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                        )
+                    )
+                },
+                onOpenExternalRoute = {
+                    val valid = dayStops.map { it.item }.filter { it.latitude != 0.0 && it.longitude != 0.0 }
+                    if (valid.isNotEmpty()) {
+                        val wp = valid.joinToString("/") { "${it.latitude},${it.longitude}" }
+                        val uri = Uri.parse("https://www.google.com/maps/dir/$wp")
+                        runCatching {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                        }
+                    }
+                },
+                isEs = isEs,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else if (dayStops.isEmpty()) {
             KotlinConfCard {
                 Text(
-                    text = if (isEs) "No hay paradas en este día" else "No stops on this day",
-                    fontSize = 19.sp,
+                    text = if (isEs) "No hay paradas en el Día $selectedDay" else "No stops on Day $selectedDay",
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
                     text = if (isEs) {
-                        "Pulsa «➕ Añadir Parada» para crear tu propio itinerario paso a paso, o «⚙️ JSON / Vaciar» para importar un plan o cargar la demo."
+                        "Pulsa «➕ Parada» para añadir la primera visita o actividad a este día."
                     } else {
-                        "Tap «➕ Add Stop» to create your own itinerary, or «⚙️ JSON / Clear» to import a plan or load demo data."
+                        "Tap «➕ Stop» to add the first visit or activity to this day."
                     },
-                    fontSize = 15.sp,
+                    fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.height(14.dp))
-                AppButtonRow(
-                    primaryText = if (isEs) "➕ Crear Parada" else "➕ Create Stop",
-                    onPrimaryClick = {
-                        editingStop = null
-                        isCreatingStop = true
-                    },
-                    secondaryText = if (isEs) "🔄 Cargar Demo" else "🔄 Load Demo",
-                    onSecondaryClick = {
-                        confirmationDialogState = ConfirmationDialogState(
-                            title = if (isEs) "¿Cargar datos demo?" else "Load demo data?",
-                            message = if (isEs) {
-                                "Se sobrescribirá el itinerario actual con los datos de prueba. ¿Deseas continuar?"
-                            } else {
-                                "The current itinerary will be overwritten with sample data. Continue?"
-                            },
-                            confirmButtonText = if (isEs) "🔄 Cargar" else "🔄 Load",
-                            dismissButtonText = if (isEs) "Cancelar" else "Cancel",
-                            isDestructive = true,
-                            onConfirm = { SharedTravelPlanStore.resetToDefaults() }
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp)
+                        .clickable {
+                            editingStop = null
+                            isCreatingStop = true
+                        }
+                ) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                        Text(
+                            text = if (isEs) "➕ Añadir Primera Parada" else "➕ Add First Stop",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
                     }
-                )
+                }
             }
         } else {
             LazyColumn(
@@ -2844,12 +3331,134 @@ private fun TransportTabScreen(
 
     var editingSegment by remember { mutableStateOf<TransportSegmentItem?>(null) }
     var isCreatingSegment by remember { mutableStateOf(false) }
+    var pkpassStatusMessage by remember { mutableStateOf<String?>(null) }
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
+    var viewingBarcodeData by remember { mutableStateOf<BarcodeDisplayData?>(null) }
+    var duplicateResolutionState by remember { mutableStateOf<DuplicateResolutionState?>(null) }
+
+    val pkpassPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.openInputStream(uri)?.use { stream ->
+                    PkPassParser.parsePkPass(stream).onSuccess { parsed ->
+                        val duplicate = PkPassParser.findDuplicate(parsed, segments)
+                        if (duplicate != null) {
+                            duplicateResolutionState = DuplicateResolutionState(parsed, duplicate)
+                        } else {
+                            val nextOrder = (segments.maxOfOrNull { it.order } ?: 0) + 1
+                            val segment = PkPassParser.toTransportSegment(parsed, order = nextOrder)
+                            val doc = PkPassParser.toTravelDocument(parsed)
+                            val linkedSegment = segment.copy(linkedDocumentId = doc.id)
+                            val linkedDoc = doc.copy(linkedTransportSegmentId = segment.id)
+                            SharedTravelPlanStore.upsertTransportSegment(linkedSegment)
+                            SharedDocumentsAndGuidesStore.upsertDocument(linkedDoc)
+                            pkpassStatusMessage = if (isEs) {
+                                "✅ Billete importado: ${segment.operatorName} ${segment.lineOrNumber} (${segment.departureName} ➔ ${segment.arrivalName})"
+                            } else {
+                                "✅ Ticket imported: ${segment.operatorName} ${segment.lineOrNumber} (${segment.departureName} ➔ ${segment.arrivalName})"
+                            }
+                            if (!linkedSegment.barcodeMessage.isNullOrBlank()) {
+                                viewingBarcodeData = BarcodeDisplayData(
+                                    title = "${linkedSegment.operatorName} · ${linkedSegment.lineOrNumber}",
+                                    subtitle = "${linkedSegment.departureName} ➔ ${linkedSegment.arrivalName}",
+                                    extraDetails = "📅 ${linkedSegment.departureTimeIso} · 💺 ${linkedSegment.seatOrCarInfo}",
+                                    barcodeMessage = linkedSegment.barcodeMessage,
+                                    barcodeFormat = linkedSegment.barcodeFormat,
+                                    barcodeAltText = linkedSegment.barcodeAltText ?: linkedSegment.stationExitOrBelt
+                                )
+                            }
+                        }
+                    }.onFailure {
+                        pkpassStatusMessage = if (isEs) {
+                            "❌ Error al procesar billete .pkpass: ${it.localizedMessage}"
+                        } else {
+                            "❌ Failed to parse .pkpass ticket: ${it.localizedMessage}"
+                        }
+                    }
+                }
+            }.onFailure {
+                pkpassStatusMessage = if (isEs) "❌ Error al abrir archivo: ${it.localizedMessage}" else "❌ Error opening file: ${it.localizedMessage}"
+            }
+        }
+    }
 
     AppConfirmationDialog(
         state = confirmationDialogState,
         onDismiss = { confirmationDialogState = null }
     )
+
+    if (viewingBarcodeData != null) {
+        PkPassBarcodeViewerDialog(
+            data = viewingBarcodeData!!,
+            isEs = isEs,
+            onDismiss = { viewingBarcodeData = null }
+        )
+    }
+
+    if (duplicateResolutionState != null) {
+        PkPassDuplicateResolutionDialog(
+            state = duplicateResolutionState!!,
+            isEs = isEs,
+            onReplace = {
+                val currentDup = duplicateResolutionState!!.existingSegment
+                val currentPass = duplicateResolutionState!!.parsedPass
+                val docId = currentDup.linkedDocumentId ?: "doc-pkpass-${System.currentTimeMillis()}"
+                val updatedSegment = PkPassParser.toTransportSegment(currentPass, order = currentDup.order, id = currentDup.id).copy(
+                    linkedDocumentId = docId
+                )
+                val doc = PkPassParser.toTravelDocument(currentPass, id = docId).copy(
+                    linkedTransportSegmentId = currentDup.id
+                )
+                SharedTravelPlanStore.upsertTransportSegment(updatedSegment)
+                SharedDocumentsAndGuidesStore.upsertDocument(doc)
+                pkpassStatusMessage = if (isEs) {
+                    "✅ Billete sustituido: ${updatedSegment.operatorName} ${updatedSegment.lineOrNumber}"
+                } else {
+                    "✅ Ticket replaced: ${updatedSegment.operatorName} ${updatedSegment.lineOrNumber}"
+                }
+                if (!updatedSegment.barcodeMessage.isNullOrBlank()) {
+                    viewingBarcodeData = BarcodeDisplayData(
+                        title = "${updatedSegment.operatorName} · ${updatedSegment.lineOrNumber}",
+                        subtitle = "${updatedSegment.departureName} ➔ ${updatedSegment.arrivalName}",
+                        extraDetails = "📅 ${updatedSegment.departureTimeIso} · 💺 ${updatedSegment.seatOrCarInfo}",
+                        barcodeMessage = updatedSegment.barcodeMessage,
+                        barcodeFormat = updatedSegment.barcodeFormat,
+                        barcodeAltText = updatedSegment.barcodeAltText ?: updatedSegment.stationExitOrBelt
+                    )
+                }
+                duplicateResolutionState = null
+            },
+            onDuplicate = {
+                val currentPass = duplicateResolutionState!!.parsedPass
+                val nextOrder = (segments.maxOfOrNull { it.order } ?: 0) + 1
+                val segment = PkPassParser.toTransportSegment(currentPass, order = nextOrder)
+                val doc = PkPassParser.toTravelDocument(currentPass)
+                val linkedSegment = segment.copy(linkedDocumentId = doc.id)
+                val linkedDoc = doc.copy(linkedTransportSegmentId = segment.id)
+                SharedTravelPlanStore.upsertTransportSegment(linkedSegment)
+                SharedDocumentsAndGuidesStore.upsertDocument(linkedDoc)
+                pkpassStatusMessage = if (isEs) {
+                    "✅ Billete duplicado: ${segment.operatorName} ${segment.lineOrNumber}"
+                } else {
+                    "✅ Ticket duplicated: ${segment.operatorName} ${segment.lineOrNumber}"
+                }
+                if (!linkedSegment.barcodeMessage.isNullOrBlank()) {
+                    viewingBarcodeData = BarcodeDisplayData(
+                        title = "${linkedSegment.operatorName} · ${linkedSegment.lineOrNumber}",
+                        subtitle = "${linkedSegment.departureName} ➔ ${linkedSegment.arrivalName}",
+                        extraDetails = "📅 ${linkedSegment.departureTimeIso} · 💺 ${linkedSegment.seatOrCarInfo}",
+                        barcodeMessage = linkedSegment.barcodeMessage,
+                        barcodeFormat = linkedSegment.barcodeFormat,
+                        barcodeAltText = linkedSegment.barcodeAltText ?: linkedSegment.stationExitOrBelt
+                    )
+                }
+                duplicateResolutionState = null
+            },
+            onDismiss = { duplicateResolutionState = null }
+        )
+    }
 
     LaunchedEffect(segments, isEs) {
         SharedTransportAlertStore.evaluate(segments, context, isEs)
@@ -2977,74 +3586,7 @@ private fun TransportTabScreen(
             }
         }
 
-        // 2. ALERT TEST & SIMULATION CONTROL CARD
-        item {
-            KotlinConfCard {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (isEs) "🔔 Avisos de Facturación y Embarque" else "🔔 Flight & Transport Alerts",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    InfoTagPill(text = if (alerts.isNotEmpty()) "${alerts.size} activas" else if (isEs) "Activo" else "Active")
-                }
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = if (isEs) {
-                        "La app detecta automáticamente la proximidad de la facturación, el embarque y la salida de tus vuelos y trenes, mostrando advertencias visuales y notificaciones al móvil."
-                    } else {
-                        "The app automatically alerts you when check-in, boarding or departure approaches with visual warnings and push notifications."
-                    },
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    text = if (isEs) "Probar aviso en este dispositivo:" else "Test alert on this device:",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(Modifier.height(6.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = {
-                            SharedTransportAlertStore.triggerSimulation(context, TransportAlertType.BOARDING_NOW, isEs)
-                        },
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
-                    ) {
-                        Text(if (isEs) "🚨 Embarque" else "🚨 Boarding", fontSize = 11.sp, maxLines = 1)
-                    }
-                    OutlinedButton(
-                        onClick = {
-                            SharedTransportAlertStore.triggerSimulation(context, TransportAlertType.CHECK_IN_APPROACHING, isEs)
-                        },
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
-                    ) {
-                        Text(if (isEs) "🧳 Facturación" else "🧳 Check-in", fontSize = 11.sp, maxLines = 1)
-                    }
-                    OutlinedButton(
-                        onClick = {
-                            SharedTransportAlertStore.triggerSimulation(context, TransportAlertType.DEPARTURE_IMMINENT, isEs)
-                        },
-                        modifier = Modifier.weight(1f),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp)
-                    ) {
-                        Text(if (isEs) "🚄 Tren Salida" else "🚄 Train Dep", fontSize = 11.sp, maxLines = 1)
-                    }
-                }
-            }
-        }
-
-        // 3. TRANSPORT FILTER BUTTONS & ACTIONS
+        // 2. TRANSPORT FILTER BUTTONS & ACTIONS
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
@@ -3071,15 +3613,69 @@ private fun TransportTabScreen(
                     )
                 }
 
-                AppButtonRow(
-                    primaryText = if (isEs) "➕ Añadir Transporte" else "➕ Add Transport",
-                    onPrimaryClick = {
-                        editingSegment = null
-                        isCreatingSegment = true
-                    },
-                    secondaryText = if (isEs) "⚙️ JSON / Vaciar" else "⚙️ JSON / Clear",
-                    onSecondaryClick = onOpenJsonPortability
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AppPrimaryButton(
+                        text = if (isEs) "➕ Añadir" else "➕ Add",
+                        onClick = {
+                            editingSegment = null
+                            isCreatingSegment = true
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(42.dp)
+                    )
+                    OutlinedButton(
+                        onClick = {
+                            runCatching {
+                                pkpassPickerLauncher.launch(arrayOf("*/*"))
+                            }
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .weight(1.3f)
+                            .height(42.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp)
+                    ) {
+                        Text(
+                            text = if (isEs) "🎫 Importar .pkpass" else "🎫 Import .pkpass",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1
+                        )
+                    }
+                }
+
+                if (pkpassStatusMessage != null) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = pkpassStatusMessage!!,
+                                fontSize = 12.5.sp,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(
+                                onClick = { pkpassStatusMessage = null },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Text("✕", fontSize = 11.sp)
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -3232,6 +3828,26 @@ private fun TransportTabScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        if (!seg.barcodeMessage.isNullOrBlank()) {
+                            Button(
+                                onClick = {
+                                    viewingBarcodeData = BarcodeDisplayData(
+                                        title = "${seg.operatorName} · ${seg.lineOrNumber}",
+                                        subtitle = "${seg.departureName} ➔ ${seg.arrivalName}",
+                                        extraDetails = "📅 ${seg.departureTimeIso} · 💺 ${seg.seatOrCarInfo}",
+                                        barcodeMessage = seg.barcodeMessage,
+                                        barcodeFormat = seg.barcodeFormat,
+                                        barcodeAltText = seg.barcodeAltText ?: seg.stationExitOrBelt
+                                    )
+                                },
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                                modifier = Modifier
+                                    .height(34.dp)
+                                    .weight(1.1f)
+                            ) {
+                                Text(if (isEs) "📱 Ver QR" else "📱 Show QR", fontSize = 12.5.sp, maxLines = 1)
+                            }
+                        }
                         OutlinedButton(
                             onClick = {
                                 isCreatingSegment = false
@@ -3242,7 +3858,7 @@ private fun TransportTabScreen(
                                 .height(34.dp)
                                 .weight(1f)
                         ) {
-                            Text(if (isEs) "✏️ Editar" else "✏️ Edit", fontSize = 13.sp)
+                            Text(if (isEs) "✏️ Editar" else "✏️ Edit", fontSize = 12.5.sp, maxLines = 1)
                         }
                         OutlinedButton(
                             onClick = {
@@ -3260,7 +3876,7 @@ private fun TransportTabScreen(
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                             modifier = Modifier.height(34.dp)
                         ) {
-                            Text(if (isEs) "🗑️ Eliminar" else "🗑️ Delete", fontSize = 13.sp)
+                            Text(if (isEs) "🗑️ Eliminar" else "🗑️ Delete", fontSize = 12.5.sp, maxLines = 1)
                         }
                     }
                 }
@@ -4974,124 +5590,6 @@ private fun VoiceTranslatorScreen(isEs: Boolean, prefs: UserPreferences? = null)
                                             text = if (isEs) "🔊 Escuchar en Japonés" else "🔊 Speak in Japanese",
                                             fontWeight = FontWeight.Bold
                                         )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // FRASES RÁPIDAS DE VIAJE PARA INSERTAR Y TRADUCIR
-                item {
-                    KotlinConfCard {
-                        Text(
-                            text = if (isEs) "💡 Frases Rápidas para Traducir" else "💡 Quick Phrases to Translate",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = if (isEs) {
-                                "Toca cualquier frase para insertarla en el traductor de texto, ver su traducción y escuchar su pronunciación:"
-                            } else {
-                                "Tap any phrase to insert it into the text translator, view translation and hear pronunciation:"
-                            },
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.height(14.dp))
-
-                        var selectedCategoryFilter by remember { mutableStateOf<String?>(null) }
-                        val categories = remember {
-                            listOf("TODAS") + OfflineTranslatorEngine.travelerQuickPhrases.map { it.categoryBadge }.distinct()
-                        }
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            categories.forEach { category ->
-                                val isSelected = (selectedCategoryFilter == null && category == "TODAS") || selectedCategoryFilter == category
-                                AppOptionButton(
-                                    text = category,
-                                    selected = isSelected,
-                                    onClick = {
-                                        selectedCategoryFilter = if (category == "TODAS") null else category
-                                    }
-                                )
-                            }
-                        }
-
-                        Spacer(Modifier.height(14.dp))
-
-                        val filteredPhrases = remember(selectedCategoryFilter) {
-                            if (selectedCategoryFilter == null) OfflineTranslatorEngine.travelerQuickPhrases
-                            else OfflineTranslatorEngine.travelerQuickPhrases.filter { it.categoryBadge == selectedCategoryFilter }
-                        }
-
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            filteredPhrases.forEach { phrase ->
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            textTranslatorInput = phrase.sourceEs
-                                            performTextTranslation(phrase.sourceEs, autoSpeak = true)
-                                        }
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(14.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Surface(
-                                                shape = RoundedCornerShape(4.dp),
-                                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-                                                modifier = Modifier.padding(bottom = 6.dp)
-                                            ) {
-                                                Text(
-                                                    text = phrase.categoryBadge,
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                )
-                                            }
-                                            Text(
-                                                text = if (isEs) phrase.sourceEs else phrase.sourceEn,
-                                                fontSize = 15.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                            Spacer(Modifier.height(4.dp))
-                                            Text(
-                                                text = phrase.japaneseText,
-                                                fontSize = 19.sp,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
-                                            Spacer(Modifier.height(2.dp))
-                                            Text(
-                                                text = "🗣️ ${phrase.romaji}",
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Medium,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                        Spacer(Modifier.width(8.dp))
-                                        IconButton(
-                                            onClick = {
-                                                speakOutLoud(phrase.japaneseText, Locale.JAPAN)
-                                            }
-                                        ) {
-                                            Text("🔊", fontSize = 22.sp)
-                                        }
                                     }
                                 }
                             }
@@ -7815,7 +8313,7 @@ private fun BookingsVaultScreen(isEs: Boolean) {
                                 Text(if (isEs) "📄 Archivo" else "📄 File", fontSize = 12.sp, maxLines = 1)
                             }
                         }
-                        if (!doc.locatorCode.isNullOrBlank()) {
+                        if (!doc.locatorCode.isNullOrBlank() || !doc.barcodeMessage.isNullOrBlank()) {
                             OutlinedButton(
                                 onClick = { viewingPassDoc = doc },
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
@@ -7867,110 +8365,44 @@ private fun WalletTicketPassDialog(
     isEs: Boolean,
     onDismiss: () -> Unit
 ) {
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    InfoTagPill(
-                        text = doc.category.badgeCode,
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Text(
-                        text = if (isEs) "Pase Digital Offline" else "Digital Offline Pass",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
-                }
-
-                Spacer(Modifier.height(14.dp))
-
-                Text(
-                    text = doc.title,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-
-                if (doc.referenceOrNotes.isNotBlank()) {
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = doc.referenceOrNotes,
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-                }
-
-                Spacer(Modifier.height(18.dp))
-
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFDDDDDD)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(18.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "🎫 █║▌║█║▌│║▌║▌█║ 🎫",
-                            fontSize = 24.sp,
-                            color = Color.Black,
-                            letterSpacing = 1.sp
-                        )
-                        Spacer(Modifier.height(10.dp))
-                        Text(
-                            text = doc.locatorCode ?: doc.id,
-                            fontSize = 19.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.Black,
-                            letterSpacing = 2.sp
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(14.dp))
-
-                Text(
-                    text = if (isEs) "💡 Sube el brillo de la pantalla para escanear en tornos o controles" else "💡 Increase screen brightness when scanning at gates",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(Modifier.height(16.dp))
-
-                Button(
-                    onClick = onDismiss,
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(text = if (isEs) "Cerrar Pase" else "Close Pass", fontSize = 14.sp)
-                }
-            }
+    val travelPlan by SharedTravelPlanStore.planState.collectAsState()
+    val linkedSegment = if (doc.linkedTransportSegmentId != null) {
+        travelPlan.transportSegments.firstOrNull { it.id == doc.linkedTransportSegmentId }
+    } else {
+        travelPlan.transportSegments.firstOrNull { seg ->
+            seg.linkedDocumentId == doc.id ||
+            (!doc.locatorCode.isNullOrBlank() && seg.stationExitOrBelt.contains(doc.locatorCode.orEmpty(), ignoreCase = true))
         }
     }
+
+    val displayData = if (linkedSegment != null) {
+        BarcodeDisplayData(
+            title = "${linkedSegment.operatorName} · ${linkedSegment.lineOrNumber}",
+            subtitle = "${linkedSegment.departureName} ➔ ${linkedSegment.arrivalName}",
+            extraDetails = "📅 ${linkedSegment.departureTimeIso} · 💺 ${linkedSegment.seatOrCarInfo}",
+            barcodeMessage = linkedSegment.barcodeMessage ?: doc.barcodeMessage ?: doc.locatorCode ?: doc.id,
+            barcodeFormat = linkedSegment.barcodeFormat ?: doc.barcodeFormat,
+            barcodeAltText = linkedSegment.barcodeAltText ?: doc.barcodeAltText ?: doc.locatorCode
+        )
+    } else {
+        val detailLine = doc.referenceOrNotes.lines().firstOrNull { it.contains("Salida") || it.contains("Coche") || it.contains("Fecha") }
+            ?: doc.referenceOrNotes.lines().firstOrNull { it.isNotBlank() }
+            ?: ""
+        BarcodeDisplayData(
+            title = doc.title,
+            subtitle = if (isEs) doc.category.labelEs else doc.category.labelEn,
+            extraDetails = detailLine,
+            barcodeMessage = doc.barcodeMessage ?: doc.locatorCode ?: doc.id,
+            barcodeFormat = doc.barcodeFormat,
+            barcodeAltText = doc.barcodeAltText ?: doc.locatorCode ?: doc.id
+        )
+    }
+
+    PkPassBarcodeViewerDialog(
+        data = displayData,
+        isEs = isEs,
+        onDismiss = onDismiss
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -8696,6 +9128,10 @@ private fun SettingsPreferencesScreen(
         }
 
         item {
+            TransportAlertsNotificationCard(isEs = isEs)
+        }
+
+        item {
             GoogleDriveSyncCard(
                 isEs = isEs,
                 prefs = prefs,
@@ -8716,6 +9152,279 @@ private fun SettingsPreferencesScreen(
                 isEs = isEs,
                 prefs = prefs,
                 prefsRepository = prefsRepository
+            )
+        }
+
+        item {
+            KotlinConfCard {
+                Text(
+                    text = if (isEs) "Restablecer Datos de Demostración" else "Reset Demo Data",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = if (isEs) {
+                        "Si deseas reiniciar la aplicación con los itinerarios y datos de prueba predeterminados, puedes restablecerlos aquí."
+                    } else {
+                        "If you wish to reset the application with the default sample itineraries and data, you can restore them here."
+                    },
+                    fontSize = 13.5.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(12.dp))
+                var showResetConfirm by remember { mutableStateOf(false) }
+                OutlinedButton(
+                    onClick = { showResetConfirm = true },
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    modifier = Modifier.fillMaxWidth().height(40.dp)
+                ) {
+                    Text(if (isEs) "🔄 Restablecer Itinerarios Demo" else "🔄 Reset Demo Itineraries", fontSize = 13.sp)
+                }
+                if (showResetConfirm) {
+                    AppConfirmationDialog(
+                        state = ConfirmationDialogState(
+                            title = if (isEs) "¿Restablecer itinerario demo?" else "Reset demo itinerary?",
+                            message = if (isEs) {
+                                "Se recargarán los planes y paradas de prueba originales. ¿Deseas continuar?"
+                            } else {
+                                "The original sample plans and stops will be reloaded. Continue?"
+                            },
+                            confirmButtonText = if (isEs) "🔄 Restablecer" else "🔄 Reset",
+                            dismissButtonText = if (isEs) "Cancelar" else "Cancel",
+                            isDestructive = true,
+                            onConfirm = {
+                                showResetConfirm = false
+                                SharedTravelPlanStore.resetToDefaults()
+                            }
+                        ),
+                        onDismiss = { showResetConfirm = false }
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Tarjeta en Ajustes para verificar permisos de notificaciones del sistema y simular alertas de transporte. */
+@Composable
+private fun TransportAlertsNotificationCard(isEs: Boolean) {
+    val context = LocalContext.current
+    var areNotificationsEnabled by remember {
+        mutableStateOf(TransportAlertNotificationHelper.areNotificationsEnabled(context))
+    }
+    var showPermissionWarningDialog by remember { mutableStateOf(false) }
+    var simulationFeedback by remember { mutableStateOf<String?>(null) }
+
+    // Launcher para pedir permiso en Android 13+ (API 33+)
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        areNotificationsEnabled = TransportAlertNotificationHelper.areNotificationsEnabled(context)
+    }
+
+    // Observar ciclo de vida para refrescar areNotificationsEnabled al volver de los Ajustes del SO
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                areNotificationsEnabled = TransportAlertNotificationHelper.areNotificationsEnabled(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    if (showPermissionWarningDialog) {
+        AppConfirmationDialog(
+            state = ConfirmationDialogState(
+                title = if (isEs) "🔔 Permiso de Notificaciones Requerido" else "🔔 Notification Permission Required",
+                message = if (isEs) {
+                    "Las notificaciones están desactivadas para Japan Travel Tools en este dispositivo. Para ver las alertas de facturación y embarque en la barra del sistema, activa el permiso en los ajustes de Android."
+                } else {
+                    "Notifications are currently disabled for Japan Travel Tools on this device. To receive flight and boarding alerts in your system shade, please enable permissions in Android settings."
+                },
+                confirmButtonText = if (isEs) "⚙️ Abrir Ajustes de Android" else "⚙️ Open Android Settings",
+                dismissButtonText = if (isEs) "Cancelar" else "Cancel",
+                isDestructive = false,
+                onConfirm = {
+                    showPermissionWarningDialog = false
+                    TransportAlertNotificationHelper.openNotificationSettings(context)
+                }
+            ),
+            onDismiss = { showPermissionWarningDialog = false }
+        )
+    }
+
+    KotlinConfCard {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (isEs) "🔔 Notificaciones y Avisos" else "🔔 Flight & Transport Alerts",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+            if (areNotificationsEnabled) {
+                InfoTagPill(text = if (isEs) "✅ Activo" else "Active")
+            } else {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.errorContainer
+                ) {
+                    Text(
+                        text = if (isEs) "⚠️ Desactivado" else "⚠️ Disabled",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = if (isEs) {
+                "La aplicación detecta automáticamente la proximidad de la facturación, el embarque y la salida de tus vuelos y trenes, enviando alertas prioritarias a tu dispositivo."
+            } else {
+                "The app automatically alerts you when flight check-in, boarding or train departure approaches with high-priority notifications."
+            },
+            fontSize = 13.5.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        if (!areNotificationsEnabled) {
+            Spacer(Modifier.height(10.dp))
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("⚠️", fontSize = 16.sp)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = if (isEs) {
+                                "El permiso de notificaciones no está concedido. Sin él, Android bloqueará los avisos cuando la app esté en segundo plano."
+                            } else {
+                                "Notification permission is not granted. Android will block background flight alerts until enabled."
+                            },
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (TransportAlertNotificationHelper.isPostNotificationsPermissionRequired()) {
+                            OutlinedButton(
+                                onClick = {
+                                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f).height(38.dp),
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = if (isEs) "🔔 Solicitar Permiso" else "🔔 Request Permission",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                        Button(
+                            onClick = {
+                                TransportAlertNotificationHelper.openNotificationSettings(context)
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError
+                            ),
+                            modifier = Modifier.weight(1.2f).height(38.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = if (isEs) "⚙️ Ajustes de Android" else "⚙️ Android Settings",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = if (isEs) "Probar avisos en este dispositivo:" else "Test alerts on this device:",
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(Modifier.height(6.dp))
+
+        fun handleTriggerSimulation(type: TransportAlertType) {
+            if (!areNotificationsEnabled) {
+                showPermissionWarningDialog = true
+            } else {
+                SharedTransportAlertStore.triggerSimulation(context, type, isEs)
+                simulationFeedback = when (type) {
+                    TransportAlertType.BOARDING_NOW -> if (isEs) "🚨 Alerta de embarque despachada." else "🚨 Boarding alert sent."
+                    TransportAlertType.CHECK_IN_APPROACHING -> if (isEs) "🧳 Alerta de facturación despachada." else "🧳 Check-in alert sent."
+                    TransportAlertType.DEPARTURE_IMMINENT -> if (isEs) "🚄 Alerta de tren despachada." else "🚄 Train departure alert sent."
+                    else -> if (isEs) "✅ Notificación enviada." else "✅ Notification sent."
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(
+                onClick = { handleTriggerSimulation(TransportAlertType.BOARDING_NOW) },
+                modifier = Modifier.weight(1f).height(38.dp),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
+            ) {
+                Text(if (isEs) "🚨 Embarque" else "🚨 Boarding", fontSize = 11.5.sp, maxLines = 1)
+            }
+            OutlinedButton(
+                onClick = { handleTriggerSimulation(TransportAlertType.CHECK_IN_APPROACHING) },
+                modifier = Modifier.weight(1f).height(38.dp),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
+            ) {
+                Text(if (isEs) "🧳 Facturación" else "🧳 Check-in", fontSize = 11.5.sp, maxLines = 1)
+            }
+            OutlinedButton(
+                onClick = { handleTriggerSimulation(TransportAlertType.DEPARTURE_IMMINENT) },
+                modifier = Modifier.weight(1f).height(38.dp),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
+            ) {
+                Text(if (isEs) "🚄 Tren Salida" else "🚄 Train Dep", fontSize = 11.5.sp, maxLines = 1)
+            }
+        }
+
+        if (simulationFeedback != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = simulationFeedback!!,
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.primary
             )
         }
     }
@@ -8795,16 +9504,16 @@ private fun JsonPortabilityModalSheet(
                 .imePadding()
         ) {
             Text(
-                text = if (isEs) "Gestión de Plan: Demo, IA y JSON" else "Plan Manager: Demo, AI & JSON",
+                text = if (isEs) "Gestión de Plan: IA y JSON" else "Plan Manager: AI & JSON",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
             Spacer(Modifier.height(6.dp))
             Text(
                 text = if (isEs) {
-                    "Los planes iniciales son de demostración. Puedes vaciarlos para empezar de cero, restaurarlos o importar/exportar JSON."
+                    "Edita, importa o comparte tu plan de viaje en formato JSON compatible (v1), o mejóralo con el asistente de IA."
                 } else {
-                    "Initial plans are demo seed data. You can clear them, restore them, or import/export JSON."
+                    "Edit, import, or share your travel plan in compatible JSON format (v1), or optimize it with AI."
                 },
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -8812,9 +9521,9 @@ private fun JsonPortabilityModalSheet(
 
             Spacer(Modifier.height(14.dp))
 
-            AppButtonRow(
-                primaryText = if (isEs) "✨ Añadir Osaka (IA)" else "✨ Add Osaka (AI)",
-                onPrimaryClick = {
+            AppPrimaryButton(
+                text = if (isEs) "✨ Añadir Osaka (IA)" else "✨ Add Osaka (AI)",
+                onClick = {
                     val improved = AiPlanBuilderEngine.improveAndExpandPlan(
                         currentPlan = currentPlan,
                         userInstruction = "Añadir Osaka"
@@ -8823,50 +9532,7 @@ private fun JsonPortabilityModalSheet(
                     jsonEditorText = SharedTravelPlanStore.exportCurrentJson()
                     statusMessage = improved.aiOptimizationSummary
                 },
-                secondaryText = if (currentPlan.itineraryStops.isNotEmpty()) {
-                    if (isEs) "🗑️ Vaciar Demo" else "🗑️ Clear Demo"
-                } else {
-                    if (isEs) "🔄 Cargar Demo" else "🔄 Load Demo"
-                },
-                onSecondaryClick = {
-                    if (currentPlan.itineraryStops.isNotEmpty()) {
-                        confirmationDialogState = ConfirmationDialogBuilder.buildSensitiveDeleteConfirmation(
-                            itemName = currentPlan.tripTitle.ifBlank { if (isEs) "Itinerario activo" else "Active itinerary" },
-                            itemTypeEs = "todas las paradas y tramos del itinerario",
-                            itemTypeEn = "all stops and transport segments in itinerary",
-                            isEs = isEs,
-                            onConfirm = {
-                                SharedTravelPlanStore.updatePlan(
-                                    PortableTravelPlanBundle(
-                                        schemaVersion = 1,
-                                        tripTitle = currentPlan.tripTitle.ifBlank { "Mi Viaje a Japón" },
-                                        itineraryStops = emptyList(),
-                                        transportSegments = emptyList()
-                                    )
-                                )
-                                jsonEditorText = SharedTravelPlanStore.exportCurrentJson()
-                                statusMessage = if (isEs) "✅ Datos eliminados." else "✅ Data cleared."
-                            }
-                        )
-                    } else {
-                        confirmationDialogState = ConfirmationDialogState(
-                            title = if (isEs) "¿Cargar datos demo?" else "Load demo data?",
-                            message = if (isEs) {
-                                "Se restaurará el itinerario de prueba inicial con paradas en Tokio y Kioto."
-                            } else {
-                                "Initial demo itinerary with Tokyo and Kyoto stops will be restored."
-                            },
-                            confirmButtonText = if (isEs) "🔄 Cargar" else "🔄 Load",
-                            dismissButtonText = if (isEs) "Cancelar" else "Cancel",
-                            isDestructive = false,
-                            onConfirm = {
-                                SharedTravelPlanStore.resetToDefaults()
-                                jsonEditorText = SharedTravelPlanStore.exportCurrentJson()
-                                statusMessage = if (isEs) "✅ Datos demo restaurados." else "✅ Demo data restored."
-                            }
-                        )
-                    }
-                }
+                modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(Modifier.height(10.dp))

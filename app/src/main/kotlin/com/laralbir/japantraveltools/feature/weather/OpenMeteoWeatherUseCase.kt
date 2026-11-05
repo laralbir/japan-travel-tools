@@ -457,13 +457,13 @@ object SharedWeatherForecastStore {
         stops: List<ItineraryStopItem>,
         segments: List<TransportSegmentItem>,
         forceResetDeleted: Boolean = false
-    ) {
+    ): Int {
         if (forceResetDeleted) {
             _deletedCityIds.clear()
         }
         val extracted = PlanWeatherCityExtractor.extractCitiesFromPlan(stops, segments)
         val current = _citiesState.value.toMutableList()
-        var changed = false
+        var addedCount = 0
 
         for (city in extracted) {
             if (!forceResetDeleted && _deletedCityIds.contains(city.id)) {
@@ -472,7 +472,7 @@ object SharedWeatherForecastStore {
             val existingIdx = current.indexOfFirst { it.id == city.id }
             if (existingIdx < 0) {
                 current.add(city)
-                changed = true
+                addedCount++
                 val existingForecasts = _forecastsState.value.filter { it.cityKey == city.id }
                 if (existingForecasts.isEmpty()) {
                     val seed = OpenMeteoWeatherUseCase.generateSeedForCity(city.id)
@@ -481,10 +481,11 @@ object SharedWeatherForecastStore {
             }
         }
 
-        if (changed) {
+        if (addedCount > 0 || forceResetDeleted) {
             _citiesState.value = current
             saveToDisk()
         }
+        return addedCount
     }
 
     fun replaceAllCities(cities: List<WeatherCityItem>) {
