@@ -15,6 +15,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -45,6 +46,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -535,36 +540,6 @@ fun DayItineraryMapView(
             }
         }
 
-        // Top-End Action: Button to recenter/refit stops when user has panned away and gets lost
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.primaryContainer,
-            shadowElevation = 4.dp,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(12.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .clickable {
-                        webViewRef?.evaluateJavascript("fitToMarkers()", null)
-                    }
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Text("🎯", fontSize = 13.sp)
-                Text(
-                    text = if (isEs) "Centrar Visitas" else "Center Stops",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            }
-        }
-
         // Bottom-Start: Configurable Map Layer Selector (Google Maps | Satélite | OSM)
         Surface(
             shape = RoundedCornerShape(20.dp),
@@ -694,10 +669,72 @@ fun DayItineraryMapView(
                         },
                         modifier = Modifier.size(36.dp)
                     ) {
-                        Text("🎯", fontSize = 16.sp)
+                        MyLocationGpsIcon()
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MyLocationGpsIcon(
+    modifier: Modifier = Modifier,
+    tint: Color = Color(0xFF1976D2)
+) {
+    Canvas(modifier = modifier.size(20.dp)) {
+        val center = Offset(size.width / 2f, size.height / 2f)
+        val strokeWidth = 1.8.dp.toPx()
+        val ringRadius = 6.2.dp.toPx()
+        val dotRadius = 3.dp.toPx()
+        val tickOuter = 9.2.dp.toPx()
+
+        // Outer ring
+        drawCircle(
+            color = tint,
+            radius = ringRadius,
+            center = center,
+            style = Stroke(width = strokeWidth)
+        )
+
+        // Solid center dot
+        drawCircle(
+            color = tint,
+            radius = dotRadius,
+            center = center
+        )
+
+        // North tick
+        drawLine(
+            color = tint,
+            start = Offset(center.x, center.y - tickOuter),
+            end = Offset(center.x, center.y - ringRadius),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round
+        )
+        // South tick
+        drawLine(
+            color = tint,
+            start = Offset(center.x, center.y + ringRadius),
+            end = Offset(center.x, center.y + tickOuter),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round
+        )
+        // West tick
+        drawLine(
+            color = tint,
+            start = Offset(center.x - tickOuter, center.y),
+            end = Offset(center.x - ringRadius, center.y),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round
+        )
+        // East tick
+        drawLine(
+            color = tint,
+            start = Offset(center.x + ringRadius, center.y),
+            end = Offset(center.x + tickOuter, center.y),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round
+        )
     }
 }

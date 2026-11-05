@@ -13,10 +13,10 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
   - **`🗺️ Google Maps` (Por defecto)**: Cartografía detallada con nombres de calles, barrios y estaciones legibles en español/romaji junto al nombre japonés (`hl=es`).
   - **`🛰️ Google Satélite Híbrido`**: Fotografía aérea de alta resolución combinada con etiquetas de vías y puntos de interés.
   - **`🌍 OpenStreetMap`**: Cartografía colaborativa estándar de OpenStreetMap.
-- **Visualización Limpia de Marcadores Numerados (`1..N`) y Botón Prominente `[ 🎯 Centrar Visitas ]`**:
+- **Visualización Limpia de Marcadores Numerados (`1..N`) y Columna de Controles del Mapa**:
   - Cada visita del día se renderiza como un marcador circular numerado (`1..N`) con el color de su categoría (`SIGHTSEEING`, `TRANSPORT`, `FOOD`, `HOTEL`, `ACTIVITY`, `SHOPPING`) y etiqueta con horario y nombre resumido, eliminando las líneas conectoras entre paradas para ofrecer una lectura limpia de calles y manzanas.
-  - Botón prominente **`[ 🎯 Centrar Visitas ]`** en la cabecera del mapa para reencuadrar automáticamente todas las visitas del día tras desplazarse o hacer zoom.
-- **Ubicación en Tiempo Real del Usuario (`📍 Tú estás aquí`)**: Marcador azul interactivo con halo de precisión y recentrado rápido (`🎯`) mediante `UserLocationHelper` y permiso `ACCESS_FINE_LOCATION`, permitiendo al viajero orientarse respecto a los templos y paradas de su itinerario.
+  - Columna de controles en la esquina inferior derecha con botones de zoom `[+]` y `[—]`, botón de chincheta `[📍]` para encuadrar y centrar todas las paradas del día (`fitToMarkers`) e icono vectorial GPS (*My Location*) para centrar en la ubicación actual del viajero (reemplazando el emoji `🎯` y eliminando el botón redundante superior derecho).
+- **Ubicación en Tiempo Real del Usuario (`📍 Tú estás aquí`)**: Marcador azul interactivo con halo de precisión y recentrado rápido mediante el icono vectorial GPS de localización (`UserLocationHelper` y permiso `ACCESS_FINE_LOCATION`), permitiendo al viajero orientarse respecto a los templos y paradas de su itinerario.
 - **Ficha Modal de Detalle Completo de la Parada (`StopDetailMapModalSheet`)**: Al tocar cualquier marcador del mapa, se despliega una hoja modal con:
   - Nombre en japonés en tipografía grande con botón de copia rápida al portapapeles para mostrar a taxistas o transeúntes.
   - Horario, duración, categoría y notas/consejos.

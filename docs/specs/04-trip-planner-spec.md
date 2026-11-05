@@ -54,8 +54,7 @@ Proporcionar una herramienta integral y **100% funcional offline** para planific
      - Botón **"Cómo llegar (Ruta)"** (`google.navigation:q=...` o ruta en transporte público) desde la ubicación actual o desde la parada anterior del itinerario.
 2. **Mapa Interactivo Embebido en el Planificador (Punto 2)**:
    - La pantalla del día incluye un **Mapa Interactivo embebido (`Maps Compose`)** que muestra:
-     - Marcadores numerados (`1`, `2`, `3`...) para cada parada del día según su orden horario.
-     - Polilínea conectando secuencialmente el recorrido del día.
+     - Marcadores numerados (`1`, `2`, `3`...) para cada parada del día según su orden horario (sin líneas conectoras para mantener la claridad visual).
      - Al pulsar un marcador del mapa, se resalta la tarjeta del horario correspondiente (con su hora, notas y fotos).
    - **Resiliencia Offline del Mapa**:
      - Aprovecha el cacheo automático de teselas del SDK y, si el dispositivo está completamente sin red en una zona no cacheada, mantiene funcional un modo de esquema vectorial/coordenadas offline y permite lanzar la app nativa de Google Maps (donde el usuario puede tener descargados los mapas offline de Tokio/Kioto).
@@ -121,12 +120,13 @@ Proporcionar una herramienta integral y **100% funcional offline** para planific
      - **🛰️ Google Satélite (Híbrido)**: Ortofoto satelital de alta resolución con etiquetas de calles y lugares superpuestas (`mt1.google.com/vt/lyrs=y`).
      - **🌍 OpenStreetMap (OSM)**: Cartografía detallada de senderos peatonales, recintos de templos y parques (`tile.openstreetmap.org`).
    - El cambio de capa se aplica instantáneamente en caliente sin perder el nivel de zoom ni la posición actual del mapa.
-4. **Localización Actual y Botón de Re-centrado Rápido**:
+4. **Localización Actual y Controles de Navegación del Mapa**:
    - Detección reactiva de la posición GPS/red del usuario (`android.permission.ACCESS_FINE_LOCATION` / `ACCESS_COARSE_LOCATION`).
    - Marcador distintivo azul pulsante con halo de precisión y etiqueta *"📍 Tú estás aquí"* / *"📍 You are here"*.
-   - Botón destacado **"🎯 Centrar Visitas"** en la esquina superior derecha (y en la botonera flotante) para re-encuadrar inmediatamente todas las paradas del día cuando el usuario ha desplazado o hecho zoom en el mapa.
-   - Botón **"📍 Mi ubicación"** para centrar la cámara en la posición GPS del viajero.
-   - Controles de zoom interactivos `[+]` y `[-]`, además de gestos táctiles fluidos de arrastre (pan) y pellizco (pinch-to-zoom).
+   - Columna de controles en la esquina inferior derecha del mapa que integra:
+     - Botones de zoom interactivos `[+]` y `[—]`, además de gestos táctiles fluidos de arrastre (`pan`) y pellizco (`pinch-to-zoom`).
+     - Botón de chincheta `[📍]` para encuadrar y centrar todas las paradas del día (`fitToMarkers`).
+     - Botón con icono vectorial GPS (*My Location*) para centrar la cámara en la ubicación en tiempo real del viajero (sustituyendo el emoji de diana `🎯`).
 5. **Resiliencia Offline**:
    - El contenedor del mapa dispone de una cuadrícula vectorial milimétrica en CSS como respaldo visual inmediato sin red y cachea las teselas visitadas.
    - Se ofrece un botón directo para **"🗺️ Ruta en Maps"** como acceso externo a Google Maps nativo.
@@ -192,10 +192,10 @@ Proporcionar una herramienta integral y **100% funcional offline** para planific
 - **Cuando** pulsa sobre los botones `[-]` o `[+]`
 - **Entonces** el valor se actualiza inmediatamente respetando los límites mínimos, o bien permite introducir dígitos directamente desplegando el teclado numérico.
 
-### Escenario 9: Mapa interactivo integrado del día con ubicación actual y polilínea de ruta
+### Escenario 9: Mapa interactivo integrado del día con ubicación actual y controles de encuadre
 - **Dado** que el usuario se encuentra en el Día 1 con 4 paradas programadas
 - **Cuando** pulsa la pestaña "🗺️ Mapa del Día"
-- **Entonces** el mapa integrado muestra los marcadores numerados `1`, `2`, `3`, `4` en sus coordenadas exactas, conectados cronológicamente por una polilínea de ruta, y dibuja la posición GPS actual del usuario como un marcador azul interactivo.
+- **Entonces** el mapa integrado muestra los marcadores numerados `1`, `2`, `3`, `4` en sus coordenadas exactas sin líneas conectoras, dibuja la posición GPS actual del usuario como un marcador azul interactivo y ofrece en la esquina inferior derecha los controles `[+]`, `[—]`, `[📍]` (`fitToMarkers`) y el icono vectorial GPS de localización.
 
 ### Escenario 10: Detalle completo de parada al tocar el mapa con guías y billetes vinculados
 - **Dado** que el usuario visualiza el mapa del día y existen guías de Kioto y billetes de Shinkansen/Renfe para esa jornada
