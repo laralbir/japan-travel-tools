@@ -202,6 +202,7 @@ import com.laralbir.japantraveltools.feature.transport.TransportAlertType
 import com.laralbir.japantraveltools.feature.transport.TransportMode
 import com.laralbir.japantraveltools.feature.transport.TransportPlannerUseCase
 import com.laralbir.japantraveltools.feature.transport.TransportSegmentItem
+import com.laralbir.japantraveltools.feature.transport.pkpass.PkPassParser
 import com.laralbir.japantraveltools.feature.weather.JapanWeatherCity
 import com.laralbir.japantraveltools.feature.weather.OpenMeteoWeatherUseCase
 import com.laralbir.japantraveltools.feature.weather.PlanningSuitability
@@ -3128,7 +3129,39 @@ private fun TransportTabScreen(
 
     var editingSegment by remember { mutableStateOf<TransportSegmentItem?>(null) }
     var isCreatingSegment by remember { mutableStateOf(false) }
+    var pkpassStatusMessage by remember { mutableStateOf<String?>(null) }
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
+
+    val pkpassPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.openInputStream(uri)?.use { stream ->
+                    PkPassParser.parsePkPass(stream).onSuccess { parsed ->
+                        val nextOrder = (segments.maxOfOrNull { it.order } ?: 0) + 1
+                        val segment = PkPassParser.toTransportSegment(parsed, order = nextOrder)
+                        SharedTravelPlanStore.upsertTransportSegment(segment)
+                        val doc = PkPassParser.toTravelDocument(parsed)
+                        SharedDocumentsAndGuidesStore.upsertDocument(doc)
+                        pkpassStatusMessage = if (isEs) {
+                            "✅ Billete importado: ${segment.operatorName} ${segment.lineOrNumber} (${segment.departureName} ➔ ${segment.arrivalName})"
+                        } else {
+                            "✅ Ticket imported: ${segment.operatorName} ${segment.lineOrNumber} (${segment.departureName} ➔ ${segment.arrivalName})"
+                        }
+                    }.onFailure {
+                        pkpassStatusMessage = if (isEs) {
+                            "❌ Error al procesar billete .pkpass: ${it.localizedMessage}"
+                        } else {
+                            "❌ Failed to parse .pkpass ticket: ${it.localizedMessage}"
+                        }
+                    }
+                }
+            }.onFailure {
+                pkpassStatusMessage = if (isEs) "❌ Error al abrir archivo: ${it.localizedMessage}" else "❌ Error opening file: ${it.localizedMessage}"
+            }
+        }
+    }
 
     AppConfirmationDialog(
         state = confirmationDialogState,
@@ -3288,16 +3321,69 @@ private fun TransportTabScreen(
                     )
                 }
 
-                AppPrimaryButton(
-                    text = if (isEs) "➕ Añadir Transporte" else "➕ Add Transport",
-                    onClick = {
-                        editingSegment = null
-                        isCreatingSegment = true
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(42.dp)
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    AppPrimaryButton(
+                        text = if (isEs) "➕ Añadir" else "➕ Add",
+                        onClick = {
+                            editingSegment = null
+                            isCreatingSegment = true
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(42.dp)
+                    )
+                    OutlinedButton(
+                        onClick = {
+                            runCatching {
+                                pkpassPickerLauncher.launch(arrayOf("*/*"))
+                            }
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .weight(1.3f)
+                            .height(42.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp)
+                    ) {
+                        Text(
+                            text = if (isEs) "🎫 Importar .pkpass" else "🎫 Import .pkpass",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1
+                        )
+                    }
+                }
+
+                if (pkpassStatusMessage != null) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = pkpassStatusMessage!!,
+                                fontSize = 12.5.sp,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(
+                                onClick = { pkpassStatusMessage = null },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Text("✕", fontSize = 11.sp)
+                            }
+                        }
+                    }
+                }
             }
         }
 
