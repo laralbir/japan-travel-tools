@@ -2,7 +2,7 @@
 
 Aplicación Android **offline-first** con la suite definitiva de herramientas esenciales para viajar a Japón, desarrollada en **Kotlin** y **Jetpack Compose** siguiendo metodologías estrictas de **Spec-Driven Development (SDD)** y **Test-Driven Development (TDD)**.
 
-> **Estado actual del proyecto**: `v1.2.0` (Versión Oficial Estable de Producción). Publicada con APK firmado adjunto en [GitHub Releases](https://github.com/laralbir/japan-travel-tools/releases/tag/v1.2.0).
+> **Estado actual del proyecto**: `v1.3.0` (Versión Oficial Estable de Producción). Publicada con APK firmado adjunto en [GitHub Releases](https://github.com/laralbir/japan-travel-tools/releases/tag/v1.3.0).
 
 ---
 
@@ -160,7 +160,7 @@ Toda la documentación técnica y funcional se encuentra detallada en español d
 - [x] **Hito 7 - Previsión Meteorológica con Open-Meteo y Planificador Sensible al Clima** (`SPEC-07`): Sincronización en segundo plano (6h), índice del Monte Fuji y adaptación ante lluvia.
 - [x] **Hito 8 - Módulo de Tickets de Compra, Tax-Free y Control de Gastos** (`SPEC-08`): Escaneo híbrido con IA y OCR trilingüe local, soporte multidivisa JPY/EUR/USD, selector de origen y exportación de informes para aduanas.
 - [x] **Hito 9 - Validación y Despliegue en Dispositivos Físicos Autorizados**: Verificación directa por ADB en Google Pixel y Tablet TCL NXTPAPER 11 Plus.
-- [x] **Hito 10 - Publicación de Versión de Producción v1.2.0**: Publicada en GitHub Releases con APK firmado adjunto.
+- [x] **Hito 10 - Publicación de Versión de Producción v1.3.0**: Publicada en GitHub Releases con APK firmado adjunto.
 
 ---
 
