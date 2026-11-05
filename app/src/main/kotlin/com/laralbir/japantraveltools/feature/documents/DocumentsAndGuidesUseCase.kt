@@ -27,7 +27,11 @@ data class TravelDocumentItem(
     val internalUriPath: String? = null,
     val lastReadPage: Int = 1,
     val fileUri: String? = internalUriPath,
-    val locatorCode: String? = null
+    val locatorCode: String? = null,
+    val barcodeMessage: String? = null,
+    val barcodeFormat: String? = null,
+    val barcodeAltText: String? = null,
+    val linkedTransportSegmentId: String? = null
 )
 
 data class TravelGuideArticle(

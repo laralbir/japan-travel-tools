@@ -242,7 +242,8 @@ object SharedTravelPlanStore {
         } else {
             updatedSegments.add(segment)
         }
-        val updated = current.copy(transportSegments = updatedSegments)
+        val reordered = com.laralbir.japantraveltools.feature.transport.pkpass.PkPassParser.reorderChronologically(updatedSegments)
+        val updated = current.copy(transportSegments = reordered)
         _planState.value = updated
         updatePlanInList(updated)
     }
@@ -383,7 +384,11 @@ object TravelPlanJsonCodec {
                 TravelDateTimeFormatter.localToUtcIso(parts[0], parts[1], seg.arrivalZoneId)
             }.getOrDefault(seg.arrivalTimeIso + ":00Z")
             sb.appendLine("      \"departureTimeUtcIso\": \"${escape(depUtc)}\",")
-            sb.appendLine("      \"arrivalTimeUtcIso\": \"${escape(arrUtc)}\"")
+            sb.appendLine("      \"arrivalTimeUtcIso\": \"${escape(arrUtc)}\",")
+            sb.appendLine("      \"barcodeMessage\": \"${escape(seg.barcodeMessage ?: "")}\",")
+            sb.appendLine("      \"barcodeFormat\": \"${escape(seg.barcodeFormat ?: "")}\",")
+            sb.appendLine("      \"barcodeAltText\": \"${escape(seg.barcodeAltText ?: "")}\",")
+            sb.appendLine("      \"linkedDocumentId\": \"${escape(seg.linkedDocumentId ?: "")}\"")
             sb.appendLine("    }$comma")
         }
         sb.appendLine("  ]")
@@ -470,7 +475,11 @@ object TravelPlanJsonCodec {
                 stationExitOrBelt = extractString(obj, "stationExitOrBelt") ?: "",
                 passOrPaymentBadge = extractString(obj, "passOrPaymentBadge") ?: "Included",
                 departureTimeUtcIso = depUtc,
-                arrivalTimeUtcIso = arrUtc
+                arrivalTimeUtcIso = arrUtc,
+                barcodeMessage = extractString(obj, "barcodeMessage")?.takeIf { it.isNotBlank() },
+                barcodeFormat = extractString(obj, "barcodeFormat")?.takeIf { it.isNotBlank() },
+                barcodeAltText = extractString(obj, "barcodeAltText")?.takeIf { it.isNotBlank() },
+                linkedDocumentId = extractString(obj, "linkedDocumentId")?.takeIf { it.isNotBlank() }
             )
         }
 

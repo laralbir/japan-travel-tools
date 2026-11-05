@@ -39,3 +39,30 @@ Al seleccionar un archivo `.pkpass`:
 - Botón accesible en la pantalla de **Transporte**: `🎫 Importar Billete (.pkpass)`.
 - Selector de archivos mediante `ActivityResultContracts.OpenDocument()` o `GetContent()`.
 - Confirmación visual de importación con los datos parseados y agregado inmediato al plan activo.
+
+### RF-PKPASS.5: Renderizado y Visualización Offline del Código QR / Aztec / Barcode
+- Al parsear el pase, se extraen `barcodeMessage`, `barcodeFormat` (`PKBarcodeFormatQR`, `PKBarcodeFormatAztec`, `PKBarcodeFormatPDF417`, `PKBarcodeFormatCode128`) y `barcodeAltText`.
+- La aplicación genera y renderiza un `Bitmap` de alta nitidez 100% offline sin conexión a internet ni servicios externos.
+- En las tarjetas de tramos de transporte y en la lista de billetes/documentos, se muestra un botón interactivo: `📱 Ver Código QR / Billete`.
+- Al pulsar, se despliega un diálogo modal en pantalla completa/destacado mostrando:
+  - Cabecera con operador, número de servicio (ej. "AVE 05181", "LH 1807"), ruta, coche y asiento.
+  - Imagen del código QR o código de barras sobre fondo blanco de alto contraste para facilitar la lectura por tornos y lectores ópticos.
+  - Texto alternativo legible (localizador / número de billete).
+
+### RF-PKPASS.6: Ordenación Cronológica Automática por Fecha del Evento
+- Al importar o modificar un billete `.pkpass`, el nuevo tramo no se añade ciegamente al final, sino que se posiciona de forma estrictamente cronológica comparando `departureTimeIso` (`YYYY-MM-DDTHH:mm`).
+- El sistema recalcula y reasigna los valores de `order = 1..N` para todos los tramos de transporte del viaje, garantizando que el viajero visualice siempre su cronología en orden temporal real.
+
+### RF-PKPASS.7: Detección Inteligente de Duplicados (Sustituir o Duplicar)
+- Antes de insertar el billete, el sistema comprueba si ya existe un tramo coincidente en el plan activo:
+  - Coincidencia exacta por localizador/reserva (`bookingCode == existing.bookingCode`).
+  - O coincidencia por servicio y horario (`lineOrNumber == existing.lineOrNumber` y `departureTimeIso == existing.departureTimeIso`).
+- Si se detecta una coincidencia previa, la app detiene la inserción directa y muestra un diálogo de resolución al usuario:
+  - **Sustituir**: Actualiza el tramo existente con los nuevos datos (coche, asiento, QR actualizado).
+  - **Duplicar / Mantener ambos**: Inserta el nuevo billete como un tramo adicional independiente.
+  - **Cancelar**: Descarta la importación sin alterar el estado actual.
+
+### RF-PKPASS.8: Vinculación Bidireccional entre Transporte y Billetes/Documentos
+- El tramo de transporte conserva una referencia `linkedDocumentId` hacia el billete en la Bóveda de Documentos.
+- El documento en la Bóveda conserva una referencia `linkedTransportSegmentId` hacia el tramo de transporte.
+- Desde la tarjeta de transporte se puede saltar al documento y viceversa.

@@ -7,6 +7,14 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Importación Apple Wallet (.pkpass), Códigos QR/Aztec y Detección de Duplicados 🎫📱✨
+- **Renderizado de Códigos QR, Aztec y PDF417 (`BarcodeBitmapGenerator`)**: Motor de renderizado 100% offline basado en ZXing para generar códigos de billetes de tren (Renfe AVE en formato Aztec), pases de aerolíneas (Iberia, Lufthansa en Aztec/PDF417) y códigos QR estándar con visualización nítida (`FilterQuality.None`).
+- **Apertura Inmediata del Código QR tras Importar**: Al importar un billete `.pkpass`, la aplicación despliega automáticamente el diálogo modal con el código QR/Aztec de alta luminosidad sobre fondo blanco, listo para escanear en tornos y puertas de embarque.
+- **Botón «📱 Ver QR» en Tarjetas de Transporte y Documentos**: Acceso directo y en cualquier momento al billete digital interactivo desde el itinerario de transporte y la Bóveda de Documentos.
+- **Ordenación Cronológica Automática (`reorderChronologically`)**: Al añadir, importar o sustituir un billete, los tramos se ordenan automáticamente por fecha y hora de salida (`departureTimeIso`), recalculando los índices `order = 1..N`.
+- **Detección Inteligente de Duplicados (`PkPassDuplicateResolutionDialog`)**: Si un billete importado coincide en código de reserva o en número de servicio y horario con uno existente, la app pregunta si se desea **Sustituir**, **Duplicar** o **Cancelar**.
+
+
 ## [1.2.0] - 2026-10-28
 
 ### Traducción Robusta de Carteles, Selector Multizona Google Fotos y Módulo de Tickets / Tax-Free con IA 🇯🇵📸🧾✨

@@ -136,6 +136,9 @@ dependencies {
   // WorkManager for Periodic Background Sync (Currency & Weather)
   implementation(libs.androidx.work.runtime.ktx)
   testImplementation(libs.androidx.work.testing)
+
+  // ZXing for Offline QR, Aztec, PDF417 & Barcode Generation
+  implementation(libs.zxing.core)
 }
 
 tasks.register<Exec>("installAuthorizedDebug") {

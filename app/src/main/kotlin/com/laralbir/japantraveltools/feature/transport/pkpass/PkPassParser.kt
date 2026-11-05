@@ -373,7 +373,10 @@ object PkPassParser {
             arrivalTimeIso = arrivalTimeIso,
             seatOrCarInfo = seatOrCarInfo,
             stationExitOrBelt = extraNotes,
-            passOrPaymentBadge = "Apple Wallet (.pkpass)"
+            passOrPaymentBadge = "Apple Wallet (.pkpass)",
+            barcodeMessage = pass.barcodeMessage,
+            barcodeFormat = pass.barcodeFormat,
+            barcodeAltText = pass.barcodeAltText
         )
     }
 
@@ -405,7 +408,45 @@ object PkPassParser {
             category = category,
             referenceOrNotes = notes,
             internalUriPath = fileRelativePath,
-            locatorCode = pass.bookingCode
+            locatorCode = pass.bookingCode,
+            barcodeMessage = pass.barcodeMessage,
+            barcodeFormat = pass.barcodeFormat,
+            barcodeAltText = pass.barcodeAltText
         )
+    }
+
+    fun reorderChronologically(segments: List<TransportSegmentItem>): List<TransportSegmentItem> {
+        return segments
+            .sortedWith(
+                compareBy<TransportSegmentItem> { it.departureTimeIso.ifBlank { "9999-99-99T99:99" } }
+                    .thenBy { it.id }
+            )
+            .mapIndexed { index, seg ->
+                seg.copy(order = index + 1)
+            }
+    }
+
+    fun findDuplicate(pass: ParsedPkPass, existing: List<TransportSegmentItem>): TransportSegmentItem? {
+        val passBooking = pass.bookingCode?.trim()?.takeIf { it.isNotBlank() }
+        val passTicket = pass.ticketNumber?.trim()?.takeIf { it.isNotBlank() }
+        val passDepIso = "${pass.departureDateIso}T${pass.departureTime}".trim()
+        val passService = pass.serviceNumber.trim()
+
+        return existing.firstOrNull { seg ->
+            val bookingMatch = passBooking != null && (
+                seg.stationExitOrBelt.contains(passBooking, ignoreCase = true) ||
+                seg.seatOrCarInfo.contains(passBooking, ignoreCase = true) ||
+                seg.barcodeAltText?.equals(passBooking, ignoreCase = true) == true
+            )
+            val ticketMatch = passTicket != null && (
+                seg.stationExitOrBelt.contains(passTicket, ignoreCase = true) ||
+                seg.barcodeAltText?.equals(passTicket, ignoreCase = true) == true
+            )
+            val serviceAndDepMatch = passService.isNotBlank() &&
+                seg.lineOrNumber.equals(passService, ignoreCase = true) &&
+                seg.departureTimeIso.equals(passDepIso, ignoreCase = true)
+
+            bookingMatch || ticketMatch || serviceAndDepMatch
+        }
     }
 }

@@ -34,7 +34,11 @@ data class TransportSegmentItem(
     val stationExitOrBelt: String = "",
     val passOrPaymentBadge: String = "Included",
     val departureTimeUtcIso: String? = null,
-    val arrivalTimeUtcIso: String? = null
+    val arrivalTimeUtcIso: String? = null,
+    val barcodeMessage: String? = null,
+    val barcodeFormat: String? = null,
+    val barcodeAltText: String? = null,
+    val linkedDocumentId: String? = null
 )
 
 data class ConnectionCalculation(

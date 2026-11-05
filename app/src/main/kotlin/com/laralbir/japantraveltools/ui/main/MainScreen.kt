@@ -202,6 +202,14 @@ import com.laralbir.japantraveltools.feature.transport.TransportAlertType
 import com.laralbir.japantraveltools.feature.transport.TransportMode
 import com.laralbir.japantraveltools.feature.transport.TransportPlannerUseCase
 import com.laralbir.japantraveltools.feature.transport.TransportSegmentItem
+import androidx.compose.ui.graphics.FilterQuality
+import com.laralbir.japantraveltools.feature.transport.pkpass.BarcodeBitmapGenerator
+import com.laralbir.japantraveltools.feature.transport.pkpass.BarcodeDisplayData
+import com.laralbir.japantraveltools.feature.transport.pkpass.BarcodeRendererView
+import com.laralbir.japantraveltools.feature.transport.pkpass.DuplicateResolutionState
+import com.laralbir.japantraveltools.feature.transport.pkpass.ParsedPkPass
+import com.laralbir.japantraveltools.feature.transport.pkpass.PkPassBarcodeViewerDialog
+import com.laralbir.japantraveltools.feature.transport.pkpass.PkPassDuplicateResolutionDialog
 import com.laralbir.japantraveltools.feature.transport.pkpass.PkPassParser
 import com.laralbir.japantraveltools.feature.weather.JapanWeatherCity
 import com.laralbir.japantraveltools.feature.weather.OpenMeteoWeatherUseCase
@@ -3131,6 +3139,8 @@ private fun TransportTabScreen(
     var isCreatingSegment by remember { mutableStateOf(false) }
     var pkpassStatusMessage by remember { mutableStateOf<String?>(null) }
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
+    var viewingBarcodeData by remember { mutableStateOf<BarcodeDisplayData?>(null) }
+    var duplicateResolutionState by remember { mutableStateOf<DuplicateResolutionState?>(null) }
 
     val pkpassPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -3139,15 +3149,32 @@ private fun TransportTabScreen(
             runCatching {
                 context.contentResolver.openInputStream(uri)?.use { stream ->
                     PkPassParser.parsePkPass(stream).onSuccess { parsed ->
-                        val nextOrder = (segments.maxOfOrNull { it.order } ?: 0) + 1
-                        val segment = PkPassParser.toTransportSegment(parsed, order = nextOrder)
-                        SharedTravelPlanStore.upsertTransportSegment(segment)
-                        val doc = PkPassParser.toTravelDocument(parsed)
-                        SharedDocumentsAndGuidesStore.upsertDocument(doc)
-                        pkpassStatusMessage = if (isEs) {
-                            "✅ Billete importado: ${segment.operatorName} ${segment.lineOrNumber} (${segment.departureName} ➔ ${segment.arrivalName})"
+                        val duplicate = PkPassParser.findDuplicate(parsed, segments)
+                        if (duplicate != null) {
+                            duplicateResolutionState = DuplicateResolutionState(parsed, duplicate)
                         } else {
-                            "✅ Ticket imported: ${segment.operatorName} ${segment.lineOrNumber} (${segment.departureName} ➔ ${segment.arrivalName})"
+                            val nextOrder = (segments.maxOfOrNull { it.order } ?: 0) + 1
+                            val segment = PkPassParser.toTransportSegment(parsed, order = nextOrder)
+                            val doc = PkPassParser.toTravelDocument(parsed)
+                            val linkedSegment = segment.copy(linkedDocumentId = doc.id)
+                            val linkedDoc = doc.copy(linkedTransportSegmentId = segment.id)
+                            SharedTravelPlanStore.upsertTransportSegment(linkedSegment)
+                            SharedDocumentsAndGuidesStore.upsertDocument(linkedDoc)
+                            pkpassStatusMessage = if (isEs) {
+                                "✅ Billete importado: ${segment.operatorName} ${segment.lineOrNumber} (${segment.departureName} ➔ ${segment.arrivalName})"
+                            } else {
+                                "✅ Ticket imported: ${segment.operatorName} ${segment.lineOrNumber} (${segment.departureName} ➔ ${segment.arrivalName})"
+                            }
+                            if (!linkedSegment.barcodeMessage.isNullOrBlank()) {
+                                viewingBarcodeData = BarcodeDisplayData(
+                                    title = "${linkedSegment.operatorName} · ${linkedSegment.lineOrNumber}",
+                                    subtitle = "${linkedSegment.departureName} ➔ ${linkedSegment.arrivalName}",
+                                    extraDetails = "📅 ${linkedSegment.departureTimeIso} · 💺 ${linkedSegment.seatOrCarInfo}",
+                                    barcodeMessage = linkedSegment.barcodeMessage,
+                                    barcodeFormat = linkedSegment.barcodeFormat,
+                                    barcodeAltText = linkedSegment.barcodeAltText ?: linkedSegment.stationExitOrBelt
+                                )
+                            }
                         }
                     }.onFailure {
                         pkpassStatusMessage = if (isEs) {
@@ -3167,6 +3194,77 @@ private fun TransportTabScreen(
         state = confirmationDialogState,
         onDismiss = { confirmationDialogState = null }
     )
+
+    if (viewingBarcodeData != null) {
+        PkPassBarcodeViewerDialog(
+            data = viewingBarcodeData!!,
+            isEs = isEs,
+            onDismiss = { viewingBarcodeData = null }
+        )
+    }
+
+    if (duplicateResolutionState != null) {
+        PkPassDuplicateResolutionDialog(
+            state = duplicateResolutionState!!,
+            isEs = isEs,
+            onReplace = {
+                val currentDup = duplicateResolutionState!!.existingSegment
+                val currentPass = duplicateResolutionState!!.parsedPass
+                val docId = currentDup.linkedDocumentId ?: "doc-pkpass-${System.currentTimeMillis()}"
+                val updatedSegment = PkPassParser.toTransportSegment(currentPass, order = currentDup.order, id = currentDup.id).copy(
+                    linkedDocumentId = docId
+                )
+                val doc = PkPassParser.toTravelDocument(currentPass, id = docId).copy(
+                    linkedTransportSegmentId = currentDup.id
+                )
+                SharedTravelPlanStore.upsertTransportSegment(updatedSegment)
+                SharedDocumentsAndGuidesStore.upsertDocument(doc)
+                pkpassStatusMessage = if (isEs) {
+                    "✅ Billete sustituido: ${updatedSegment.operatorName} ${updatedSegment.lineOrNumber}"
+                } else {
+                    "✅ Ticket replaced: ${updatedSegment.operatorName} ${updatedSegment.lineOrNumber}"
+                }
+                if (!updatedSegment.barcodeMessage.isNullOrBlank()) {
+                    viewingBarcodeData = BarcodeDisplayData(
+                        title = "${updatedSegment.operatorName} · ${updatedSegment.lineOrNumber}",
+                        subtitle = "${updatedSegment.departureName} ➔ ${updatedSegment.arrivalName}",
+                        extraDetails = "📅 ${updatedSegment.departureTimeIso} · 💺 ${updatedSegment.seatOrCarInfo}",
+                        barcodeMessage = updatedSegment.barcodeMessage,
+                        barcodeFormat = updatedSegment.barcodeFormat,
+                        barcodeAltText = updatedSegment.barcodeAltText ?: updatedSegment.stationExitOrBelt
+                    )
+                }
+                duplicateResolutionState = null
+            },
+            onDuplicate = {
+                val currentPass = duplicateResolutionState!!.parsedPass
+                val nextOrder = (segments.maxOfOrNull { it.order } ?: 0) + 1
+                val segment = PkPassParser.toTransportSegment(currentPass, order = nextOrder)
+                val doc = PkPassParser.toTravelDocument(currentPass)
+                val linkedSegment = segment.copy(linkedDocumentId = doc.id)
+                val linkedDoc = doc.copy(linkedTransportSegmentId = segment.id)
+                SharedTravelPlanStore.upsertTransportSegment(linkedSegment)
+                SharedDocumentsAndGuidesStore.upsertDocument(linkedDoc)
+                pkpassStatusMessage = if (isEs) {
+                    "✅ Billete duplicado: ${segment.operatorName} ${segment.lineOrNumber}"
+                } else {
+                    "✅ Ticket duplicated: ${segment.operatorName} ${segment.lineOrNumber}"
+                }
+                if (!linkedSegment.barcodeMessage.isNullOrBlank()) {
+                    viewingBarcodeData = BarcodeDisplayData(
+                        title = "${linkedSegment.operatorName} · ${linkedSegment.lineOrNumber}",
+                        subtitle = "${linkedSegment.departureName} ➔ ${linkedSegment.arrivalName}",
+                        extraDetails = "📅 ${linkedSegment.departureTimeIso} · 💺 ${linkedSegment.seatOrCarInfo}",
+                        barcodeMessage = linkedSegment.barcodeMessage,
+                        barcodeFormat = linkedSegment.barcodeFormat,
+                        barcodeAltText = linkedSegment.barcodeAltText ?: linkedSegment.stationExitOrBelt
+                    )
+                }
+                duplicateResolutionState = null
+            },
+            onDismiss = { duplicateResolutionState = null }
+        )
+    }
 
     LaunchedEffect(segments, isEs) {
         SharedTransportAlertStore.evaluate(segments, context, isEs)
@@ -3536,6 +3634,26 @@ private fun TransportTabScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        if (!seg.barcodeMessage.isNullOrBlank()) {
+                            Button(
+                                onClick = {
+                                    viewingBarcodeData = BarcodeDisplayData(
+                                        title = "${seg.operatorName} · ${seg.lineOrNumber}",
+                                        subtitle = "${seg.departureName} ➔ ${seg.arrivalName}",
+                                        extraDetails = "📅 ${seg.departureTimeIso} · 💺 ${seg.seatOrCarInfo}",
+                                        barcodeMessage = seg.barcodeMessage,
+                                        barcodeFormat = seg.barcodeFormat,
+                                        barcodeAltText = seg.barcodeAltText ?: seg.stationExitOrBelt
+                                    )
+                                },
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                                modifier = Modifier
+                                    .height(34.dp)
+                                    .weight(1.1f)
+                            ) {
+                                Text(if (isEs) "📱 Ver QR" else "📱 Show QR", fontSize = 12.5.sp, maxLines = 1)
+                            }
+                        }
                         OutlinedButton(
                             onClick = {
                                 isCreatingSegment = false
@@ -3546,7 +3664,7 @@ private fun TransportTabScreen(
                                 .height(34.dp)
                                 .weight(1f)
                         ) {
-                            Text(if (isEs) "✏️ Editar" else "✏️ Edit", fontSize = 13.sp)
+                            Text(if (isEs) "✏️ Editar" else "✏️ Edit", fontSize = 12.5.sp, maxLines = 1)
                         }
                         OutlinedButton(
                             onClick = {
@@ -3564,7 +3682,7 @@ private fun TransportTabScreen(
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                             modifier = Modifier.height(34.dp)
                         ) {
-                            Text(if (isEs) "🗑️ Eliminar" else "🗑️ Delete", fontSize = 13.sp)
+                            Text(if (isEs) "🗑️ Eliminar" else "🗑️ Delete", fontSize = 12.5.sp, maxLines = 1)
                         }
                     }
                 }
@@ -8001,7 +8119,7 @@ private fun BookingsVaultScreen(isEs: Boolean) {
                                 Text(if (isEs) "📄 Archivo" else "📄 File", fontSize = 12.sp, maxLines = 1)
                             }
                         }
-                        if (!doc.locatorCode.isNullOrBlank()) {
+                        if (!doc.locatorCode.isNullOrBlank() || !doc.barcodeMessage.isNullOrBlank()) {
                             OutlinedButton(
                                 onClick = { viewingPassDoc = doc },
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
@@ -8107,34 +8225,14 @@ private fun WalletTicketPassDialog(
 
                 Spacer(Modifier.height(18.dp))
 
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Color(0xFFDDDDDD)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(18.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "🎫 █║▌║█║▌│║▌║▌█║ 🎫",
-                            fontSize = 24.sp,
-                            color = Color.Black,
-                            letterSpacing = 1.sp
-                        )
-                        Spacer(Modifier.height(10.dp))
-                        Text(
-                            text = doc.locatorCode ?: doc.id,
-                            fontSize = 19.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.Black,
-                            letterSpacing = 2.sp
-                        )
-                    }
-                }
+                val barcodeMsg = doc.barcodeMessage ?: doc.locatorCode ?: doc.id
+                val barcodeFmt = doc.barcodeFormat ?: if (!doc.barcodeMessage.isNullOrBlank()) null else "PKBarcodeFormatQR"
+                val barcodeAlt = doc.barcodeAltText ?: doc.locatorCode ?: doc.id
+                BarcodeRendererView(
+                    message = barcodeMsg,
+                    format = barcodeFmt,
+                    altText = barcodeAlt
+                )
 
                 Spacer(Modifier.height(14.dp))
 
