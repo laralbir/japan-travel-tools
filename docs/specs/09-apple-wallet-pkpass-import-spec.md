@@ -40,14 +40,18 @@ Al seleccionar un archivo `.pkpass`:
 - Selector de archivos mediante `ActivityResultContracts.OpenDocument()` o `GetContent()`.
 - Confirmación visual de importación con los datos parseados y agregado inmediato al plan activo.
 
-### RF-PKPASS.5: Renderizado y Visualización Offline del Código QR / Aztec / Barcode
+### RF-PKPASS.5: Renderizado, Pantalla Completa y Brillo Máximo del Código QR / Aztec / Barcode
 - Al parsear el pase, se extraen `barcodeMessage`, `barcodeFormat` (`PKBarcodeFormatQR`, `PKBarcodeFormatAztec`, `PKBarcodeFormatPDF417`, `PKBarcodeFormatCode128`) y `barcodeAltText`.
 - La aplicación genera y renderiza un `Bitmap` de alta nitidez 100% offline sin conexión a internet ni servicios externos.
 - En las tarjetas de tramos de transporte y en la lista de billetes/documentos, se muestra un botón interactivo: `📱 Ver Código QR / Billete`.
-- Al pulsar, se despliega un diálogo modal en pantalla completa/destacado mostrando:
+- Al pulsar, se despliega un diálogo modal destacado mostrando:
   - Cabecera con operador, número de servicio (ej. "AVE 05181", "LH 1807"), ruta, coche y asiento.
   - Imagen del código QR o código de barras sobre fondo blanco de alto contraste para facilitar la lectura por tornos y lectores ópticos.
   - Texto alternativo legible (localizador / número de billete).
+- **Modo Pantalla Completa y Brillo Máximo al Tocar el Código (`FullScreenBarcodeDialog`)**:
+  - Al tocar sobre el código QR/Aztec o la indicación "🔍 Toca el código para pantalla completa", la aplicación expande el código a **pantalla completa absoluta** (`usePlatformDefaultWidth = false`), ocupando todo el ancho de la pantalla para máxima legibilidad.
+  - **Ajuste Automático de Brillo al 100%**: Durante la visualización a pantalla completa, la ventana eleva el brillo del panel al máximo (`screenBrightness = 1.0f`) para garantizar una lectura inmediata bajo luz solar directa o por escáneres ópticos láser de revisores y tornos.
+  - Al tocar en cualquier parte de la pantalla completa o pulsar Atrás, se restaura suavemente el brillo original del sistema.
 
 ### RF-PKPASS.6: Ordenación Cronológica Automática por Fecha del Evento
 - Al importar o modificar un billete `.pkpass`, el nuevo tramo no se añade ciegamente al final, sino que se posiciona de forma estrictamente cronológica comparando `departureTimeIso` (`YYYY-MM-DDTHH:mm`).

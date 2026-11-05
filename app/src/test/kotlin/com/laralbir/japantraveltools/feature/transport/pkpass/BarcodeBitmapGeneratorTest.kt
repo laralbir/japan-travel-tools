@@ -82,3 +82,4 @@ class BarcodeBitmapGeneratorTest {
         assertNotNull(matrix)
     }
 }
+

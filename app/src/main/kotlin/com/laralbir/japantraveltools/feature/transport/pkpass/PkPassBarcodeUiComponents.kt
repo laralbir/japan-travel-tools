@@ -1,16 +1,25 @@
 package com.laralbir.japantraveltools.feature.transport.pkpass
 
+import android.app.Activity
 import android.graphics.Bitmap
+import android.view.WindowManager
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -20,18 +29,27 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import com.laralbir.japantraveltools.feature.transport.TransportSegmentItem
 
 data class BarcodeDisplayData(
@@ -53,10 +71,13 @@ fun BarcodeRendererView(
     message: String,
     format: String?,
     altText: String?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isFullScreen: Boolean = false,
+    onQrClick: (() -> Unit)? = null
 ) {
-    val matrix = remember(message, format) {
-        BarcodeBitmapGenerator.generateMatrix(message, format, 320, 320)
+    val targetResolution = if (isFullScreen) 600 else 320
+    val matrix = remember(message, format, isFullScreen) {
+        BarcodeBitmapGenerator.generateMatrix(message, format, targetResolution, targetResolution)
     }
 
     val imageBitmap = remember(matrix) {
@@ -82,19 +103,30 @@ fun BarcodeRendererView(
                 color = Color.White,
                 shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(1.dp, Color(0xFFDDDDDD)),
-                modifier = Modifier.padding(4.dp)
+                modifier = Modifier
+                    .padding(4.dp)
+                    .then(
+                        if (onQrClick != null) {
+                            Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable(onClick = onQrClick)
+                        } else {
+                            Modifier
+                        }
+                    )
             ) {
                 Image(
                     bitmap = imageBitmap,
                     contentDescription = "Código de barras o QR",
                     filterQuality = FilterQuality.None,
                     modifier = Modifier
-                        .padding(16.dp)
+                        .padding(if (isFullScreen) 12.dp else 16.dp)
                         .then(
-                            if (isLinear) {
-                                Modifier.size(width = 260.dp, height = 90.dp)
-                            } else {
-                                Modifier.size(240.dp)
+                            when {
+                                isFullScreen && isLinear -> Modifier.fillMaxWidth(0.95f).height(140.dp)
+                                isFullScreen -> Modifier.fillMaxWidth(0.92f).aspectRatio(1f)
+                                isLinear -> Modifier.size(width = 260.dp, height = 90.dp)
+                                else -> Modifier.size(240.dp)
                             }
                         )
                 )
@@ -104,7 +136,17 @@ fun BarcodeRendererView(
                 color = Color.White,
                 shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(1.dp, Color(0xFFDDDDDD)),
-                modifier = Modifier.padding(4.dp)
+                modifier = Modifier
+                    .padding(4.dp)
+                    .then(
+                        if (onQrClick != null) {
+                            Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable(onClick = onQrClick)
+                        } else {
+                            Modifier
+                        }
+                    )
             ) {
                 Column(
                     modifier = Modifier.padding(24.dp),
@@ -129,15 +171,206 @@ fun BarcodeRendererView(
         }
 
         if (!altText.isNullOrBlank()) {
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
             Text(
                 text = altText,
                 fontFamily = FontFamily.Monospace,
-                fontSize = 15.sp,
+                fontSize = if (isFullScreen) 18.sp else 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.Black,
                 letterSpacing = 1.5.sp
             )
+        }
+
+        if (onQrClick != null) {
+            Spacer(Modifier.height(6.dp))
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable(onClick = onQrClick)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text("🔍", fontSize = 11.sp)
+                    Text(
+                        text = "Toca el código para pantalla completa",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun FullScreenBarcodeDialog(
+    data: BarcodeDisplayData,
+    isEs: Boolean,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true
+        )
+    ) {
+        val view = LocalView.current
+        val context = LocalContext.current
+        val activity = context as? Activity
+
+        // Aumenta el brillo al 100% mientras la pantalla completa esté activa y restaura el brillo previo al salir
+        DisposableEffect(view) {
+            val activityWindow = activity?.window
+            val dialogWindow = (view.parent as? DialogWindowProvider)?.window
+
+            val prevActivityBrightness = activityWindow?.attributes?.screenBrightness
+                ?: WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+            val prevDialogBrightness = dialogWindow?.attributes?.screenBrightness
+                ?: WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+
+            activityWindow?.let { win ->
+                val lp = win.attributes
+                lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL
+                win.attributes = lp
+            }
+            dialogWindow?.let { win ->
+                val lp = win.attributes
+                lp.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_FULL
+                win.attributes = lp
+            }
+
+            onDispose {
+                activityWindow?.let { win ->
+                    val lp = win.attributes
+                    lp.screenBrightness = prevActivityBrightness
+                    win.attributes = lp
+                }
+                dialogWindow?.let { win ->
+                    val lp = win.attributes
+                    lp.screenBrightness = prevDialogBrightness
+                    win.attributes = lp
+                }
+            }
+        }
+
+        Surface(
+            color = Color.White,
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismiss
+                )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Top header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = data.title,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.Black
+                        )
+                        if (data.subtitle.isNotBlank()) {
+                            Text(
+                                text = data.subtitle,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF0D47A1)
+                            )
+                        }
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color(0xFFEEEEEE),
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clickable(onClick = onDismiss)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("✕", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                        }
+                    }
+                }
+
+                // Center: Big Barcode taking full screen
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) {
+                    BarcodeRendererView(
+                        message = data.barcodeMessage,
+                        format = data.barcodeFormat,
+                        altText = data.barcodeAltText,
+                        isFullScreen = true
+                    )
+
+                    if (!data.extraDetails.isNullOrBlank()) {
+                        Spacer(Modifier.height(14.dp))
+                        Text(
+                            text = data.extraDetails,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF222222),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+
+                // Bottom helper badge
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFF1F8E9),
+                    border = BorderStroke(1.dp, Color(0xFFC8E6C9)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = if (isEs) "⚡ Brillo máximo para revisores y tornos ópticos" else "⚡ Max brightness for ticket inspectors and gates",
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF2E7D32),
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = if (isEs) "Toca en cualquier parte para cerrar pantalla completa" else "Tap anywhere to exit full screen",
+                            fontSize = 11.5.sp,
+                            color = Color(0xFF666666),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -148,6 +381,16 @@ fun PkPassBarcodeViewerDialog(
     isEs: Boolean,
     onDismiss: () -> Unit
 ) {
+    var isFullScreen by remember { mutableStateOf(false) }
+
+    if (isFullScreen) {
+        FullScreenBarcodeDialog(
+            data = data,
+            isEs = isEs,
+            onDismiss = { isFullScreen = false }
+        )
+    }
+
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(20.dp),
@@ -225,7 +468,8 @@ fun PkPassBarcodeViewerDialog(
                 BarcodeRendererView(
                     message = data.barcodeMessage,
                     format = data.barcodeFormat,
-                    altText = data.barcodeAltText
+                    altText = data.barcodeAltText,
+                    onQrClick = { isFullScreen = true }
                 )
 
                 Spacer(Modifier.height(14.dp))

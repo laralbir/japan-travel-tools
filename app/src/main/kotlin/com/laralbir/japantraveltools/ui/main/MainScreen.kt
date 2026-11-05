@@ -207,6 +207,7 @@ import com.laralbir.japantraveltools.feature.transport.pkpass.BarcodeBitmapGener
 import com.laralbir.japantraveltools.feature.transport.pkpass.BarcodeDisplayData
 import com.laralbir.japantraveltools.feature.transport.pkpass.BarcodeRendererView
 import com.laralbir.japantraveltools.feature.transport.pkpass.DuplicateResolutionState
+import com.laralbir.japantraveltools.feature.transport.pkpass.FullScreenBarcodeDialog
 import com.laralbir.japantraveltools.feature.transport.pkpass.ParsedPkPass
 import com.laralbir.japantraveltools.feature.transport.pkpass.PkPassBarcodeViewerDialog
 import com.laralbir.japantraveltools.feature.transport.pkpass.PkPassDuplicateResolutionDialog
@@ -8171,6 +8172,27 @@ private fun WalletTicketPassDialog(
     isEs: Boolean,
     onDismiss: () -> Unit
 ) {
+    var isFullScreen by remember { mutableStateOf(false) }
+
+    val barcodeMsg = doc.barcodeMessage ?: doc.locatorCode ?: doc.id
+    val barcodeFmt = doc.barcodeFormat ?: if (!doc.barcodeMessage.isNullOrBlank()) null else "PKBarcodeFormatQR"
+    val barcodeAlt = doc.barcodeAltText ?: doc.locatorCode ?: doc.id
+
+    if (isFullScreen) {
+        FullScreenBarcodeDialog(
+            data = BarcodeDisplayData(
+                title = doc.title,
+                subtitle = doc.category.badgeCode,
+                extraDetails = doc.referenceOrNotes.lines().firstOrNull() ?: "",
+                barcodeMessage = barcodeMsg,
+                barcodeFormat = barcodeFmt,
+                barcodeAltText = barcodeAlt
+            ),
+            isEs = isEs,
+            onDismiss = { isFullScreen = false }
+        )
+    }
+
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(20.dp),
@@ -8231,7 +8253,8 @@ private fun WalletTicketPassDialog(
                 BarcodeRendererView(
                     message = barcodeMsg,
                     format = barcodeFmt,
-                    altText = barcodeAlt
+                    altText = barcodeAlt,
+                    onQrClick = { isFullScreen = true }
                 )
 
                 Spacer(Modifier.height(14.dp))

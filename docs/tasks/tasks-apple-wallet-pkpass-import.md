@@ -21,6 +21,7 @@
 
 - [x] **Tarea 6: Componentes UI de Visualización de QR y Diálogo de Duplicados**
   - Crear diálogo modal Compose `PkPassBarcodeViewerDialog` con fondo blanco de alto contraste y brillo para escaneo.
+  - Implementar `FullScreenBarcodeDialog` con brillo al 100% (`screenBrightness = 1.0f`) y maximización a pantalla completa al tocar sobre el código QR.
   - Crear diálogo modal Compose `PkPassDuplicateResolutionDialog` (Sustituir / Duplicar / Cancelar).
   - Añadir botón `📱 Ver QR` en tarjeta de tramo de transporte y tarjeta de documento.
 

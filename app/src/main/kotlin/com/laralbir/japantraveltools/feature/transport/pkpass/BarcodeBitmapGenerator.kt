@@ -76,3 +76,4 @@ object BarcodeBitmapGenerator {
         }.getOrNull()
     }
 }
+

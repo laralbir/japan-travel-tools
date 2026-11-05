@@ -67,6 +67,11 @@ data class ParsedPkPass(
                     ▼
        [PkPassBarcodeViewerDialog]
     (Jetpack Compose Modal con fondo blanco)
+                    │
+           (Tocar sobre el QR)
+                    ▼
+       [FullScreenBarcodeDialog]
+  (Pantalla completa absoluta + Brillo al 100%)
 ```
 
 ### Formatos soportados de Apple Wallet y mapeo ZXing:
@@ -74,6 +79,11 @@ data class ParsedPkPass(
 - `PKBarcodeFormatAztec` ➔ `com.google.zxing.BarcodeFormat.AZTEC`
 - `PKBarcodeFormatPDF417` ➔ `com.google.zxing.BarcodeFormat.PDF_417`
 - `PKBarcodeFormatCode128` ➔ `com.google.zxing.BarcodeFormat.CODE_128`
+
+### Modo Pantalla Completa y Brillo Máximo
+1. `FullScreenBarcodeDialog`: Implementado con `DialogProperties(usePlatformDefaultWidth = false)` para ocupar el 100% de la pantalla del dispositivo.
+2. `screenBrightness = 1.0f`: Al abrirse, fuerza el brillo al 100% mediante `window.attributes.screenBrightness = 1.0f`, restaurando el brillo original en `onDispose`.
+3. Tocar en cualquier parte o pulsar el botón `✕` cierra el modo pantalla completa.
 
 ## 4. Detección de Duplicados y Ordenación Cronológica
 
