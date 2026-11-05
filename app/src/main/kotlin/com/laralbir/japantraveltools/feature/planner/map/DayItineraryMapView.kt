@@ -1,10 +1,16 @@
 package com.laralbir.japantraveltools.feature.planner.map
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.MotionEvent
+import android.webkit.ConsoleMessage
 import android.webkit.JavascriptInterface
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -30,13 +36,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,6 +69,7 @@ fun DayItineraryMapView(
     isEs: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val validStops = remember(stops) {
         stops.filter { it.latitude != 0.0 && it.longitude != 0.0 }
     }
@@ -90,7 +100,7 @@ fun DayItineraryMapView(
                     )
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        text = if (isEs) "Edita o añade visitas con coordenadas geográficas para ver la ruta y el mapa interactivo."
+                        text = if (isEs) "Edita o añade visitas con coordenadas geográficas para ver el mapa interactivo."
                         else "Edit or add stops with geographic coordinates to see the interactive map.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -100,6 +110,21 @@ fun DayItineraryMapView(
         }
         return
     }
+
+    // Load local Leaflet CSS and JS directly from assets into memory to avoid any file:/// CORS blocking
+    val leafletCss = remember {
+        runCatching {
+            context.assets.open("leaflet/leaflet.css").bufferedReader().use { it.readText() }
+        }.getOrDefault("")
+    }
+    val leafletJs = remember {
+        runCatching {
+            context.assets.open("leaflet/leaflet.js").bufferedReader().use { it.readText() }
+        }.getOrDefault("")
+    }
+
+    val currentStops by rememberUpdatedState(validStops)
+    val currentOnStopClick by rememberUpdatedState(onStopClick)
 
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
     var isMapLoaded by remember { mutableStateOf(false) }
@@ -136,12 +161,23 @@ fun DayItineraryMapView(
         val uLng = userLocation?.longitude ?: 0.0
 
         val js = """
+            if (typeof resizeMapToViewport === 'function') {
+                resizeMapToViewport();
+            } else if (typeof map !== 'undefined' && map) {
+                map.invalidateSize();
+            }
             if (typeof renderMarkers === 'function') {
                 renderMarkers($stopsJson, '$selectedId');
                 renderUserLocation($uLat, $uLng);
             }
         """.trimIndent()
         view.evaluateJavascript(js, null)
+    }
+
+    LaunchedEffect(validStops, selectedStop, userLocation, isMapLoaded) {
+        if (isMapLoaded) {
+            updateMapData(webViewRef)
+        }
     }
 
     Box(
@@ -154,18 +190,20 @@ fun DayItineraryMapView(
         // Embedded Leaflet Map WebView
         AndroidView(
             modifier = Modifier.fillMaxSize(),
-            factory = { context ->
-                WebView(context).apply {
+            factory = { ctx ->
+                WebView.setWebContentsDebuggingEnabled(true)
+                WebView(ctx).apply {
                     settings.apply {
                         javaScriptEnabled = true
                         domStorageEnabled = true
-                        allowFileAccess = true
                         cacheMode = WebSettings.LOAD_DEFAULT
                         useWideViewPort = true
                         loadWithOverviewMode = true
+                        mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                        userAgentString = "JapanTravelTools/1.2.0 (Android; MobileApp)"
                     }
 
-                    // Prevent parent Compose scroll containers from intercepting map pan/zoom
+                    // Prevent parent Compose scroll containers from intercepting map touch gestures
                     setOnTouchListener { v, event ->
                         when (event.action) {
                             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
@@ -178,14 +216,21 @@ fun DayItineraryMapView(
                         false
                     }
 
+                    webChromeClient = object : WebChromeClient() {
+                        override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+                            Log.e("DayItineraryMap", "WebView Console: [${consoleMessage?.messageLevel()}] ${consoleMessage?.message()} (${consoleMessage?.sourceId()}:${consoleMessage?.lineNumber()})")
+                            return true
+                        }
+                    }
+
                     addJavascriptInterface(
                         object {
                             @JavascriptInterface
                             fun onStopClicked(stopId: String) {
-                                val clicked = validStops.firstOrNull { it.id == stopId }
+                                val clicked = currentStops.firstOrNull { it.id == stopId }
                                 if (clicked != null) {
                                     Handler(Looper.getMainLooper()).post {
-                                        onStopClick(clicked)
+                                        currentOnStopClick(clicked)
                                     }
                                 }
                             }
@@ -196,25 +241,54 @@ fun DayItineraryMapView(
                     webViewClient = object : WebViewClient() {
                         override fun onPageFinished(view: WebView?, url: String?) {
                             super.onPageFinished(view, url)
+                            Log.e("DayItineraryMap", "onPageFinished: $url")
                             isMapLoaded = true
-                            updateMapData(view)
+                            view?.postDelayed({
+                                updateMapData(view)
+                            }, 100)
+                        }
+
+                        override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
+                            super.onReceivedError(view, request, error)
+                            Log.e("DayItineraryMap", "onReceivedError: ${error?.errorCode} ${error?.description} for ${request?.url}")
                         }
                     }
+
+                    val initialStopsJson = buildStopsJson()
+                    val initialUserLat = userLocation?.latitude ?: 0.0
+                    val initialUserLng = userLocation?.longitude ?: 0.0
+                    val initialSelectedId = selectedStop?.id.orEmpty()
 
                     val html = """
                         <!DOCTYPE html>
                         <html>
                         <head>
+                            <meta charset="utf-8">
                             <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes">
-                            <link rel="stylesheet" href="leaflet/leaflet.css" />
-                            <script src="leaflet/leaflet.js"></script>
+                            <title>Japan Travel Tools Map</title>
                             <style>
-                                html, body, #map {
+                                $leafletCss
+                                html, body {
                                     margin: 0;
                                     padding: 0;
-                                    width: 100%;
-                                    height: 100%;
-                                    background-color: #f0ede5;
+                                    width: 100vw;
+                                    height: 100vh;
+                                    overflow: hidden;
+                                    background-color: #f6f5f0;
+                                }
+                                #map {
+                                    position: fixed;
+                                    top: 0;
+                                    left: 0;
+                                    right: 0;
+                                    bottom: 0;
+                                    width: 100vw;
+                                    height: 100vh;
+                                    background-color: #f6f5f0;
+                                    background-image: 
+                                        linear-gradient(rgba(0, 0, 0, 0.06) 1px, transparent 1px),
+                                        linear-gradient(90deg, rgba(0, 0, 0, 0.06) 1px, transparent 1px);
+                                    background-size: 36px 36px;
                                 }
                                 .marker-badge {
                                     display: flex;
@@ -261,21 +335,38 @@ fun DayItineraryMapView(
                         <body>
                         <div id="map"></div>
                         <script>
+                            window.onerror = function(msg, url, line) {
+                                console.error('JS Error: ' + msg + ' at ' + url + ':' + line);
+                            };
+
+                            $leafletJs
+
                             var map = L.map('map', {
                                 zoomControl: false,
                                 attributionControl: false
                             }).setView([35.6762, 139.6503], 12);
 
-                            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
+                            // Clean OpenStreetMap tiles
+                            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
                                 maxZoom: 19,
-                                subdomains: 'abcd'
+                                attribution: '&copy; OpenStreetMap contributors'
                             }).addTo(map);
 
                             var markersLayer = L.layerGroup().addTo(map);
                             var userLayer = L.layerGroup().addTo(map);
                             var lastBounds = null;
 
+                            if (window.ResizeObserver) {
+                                var resizeObserver = new ResizeObserver(function() {
+                                    if (map) { map.invalidateSize(); }
+                                });
+                                resizeObserver.observe(document.getElementById('map'));
+                            }
+
                             function renderMarkers(stopsJson, selectedId) {
+                                if (map) {
+                                    map.invalidateSize();
+                                }
                                 markersLayer.clearLayers();
                                 var bounds = [];
                                 if (!stopsJson || stopsJson.length === 0) return;
@@ -332,7 +423,21 @@ fun DayItineraryMapView(
                                 marker.bindTooltip('📍 Tú estás aquí', { permanent: false, direction: 'top' });
                             }
 
+                            function resizeMapToViewport() {
+                                var h = window.innerHeight || document.documentElement.clientHeight || 500;
+                                var w = window.innerWidth || document.documentElement.clientWidth || 400;
+                                var el = document.getElementById('map');
+                                if (el) {
+                                    el.style.width = w + 'px';
+                                    el.style.height = h + 'px';
+                                }
+                                if (map) {
+                                    map.invalidateSize();
+                                }
+                            }
+
                             function fitToMarkers() {
+                                resizeMapToViewport();
                                 if (lastBounds && lastBounds.isValid && lastBounds.isValid()) {
                                     map.fitBounds(lastBounds, { padding: [50, 50], maxZoom: 16, animate: true });
                                 } else if (lastBounds) {
@@ -348,12 +453,30 @@ fun DayItineraryMapView(
 
                             function zoomIn() { map.zoomIn(); }
                             function zoomOut() { map.zoomOut(); }
+
+                            function invalidateAndFit() {
+                                resizeMapToViewport();
+                                if (lastBounds && lastBounds.isValid && lastBounds.isValid()) {
+                                    map.fitBounds(lastBounds, { padding: [50, 50], maxZoom: 16 });
+                                }
+                            }
+
+                            window.addEventListener('resize', invalidateAndFit);
+                            window.addEventListener('orientationchange', invalidateAndFit);
+                            resizeMapToViewport();
+                            setTimeout(invalidateAndFit, 80);
+                            setTimeout(invalidateAndFit, 250);
+                            setTimeout(invalidateAndFit, 600);
+
+                            // Render initial stops right away
+                            renderMarkers($initialStopsJson, '$initialSelectedId');
+                            renderUserLocation($initialUserLat, $initialUserLng);
                         </script>
                         </body>
                         </html>
                     """.trimIndent()
 
-                    loadDataWithBaseURL("file:///android_asset/", html, "text/html", "utf-8", null)
+                    loadDataWithBaseURL("https://tile.openstreetmap.org/", html, "text/html", "utf-8", "https://tile.openstreetmap.org/")
                     webViewRef = this
                 }
             },
