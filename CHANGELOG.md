@@ -7,6 +7,23 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Mapa Integrado de Visitas del Día, Ubicación GPS y Detalle de Guías y Billetes 🗺️📍🎫✨
+- **Lienzo de Mapa Interactivo 100% Offline (`DayItineraryMapView`)**: Proyección Web Mercator en un lienzo nativo de Compose con soporte para gestos táctiles de arrastre fluido (pan) y pellizco para zoom (pinch-to-zoom). Funciona sin conexión a internet y sin necesidad de claves de API externas.
+- **Marcadores Numerados y Trazado de Ruta Cronológica**: Cada visita del día se renderiza como un marcador circular numerado (`1..N`) con el color de su categoría (`SIGHTSEEING`, `TRANSPORT`, `FOOD`, `HOTEL`, `ACTIVITY`, `SHOPPING`), etiqueta con horario y nombre resumido, y una polilínea discontinua que une las paradas consecutivas con cálculo acumulado de distancia en kilómetros (`haversineDistanceKm`).
+- **Ubicación en Tiempo Real del Usuario (`📍 Tú estás aquí`)**: Marcador azul interactivo con halo de precisión y recentrado rápido (`🎯`) mediante `UserLocationHelper` y permiso `ACCESS_FINE_LOCATION`, permitiendo al viajero orientarse respecto a los templos y paradas de su itinerario.
+- **Ficha Modal de Detalle Completo de la Parada (`StopDetailMapModalSheet`)**: Al tocar cualquier marcador del mapa, se despliega una hoja modal con:
+  - Nombre en japonés en tipografía grande con botón de copia rápida al portapapeles para mostrar a taxistas o transeúntes.
+  - Horario, duración, categoría y notas/consejos.
+  - **Guía de viaje vinculada (`TravelGuideArticle`)**: Detección automática por ciudad, región o etiquetas temáticas mediante `ItineraryLinkedResourcesResolver` con botón para abrir y leer la guía completa.
+  - **Billetes y reservas asociadas (`TravelDocumentItem` / `TransportSegmentItem`)**: Detección automática por fecha, ciudad y tramo, con botón directo `📱 Ver Billete / Código QR` que abre el visor a pantalla completa con brillo al 100%.
+  - Botones de acción directa: `🗺️ Google Maps` para navegación guiada paso a paso y `✏️ Editar Parada`.
+- **Alternador Rápido de Vista `[ 📋 Horario | 🗺️ Mapa del Día ]`**: Integrado en la cabecera del planificador de viaje (`TripPlannerTabScreen`), permitiendo alternar al instante entre la lista cronológica detallada y la vista espacial en el mapa.
+
+### Extracción Inteligente y Sincronización de Ciudades en Meteorología ☀️🌧️
+- **Botón `➕ Ciudades del Plan` Totalmente Funcional**: Corrección del flujo de sincronización manual para restablecer exclusiones previas (`forceResetDeleted = true`) y proporcionar retroalimentación clara e inmediata al viajero con el número exacto de ciudades añadidas o el estado de sincronización completo.
+- **Detección por Proximidad Geográfica (`findClosestKnownCity`)**: Si una visita del itinerario no incluye explícitamente el nombre de la ciudad en su texto, el motor geodésico calcula la distancia geodésica a los núcleos urbanos conocidos (umbral de 35 km) para asociar automáticamente templos, santuarios y parques a su ciudad correspondiente (Kioto, Tokio, Osaka, Nara, Takayama, Hakone, etc.).
+- **Ampliación del Catálogo de Tránsito y Destinos**: Incorporación de ciudades y aeropuertos internacionales frecuentes en las rutas de viaje: Múnich (`MUC`), Valencia (`VLC`), Helsinki (`HEL`), Dubái (`DXB`) y códigos de estación Shinkansen/Hakone (`HAK`, `TAK`, `KNZ`, `NAR`, etc.).
+
 ### Importación Apple Wallet (.pkpass), Códigos QR/Aztec y Detección de Duplicados 🎫📱✨
 - **Renderizado de Códigos QR, Aztec y PDF417 (`BarcodeBitmapGenerator`)**: Motor de renderizado 100% offline basado en ZXing para generar códigos de billetes de tren (Renfe AVE en formato Aztec), pases de aerolíneas (Iberia, Lufthansa en Aztec/PDF417) y códigos QR estándar con visualización nítida (`FilterQuality.None`).
 - **Apertura Inmediata del Código QR tras Importar**: Al importar un billete `.pkpass`, la aplicación despliega automáticamente el diálogo modal con el código QR/Aztec de alta luminosidad sobre fondo blanco, listo para escanear en tornos y puertas de embarque.

@@ -161,4 +161,52 @@ class PlanWeatherCityExtractorTest {
         SharedWeatherForecastStore.addCity(naraPreset)
         assertTrue(SharedWeatherForecastStore.citiesState.value.any { it.id == "NARA" })
     }
+
+    @Test
+    fun `extractCitiesFromPlan resolves cities by proximity and transit hubs`() {
+        // Stop without city name in text, but with Kyoto coordinates
+        val stopInKyoto = ItineraryStopItem(
+            id = "stop-zen",
+            dayNumber = 2,
+            dateIso = "2026-11-12",
+            startTime = "10:00",
+            endTime = "11:30",
+            title = "Jardín Zen de Ryoan-ji",
+            category = StopCategory.SIGHTSEEING,
+            placeNameJapanese = "竜安寺",
+            latitude = 35.0345,
+            longitude = 135.7182,
+            notes = "Meditación"
+        )
+
+        // Transport segment with MUC (Munich) and VLC (Valencia)
+        val segMunich = TransportSegmentItem(
+            id = "seg-muc",
+            order = 1,
+            type = TransportMode.FLIGHT,
+            operatorName = "Lufthansa",
+            lineOrNumber = "LH714",
+            departureCode = "MUC",
+            departureName = "Múnich-Franz Josef Strauss",
+            departureZoneId = "Europe/Berlin",
+            departureTerminalOrPlatform = "T2",
+            departureTimeIso = "2027-03-15T12:00",
+            arrivalCode = "KIX",
+            arrivalName = "Osaka Kansai",
+            arrivalZoneId = "Asia/Tokyo",
+            arrivalTerminalOrPlatform = "T1",
+            arrivalTimeIso = "2027-03-16T07:00",
+            seatOrCarInfo = ""
+        )
+
+        val cities = PlanWeatherCityExtractor.extractCitiesFromPlan(
+            stops = listOf(stopInKyoto),
+            segments = listOf(segMunich)
+        )
+
+        assertTrue("Should detect Kyoto via proximity", cities.any { it.id == "KYOTO" })
+        assertTrue("Should detect Munich via airport code", cities.any { it.id == "MUNICH" })
+        assertTrue("Should detect Osaka via KIX arrival code", cities.any { it.id == "OSAKA" })
+    }
 }
+

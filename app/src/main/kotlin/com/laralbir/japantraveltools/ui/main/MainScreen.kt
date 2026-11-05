@@ -192,6 +192,10 @@ import com.laralbir.japantraveltools.feature.documents.GuideSortOrder
 import com.laralbir.japantraveltools.feature.planner.ItineraryStopItem
 import com.laralbir.japantraveltools.feature.planner.StopCategory
 import com.laralbir.japantraveltools.feature.planner.TripPlannerUseCase
+import com.laralbir.japantraveltools.feature.planner.map.DayItineraryMapView
+import com.laralbir.japantraveltools.feature.planner.map.GeoPoint
+import com.laralbir.japantraveltools.feature.planner.map.StopDetailMapModalSheet
+import com.laralbir.japantraveltools.feature.planner.map.UserLocationHelper
 import com.laralbir.japantraveltools.feature.settings.OpenSourceLibrariesCatalog
 import com.laralbir.japantraveltools.feature.transport.SharedTransportAlertStore
 import com.laralbir.japantraveltools.feature.transport.TransportAlert
@@ -1459,16 +1463,22 @@ private fun WeatherToolScreen(isEs: Boolean) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
                             onClick = {
-                                SharedWeatherForecastStore.syncCitiesFromPlan(
+                                val addedCount = SharedWeatherForecastStore.syncCitiesFromPlan(
                                     stops = portablePlan.itineraryStops,
                                     segments = portablePlan.transportSegments,
-                                    forceResetDeleted = false
+                                    forceResetDeleted = true
                                 )
-                                statusMessage = if (isEs) "🔄 Sincronizado con itinerario" else "🔄 Synced with trip plan"
+                                statusMessage = if (isEs) {
+                                    if (addedCount > 0) "✅ Se añadieron $addedCount ciudades del plan"
+                                    else "ℹ️ Todas las ciudades del plan ya están añadidas (${allCities.size} activas)"
+                                } else {
+                                    if (addedCount > 0) "✅ Added $addedCount cities from trip plan"
+                                    else "ℹ️ All trip plan cities already added (${allCities.size} active)"
+                                }
                             },
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
                         ) {
-                            Text(if (isEs) "🔄 Plan" else "🔄 Plan", fontSize = 12.sp)
+                            Text(if (isEs) "➕ Ciudades del Plan" else "➕ Plan Cities", fontSize = 12.sp)
                         }
                         Button(
                             onClick = {
@@ -2081,6 +2091,37 @@ private fun TripPlannerTabScreen(
         selectedDay = availableDays.first()
     }
 
+    val allGuides by SharedDocumentsAndGuidesStore.guidesState.collectAsState()
+    val allDocs by SharedDocumentsAndGuidesStore.documentsState.collectAsState()
+
+    var isMapViewActive by rememberSaveable { mutableStateOf(false) }
+    var viewingMapStop by remember { mutableStateOf<ItineraryStopItem?>(null) }
+    var viewingGuideArticle by remember { mutableStateOf<TravelGuideArticle?>(null) }
+    var viewingTicketData by remember { mutableStateOf<BarcodeDisplayData?>(null) }
+
+    var userLocation by remember { mutableStateOf<GeoPoint?>(null) }
+    var hasLocationPermission by remember { mutableStateOf(UserLocationHelper.hasLocationPermission(context)) }
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { perms ->
+        val fine = perms[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        val coarse = perms[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (fine || coarse) {
+            hasLocationPermission = true
+            UserLocationHelper.requestCurrentLocation(context) { loc ->
+                if (loc != null) userLocation = loc
+            }
+        }
+    }
+
+    LaunchedEffect(hasLocationPermission) {
+        if (hasLocationPermission) {
+            UserLocationHelper.requestCurrentLocation(context) { loc ->
+                if (loc != null) userLocation = loc
+            }
+        }
+    }
+
     var editingStop by remember { mutableStateOf<ItineraryStopItem?>(null) }
     var isCreatingStop by remember { mutableStateOf(false) }
     var isCreatingPlan by remember { mutableStateOf(false) }
@@ -2100,6 +2141,84 @@ private fun TripPlannerTabScreen(
     }
     val dayWeather = remember(weatherForecasts, selectedDay) {
         SharedWeatherForecastStore.forecastForDayNumber(selectedDay)
+    }
+
+    if (viewingGuideArticle != null) {
+        FullGuideReaderDialog(
+            guide = viewingGuideArticle!!,
+            isEs = isEs,
+            onDismiss = { viewingGuideArticle = null }
+        )
+    }
+
+    if (viewingTicketData != null) {
+        PkPassBarcodeViewerDialog(
+            data = viewingTicketData!!,
+            isEs = isEs,
+            onDismiss = { viewingTicketData = null }
+        )
+    }
+
+    if (viewingMapStop != null) {
+        val stopIdx = dayStops.indexOfFirst { it.item.id == viewingMapStop!!.id } + 1
+        StopDetailMapModalSheet(
+            stop = viewingMapStop!!,
+            stopIndex = if (stopIdx > 0) stopIdx else 1,
+            isEs = isEs,
+            allGuides = allGuides,
+            allDocuments = allDocs,
+            allSegments = portablePlan.transportSegments,
+            onDismiss = { viewingMapStop = null },
+            onOpenGuide = { guide ->
+                viewingMapStop = null
+                viewingGuideArticle = guide
+            },
+            onViewTicket = { doc, seg ->
+                viewingMapStop = null
+                val displayData = if (seg != null) {
+                    BarcodeDisplayData(
+                        title = "${seg.operatorName} · ${seg.lineOrNumber}",
+                        subtitle = "${seg.departureName} ➔ ${seg.arrivalName}",
+                        extraDetails = "📅 ${seg.departureTimeIso} · 💺 ${seg.seatOrCarInfo}",
+                        barcodeMessage = seg.barcodeMessage ?: doc?.barcodeMessage ?: doc?.locatorCode ?: seg.id,
+                        barcodeFormat = seg.barcodeFormat ?: doc?.barcodeFormat,
+                        barcodeAltText = seg.barcodeAltText ?: doc?.barcodeAltText ?: doc?.locatorCode
+                    )
+                } else if (doc != null) {
+                    val detailLine = doc.referenceOrNotes.lines().firstOrNull { it.contains("Salida") || it.contains("Coche") || it.contains("Fecha") }
+                        ?: doc.referenceOrNotes.lines().firstOrNull { it.isNotBlank() }
+                        ?: ""
+                    BarcodeDisplayData(
+                        title = doc.title,
+                        subtitle = if (isEs) doc.category.labelEs else doc.category.labelEn,
+                        extraDetails = detailLine,
+                        barcodeMessage = doc.barcodeMessage ?: doc.locatorCode ?: doc.id,
+                        barcodeFormat = doc.barcodeFormat,
+                        barcodeAltText = doc.barcodeAltText ?: doc.locatorCode ?: doc.id
+                    )
+                } else null
+
+                if (displayData != null) {
+                    viewingTicketData = displayData
+                }
+            },
+            onOpenInGoogleMaps = { stop ->
+                val uri = Uri.parse("geo:${stop.latitude},${stop.longitude}?q=${Uri.encode(stop.placeNameJapanese.ifBlank { stop.title })}")
+                val mapIntent = Intent(Intent.ACTION_VIEW, uri)
+                mapIntent.setPackage("com.google.android.apps.maps")
+                try {
+                    context.startActivity(mapIntent)
+                } catch (_: Exception) {
+                    val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=${stop.latitude},${stop.longitude}"))
+                    context.startActivity(webIntent)
+                }
+            },
+            onEditStop = { stop ->
+                viewingMapStop = null
+                editingStop = stop
+                isCreatingStop = false
+            }
+        )
     }
 
     if (isCreatingPlan || isEditingPlan) {
@@ -2497,9 +2616,83 @@ private fun TripPlannerTabScreen(
             )
         }
 
+        Spacer(Modifier.height(8.dp))
+
+        // Alternador de vista: Horario vs Mapa del Día
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = if (!isMapViewActive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                border = BorderStroke(1.dp, if (!isMapViewActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(34.dp)
+                    .clickable { isMapViewActive = false }
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = if (isEs) "📋 Horario" else "📋 Schedule",
+                        fontSize = 12.5.sp,
+                        fontWeight = if (!isMapViewActive) FontWeight.Bold else FontWeight.Medium,
+                        color = if (!isMapViewActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = if (isMapViewActive) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                border = BorderStroke(1.dp, if (isMapViewActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(34.dp)
+                    .clickable { isMapViewActive = true }
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = if (isEs) "🗺️ Mapa del Día" else "🗺️ Day Map",
+                        fontSize = 12.5.sp,
+                        fontWeight = if (isMapViewActive) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isMapViewActive) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
         Spacer(Modifier.height(10.dp))
 
-        if (dayStops.isEmpty()) {
+        if (isMapViewActive) {
+            DayItineraryMapView(
+                stops = dayStops.map { it.item },
+                selectedStop = viewingMapStop,
+                onStopClick = { stop -> viewingMapStop = stop },
+                userLocation = userLocation,
+                hasLocationPermission = hasLocationPermission,
+                onRequestLocationPermission = {
+                    locationPermissionLauncher.launch(
+                        arrayOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                        )
+                    )
+                },
+                onOpenExternalRoute = {
+                    val valid = dayStops.map { it.item }.filter { it.latitude != 0.0 && it.longitude != 0.0 }
+                    if (valid.isNotEmpty()) {
+                        val wp = valid.joinToString("/") { "${it.latitude},${it.longitude}" }
+                        val uri = Uri.parse("https://www.google.com/maps/dir/$wp")
+                        runCatching {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                        }
+                    }
+                },
+                isEs = isEs,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else if (dayStops.isEmpty()) {
             KotlinConfCard {
                 Text(
                     text = if (isEs) "No hay paradas en el Día $selectedDay" else "No stops on Day $selectedDay",
@@ -8172,112 +8365,44 @@ private fun WalletTicketPassDialog(
     isEs: Boolean,
     onDismiss: () -> Unit
 ) {
-    var isFullScreen by remember { mutableStateOf(false) }
+    val travelPlan by SharedTravelPlanStore.planState.collectAsState()
+    val linkedSegment = if (doc.linkedTransportSegmentId != null) {
+        travelPlan.transportSegments.firstOrNull { it.id == doc.linkedTransportSegmentId }
+    } else {
+        travelPlan.transportSegments.firstOrNull { seg ->
+            seg.linkedDocumentId == doc.id ||
+            (!doc.locatorCode.isNullOrBlank() && seg.stationExitOrBelt.contains(doc.locatorCode.orEmpty(), ignoreCase = true))
+        }
+    }
 
-    val barcodeMsg = doc.barcodeMessage ?: doc.locatorCode ?: doc.id
-    val barcodeFmt = doc.barcodeFormat ?: if (!doc.barcodeMessage.isNullOrBlank()) null else "PKBarcodeFormatQR"
-    val barcodeAlt = doc.barcodeAltText ?: doc.locatorCode ?: doc.id
-
-    if (isFullScreen) {
-        FullScreenBarcodeDialog(
-            data = BarcodeDisplayData(
-                title = doc.title,
-                subtitle = doc.category.badgeCode,
-                extraDetails = doc.referenceOrNotes.lines().firstOrNull() ?: "",
-                barcodeMessage = barcodeMsg,
-                barcodeFormat = barcodeFmt,
-                barcodeAltText = barcodeAlt
-            ),
-            isEs = isEs,
-            onDismiss = { isFullScreen = false }
+    val displayData = if (linkedSegment != null) {
+        BarcodeDisplayData(
+            title = "${linkedSegment.operatorName} · ${linkedSegment.lineOrNumber}",
+            subtitle = "${linkedSegment.departureName} ➔ ${linkedSegment.arrivalName}",
+            extraDetails = "📅 ${linkedSegment.departureTimeIso} · 💺 ${linkedSegment.seatOrCarInfo}",
+            barcodeMessage = linkedSegment.barcodeMessage ?: doc.barcodeMessage ?: doc.locatorCode ?: doc.id,
+            barcodeFormat = linkedSegment.barcodeFormat ?: doc.barcodeFormat,
+            barcodeAltText = linkedSegment.barcodeAltText ?: doc.barcodeAltText ?: doc.locatorCode
+        )
+    } else {
+        val detailLine = doc.referenceOrNotes.lines().firstOrNull { it.contains("Salida") || it.contains("Coche") || it.contains("Fecha") }
+            ?: doc.referenceOrNotes.lines().firstOrNull { it.isNotBlank() }
+            ?: ""
+        BarcodeDisplayData(
+            title = doc.title,
+            subtitle = if (isEs) doc.category.labelEs else doc.category.labelEn,
+            extraDetails = detailLine,
+            barcodeMessage = doc.barcodeMessage ?: doc.locatorCode ?: doc.id,
+            barcodeFormat = doc.barcodeFormat,
+            barcodeAltText = doc.barcodeAltText ?: doc.locatorCode ?: doc.id
         )
     }
 
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    InfoTagPill(
-                        text = doc.category.badgeCode,
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Text(
-                        text = if (isEs) "Pase Digital Offline" else "Digital Offline Pass",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.secondary
-                    )
-                }
-
-                Spacer(Modifier.height(14.dp))
-
-                Text(
-                    text = doc.title,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-
-                if (doc.referenceOrNotes.isNotBlank()) {
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = doc.referenceOrNotes,
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-                }
-
-                Spacer(Modifier.height(18.dp))
-
-                val barcodeMsg = doc.barcodeMessage ?: doc.locatorCode ?: doc.id
-                val barcodeFmt = doc.barcodeFormat ?: if (!doc.barcodeMessage.isNullOrBlank()) null else "PKBarcodeFormatQR"
-                val barcodeAlt = doc.barcodeAltText ?: doc.locatorCode ?: doc.id
-                BarcodeRendererView(
-                    message = barcodeMsg,
-                    format = barcodeFmt,
-                    altText = barcodeAlt,
-                    onQrClick = { isFullScreen = true }
-                )
-
-                Spacer(Modifier.height(14.dp))
-
-                Text(
-                    text = if (isEs) "💡 Sube el brillo de la pantalla para escanear en tornos o controles" else "💡 Increase screen brightness when scanning at gates",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(Modifier.height(16.dp))
-
-                Button(
-                    onClick = onDismiss,
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(text = if (isEs) "Cerrar Pase" else "Close Pass", fontSize = 14.sp)
-                }
-            }
-        }
-    }
+    PkPassBarcodeViewerDialog(
+        data = displayData,
+        isEs = isEs,
+        onDismiss = onDismiss
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

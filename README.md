@@ -49,10 +49,11 @@ Aplicación Android **offline-first** con la suite definitiva de herramientas es
 - Exportación e importación modular en formato JSON desde Ajustes.
 
 ### 5. 🗺️ Planificador de Viaje con Fotos, Horarios y Google Maps (`SPEC-04`)
-- Itinerario interactivo por días con línea temporal de horarios (`Timeline`) y detección de solapamientos.
+- Itinerario interactivo por días con alternador de vista superior: **`[ 📋 Horario | 🗺️ Mapa del Día ]`**.
+- **Mapa Integrado del Día 100% Offline (`DayItineraryMapView`)**: Proyección Web Mercator sobre lienzo Compose con gestos fluidos de arrastre y zoom, marcadores numerados `1..N` según orden cronológico, polilínea de ruta con cálculo de distancia acumulada en km y ubicación GPS en vivo (`📍 Tú estás aquí`).
+- **Ficha Modal de Detalle Interactivo de Parada (`StopDetailMapModalSheet`)**: Al pulsar cualquier punto del mapa, se despliega una ficha con nombre en japonés en gran formato con botón de copia rápida para taxistas/locales, vinculación inteligente de Guías de Viaje (`TravelGuideArticle`) con botón para leer la guía completa, billetes digitales asociados (`TravelDocumentItem` / `TransportSegmentItem`) con visor QR ampliado y brillo al 100%, y botón para navegación paso a paso en Google Maps.
 - **Formateo Regional de Fechas y Husos Locales (`TravelDateTimeFormatter`)**: Fechas completas en formato regional del sistema (`FormatStyle.FULL`) y horas en el huso local de cada destino (ej. Múnich `UTC+1`, Tokio `UTC+9`) con indicación del desfase.
 - **Persistencia Canónica en ISO UTC**: Almacenamiento estándar en formato UTC (`Instant.toString()`) con compatibilidad retroactiva total en `TravelPlanJsonCodec`.
-- **Integración con Google Maps**: Mapa interactivo embebido (`Maps Compose`) con marcadores numerados de la ruta diaria y apertura directa de rutas en la aplicación Google Maps.
 - Sincronización directa con el Calendario de Android / Google Calendar y exportación/importación en formato JSON (`japan-travel-plan.v1`).
 
 ### 6. 🚆 Planificador Multimodal de Transportes (`SPEC-05`)

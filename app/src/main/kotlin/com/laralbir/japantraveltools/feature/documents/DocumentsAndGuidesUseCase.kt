@@ -613,6 +613,14 @@ object DocumentsAndGuidesJsonCodec {
             sb.appendLine("      \"fileUri\": $fileUriStr,")
             val locStr = if (doc.locatorCode != null) "\"${escape(doc.locatorCode)}\"" else "null"
             sb.appendLine("      \"locatorCode\": $locStr,")
+            val bMsgStr = if (doc.barcodeMessage != null) "\"${escape(doc.barcodeMessage)}\"" else "null"
+            sb.appendLine("      \"barcodeMessage\": $bMsgStr,")
+            val bFmtStr = if (doc.barcodeFormat != null) "\"${escape(doc.barcodeFormat)}\"" else "null"
+            sb.appendLine("      \"barcodeFormat\": $bFmtStr,")
+            val bAltStr = if (doc.barcodeAltText != null) "\"${escape(doc.barcodeAltText)}\"" else "null"
+            sb.appendLine("      \"barcodeAltText\": $bAltStr,")
+            val linkSegStr = if (doc.linkedTransportSegmentId != null) "\"${escape(doc.linkedTransportSegmentId)}\"" else "null"
+            sb.appendLine("      \"linkedTransportSegmentId\": $linkSegStr,")
             sb.appendLine("      \"isPinned\": ${doc.isPinned}")
             sb.appendLine("    }$comma")
         }
@@ -633,6 +641,10 @@ object DocumentsAndGuidesJsonCodec {
             val fileUri = extractString(obj, "fileUri")
             val locatorCode = extractString(obj, "locatorCode")
             val isPinned = extractBoolean(obj, "isPinned") ?: false
+            val barcodeMessage = extractString(obj, "barcodeMessage")
+            val barcodeFormat = extractString(obj, "barcodeFormat")
+            val barcodeAltText = extractString(obj, "barcodeAltText")
+            val linkedTransportSegmentId = extractString(obj, "linkedTransportSegmentId")
             TravelDocumentItem(
                 id = id,
                 title = title,
@@ -640,7 +652,11 @@ object DocumentsAndGuidesJsonCodec {
                 referenceOrNotes = notes,
                 fileUri = fileUri,
                 isPinned = isPinned,
-                locatorCode = locatorCode
+                locatorCode = locatorCode,
+                barcodeMessage = barcodeMessage,
+                barcodeFormat = barcodeFormat,
+                barcodeAltText = barcodeAltText,
+                linkedTransportSegmentId = linkedTransportSegmentId
             )
         }
     }

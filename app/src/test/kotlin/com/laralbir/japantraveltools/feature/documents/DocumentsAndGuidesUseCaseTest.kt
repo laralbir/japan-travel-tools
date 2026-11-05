@@ -330,6 +330,33 @@ class DocumentsAndGuidesUseCaseTest {
             tempDir.deleteRecursively()
         }
     }
+
+    @Test
+    fun `DocumentsAndGuidesJsonCodec preserves barcode fields and linked transport segment`() {
+        val doc = TravelDocumentItem(
+            id = "doc-test-qr",
+            title = "Renfe AVE 05181",
+            category = DocumentCategory.TRANSPORT,
+            referenceOrNotes = "Coche 7 · Asiento 1B",
+            locatorCode = "WEHI1SHC",
+            barcodeMessage = "1455286897676010720518114/03/202718:32",
+            barcodeFormat = "PKBarcodeFormatAztec",
+            barcodeAltText = "1455286897676",
+            linkedTransportSegmentId = "seg-ave-14"
+        )
+
+        val json = DocumentsAndGuidesJsonCodec.exportDocumentsJson(listOf(doc))
+        val importedList = DocumentsAndGuidesJsonCodec.importDocumentsJson(json)
+
+        assertEquals(1, importedList.size)
+        val imported = importedList.first()
+        assertEquals("doc-test-qr", imported.id)
+        assertEquals("WEHI1SHC", imported.locatorCode)
+        assertEquals("1455286897676010720518114/03/202718:32", imported.barcodeMessage)
+        assertEquals("PKBarcodeFormatAztec", imported.barcodeFormat)
+        assertEquals("1455286897676", imported.barcodeAltText)
+        assertEquals("seg-ave-14", imported.linkedTransportSegmentId)
+    }
 }
 
 
