@@ -449,11 +449,15 @@ private fun executeImport(
             JsonContentType.TRAVEL_PLAN -> {
                 SharedTravelPlanStore.importJson(detected.rawJson, mergeWithExisting = merge)
                     .onSuccess { plan ->
+                        val extraGuides = if (detected.guideCount > 0) ", ${detected.guideCount} guías" else ""
+                        val extraDocs = if (detected.documentCount > 0) ", ${detected.documentCount} billetes" else ""
+                        val extraGuidesEn = if (detected.guideCount > 0) ", ${detected.guideCount} guides" else ""
+                        val extraDocsEn = if (detected.documentCount > 0) ", ${detected.documentCount} tickets" else ""
                         onStatus(
                             if (isEs) {
-                                "✅ Plan «${plan.tripTitle}» importado (${plan.itineraryStops.size} paradas, ${plan.transportSegments.size} transportes)."
+                                "✅ Plan «${plan.tripTitle}» importado (${plan.itineraryStops.size} paradas, ${plan.transportSegments.size} transportes$extraGuides$extraDocs)."
                             } else {
-                                "✅ Plan «${plan.tripTitle}» imported (${plan.itineraryStops.size} stops, ${plan.transportSegments.size} segments)."
+                                "✅ Plan «${plan.tripTitle}» imported (${plan.itineraryStops.size} stops, ${plan.transportSegments.size} segments$extraGuidesEn$extraDocsEn)."
                             }
                         )
                     }

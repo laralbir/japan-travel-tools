@@ -2,6 +2,8 @@ package com.laralbir.japantraveltools.core.portability
 
 import android.content.Context
 import com.laralbir.japantraveltools.core.datetime.TravelDateTimeFormatter
+import com.laralbir.japantraveltools.feature.documents.DocumentsAndGuidesJsonCodec
+import com.laralbir.japantraveltools.feature.documents.SharedDocumentsAndGuidesStore
 import com.laralbir.japantraveltools.feature.planner.ItineraryStopItem
 import com.laralbir.japantraveltools.feature.planner.StopCategory
 import com.laralbir.japantraveltools.feature.planner.TripPlannerUseCase
@@ -280,6 +282,24 @@ object SharedTravelPlanStore {
             }
             _planState.value = updated
             updatePlanInList(updated)
+
+            if (json.contains("\"guides\"")) {
+                runCatching {
+                    val guides = DocumentsAndGuidesJsonCodec.importGuidesJson(json)
+                    if (guides.isNotEmpty()) {
+                        SharedDocumentsAndGuidesStore.importGuides(guides, merge = mergeWithExisting)
+                    }
+                }
+            }
+            if (json.contains("\"documents\"")) {
+                runCatching {
+                    val docs = DocumentsAndGuidesJsonCodec.importDocumentsJson(json)
+                    if (docs.isNotEmpty()) {
+                        SharedDocumentsAndGuidesStore.importDocuments(docs, merge = mergeWithExisting)
+                    }
+                }
+            }
+
             updated
         }
     }

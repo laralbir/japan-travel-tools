@@ -76,10 +76,30 @@ El objeto raíz contiene:
   - `seatOrCarInfo` (cadena): Vagón y asiento o clase (ej. `"Vagón 7 · Asiento 12E"`).
   - `stationExitOrBelt` (cadena): Salida de estación o cinta de equipajes (ej. `"Salida Central"`).
   - `passOrPaymentBadge` (cadena): Cobertura o método de pago (ej. `"JR Pass"`, `"Suica"`, `"Billete"`).
+- `guides` (array opcional de guías de viaje integradas):
+  - `id` (cadena, obligatorio): Identificador único (ej. `"guide-sellos-goshuin"`).
+  - `title` (cadena, obligatorio): Título de la guía o manual práctico.
+  - `cityRegion` (cadena): Región o ciudad asociada (ej. `"General"`, `"Tokyo"`, `"Kyoto"`, `"Osaka"`).
+  - `tags` (array de cadenas): Etiquetas temáticas (ej. `["Sellos", "Templos", "Eki Stamp"]`).
+  - `markdownSummary` (cadena): Contenido en formato Markdown con instrucciones paso a paso.
+  - `photoCount` (entero, opcional): Número de imágenes asociadas.
+  - `isPinned` (booleano, opcional): Si la guía debe mostrarse fijada en la parte superior.
+- `documents` (array opcional de billetes, reservas y documentos adjuntos):
+  - `id` (cadena, obligatorio): Identificador único del documento (ej. `"doc-ave-vlc-mad"`).
+  - `title` (cadena, obligatorio): Nombre descriptivo (ej. `"Billete AVE Valencia ➔ Madrid"`).
+  - `category` (cadena, obligatorio): `"TRANSPORT"`, `"FLIGHT"`, `"HOTEL"`, `"TICKET"`, `"INSURANCE"`, `"PASSPORT"`, `"NATIONAL_ID"`, `"GUIDE"`.
+  - `referenceOrNotes` (cadena): Asiento, vagón, localizador o notas.
+  - `isPinned` (booleano, opcional): Si debe fijarse al inicio del repositorio.
+  - `fileUri` (cadena o null): Ruta relativa o URI interna del archivo adjunto (ej. `"documents/billete.pkpass"`).
+  - `locatorCode` (cadena o null): Código PNR o localizador de reserva.
+  - `barcodeMessage` (cadena o null): Payload para generar el código QR o de barras offline.
+  - `barcodeFormat` (cadena o null): Formato del código (`"PKBarcodeFormatAztec"`, `"QR_CODE"`, `"CODE_128"`).
+  - `barcodeAltText` (cadena o null): Texto legible alternativo bajo el código.
+  - `linkedTransportSegmentId` (cadena o null): ID del tramo de transporte vinculado en el plan.
 
 ---
 
-## 3. Ejemplo Completo Válido para Importar
+## 3. Ejemplo Completo Válido para Importar (Paquete Unificado Todo en Uno)
 
 ```json
 {
@@ -147,7 +167,24 @@ El objeto raíz contiene:
       "stationExitOrBelt": "Salida Central",
       "passOrPaymentBadge": "SmartEX / JR Pass"
     }
+  ],
+  "guides": [
+    {
+      "id": "guide-sellos-goshuin",
+      "title": "Guía de Sellos de Japón (Goshuin vs Eki Stamp)",
+      "cityRegion": "General",
+      "tags": ["Sellos", "Goshuin", "Eki Stamp"],
+      "markdownSummary": "• Goshuin: Libro Goshuincho en templos/santuarios (¥300-¥1,000).\n• Eki Stamp: Sellos gratuitos en estaciones JR y miradores con tu propia libreta."
+    }
+  ],
+  "documents": [
+    {
+      "id": "doc-vuelo-mad-hnd",
+      "title": "Billete Madrid ➔ Tokio Haneda",
+      "category": "FLIGHT",
+      "referenceOrNotes": "Vuelo IB6801 · Localizador ABC123",
+      "isPinned": true
+    }
   ]
 }
 ```
-

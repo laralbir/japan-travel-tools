@@ -1,5 +1,6 @@
 package com.laralbir.japantraveltools.core.portability
 
+import com.laralbir.japantraveltools.feature.documents.SharedDocumentsAndGuidesStore
 import com.laralbir.japantraveltools.feature.planner.ItineraryStopItem
 import com.laralbir.japantraveltools.feature.planner.StopCategory
 import com.laralbir.japantraveltools.feature.planner.TripPlannerUseCase
@@ -476,5 +477,63 @@ class TravelPlanJsonPortabilityTest {
         assertEquals("seg-later", segments[1].id)
         assertEquals(2, segments[1].order)
         assertEquals("2027-03-26T07:30", segments[1].departureTimeIso)
+    }
+
+    @Test
+    fun `SharedTravelPlanStore importJson automatically imports embedded guides and documents into shared store`() {
+        val unifiedJson = """
+            {
+              "schemaVersion": 1,
+              "tripTitle": "Viaje Unificado Japón 2027",
+              "itineraryStops": [
+                {
+                  "id": "stop-u1",
+                  "dayNumber": 1,
+                  "dateIso": "2027-03-15",
+                  "startTime": "09:00",
+                  "endTime": "11:00",
+                  "title": "Castillo de Osaka",
+                  "category": "SIGHTSEEING",
+                  "placeNameJapanese": "大阪城",
+                  "latitude": 34.6873,
+                  "longitude": 135.5262,
+                  "notes": "Sello de los 100 Castillos de Japón"
+                }
+              ],
+              "transportSegments": [],
+              "guides": [
+                {
+                  "id": "guide-embedded-1",
+                  "title": "Guía de Sellos Goshuin y Eki Stamps",
+                  "cityRegion": "General",
+                  "tags": ["Sellos", "Goshuin"],
+                  "markdownSummary": "Resumen sobre sellos en templos y estaciones"
+                }
+              ],
+              "documents": [
+                {
+                  "id": "doc-embedded-1",
+                  "title": "Billete AVE Valencia - Madrid",
+                  "category": "TRANSPORT",
+                  "referenceOrNotes": "Coche 7 Asiento 1B",
+                  "locatorCode": "WEHI1SHC"
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = SharedTravelPlanStore.importJson(unifiedJson, mergeWithExisting = false)
+        assertTrue(result.isSuccess)
+        val plan = result.getOrThrow()
+        assertEquals("Viaje Unificado Japón 2027", plan.tripTitle)
+        assertEquals(1, plan.itineraryStops.size)
+
+        // Verify guides were automatically imported into SharedDocumentsAndGuidesStore
+        val guides = SharedDocumentsAndGuidesStore.guidesState.value
+        assertTrue(guides.any { it.id == "guide-embedded-1" && it.title == "Guía de Sellos Goshuin y Eki Stamps" })
+
+        // Verify documents were automatically imported into SharedDocumentsAndGuidesStore
+        val docs = SharedDocumentsAndGuidesStore.documentsState.value
+        assertTrue(docs.any { it.id == "doc-embedded-1" && it.locatorCode == "WEHI1SHC" })
     }
 }
