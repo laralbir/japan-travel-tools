@@ -73,6 +73,18 @@ enum class MapTileLayerType {
 - **`GOOGLE_HYBRID`**: `https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&hl={es|en}` (vista satelital con nombres de calles y estaciones superpuestos).
 - **`OPENSTREETMAP`**: `https://tile.openstreetmap.org/{z}/{x}/{y}.png` (cartografía comunitaria detallada en senderos de templos y parques).
 
+### 2.2 Etiquetas Compactas Multilínea, Anticolisión por Proximidad y Ajustes de Layout (`DayItineraryMapView` & `MainScreen`)
+- **Etiquetas Compactas (Máx. 2 Líneas)**:
+  - Las etiquetas flotantes junto a cada marcador en Leaflet emplean CSS compacto (`max-width`, `-webkit-line-clamp: 2`, `overflow: hidden`, `text-overflow: ellipsis`) para evitar carteles alargados de una sola línea que invadan el mapa.
+- **Ocultación Automática Anticolisión en `zoomend` / Distancia en Píxeles**:
+  - En cada evento de renderizado o cambio de zoom (`zoomend`), se proyectan las coordenadas de las paradas a coordenadas de contenedor (`map.latLngToContainerPoint(latLng)`).
+  - Si la distancia en píxeles en pantalla respecto a una etiqueta visible previa es inferior al umbral mínimo anticolisión (y la parada no es la seleccionada actualmente), la etiqueta secundaria se oculta automáticamente (`.label-hidden`), reapareciendo de forma fluida al ampliar el zoom.
+- **Conmutador Manual de Etiquetas (`🏷️`)**:
+  - Control flotante en la botonera del mapa (`showLabels: Boolean`) sincronizado con JS (`setLabelsVisible(visible)`) que permite al usuario ocultar o mostrar todas las etiquetas a voluntad.
+- **Aprovechamiento Vertical de `Scaffold` y Botonera Horizontal en Meteorología**:
+  - Uso de `Modifier.consumeWindowInsets(innerPadding)` y reducción de padding inferior redundante en `MainScreen.kt` / `TripPlannerTabScreen` para eliminar márgenes muertos sobre la barra inferior.
+  - Disposición horizontal simétrica (`Row` con `Modifier.weight(1f)`) para los botones `➕ Ciudades del Plan` y `➕ Añadir Ciudad` en `WeatherToolScreen`.
+
 ---
 
 ## 3. Motor de Vinculación Inteligente (`ItineraryLinkedResourcesResolver`)
@@ -111,4 +123,3 @@ Relaciona automáticamente cada parada del itinerario con el acervo documental d
 2. **`ItineraryLinkedResourcesResolverTest`**:
    - Validación de vinculación de Guía de Kioto a parada de Fushimi Inari.
    - Validación de vinculación de billete de Shinkansen por fecha y ciudad.
-

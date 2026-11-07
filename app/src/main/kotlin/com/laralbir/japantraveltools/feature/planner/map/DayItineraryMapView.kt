@@ -132,6 +132,7 @@ fun DayItineraryMapView(
     val currentOnStopClick by rememberUpdatedState(onStopClick)
 
     var selectedLayer by remember { mutableStateOf(MapTileLayerType.GOOGLE_STREETS) }
+    var showLabels by remember { mutableStateOf(true) }
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
     var isMapLoaded by remember { mutableStateOf(false) }
 
@@ -150,6 +151,7 @@ fun DayItineraryMapView(
                 put("id", stop.id)
                 put("title", stop.title)
                 put("time", stop.startTime)
+                put("label", GeoProjectionUtils.formatCompactStopLabel(stop.startTime, stop.title))
                 put("lat", stop.latitude)
                 put("lng", stop.longitude)
                 put("color", color)
@@ -163,6 +165,8 @@ fun DayItineraryMapView(
         val view = wv ?: return
         val stopsJson = buildStopsJson()
         val selectedId = selectedStop?.id.orEmpty()
+            .replace("\\", "\\\\")
+            .replace("'", "\\'")
         val uLat = userLocation?.latitude ?: 0.0
         val uLng = userLocation?.longitude ?: 0.0
 
@@ -171,6 +175,9 @@ fun DayItineraryMapView(
                 resizeMapToViewport();
             } else if (typeof map !== 'undefined' && map) {
                 map.invalidateSize();
+            }
+            if (typeof setLabelsEnabled === 'function') {
+                setLabelsEnabled($showLabels);
             }
             if (typeof renderMarkers === 'function') {
                 renderMarkers($stopsJson, '$selectedId');
@@ -183,6 +190,15 @@ fun DayItineraryMapView(
     LaunchedEffect(validStops, selectedStop, userLocation, isMapLoaded) {
         if (isMapLoaded) {
             updateMapData(webViewRef)
+        }
+    }
+
+    LaunchedEffect(showLabels, isMapLoaded) {
+        if (isMapLoaded) {
+            webViewRef?.evaluateJavascript(
+                "if (typeof setLabelsEnabled === 'function') { setLabelsEnabled($showLabels); }",
+                null
+            )
         }
     }
 
@@ -209,6 +225,10 @@ fun DayItineraryMapView(
             factory = { ctx ->
                 WebView.setWebContentsDebuggingEnabled(true)
                 WebView(ctx).apply {
+                    layoutParams = android.view.ViewGroup.LayoutParams(
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                        android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                    )
                     settings.apply {
                         javaScriptEnabled = true
                         domStorageEnabled = true
@@ -274,7 +294,10 @@ fun DayItineraryMapView(
                     val initialUserLat = userLocation?.latitude ?: 0.0
                     val initialUserLng = userLocation?.longitude ?: 0.0
                     val initialSelectedId = selectedStop?.id.orEmpty()
+                        .replace("\\", "\\\\")
+                        .replace("'", "\\'")
                     val initialTileUrl = selectedLayer.resolveTileUrl(isEs)
+                    val initialShowLabels = showLabels
 
                     val html = """
                         <!DOCTYPE html>
@@ -288,8 +311,8 @@ fun DayItineraryMapView(
                                 html, body {
                                     margin: 0;
                                     padding: 0;
-                                    width: 100vw;
-                                    height: 100vh;
+                                    width: 100%;
+                                    height: 100%;
                                     overflow: hidden;
                                     background-color: #f6f5f0;
                                 }
@@ -299,8 +322,8 @@ fun DayItineraryMapView(
                                     left: 0;
                                     right: 0;
                                     bottom: 0;
-                                    width: 100vw;
-                                    height: 100vh;
+                                    width: 100%;
+                                    height: 100%;
                                     background-color: #f6f5f0;
                                     background-image: 
                                         linear-gradient(rgba(0, 0, 0, 0.06) 1px, transparent 1px),
@@ -337,15 +360,32 @@ fun DayItineraryMapView(
                                     box-shadow: 0 0 0 6px rgba(33, 150, 243, 0.35);
                                 }
                                 .stop-tooltip {
-                                    background-color: rgba(255, 255, 255, 0.94);
-                                    border: 1px solid #cccccc;
+                                    background-color: rgba(255, 255, 255, 0.92);
+                                    border: 1px solid rgba(0, 0, 0, 0.18);
                                     border-radius: 6px;
-                                    padding: 3px 7px;
-                                    font-size: 11px;
+                                    padding: 2px 6px;
+                                    font-size: 10px;
+                                    line-height: 1.2;
                                     font-weight: 700;
                                     color: #111111;
-                                    box-shadow: 0 2px 6px rgba(0,0,0,0.22);
-                                    white-space: nowrap;
+                                    box-shadow: 0 1px 4px rgba(0,0,0,0.20);
+                                    max-width: 112px;
+                                    white-space: normal;
+                                    word-wrap: break-word;
+                                    overflow-wrap: break-word;
+                                    text-align: center;
+                                    display: -webkit-box;
+                                    -webkit-line-clamp: 2;
+                                    -webkit-box-orient: vertical;
+                                    overflow: hidden;
+                                }
+                                .stop-tooltip-selected {
+                                    background-color: rgba(255, 255, 255, 0.98);
+                                    border-color: #1976D2;
+                                    box-shadow: 0 2px 6px rgba(25, 118, 210, 0.35);
+                                }
+                                .stop-tooltip-hidden {
+                                    display: none !important;
                                 }
                             </style>
                         </head>
@@ -379,12 +419,85 @@ fun DayItineraryMapView(
                             var markersLayer = L.layerGroup().addTo(map);
                             var userLayer = L.layerGroup().addTo(map);
                             var lastBounds = null;
+                            var lastStopsSignature = '';
+                            var markerEntries = [];
+                            var labelsEnabled = $initialShowLabels;
+
+                            function escapeHtml(text) {
+                                if (!text) return '';
+                                return String(text)
+                                    .replace(/&/g, '&amp;')
+                                    .replace(/</g, '&lt;')
+                                    .replace(/>/g, '&gt;')
+                                    .replace(/"/g, '&quot;')
+                                    .replace(/'/g, '&#39;');
+                            }
+
+                            function setLabelsEnabled(enabled) {
+                                labelsEnabled = !!enabled;
+                                updateLabelVisibility();
+                            }
+
+                            function updateLabelVisibility() {
+                                if (!map || !markerEntries || markerEntries.length === 0) return;
+
+                                if (!labelsEnabled) {
+                                    markerEntries.forEach(function(entry) {
+                                        if (entry.isSelected) {
+                                            if (!entry.marker.isTooltipOpen()) {
+                                                entry.marker.openTooltip();
+                                            }
+                                        } else if (entry.marker.isTooltipOpen()) {
+                                            entry.marker.closeTooltip();
+                                        }
+                                    });
+                                    return;
+                                }
+
+                                var placed = [];
+
+                                // Priority 1: Selected stop ALWAYS keeps its label visible
+                                markerEntries.forEach(function(entry) {
+                                    if (!entry.isSelected) return;
+                                    var pt = map.latLngToContainerPoint(entry.marker.getLatLng());
+                                    placed.push(pt);
+                                    if (!entry.marker.isTooltipOpen()) {
+                                        entry.marker.openTooltip();
+                                    }
+                                });
+
+                                // Priority 2: Chronological order (0..N-1), hiding overlapping clustered labels
+                                markerEntries.forEach(function(entry) {
+                                    if (entry.isSelected) return;
+                                    var pt = map.latLngToContainerPoint(entry.marker.getLatLng());
+                                    var overlaps = false;
+                                    for (var i = 0; i < placed.length; i++) {
+                                        if (Math.abs(pt.x - placed[i].x) < 108 && Math.abs(pt.y - placed[i].y) < 42) {
+                                            overlaps = true;
+                                            break;
+                                        }
+                                    }
+                                    if (overlaps) {
+                                        if (entry.marker.isTooltipOpen()) {
+                                            entry.marker.closeTooltip();
+                                        }
+                                    } else {
+                                        placed.push(pt);
+                                        if (!entry.marker.isTooltipOpen()) {
+                                            entry.marker.openTooltip();
+                                        }
+                                    }
+                                });
+                            }
+
+                            map.on('zoomend moveend', updateLabelVisibility);
 
                             if (window.ResizeObserver) {
                                 var resizeObserver = new ResizeObserver(function() {
-                                    if (map) { map.invalidateSize(); }
+                                    resizeMapToViewport();
                                 });
-                                resizeObserver.observe(document.getElementById('map'));
+                                resizeObserver.observe(document.documentElement);
+                                resizeObserver.observe(document.body);
                             }
 
                             function renderMarkers(stopsJson, selectedId) {
@@ -392,8 +505,14 @@ fun DayItineraryMapView(
                                     map.invalidateSize();
                                 }
                                 markersLayer.clearLayers();
+                                markerEntries = [];
                                 var bounds = [];
-                                if (!stopsJson || stopsJson.length === 0) return;
+                                if (!stopsJson || stopsJson.length === 0) {
+                                    lastStopsSignature = '';
+                                    return;
+                                }
+
+                                var signatureParts = [];
 
                                 stopsJson.forEach(function(stop, index) {
                                     var num = index + 1;
@@ -409,29 +528,57 @@ fun DayItineraryMapView(
                                         iconAnchor: [size / 2, size / 2]
                                     });
 
-                                    var marker = L.marker([stop.lat, stop.lng], { icon: icon }).addTo(markersLayer);
-                                    
-                                    var tooltipText = (stop.time ? stop.time.substring(0, 5) + ' ' : '') + stop.title;
+                                    var marker = L.marker([stop.lat, stop.lng], {
+                                        icon: icon,
+                                        zIndexOffset: isSelected ? 1000 : (stopsJson.length - index)
+                                    }).addTo(markersLayer);
+
+                                    var rawLabel = stop.label || ((stop.time ? stop.time.substring(0, 5) + ' ' : '') + stop.title);
+                                    var tooltipText = escapeHtml(rawLabel);
+                                    var tooltipClass = isSelected ? 'stop-tooltip stop-tooltip-selected' : 'stop-tooltip';
                                     marker.bindTooltip(tooltipText, {
                                         permanent: true,
+                                        interactive: true,
                                         direction: 'bottom',
                                         offset: [0, size / 2 + 2],
-                                        className: 'stop-tooltip'
+                                        className: tooltipClass
                                     });
 
-                                    marker.on('click', function() {
+                                    var onSelectStop = function(ev) {
+                                        if (ev && L.DomEvent && L.DomEvent.stopPropagation) {
+                                            L.DomEvent.stopPropagation(ev);
+                                        }
                                         if (window.AndroidBridge && window.AndroidBridge.onStopClicked) {
                                             window.AndroidBridge.onStopClicked(stop.id);
                                         }
+                                    };
+
+                                    marker.on('click', onSelectStop);
+                                    var tooltip = marker.getTooltip();
+                                    if (tooltip) {
+                                        tooltip.on('click', onSelectStop);
+                                    }
+
+                                    markerEntries.push({
+                                        id: stop.id,
+                                        marker: marker,
+                                        isSelected: isSelected
                                     });
 
                                     bounds.push([stop.lat, stop.lng]);
+                                    signatureParts.push(stop.id + ':' + stop.lat + ',' + stop.lng);
                                 });
 
+                                var currentSignature = signatureParts.join('|');
                                 if (bounds.length > 0) {
                                     lastBounds = L.latLngBounds(bounds);
-                                    map.fitBounds(lastBounds, { padding: [50, 50], maxZoom: 16 });
+                                    if (currentSignature !== lastStopsSignature) {
+                                        lastStopsSignature = currentSignature;
+                                        map.fitBounds(lastBounds, { padding: [50, 50], maxZoom: 16 });
+                                    }
                                 }
+
+                                updateLabelVisibility();
                             }
 
                             function renderUserLocation(userLat, userLng) {
@@ -448,12 +595,12 @@ fun DayItineraryMapView(
                             }
 
                             function resizeMapToViewport() {
-                                var h = window.innerHeight || document.documentElement.clientHeight || 500;
-                                var w = window.innerWidth || document.documentElement.clientWidth || 400;
+                                var h = window.innerHeight || document.documentElement.clientHeight || 0;
+                                var w = window.innerWidth || document.documentElement.clientWidth || 0;
                                 var el = document.getElementById('map');
                                 if (el) {
-                                    el.style.width = w + 'px';
-                                    el.style.height = h + 'px';
+                                    el.style.width = w > 0 ? (w + 'px') : '100%';
+                                    el.style.height = h > 0 ? (h + 'px') : '100%';
                                 }
                                 if (map) {
                                     map.invalidateSize();
@@ -483,6 +630,7 @@ fun DayItineraryMapView(
                                 if (lastBounds && lastBounds.isValid && lastBounds.isValid()) {
                                     map.fitBounds(lastBounds, { padding: [50, 50], maxZoom: 16 });
                                 }
+                                updateLabelVisibility();
                             }
 
                             window.addEventListener('resize', invalidateAndFit);
@@ -511,32 +659,79 @@ fun DayItineraryMapView(
             }
         )
 
-        // Top Summary Bar: Total Stops Count (No connecting line)
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
-            shadowElevation = 4.dp,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        // Top Summary Bar: Total Stops Count + Compact Label Visibility Toggle
+        Row(
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(12.dp)
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+                shadowElevation = 4.dp,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
             ) {
-                Text("📍", fontSize = 13.sp)
-                Text(
-                    text = String.format(
-                        Locale.getDefault(),
-                        if (isEs) "%d visitas" else "%d stops",
-                        validStops.size
-                    ),
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text("📍", fontSize = 13.sp)
+                    Text(
+                        text = String.format(
+                            Locale.getDefault(),
+                            if (isEs) "%d visitas" else "%d stops",
+                            validStops.size
+                        ),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = if (showLabels) {
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.95f)
+                } else {
+                    MaterialTheme.colorScheme.surface.copy(alpha = 0.94f)
+                },
+                shadowElevation = 4.dp,
+                border = BorderStroke(
+                    1.dp,
+                    if (showLabels) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                ),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .clickable {
+                        val newShowLabels = !showLabels
+                        showLabels = newShowLabels
+                        webViewRef?.evaluateJavascript(
+                            "if (typeof setLabelsEnabled === 'function') { setLabelsEnabled($newShowLabels); }",
+                            null
+                        )
+                    }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text("🏷️", fontSize = 12.sp)
+                    Text(
+                        text = if (isEs) "Nombres" else "Labels",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = if (showLabels) FontWeight.Bold else FontWeight.Medium,
+                        color = if (showLabels) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                }
             }
         }
 

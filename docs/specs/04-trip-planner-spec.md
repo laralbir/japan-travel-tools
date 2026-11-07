@@ -109,11 +109,14 @@ Proporcionar una herramienta integral y **100% funcional offline** para planific
    - Se reemplazan los bloques masivos apilados (`AppButtonRow` de 120dp) por una única fila compacta de botones (`height` 32-36dp) con acceso rápido a `🗺️ Mapa`, `📅 Calendario`, `✏️ Editar` y `🗑️ Eliminar`.
 
 ### RF-04.10: Mapa Integrado de Visitas del Día con Localización Actual y Selector de Capas
-1. **Alternador de Vista en el Planificador**:
+1. **Alternador de Vista y Aprovechamiento de Pantalla Completa**:
    - La pantalla del planificador permite alternar limpiamente entre la vista de **Horario (`📋 Horario`)** y la vista de **Mapa del Día (`🗺️ Mapa del Día`)**.
-2. **Representación de Paradas del Día en el Mapa (Sin Líneas Conectoras)**:
+   - El `Scaffold` principal consume los márgenes de ventana (`consumeWindowInsets`) con margen inferior compacto para evitar huecos redundantes sobre la barra de navegación inferior, maximizando el alto útil del mapa y de las listas (y alineando las cabeceras de herramientas como Meteorología en una fila horizontal limpia de botones `➕ Ciudades del Plan` y `➕ Añadir Ciudad`).
+2. **Representación de Paradas del Día y Etiquetas Anticolisión en el Mapa (Sin Líneas Conectoras)**:
    - Muestra todas las paradas del día seleccionado mediante **marcadores circulares numerados (`1`, `2`, `3`...)** según su orden cronológico de visita, sin trazar líneas rectas entre puntos para mantener la limpieza visual sobre el callejero.
-   - Cada marcador luce el color temático de su categoría (Templo, Comida, Transporte, Hotel, Ocio, Compras) y etiqueta con título y horario.
+   - Cada marcador luce el color temático de su categoría (Templo, Comida, Transporte, Hotel, Ocio, Compras) y una **etiqueta compacta multilínea (máximo 2 líneas con truncamiento por elipsis)** que muestra título y horario sin invadir el mapa.
+   - **Ocultación automática anticolisión por proximidad en pantalla**: al cambiar el nivel de zoom o encuadre (`zoomend` / distancia en píxeles proyectados en pantalla), las etiquetas cuyos marcadores quedan demasiado próximos se ocultan selectivamente de forma automática para evitar solapamientos ilegibles, volviendo a mostrarse conforme el usuario amplía el zoom.
+   - **Conmutador manual de etiquetas (`🏷️`)**: botón directo en los controles del mapa para mostrar u ocultar globalmente todas las etiquetas de texto de las paradas con un toque.
 3. **Selector Configurable de Capas Cartográficas (`MapTileLayerType`)**:
    - El usuario puede seleccionar y alternar en tiempo real entre tres capas de mapas directamente desde los controles del visor:
      - **🗺️ Google Maps (Estándar)** *(Por defecto)*: Cartografía oficial de Google Maps (`mt1.google.com/vt/lyrs=m`) localizada automáticamente al idioma activo de la aplicación (`hl=es` o `hl=en`), mostrando nombres de ciudades, barrios y estaciones en español/romaji junto al japonés.
@@ -124,6 +127,7 @@ Proporcionar una herramienta integral y **100% funcional offline** para planific
    - Detección reactiva de la posición GPS/red del usuario (`android.permission.ACCESS_FINE_LOCATION` / `ACCESS_COARSE_LOCATION`).
    - Marcador distintivo azul pulsante con halo de precisión y etiqueta *"📍 Tú estás aquí"* / *"📍 You are here"*.
    - Columna de controles en la esquina inferior derecha del mapa que integra:
+     - Botón conmutador de etiquetas `[🏷️]` (activación/ocultación global de etiquetas de paradas).
      - Botones de zoom interactivos `[+]` y `[—]`, además de gestos táctiles fluidos de arrastre (`pan`) y pellizco (`pinch-to-zoom`).
      - Botón de chincheta `[📍]` para encuadrar y centrar todas las paradas del día (`fitToMarkers`).
      - Botón con icono vectorial GPS (*My Location*) para centrar la cámara en la ubicación en tiempo real del viajero (sustituyendo el emoji de diana `🎯`).

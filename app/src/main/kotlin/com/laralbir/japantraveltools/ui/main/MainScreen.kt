@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -736,6 +737,7 @@ fun JapanTravelToolsAppContent(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
+                        .consumeWindowInsets(innerPadding)
                         .imePadding()
                 ) {
                     ActiveToolContent(
@@ -790,7 +792,7 @@ fun JapanTravelToolsAppContent(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
-                        .navigationBarsPadding()
+                        .consumeWindowInsets(innerPadding)
                         .imePadding()
                 ) {
                     ActiveToolContent(
@@ -1451,47 +1453,11 @@ private fun WeatherToolScreen(isEs: Boolean) {
     ) {
         item {
             KotlinConfCard {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (isEs) "Previsión Open-Meteo" else "Open-Meteo Forecast",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(
-                            onClick = {
-                                val addedCount = SharedWeatherForecastStore.syncCitiesFromPlan(
-                                    stops = portablePlan.itineraryStops,
-                                    segments = portablePlan.transportSegments,
-                                    forceResetDeleted = true
-                                )
-                                statusMessage = if (isEs) {
-                                    if (addedCount > 0) "✅ Se añadieron $addedCount ciudades del plan"
-                                    else "ℹ️ Todas las ciudades del plan ya están añadidas (${allCities.size} activas)"
-                                } else {
-                                    if (addedCount > 0) "✅ Added $addedCount cities from trip plan"
-                                    else "ℹ️ All trip plan cities already added (${allCities.size} active)"
-                                }
-                            },
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
-                            Text(if (isEs) "➕ Ciudades del Plan" else "➕ Plan Cities", fontSize = 12.sp)
-                        }
-                        Button(
-                            onClick = {
-                                editingCity = null
-                                isCreatingCity = true
-                            },
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Text(if (isEs) "➕ Ciudad" else "➕ City", fontSize = 12.sp)
-                        }
-                    }
-                }
+                Text(
+                    text = if (isEs) "Previsión Open-Meteo" else "Open-Meteo Forecast",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
                 Spacer(Modifier.height(6.dp))
                 Text(
                     text = if (isEs) {
@@ -1502,6 +1468,53 @@ private fun WeatherToolScreen(isEs: Boolean) {
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            val addedCount = SharedWeatherForecastStore.syncCitiesFromPlan(
+                                stops = portablePlan.itineraryStops,
+                                segments = portablePlan.transportSegments,
+                                forceResetDeleted = true
+                            )
+                            statusMessage = if (isEs) {
+                                if (addedCount > 0) "✅ Se añadieron $addedCount ciudades del plan"
+                                else "ℹ️ Todas las ciudades del plan ya están añadidas (${allCities.size} activas)"
+                            } else {
+                                if (addedCount > 0) "✅ Added $addedCount cities from trip plan"
+                                else "ℹ️ All trip plan cities already added (${allCities.size} active)"
+                            }
+                        },
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = if (isEs) "➕ Ciudades del Plan" else "➕ Plan Cities",
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Button(
+                        onClick = {
+                            editingCity = null
+                            isCreatingCity = true
+                        },
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = if (isEs) "➕ Añadir Ciudad" else "➕ Add City",
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
 
                 if (statusMessage != null) {
                     Spacer(Modifier.height(10.dp))
@@ -2299,7 +2312,7 @@ private fun TripPlannerTabScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 6.dp)
     ) {
         // TOP CARD: ACTIVE TRAVEL PLAN & COMPACT ACTIONS (CON INTEGRACIÓN JSON)
         KotlinConfCard {
@@ -2691,7 +2704,9 @@ private fun TripPlannerTabScreen(
                     }
                 },
                 isEs = isEs,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
             )
         } else if (dayStops.isEmpty()) {
             KotlinConfCard {
@@ -2734,7 +2749,10 @@ private fun TripPlannerTabScreen(
             }
         } else {
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentPadding = PaddingValues(bottom = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 items(dayStops, key = { it.item.id }) { evaluated ->
