@@ -105,6 +105,8 @@ Establecer los cimientos funcionales y de experiencia de usuario de **Japan Trav
      - Nombre de la librería y autor/organización.
      - Versión utilizada y artefacto Maven.
      - Tipo y texto completo de la licencia open source (ej. `Apache License 2.0`, `MIT License`) empaquetado localmente en el APK (mediante plugin de Gradle como **AboutLibraries** o `oss-licenses-plugin`) para que pueda consultarse **sin conexión a internet**.
+3. **Huella de Firma y Comprobación de Actualizaciones ([`SPEC-10`](10-github-releases-auto-updater-spec.md))**:
+   - Mostrará la huella corta `SHA-256` del certificado de firma del APK instalado, la fecha de la última comprobación (`lastUpdateCheckEpochMillis`) y el botón manual **«🔄 Buscar actualizaciones»** conectado al gestor OTA de GitHub Releases.
 
 ### RF-00.7: Optimización Adaptativa para Dispositivos Objetivo (Pixel 10 Pro XL, Pixel 9 Pro XL y Tablet TCL NXTPAPER 11 Plus)
 La interfaz de usuario, el rendimiento y la ergonomía táctil deberán estar específicamente optimizados para tres dispositivos de referencia:
@@ -213,6 +215,12 @@ Dado que el usuario utilizará la aplicación simultáneamente en varios disposi
 2. **Ergonomía y Visualización Clara**:
    - El campo muestra un icono de calendario (`📅`), la fecha en formato localizado legible (ej. *"11 nov 2026"*) y el formato ISO estándar (`YYYY-MM-DD`).
    - Al tocar el campo o su icono, se abre el diálogo de calendario (`DatePickerDialog`) permitiendo elegir año, mes y día de forma táctil y cómoda sin teclado virtual.
+
+### RF-00.15: Actualizaciones Automáticas OTA desde GitHub Releases y Firma de Producción ([`SPEC-10`](10-github-releases-auto-updater-spec.md))
+1. **Integración en Ajustes Globales del Sistema**:
+   - Desde `Ajustes > Sistema / Acerca de`, el usuario puede configurar el comportamiento del motor de actualizaciones integradas contra las **GitHub Releases** oficiales del repositorio (`laralbir/japan-travel-tools`): modo de comprobación (`Automática cada 12 h` o `Solo manual`), política de red (`Solo Wi-Fi` o `Wi-Fi y Datos`, respetando siempre el `Modo Solo Offline`) e inclusión opcional de versiones preliminares (`-beta.X`, sin mostrar jamás insignias `BETA` en la UI).
+2. **Continuidad Criptográfica y Verificación Doble**:
+   - Las releases oficiales se compilan con `assembleRelease` firmadas mediante un Keystore PKCS#12 persistente de producción (esquemas v2 y v3) para garantizar actualizaciones *in-place* mediante `PackageInstaller` sin perder datos locales en `Context.filesDir`, tras verificar tanto el hash `SHA-256` como la coincidencia del certificado X.509 instalado. Véase el detalle completo en **[`SPEC-10: Sistema de Actualizaciones Automáticas vía GitHub Releases y Firma Criptográfica de APKs de Producción`](10-github-releases-auto-updater-spec.md)**.
 
 ---
 
