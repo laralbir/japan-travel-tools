@@ -174,12 +174,12 @@ data class UserPreferences(
   - `eventDateMillis: Long?`
   - `isPinned: Boolean`
   - `createdAtMillis: Long`
-- **Tabla Room `travel_guides` (Guías nativas e importadas)**:
+- **Tabla Room `travel_guides` / `TravelGuideArticle` (Guías nativas e importadas)**:
   - `id: String` (UUID)
   - `title: String`
   - `regionCity: String` (ej. `"Tokyo"`, `"Kyoto"`, `"Osaka"`, `"General"`)
   - `tagsCsv: String` (ej. `"Ramen,Shinjuku,Compras"`)
-  - `markdownContent: String` (contenido enriquecido editable offline)
+  - `markdownContent: String` / `markdownSummary: String` (contenido enriquecido editable y renderizable 100% offline mediante `MarkdownTextParser` + `MarkdownText`, con extracto limpio `extractPlainTextPreview` en tarjetas de resumen y pestaña conmutable `✍️ Editar` / `👁️ Vista previa` en `GuideEditorModalSheet`)
   - `attachedDocumentId: String?` (FK opcional a `travel_documents` si es un PDF/mapa importado)
   - `photoPathsJson: String` (lista de rutas internas en `filesDir/guides/`)
   - `isPinned: Boolean`
@@ -424,14 +424,16 @@ data class UserPreferences(
     - **APK firmado (`app-release.apk`)**: Paquete independiente para instalación directa en dispositivos de viajeros o distribución sin Play Store.
     - **APK Debug (`app-debug.apk`)**: Para validación en dispositivos autorizados vía ADB.
 
-### 3.14. Experiencia de Usuario y Renderizado del Asistente IA (Markdown, Input Multilínea y Cancelación)
-- **Parser y Renderizado de Markdown (`MarkdownTextParser` & `MarkdownText`)**:
-  - Parser desacoplado de UI (fácilmente testeable mediante TDD unitario con JUnit) que tokeniza la respuesta textual de Gemini o del Experto Offline.
-  - Soporta bloques y estilos en línea:
-    - Encabezados H1, H2, H3 (`#`, `##`, `###`) con mayor peso tipográfico y tamaño (`headlineSmall`, `titleLarge`, `titleMedium`).
-    - Negrita (`**texto**`) y Cursiva (`*texto*`).
-    - Elementos de lista con viñeta (`•`) y numerados con sangrado adecuado.
-    - Bloques de código y términos inline con fuente monoespaciada (`FontFamily.Monospace`) y fondo translúcido diferenciado.
+### 3.14. Motor Compartido de Renderizado Markdown (Asistente IA y Guías de Viaje) y UX del Asistente IA
+- **Parser y Renderizado Nativo de Markdown (`MarkdownTextParser` & `MarkdownText` — `SPEC-06 RF-06.4` y `SPEC-03 RF-03.6`)**:
+  - Motor desacoplado de UI (100% offline-first y verificable mediante TDD unitario con JUnit) compartido entre las respuestas de Gemini / Experto Offline y el lector/editor de **Guías de Viaje (`FullGuideReaderDialog`, `GuideEditorModalSheet`)**.
+  - Soporta bloques enriquecidos y estilos en línea:
+    - Encabezados jerárquicos `H1`–`H6` (`#` a `######`) con escala tipográfica progresiva y pesos destacados.
+    - Negrita y cursiva combinadas (`***texto***`), Negrita (`**texto**` / `__texto__`), Cursiva (`*texto*` / `_texto_`) y Enlaces clicables seguros (`[texto](url)` vía `LinkAnnotation.Url` + `LocalUriHandler`).
+    - Listas con viñeta (`-`, `*`, `•`), sublistas indentadas multinivel (`level`), listas numeradas (`1.`) y casillas de verificación (`- [ ]` / `- [x]`).
+    - Bloques de cita / avisos (`> `) con barra lateral de acento, separadores horizontales (`---`, `***`, `___`) y tablas Markdown (`|...|`) con cabecera resaltada y desplazamiento horizontal.
+    - Bloques de código cercados (```` ``` ````) y términos inline (`` `código` ``) con fuente monoespaciada (`FontFamily.Monospace`) y fondo translúcido diferenciado.
+  - Incluye `MarkdownTextParser.extractPlainTextPreview(rawMarkdown, maxChars)` para generar resúmenes limpios de 2–3 líneas sin sintaxis cruda en las tarjetas del listado de Guías y en `StopDetailMapModalSheet`, así como conmutador en vivo `✍️ Editar` / `👁️ Vista previa` en `GuideEditorModalSheet`.
   - Construcción de `AnnotatedString` con `SpanStyle` nativo de Compose sin dependencias externas pesadas, asegurando fluidez a 120Hz en pantallas de Pixel 9/10 Pro XL y Tablet TCL.
 - **Input Multilínea, IME Padding y Cierre de Teclado**:
   - Reconfiguración del campo de texto de consulta con `singleLine = false`, `minLines = 2`, `maxLines = 5` para redacción cómoda.

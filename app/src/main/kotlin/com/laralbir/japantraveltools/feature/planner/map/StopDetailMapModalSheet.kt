@@ -45,8 +45,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.laralbir.japantraveltools.feature.ai.MarkdownTextParser
 import com.laralbir.japantraveltools.feature.documents.TravelDocumentItem
 import com.laralbir.japantraveltools.feature.documents.TravelGuideArticle
 import com.laralbir.japantraveltools.feature.planner.ItineraryStopItem
@@ -315,16 +317,18 @@ fun StopDetailMapModalSheet(
                         )
                         if (guide.markdownSummary.isNotBlank()) {
                             Spacer(Modifier.height(4.dp))
-                            val summarySnippet = guide.markdownSummary
-                                .lines()
-                                .firstOrNull { it.isNotBlank() && !it.startsWith("#") }
-                                ?: guide.markdownSummary.take(120)
-                            Text(
-                                text = summarySnippet,
-                                fontSize = 12.5.sp,
-                                color = Color(0xFF33691E),
-                                maxLines = 2
-                            )
+                            val summarySnippet = remember(guide.markdownSummary) {
+                                MarkdownTextParser.extractPlainTextPreview(guide.markdownSummary, maxChars = 140)
+                            }
+                            if (summarySnippet.isNotBlank()) {
+                                Text(
+                                    text = summarySnippet,
+                                    fontSize = 12.5.sp,
+                                    color = Color(0xFF33691E),
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
 
                         Spacer(Modifier.height(10.dp))

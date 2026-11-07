@@ -150,6 +150,7 @@ import com.laralbir.japantraveltools.feature.ai.SimultaneousTranslationItem
 import com.laralbir.japantraveltools.feature.ai.GeminiApiKeySetupCard
 import com.laralbir.japantraveltools.feature.ai.GeminiApiKeyHelper
 import com.laralbir.japantraveltools.feature.ai.MarkdownText
+import com.laralbir.japantraveltools.feature.ai.MarkdownTextParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -8798,8 +8799,11 @@ private fun TravelGuidesScreen(isEs: Boolean) {
                         InfoTagPill(text = guide.cityRegion)
                     }
                     Spacer(Modifier.height(8.dp))
+                    val cleanPreview = remember(guide.markdownSummary) {
+                        MarkdownTextParser.extractPlainTextPreview(guide.markdownSummary, maxChars = 220)
+                    }
                     Text(
-                        text = guide.markdownSummary,
+                        text = cleanPreview,
                         fontSize = 14.sp,
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
@@ -8919,11 +8923,11 @@ private fun FullGuideReaderDialog(
                         .weight(1f)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    Text(
-                        text = guide.markdownSummary,
-                        fontSize = 16.sp,
-                        lineHeight = 25.sp,
-                        color = MaterialTheme.colorScheme.onSurface
+                    MarkdownText(
+                        markdown = guide.markdownSummary,
+                        baseFontSize = 15.5.sp,
+                        baseLineHeight = 23.5.sp,
+                        textColor = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
@@ -8956,6 +8960,7 @@ private fun GuideEditorModalSheet(
     var titleText by rememberSaveable { mutableStateOf(initialGuide.title) }
     var cityText by rememberSaveable { mutableStateOf(initialGuide.cityRegion) }
     var contentText by rememberSaveable { mutableStateOf(initialGuide.markdownSummary) }
+    var isPreviewMode by remember { mutableStateOf(false) }
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
 
     AppConfirmationDialog(
@@ -9002,14 +9007,55 @@ private fun GuideEditorModalSheet(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            OutlinedTextField(
-                value = contentText,
-                onValueChange = { contentText = it },
-                label = { Text(if (isEs) "Consejos, recomendaciones y apuntes" else "Tips & notes", fontSize = 15.sp) },
-                minLines = 4,
-                maxLines = 8,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AppOptionButton(
+                    text = if (isEs) "✏️ Editar" else "✏️ Edit",
+                    selected = !isPreviewMode,
+                    onClick = { isPreviewMode = false },
+                    height = 36.dp,
+                    fontSize = 13.sp,
+                    modifier = Modifier.weight(1f)
+                )
+                AppOptionButton(
+                    text = if (isEs) "👁️ Vista previa" else "👁️ Preview",
+                    selected = isPreviewMode,
+                    onClick = { isPreviewMode = true },
+                    height = 36.dp,
+                    fontSize = 13.sp,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            if (isPreviewMode && contentText.isNotBlank()) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(modifier = Modifier.padding(14.dp)) {
+                        MarkdownText(
+                            markdown = contentText,
+                            baseFontSize = 14.5.sp,
+                            baseLineHeight = 21.5.sp,
+                            textColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            } else {
+                OutlinedTextField(
+                    value = contentText,
+                    onValueChange = { contentText = it },
+                    label = { Text(if (isEs) "Consejos, recomendaciones y apuntes" else "Tips & notes", fontSize = 15.sp) },
+                    minLines = 4,
+                    maxLines = 8,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
             AppButtonRow(
                 primaryText = if (isEs) "💾 Guardar Guía" else "💾 Save Guide",
