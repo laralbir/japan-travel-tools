@@ -2,7 +2,7 @@
 
 Aplicación Android **offline-first** con la suite definitiva de herramientas esenciales para viajar a Japón, desarrollada en **Kotlin** y **Jetpack Compose** siguiendo metodologías estrictas de **Spec-Driven Development (SDD)** y **Test-Driven Development (TDD)**.
 
-> **Estado actual del proyecto**: `v1.5.0` (Versión Oficial Estable de Producción). Publicada con APK firmado adjunto en [GitHub Releases](https://github.com/laralbir/japan-travel-tools/releases/tag/v1.5.0).
+> **Estado actual del proyecto**: `v1.5.1` (Versión Oficial Estable de Producción). Publicada con APK firmado adjunto en [GitHub Releases](https://github.com/laralbir/japan-travel-tools/releases/tag/v1.5.1).
 
 ---
 
@@ -194,6 +194,7 @@ Toda la documentación técnica y funcional se encuentra detallada en español d
 - [x] **Hito 12 - Publicación de Versión de Producción v1.4.1**: Corrección de persistencia directa al guardar paradas de itinerario y planes de viaje sin bloqueos de diálogo modal (`#11`) y diagnósticos explicativos ante discrepancias de firma en el actualizador OTA.
 - [x] **Hito 13 - Publicación de Versión de Producción v1.4.2**: Sincronización integral y reactiva de fechas al editar planes de viaje (`#11`), soporte de días dinámicos (`1..totalDays`) en el selector de agenda y robustez de serialización JSON con caracteres especiales.
 - [x] **Hito 14 - Emergencias Consulares, Alarmas de Transporte, Optimizador de Rutas y Exportación PDF** (`SPEC-11`–`SPEC-14` / Hitos 21–24): Módulo SOS 100% offline con marcación directa y ficha médica privada, alarmas exactas nativas de transporte con AlarmManager, optimizador heurístico geodésico TSP y generador nativo de PDF en A4 con compartición directa por Sharesheet, con 331 tests unitarios pasando al 100%.
+- [x] **Hito 15 - Mapa Vectorial de Ruta Diario en Exportación PDF Offline** (`SPEC-14 RF-14.4` / `ANALYSIS-16` / Hito 25): Motor cartográfico nativo en Canvas con proyección equirrectangular corregida para Japón (~35° N), trazado secuencial de ruta, pines circulares Akabeni numerados, callouts de parada con horarios, brújula Norte, paginación adaptativa y 337 tests unitarios en verde.
 
 ---
 
