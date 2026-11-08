@@ -7,6 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-11-08
+
+### Sincronización Integral y Persistencia al Editar Planes de Viaje (#11) 🗓️🔄
+- **Desplazamiento Dinámico de Fechas en Paradas y Transportes (`SharedTravelPlanStore.editCurrentPlan`)**: Al modificar la fecha de inicio del plan de viaje (`startDateIso`), todas las paradas del itinerario y tramos de transporte existentes desplazan automáticamente sus fechas locales (`dateIso`) y marcas de tiempo UTC (`startTimeUtcIso`, `endTimeUtcIso`, `departureTimeIso`, `arrivalTimeIso`) según la diferencia exacta en días, sincronizando inmediatamente todo el calendario del viaje.
+- **Creación Inteligente de Planes (`SharedTravelPlanStore.createPlan`)**: Generación de fechas reales para cada día del plan a partir de la fecha de inicio seleccionada (`startDate.plusDays(...)`), eliminando fechas estáticas prefijadas.
+- **Soporte de Días Dinámicos en Planificador (`availableDays` & `formatDayDateLabel`)**: Inclusión de todos los días del plan (`1..totalDays`) en el selector de días de la interfaz, permitiendo navegar y añadir visitas a cualquier día planificado aunque aún no contenga paradas, y formateo reactivo de las etiquetas de los chips con las fechas actualizadas.
+- **Sincronización Reactiva de Editores Modales (`LaunchedEffect` & `rememberSaveable`)**: Claves específicas e inicialización reactiva en `PlanEditorModalSheet`, `ItineraryStopEditorModalSheet`, `TransportSegmentEditorModalSheet`, `CityWeatherEditorModalSheet`, `DocumentEditorModalSheet` y `GuideEditorModalSheet`, garantizando que los campos de texto y selectores reflejen siempre los datos actuales al abrir o reabrir cualquier editor.
+- **Robustez en Parser JSON (`splitJsonObjects`)**: Soporte para caracteres de llaves (`{` y `}`) anidados dentro de cadenas de texto y notas con escape, previniendo fallos de deserialización al persistir o importar planes.
+
 ## [1.4.1] - 2026-11-08
 
 ### Persistencia Directa de Ediciones en Planificador, Guías y Documentos (#11) 💾✏️
