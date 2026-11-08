@@ -68,6 +68,7 @@
     <string name="pdf_export_options_title">Included Content</string>
     <string name="pdf_export_opt_japanese">Prominent Japanese names (Kanji / Kana for taxi &amp; stations)</string>
     <string name="pdf_export_opt_transport">Transport segments (Flights &amp; Shinkansen)</string>
+    <string name="pdf_export_opt_map">Schematic map with daily stops</string>
     <string name="pdf_export_opt_emergency">Emergency contacts &amp; Consular assistance</string>
     <string name="pdf_export_action_button">📤 Generate &amp; Share PDF</string>
     <string name="pdf_export_generating">Generating PDF offline…</string>

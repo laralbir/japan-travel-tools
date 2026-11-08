@@ -18,7 +18,8 @@ data class PdfExportOptions(
     val targetDayIndex: Int? = null,
     val includeJapaneseNames: Boolean = true,
     val includeTransportSegments: Boolean = true,
-    val includeEmergencyContacts: Boolean = true
+    val includeEmergencyContacts: Boolean = true,
+    val includeDayMap: Boolean = true
 )
 
 /**

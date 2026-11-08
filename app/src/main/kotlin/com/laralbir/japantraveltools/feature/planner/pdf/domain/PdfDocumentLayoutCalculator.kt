@@ -34,6 +34,7 @@ object PdfDocumentLayoutCalculator {
     const val CONTENT_BOTTOM = PAGE_HEIGHT - MARGIN - FOOTER_HEIGHT // 776f
     const val USABLE_PAGE_HEIGHT = CONTENT_BOTTOM - CONTENT_TOP // 670f
     const val ITEM_SPACING = 12f
+    const val MAP_CARD_HEIGHT = 160f
 
     data class PageLayoutPlan<T>(
         val pageIndex: Int,
@@ -87,11 +88,13 @@ object PdfDocumentLayoutCalculator {
 
     /**
      * Partitions a list of itinerary stops into separate pages so they fit cleanly without vertical clipping.
+     * Supports differentiated available height on the first page when map or transport cards are present.
      */
     fun paginateStops(
         stops: List<ItineraryStopItem>,
         includeJapaneseNames: Boolean = true,
-        availableHeight: Float = USABLE_PAGE_HEIGHT,
+        firstPageAvailableHeight: Float = USABLE_PAGE_HEIGHT,
+        subsequentPagesAvailableHeight: Float = USABLE_PAGE_HEIGHT,
         itemSpacing: Float = ITEM_SPACING
     ): List<PageLayoutPlan<ItineraryStopItem>> {
         if (stops.isEmpty()) {
@@ -104,6 +107,7 @@ object PdfDocumentLayoutCalculator {
         var currentHeight = 0f
 
         for (stop in stops) {
+            val availableHeight = if (currentPageIndex == 1) firstPageAvailableHeight else subsequentPagesAvailableHeight
             val stopHeight = calculateStopHeight(stop, includeJapaneseNames)
             val addedHeight = if (currentItems.isEmpty()) stopHeight else stopHeight + itemSpacing
             if (currentHeight + addedHeight > availableHeight && currentItems.isNotEmpty()) {
