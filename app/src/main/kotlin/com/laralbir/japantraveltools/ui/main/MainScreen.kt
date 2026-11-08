@@ -2124,15 +2124,7 @@ private fun CityWeatherEditorModalSheet(
                         latitude = lat,
                         longitude = lon
                     )
-                    if (isNew) {
-                        onSave(saved)
-                    } else {
-                        confirmationDialogState = ConfirmationDialogBuilder.buildEditConfirmation(
-                            itemName = saved.nameEs,
-                            isEs = isEs,
-                            onConfirm = { onSave(saved) }
-                        )
-                    }
+                    onSave(saved)
                 },
                 secondaryText = if (isNew) {
                     if (isEs) "Cancelar" else "Cancel"
@@ -3199,15 +3191,7 @@ private fun ItineraryStopEditorModalSheet(
                         startTimeUtcIso = startUtc,
                         endTimeUtcIso = endUtc
                     )
-                    if (isNew) {
-                        onSave(updated)
-                    } else {
-                        confirmationDialogState = ConfirmationDialogBuilder.buildEditConfirmation(
-                            itemName = updated.title,
-                            isEs = isEs,
-                            onConfirm = { onSave(updated) }
-                        )
-                    }
+                    onSave(updated)
                 },
                 secondaryText = if (isNew) {
                     if (isEs) "Cancelar" else "Cancel"
@@ -3317,15 +3301,7 @@ private fun PlanEditorModalSheet(
                     val daysInt = daysText.toIntOrNull()?.coerceIn(1, 45) ?: 7
                     val finalTitle = titleText.ifBlank { if (isEs) "Nuevo Viaje a Japón" else "New Japan Trip" }
                     val finalDate = startDateText.ifBlank { "2026-11-11" }
-                    if (isNew) {
-                        onSave(finalTitle, finalDate, daysInt)
-                    } else {
-                        confirmationDialogState = ConfirmationDialogBuilder.buildEditConfirmation(
-                            itemName = finalTitle,
-                            isEs = isEs,
-                            onConfirm = { onSave(finalTitle, finalDate, daysInt) }
-                        )
-                    }
+                    onSave(finalTitle, finalDate, daysInt)
                 },
                 secondaryText = if (isEs) "Cancelar" else "Cancel",
                 onSecondaryClick = onDismiss
@@ -4217,16 +4193,7 @@ private fun TransportSegmentEditorModalSheet(
                         departureTimeUtcIso = depUtc,
                         arrivalTimeUtcIso = arrUtc
                     )
-                    if (isNew) {
-                        onSave(updated)
-                    } else {
-                        val segName = "${updated.operatorName} ${updated.lineOrNumber}".trim().ifBlank { updated.departureName }
-                        confirmationDialogState = ConfirmationDialogBuilder.buildEditConfirmation(
-                            itemName = segName,
-                            isEs = isEs,
-                            onConfirm = { onSave(updated) }
-                        )
-                    }
+                    onSave(updated)
                 },
                 secondaryText = if (isNew) {
                     if (isEs) "Cancelar" else "Cancel"
@@ -8711,15 +8678,7 @@ private fun DocumentEditorModalSheet(
                         fileUri = attachedFilePath,
                         internalUriPath = attachedFilePath
                     )
-                    if (isNew) {
-                        onSave(updated)
-                    } else {
-                        confirmationDialogState = ConfirmationDialogBuilder.buildEditConfirmation(
-                            itemName = updated.title,
-                            isEs = isEs,
-                            onConfirm = { onSave(updated) }
-                        )
-                    }
+                    onSave(updated)
                 },
                 secondaryText = if (isNew) {
                     if (isEs) "Cancelar" else "Cancel"
@@ -9158,15 +9117,7 @@ private fun GuideEditorModalSheet(
                         cityRegion = cityText.ifBlank { "Japón" },
                         markdownSummary = contentText
                     )
-                    if (isNew) {
-                        onSave(updated)
-                    } else {
-                        confirmationDialogState = ConfirmationDialogBuilder.buildEditConfirmation(
-                            itemName = updated.title,
-                            isEs = isEs,
-                            onConfirm = { onSave(updated) }
-                        )
-                    }
+                    onSave(updated)
                 },
                 secondaryText = if (isNew) {
                     if (isEs) "Cancelar" else "Cancel"

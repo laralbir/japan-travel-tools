@@ -2,7 +2,7 @@
 
 Aplicación Android **offline-first** con la suite definitiva de herramientas esenciales para viajar a Japón, desarrollada en **Kotlin** y **Jetpack Compose** siguiendo metodologías estrictas de **Spec-Driven Development (SDD)** y **Test-Driven Development (TDD)**.
 
-> **Estado actual del proyecto**: `v1.4.0` (Versión Oficial Estable de Producción). Publicada con APK firmado adjunto en [GitHub Releases](https://github.com/laralbir/japan-travel-tools/releases/tag/v1.4.0).
+> **Estado actual del proyecto**: `v1.4.1` (Versión Oficial Estable de Producción). Publicada con APK firmado adjunto en [GitHub Releases](https://github.com/laralbir/japan-travel-tools/releases/tag/v1.4.1).
 
 ---
 
@@ -173,6 +173,7 @@ Toda la documentación técnica y funcional se encuentra detallada en español d
 - [x] **Hito 9 - Validación y Despliegue en Dispositivos Físicos Autorizados**: Verificación directa por ADB en Google Pixel y Tablet TCL NXTPAPER 11 Plus.
 - [x] **Hito 10 - Publicación de Versión de Producción v1.3.0**: Publicada en GitHub Releases con APK firmado adjunto.
 - [x] **Hito 11 - Publicación de Versión de Producción v1.4.0**: Actualizador OTA integrado vía GitHub Releases (`SPEC-10`), renderizado nativo de Markdown en Guías (`SPEC-03`), importación unificada JSON (`ANALYSIS-10`), etiquetas anticolisión en mapa del día y APK oficial firmado con esquemas v1/v2/v3.
+- [x] **Hito 12 - Publicación de Versión de Producción v1.4.1**: Corrección de persistencia directa al guardar paradas de itinerario y planes de viaje sin bloqueos de diálogo modal (`#11`) y diagnósticos explicativos ante discrepancias de firma en el actualizador OTA.
 
 ---
 
