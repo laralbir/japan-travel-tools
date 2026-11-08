@@ -1,6 +1,7 @@
 package com.laralbir.japantraveltools.feature.planner.map
 
 import com.laralbir.japantraveltools.feature.planner.ItineraryStopItem
+import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.ln
@@ -162,5 +163,82 @@ object GeoProjectionUtils {
             total += haversineDistanceKm(p1.latitude, p1.longitude, p2.latitude, p2.longitude)
         }
         return total
+    }
+
+    /**
+     * Formats a compact stop label for map marker badges, trimming redundant parenthetical details
+     * and gracefully truncating with an ellipsis so badges fit cleanly in up to 2 short lines.
+     */
+    fun formatCompactStopLabel(
+        startTime: String,
+        title: String,
+        maxChars: Int = 34
+    ): String {
+        val cleanTime = startTime.trim().take(5)
+        val normalizedTitle = title.replace(Regex("\\s+"), " ").trim()
+        val strippedTitle = normalizedTitle
+            .replace(Regex("\\s*\\([^)]*\\)"), "")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+        val effectiveTitle = strippedTitle.ifEmpty { normalizedTitle }
+
+        val combined = when {
+            cleanTime.isNotEmpty() && effectiveTitle.isNotEmpty() -> "$cleanTime $effectiveTitle"
+            cleanTime.isNotEmpty() -> cleanTime
+            else -> effectiveTitle
+        }
+
+        if (maxChars <= 1) return combined.take(maxChars.coerceAtLeast(0))
+        if (combined.length <= maxChars) return combined
+
+        val truncated = combined
+            .take(maxChars - 1)
+            .trimEnd(' ', ',', '.', ';', ':', '-', '/', '&', '·')
+        return "${truncated}…"
+    }
+
+    /**
+     * Computes which stop IDs should display permanent marker labels in screen/container pixel space
+     * to prevent overlapping clutter when stops are clustered at low zoom.
+     *
+     * Priority rules:
+     * 1. [selectedStopId] (if present in [points]) ALWAYS remains visible.
+     * 2. Remaining stops are evaluated in chronological order (`0..N-1`); any stop whose pixel
+     *    coordinates fall within both [minHorizontalGapPx] and [minVerticalGapPx] of an already
+     *    accepted label is suppressed until the user zooms in enough to separate them.
+     */
+    fun computeVisibleLabelStopIds(
+        points: List<Pair<String, Pair<Double, Double>>>,
+        selectedStopId: String?,
+        minHorizontalGapPx: Double = 112.0,
+        minVerticalGapPx: Double = 44.0
+    ): Set<String> {
+        if (points.isEmpty()) return emptySet()
+
+        val visibleIds = LinkedHashSet<String>()
+        val acceptedCoords = mutableListOf<Pair<Double, Double>>()
+
+        if (!selectedStopId.isNullOrEmpty()) {
+            points.forEach { (id, coords) ->
+                if (id == selectedStopId) {
+                    visibleIds.add(id)
+                    acceptedCoords.add(coords)
+                }
+            }
+        }
+
+        points.forEach { (id, coords) ->
+            if (id in visibleIds) return@forEach
+            val collides = acceptedCoords.any { (placedX, placedY) ->
+                abs(coords.first - placedX) < minHorizontalGapPx &&
+                    abs(coords.second - placedY) < minVerticalGapPx
+            }
+            if (!collides) {
+                visibleIds.add(id)
+                acceptedCoords.add(coords)
+            }
+        }
+
+        return visibleIds
     }
 }

@@ -18,8 +18,20 @@ Al abrir **Japan Travel Tools** por primera vez:
 
 ### ¿Cómo ver la versión de la app y las librerías Open Source utilizadas?
 1. Entra en **Ajustes (⚙️) > Acerca de (About)**.
-2. Verás el número de versión exacto instalado (ej. `v0.0.1-beta.1` o `v0.0.1`) y las fuentes de datos abiertas empleadas.
+2. Verás el número de versión exacto instalado (ej. `v1.4.0`) y las fuentes de datos abiertas empleadas.
 3. Toca en **"Librerías Open Source de terceros"** para consultar la lista completa de todas las bibliotecas de código abierto utilizadas en la app junto con sus autores, versiones y textos de licencia (disponible sin conexión a internet).
+
+### ¿Cómo actualizar la aplicación directamente desde GitHub Releases sin perder tus datos?
+**Japan Travel Tools** incorpora un actualizador seguro integrado que mantiene intactos tu pasaporte, billetes `.pkpass`, PDFs, guías, recibos Tax-Free y planes de viaje:
+1. Entra en **Ajustes (⚙️)** y localiza la tarjeta **🔄 Actualizaciones de la App (GitHub Releases)**.
+2. Allí verás tu **versión instalada**, la **huella abreviada `SHA-256` del certificado oficial de firma** y la fecha/hora de la última comprobación.
+3. Puedes configurar tres preferencias pensadas para el viaje:
+   - **Comprobación automática (cada 12 h)**: busca silenciosamente nuevas versiones en segundo plano sin afectar al arranque ni funcionar cuando tengas activo el *Modo Solo Offline* o *Roaming*.
+   - **Red permitida en modo automático**: elige **📶 Solo Wi-Fi** (por defecto, para proteger los megabytes de tu eSIM en Japón) o **📲 Wi-Fi y Datos / eSIM**.
+   - **Incluir versiones preliminares**: actívalo si deseas recibir compilaciones preliminares publicadas antes de una versión general.
+4. Pulsa **«🔄 Buscar actualizaciones»** en cualquier momento (o toca **«Ver novedades»** en el aviso discreto de la pantalla principal cuando haya una nueva versión):
+   - Podrás leer todas las novedades del `CHANGELOG` formateadas en Markdown, ver el tamaño en MB y elegir **«⬇️ Descargar e instalar»**, **«Recordar más tarde»** u **«Omitir esta versión»**.
+   - Antes de instalar, la app verifica automáticamente tanto la suma criptográfica **`SHA-256`** como el **certificado oficial `X.509` (esquemas v2/v3)**. La primera vez que actualices, Android te pedirá activar una sola vez *«Permitir desde esta fuente»*; al regresar a la app, la instalación continuará sola sin volver a descargar el archivo.
 
 ### Experiencia Optimizada en Smartphones Grandes y Tablets (Pixel 9/10 Pro XL y TCL NXTPAPER 11 Plus)
 - **En Google Pixel 10 Pro XL y Pixel 9 Pro XL**:
@@ -105,14 +117,16 @@ En Japón necesitarás mostrar tu pasaporte frecuentemente (compras *Tax-Free*, 
 3. **Fijar importantes (`📌`)**: Marca como favoritos los documentos que vayas a usar hoy para que aparezcan los primeros de la lista.
 4. **100% Offline**: Todos los PDFs e imágenes quedan guardados dentro de la app y se abren con el lector integrado sin necesitar conexión a internet ni aplicaciones externas.
 
-### 4.3. Agregar y Crear Guías de Viaje (Importadas y Propias)
-Dentro de la sección **Guías de Viaje**, puedes reunir toda tu información turística por ciudades (*Tokio*, *Kioto*, *Osaka*, *Nara*, etc.):
-1. **Importar Guías Externas**:
-   - Sube tus guías en **PDF**, archivos **Markdown (`.md`)** o **imágenes de mapas turísticos** (como el mapa del metro de Tokio o mapas de templos).
-   - El visor recuerda automáticamente la **última página leída** en PDFs largos.
-2. **Crear tus Propias Guías con Fotos**:
-   - Pulsa **`+ Nueva Guía`** para redactar tus propios apuntes (por ejemplo, *"Mejores sitios de Ramen en Shinjuku"* o *"Ruta por Higashiyama"*).
-   - Añade etiquetas, texto con formato y adjunta **fotos de referencia** desde tu galería para consultarlas sin conexión.
+### 4.3. Agregar, Crear y Leer Guías de Viaje en Formato Markdown Rico
+Dentro de la sección **Guías de Viaje**, puedes reunir toda tu información turística organizada por ciudades (*Tokio*, *Kioto*, *Osaka*, *Nara*, *General*, etc.):
+1. **Lector Enriquecido 100% Offline (`📖 Leer Guía`)**:
+   - Las guías redactadas, guardadas desde el Asistente IA o importadas por JSON se renderizan con tipografía enriquecida nativa sin conexión: encabezados jerárquicos (`H1`–`H6`), negritas, cursivas, bloques de código, listas con sublistas indentadas, listas numeradas, casillas de verificación (`- [ ]` / `- [x]`), bloques de aviso (`>`), separadores, enlaces interactivos y **tablas Markdown desplazables**.
+   - En el listado de guías y en las fichas del mapa verás siempre un extracto limpio de 2–3 líneas sin símbolos Markdown en crudo.
+2. **Importar Guías Externas**:
+   - Sube tus guías en **PDF**, paquetes **JSON / Markdown** o **imágenes de mapas turísticos** (como el mapa del metro de Tokio o mapas de templos), recordando la última página leída en PDFs largos.
+3. **Crear y Editar tus Propias Guías con Vista Previa**:
+   - Pulsa **`➕ Crear Nueva Guía`** para redactar tus propios apuntes (por ejemplo, *"Guía de Sellos Goshuin y Eki Stamp"* o *"Mejores sitios de Ramen en Shinjuku"*).
+   - Utiliza las pestañas **`✍️ Editar`** y **`👁️ Vista previa`** dentro del editor para comprobar exactamente cómo quedará formateada tu guía en Markdown antes de guardarla.
 
 ---
 
@@ -136,8 +150,9 @@ Organiza tu itinerario día por día y hora por hora en un solo lugar conectado 
 1. **Guardar Ubicaciones y Enlaces**:
    - En cada actividad puedes pegar un enlace compartido de **Google Maps**, introducir coordenadas o anotar el nombre y dirección en japonés (muy útil para enseñar al taxista).
 2. **Mapa Interactivo del Día (Integrado en la App)**:
-   - Cambia a la vista **Mapa del Día** para ver dentro de la app todos los puntos de tu jornada con **marcadores numerados (`1`, `2`, `3`...)** unidos por orden horario.
-   - Al tocar un marcador del mapa, verás al instante su horario, fotos y notas.
+   - Cambia a la vista **🗺️ Mapa del Día** para ver dentro de la app todos los puntos de tu jornada con **marcadores numerados (`1`, `2`, `3`...)** por orden cronológico y selector en vivo de capas (**🗺️ Google Maps**, **🛰️ Google Satélite Híbrido** y **🌍 OpenStreetMap**).
+   - Cada parada muestra una **etiqueta compacta de hasta 2 líneas** que se oculta automáticamente si dos marcadores quedan demasiado juntos al alejar el zoom (evitando solapamientos), y dispones del botón **`🏷️`** en los controles laterales para mostrar u ocultar todas las etiquetas a voluntad, junto con los botones de zoom (`+`/`—`), encuadre del día (`📍`) y tu posición GPS actual.
+   - Al tocar un marcador del mapa, se despliega su ficha de detalle con nombre en japonés copiable, horario, notas, acceso directo a su **Guía de Viaje en Markdown** y botón **`📱 Ver QR`** de tus billetes vinculados.
 3. **Abrir Ruta en Google Maps**:
    - Pulsa **"Abrir en Google Maps"** o **"Cómo llegar"** en cualquier actividad para lanzar directamente las indicaciones paso a paso en la aplicación de Google Maps (aprovechando los mapas sin conexión que tengas descargados en Google Maps).
 
@@ -145,9 +160,9 @@ Organiza tu itinerario día por día y hora por hora en un solo lugar conectado 
 - **Vincular Documentos y Guías**: Enlaza directamente el PDF de tu reserva de hotel, entrada de museo o guía de barrio a la actividad correspondiente del horario para abrirlo con un toque.
 - **Exportar a Google Calendar / Calendario del Sistema**: Pulsa **"Añadir al Calendario"** para exportar una actividad o todo tu itinerario al calendario de tu teléfono con la zona horaria de Japón (`Asia/Tokyo`) configurada automáticamente.
 
-### 5.5. Exportar e Importar Planes de Viaje y Transporte en JSON Legible
-- Pulsa **"📥/📤 Exportar / Importar JSON"** en el Planificador de Viaje o en el Planificador de Transporte para ver, copiar o compartir tu plan completo (itinerarios por días/horarios + vuelos, Shinkansen, metro y autobuses) en un archivo **`.json` legible por humanos (`japan-travel-plan.v1`)**.
-- Puedes preparar o editar tus planes desde una aplicación externa en tu ordenador o con un asistente de IA externo y luego pulsar **"📥 Importar (Fusionar)"** o **"🔄 Importar (Reemplazar)"** para cargarlos al instante en la app.
+### 5.5. Exportar e Importar Planes de Viaje, Guías y Billetes en un Solo JSON
+- Desde **Ajustes > Portabilidad de Datos JSON** o desde el Planificador puedes exportar e importar tu viaje completo en un archivo **`.json` legible por humanos (`japan-travel-plan.v1`)**.
+- **Importación Unificada Todo en Uno**: Si preparas un archivo JSON que incluya paradas (`itineraryStops`), transportes (`transportSegments`), guías (`guides`) y documentos/billetes (`documents`), la aplicación detecta e importa automáticamente las cuatro secciones en un solo paso (permitiendo elegir entre **Fusionar** o **Reemplazar**).
 - Además, puedes pulsar **"✨ Mejorar / Ampliar Plan con Gemini IA"** para que la IA integrada optimice solapamientos horarios y añada nuevas jornadas y conexiones de Shinkansen automáticamente.
 
 ---
@@ -214,7 +229,7 @@ En la pantalla principal (Home) y en la barra superior tienes siempre a mano el 
 La previsión del tiempo en Japón (usando **Open-Meteo API + Agencia Meteorológica de Japón JMA**, sin requerir clave de API y con caché offline) está integrada tanto para ayudarte a decidir tu ropa y ruta del día como para alimentar al optimizador de planes con IA:
 
 1. **Para tu Planificación Diaria**:
-   - Consulta la previsión por ciudades (**Tokio**, **Kioto**, **Osaka**, **Hakone / Monte Fuji**) en la pantalla principal o directamente en la franja superior de cada día del **Planificador de Viaje**.
+   - Consulta la previsión por ciudades (**Tokio**, **Kioto**, **Osaka**, **Hakone / Monte Fuji**, etc.) en la pantalla de Meteorología o directamente en la franja superior de cada día del **Planificador de Viaje**, y usa la fila superior de botones rápidos **`➕ Ciudades del Plan`** (para extraer automáticamente todas las ciudades de tu itinerario y transportes) o **`➕ Añadir Ciudad`** (con buscador predictivo offline).
    - Verás la temperatura máxima/mínima (`°C`), la probabilidad de lluvia (`☔ %`), el **Índice de Visibilidad del Monte Fuji (`🗻 %`)** y una etiqueta inteligente:
      - **`⛩️ Ideal Exterior (Templos / Parques)`**: días despejados ideales para caminar y fotografiar exteriores.
      - **`🏛️ Recomendado Cubierto (Museos / Shotengai)`**: días con lluvia prevista donde conviene llevar paraguas y priorizar mercados techados (*Nishiki*, *Kuromon*), galerías comerciales cubiertas (*Shotengai*) o museos.

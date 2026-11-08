@@ -345,8 +345,35 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
   - Inclusión de selector de moneda (`FilterChips`) en `ShoppingReceiptEditorModalSheet` y visualización dual (moneda nativa y equivalente en ¥) en `ShoppingReceiptCard`.
   - Tests unitarios exhaustivos en `TaxFreeReceiptsTest` superados al 100%.
 
+---
 
+## Hito 19: Importación Unificada JSON, Renderizado Nativo de Markdown en Guías de Viaje y Etiquetas Anticolisión en Mapa
 
+### Portabilidad Unificada (`ANALYSIS-10`)
+- [x] **TASK-901 (TDD/Portability)**: Importación Unificada de Plan, Guías y Billetes en un Solo JSON (`docs/tasks/tasks-unified-travel-plan-import.md`):
+  - Coordinación en `SharedTravelPlanStore.importJson()` para importar automáticamente `"guides"` y `"documents"` embebidos en `SharedDocumentsAndGuidesStore`.
+  - Detección de backups completos con `backupId` + `travelPlans` y conteo combinado en `JsonContentDetector` y `JsonDataPortabilityCard`.
 
+### Renderizado Nativo de Markdown en Guías de Viaje (`SPEC-03 RF-03.6` / `ANALYSIS-11`)
+- [x] **TASK-902 (SDD & Analysis)**: Especificación y Diseño Arquitectónico de Markdown en Guías:
+  - Actualizar `docs/specs/03-documents-and-id-vault-spec.md` (`RF-03.6` y `Escenario 4`), crear `docs/analysis/11-travel-guides-markdown-rendering-analysis.md` y actualizar `docs/analysis/architecture-and-tech-stack.md` (`Sección 3.3` y `3.14`).
+- [x] **TASK-903 (TDD/Domain)**: Extensión de `MarkdownTextParser` y Suite Unitaria (`docs/tasks/tasks-travel-guides-markdown-rendering.md` `T-11.1`–`T-11.5`):
+  - Escribir tests unitarios (RED) e implementar soporte para encabezados `H1`–`H6`, sublistas indentadas, casillas `- [ ]` / `- [x]`, citas `>`, separadores `---`, tablas `|...|`, enlaces `[texto](url)`, negrita+cursiva y `extractPlainTextPreview(...)` (GREEN).
+- [x] **TASK-904 (UI/Compose)**: Renderizador Material 3 Extendido e Integración en Guías y Mapa (`T-11.6`–`T-11.9`):
+  - Actualizar `MarkdownTextRenderer.kt` para renderizar todos los nuevos bloques e integrar `MarkdownText` en `FullGuideReaderDialog` (`MainScreen.kt`), extractos limpios en tarjetas de Guías y `StopDetailMapModalSheet.kt`, y pestaña `✍️ Editar` / `👁️ Vista previa` en `GuideEditorModalSheet`.
 
+### Mapa del Día y Refinamientos de Layout (`SPEC-04 RF-04.10` / `ANALYSIS-04`)
+- [x] **TASK-905 (UI/Map & Layout)**: Etiquetas Compactas Anticolisión (`🏷️`), Márgenes de `Scaffold` y Botonera Horizontal en Meteorología (`docs/tasks/tasks-day-itinerary-map.md` `Tarea 8`):
+  - Etiquetas multilínea compactas (máx. 2 líneas), ocultación automática anticolisión por distancia en píxeles (`zoomend`) y botón conmutador `🏷️` en `DayItineraryMapView.kt`.
+  - Ajuste de márgenes inferiores con `consumeWindowInsets` en `MainScreen.kt` y fila horizontal simétrica de botones (`➕ Ciudades del Plan` / `➕ Añadir Ciudad`) en `WeatherToolScreen`.
 
+---
+
+## Hito 20: Actualizaciones Automáticas vía GitHub Releases y Firma Criptográfica de Producción (`SPEC-10` / `ANALYSIS-12`)
+
+- [x] **TASK-910 (SDD & Analysis)**: Especificación y Diseño Arquitectónico del Auto-Updater y Firma v2/v3:
+  - Crear [`docs/specs/10-github-releases-auto-updater-spec.md`](../specs/10-github-releases-auto-updater-spec.md), [`docs/analysis/12-github-releases-auto-updater-analysis.md`](../analysis/12-github-releases-auto-updater-analysis.md) y [`docs/tasks/tasks-github-releases-auto-updater.md`](tasks-github-releases-auto-updater.md).
+- [x] **TASK-911 (Build & CI/CD)**: Firma Criptográfica PKCS#12 (`enableV2Signing` / `enableV3Signing`), plantilla `keystore.example.properties` y workflow `.github/workflows/release-apk.yml` (`T-12.1`–`T-12.3`).
+- [x] **TASK-912 (TDD/Domain & Data)**: Comparador estricto SemVer 2.0.0 (`SemanticVersionComparator`), parser de GitHub Releases con `ETag`/`SHA-256` y repositorio offline-first con cooldown de 12 h (`T-12.4`–`T-12.9`).
+- [x] **TASK-913 (TDD/Security & Platform)**: Doble verificación criptográfica (`ApkSignatureVerifier`: hash `SHA-256` + certificado X.509) e instalación *in-place* con `PackageInstaller` (`T-12.10`–`T-12.15`).
+- [x] **TASK-914 (UI/i18n)**: Banner no intrusivo, diálogo Material 3 con notas `CHANGELOG` en `MarkdownText` y sección de actualizaciones en Ajustes (`T-12.16`–`T-12.20`).

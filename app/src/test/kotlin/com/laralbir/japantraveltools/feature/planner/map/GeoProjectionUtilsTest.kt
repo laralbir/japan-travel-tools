@@ -141,4 +141,92 @@ class GeoProjectionUtilsTest {
         assertEquals(MapTileLayerType.OPENSTREETMAP, MapTileLayerType.GOOGLE_HYBRID.next())
         assertEquals(MapTileLayerType.GOOGLE_STREETS, MapTileLayerType.OPENSTREETMAP.next())
     }
+
+    @Test
+    fun `formatCompactStopLabel strips parenthetical clutter and formats HH_mm cleanly`() {
+        assertEquals(
+            "07:00 Fushimi Inari-taisha",
+            GeoProjectionUtils.formatCompactStopLabel(
+                startTime = "07:00",
+                title = "Fushimi Inari-taisha (Mil Torii)"
+            )
+        )
+        assertEquals(
+            "11:00 Tokyo Skytree Tembo Deck",
+            GeoProjectionUtils.formatCompactStopLabel(
+                startTime = "11:00:00",
+                title = "Tokyo Skytree Tembo Deck (350m)"
+            )
+        )
+        assertEquals(
+            "Kiyomizu-dera",
+            GeoProjectionUtils.formatCompactStopLabel(
+                startTime = "   ",
+                title = "  Kiyomizu-dera  "
+            )
+        )
+        // If the entire title is parenthetical, preserve it rather than returning empty text
+        assertEquals(
+            "09:15 (Parada libre)",
+            GeoProjectionUtils.formatCompactStopLabel(
+                startTime = "09:15",
+                title = "(Parada libre)"
+            )
+        )
+    }
+
+    @Test
+    fun `formatCompactStopLabel truncates long titles gracefully with ellipsis within maxChars`() {
+        val compact = GeoProjectionUtils.formatCompactStopLabel(
+            startTime = "08:30",
+            title = "Templo Kinkaku-ji y Jardín Tradicional Muromachi en el Norte de Kioto",
+            maxChars = 34
+        )
+        assertTrue("Compact label length (${compact.length}) must be <= 34: $compact", compact.length <= 34)
+        assertTrue("Compact label must start with time prefix: $compact", compact.startsWith("08:30 "))
+        assertTrue("Compact label must end with ellipsis: $compact", compact.endsWith("…"))
+    }
+
+    @Test
+    fun `computeVisibleLabelStopIds hides overlapping clustered labels keeping chronological priority`() {
+        val points = listOf(
+            "kyoto-1" to (200.0 to 300.0),
+            "kyoto-2" to (235.0 to 312.0), // Collides with kyoto-1 (dx=35 < 112, dy=12 < 44)
+            "kyoto-3" to (250.0 to 325.0), // Collides with kyoto-1 (dx=50 < 112, dy=25 < 44)
+            "kyoto-north" to (210.0 to 240.0), // Vertically separated (dy=60 >= 44) -> visible
+            "tokyo-1" to (520.0 to 180.0) // Horizontally & vertically separated -> visible
+        )
+
+        val visible = GeoProjectionUtils.computeVisibleLabelStopIds(
+            points = points,
+            selectedStopId = null,
+            minHorizontalGapPx = 112.0,
+            minVerticalGapPx = 44.0
+        )
+
+        assertEquals(setOf("kyoto-1", "kyoto-north", "tokyo-1"), visible)
+    }
+
+    @Test
+    fun `computeVisibleLabelStopIds always prioritizes selectedStopId over earlier clustered stops`() {
+        val points = listOf(
+            "stop-1" to (200.0 to 300.0),
+            "stop-2" to (225.0 to 310.0), // Selected! Should stay visible and suppress stop-1 & stop-3
+            "stop-3" to (250.0 to 320.0),
+            "stop-4" to (420.0 to 310.0)  // Far enough horizontally (dx=195 >= 112) -> visible
+        )
+
+        val visible = GeoProjectionUtils.computeVisibleLabelStopIds(
+            points = points,
+            selectedStopId = "stop-2",
+            minHorizontalGapPx = 112.0,
+            minVerticalGapPx = 44.0
+        )
+
+        assertEquals(setOf("stop-2", "stop-4"), visible)
+        assertEquals(
+            emptySet<String>(),
+            GeoProjectionUtils.computeVisibleLabelStopIds(emptyList(), selectedStopId = "stop-2")
+        )
+    }
 }

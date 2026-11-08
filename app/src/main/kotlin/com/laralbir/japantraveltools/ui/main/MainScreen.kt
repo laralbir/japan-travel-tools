@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -150,6 +151,16 @@ import com.laralbir.japantraveltools.feature.ai.SimultaneousTranslationItem
 import com.laralbir.japantraveltools.feature.ai.GeminiApiKeySetupCard
 import com.laralbir.japantraveltools.feature.ai.GeminiApiKeyHelper
 import com.laralbir.japantraveltools.feature.ai.MarkdownText
+import com.laralbir.japantraveltools.feature.ai.MarkdownTextParser
+import com.laralbir.japantraveltools.BuildConfig
+import com.laralbir.japantraveltools.feature.updater.data.GitHubAutoUpdateRepository
+import com.laralbir.japantraveltools.feature.updater.platform.PackageInstallerUpdateExecutor
+import com.laralbir.japantraveltools.feature.updater.security.AndroidPackageSignatureInspector
+import com.laralbir.japantraveltools.feature.updater.security.ApkSignatureVerifier
+import com.laralbir.japantraveltools.feature.updater.ui.AppUpdateBanner
+import com.laralbir.japantraveltools.feature.updater.ui.AppUpdateModalHost
+import com.laralbir.japantraveltools.feature.updater.ui.AppUpdateViewModel
+import com.laralbir.japantraveltools.feature.updater.ui.SettingsUpdateSection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -631,11 +642,35 @@ fun JapanTravelToolsAppContent(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val appUpdateRepository = remember(context) {
+        GitHubAutoUpdateRepository.createDefault(context)
+    }
+    val installExecutor = remember(context) {
+        PackageInstallerUpdateExecutor(context)
+    }
+    val installedCertFingerprint = remember(context) {
+        val inspector = AndroidPackageSignatureInspector(context)
+        val meta = inspector.getInstalledSignatureMetadata(context.packageName)
+        val firstCert = meta?.certSha256Fingerprints?.firstOrNull().orEmpty()
+        ApkSignatureVerifier.formatShortFingerprint(firstCert)
+    }
+    val appUpdateViewModel = remember(context, appUpdateRepository, installExecutor) {
+        AppUpdateViewModel(
+            repository = appUpdateRepository,
+            installExecutor = installExecutor,
+            installedVersionName = BuildConfig.VERSION_NAME,
+            installedVersionCode = BuildConfig.VERSION_CODE.toLong()
+        )
+    }
+    val updateUiState by appUpdateViewModel.uiState.collectAsState()
+
     LaunchedEffect(Unit) {
         SharedTravelPlanStore.init(context)
         SharedDocumentsAndGuidesStore.init(context)
         SharedWeatherForecastStore.init(context)
         SharedShoppingReceiptsStore.init(context)
+        appUpdateViewModel.onStartupCleanup()
+        appUpdateViewModel.checkForUpdates(forceOfflineByApp = prefs.forceOfflineMode, manual = false)
     }
     val configuration = LocalConfiguration.current
     val isTabletExpanded = configuration.screenWidthDp >= 720
@@ -735,16 +770,34 @@ fun JapanTravelToolsAppContent(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
+                        .consumeWindowInsets(innerPadding)
                         .imePadding()
                 ) {
-                    ActiveToolContent(
-                        destination = selectedDestination,
-                        isEs = isEs,
-                        currentInstant = currentInstant,
-                        prefs = prefs,
-                        prefsRepository = prefsRepository,
-                        onOpenPlanSheet = { showJsonPortabilitySheet = true },
-                        onNavigateToDestination = { navigateTo(it) }
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        AppUpdateBanner(
+                            uiState = updateUiState,
+                            isEs = isEs,
+                            onOpenDetails = { appUpdateViewModel.openUpdateDialog() },
+                            onRemindLater = { appUpdateViewModel.remindMeLater() }
+                        )
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                            ActiveToolContent(
+                                destination = selectedDestination,
+                                isEs = isEs,
+                                currentInstant = currentInstant,
+                                prefs = prefs,
+                                prefsRepository = prefsRepository,
+                                onOpenPlanSheet = { showJsonPortabilitySheet = true },
+                                onNavigateToDestination = { navigateTo(it) },
+                                updateViewModel = appUpdateViewModel,
+                                installedCertFingerprint = installedCertFingerprint
+                            )
+                        }
+                    }
+                    AppUpdateModalHost(
+                        viewModel = appUpdateViewModel,
+                        installExecutor = installExecutor,
+                        isEs = isEs
                     )
                 }
             }
@@ -789,17 +842,34 @@ fun JapanTravelToolsAppContent(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
-                        .navigationBarsPadding()
+                        .consumeWindowInsets(innerPadding)
                         .imePadding()
                 ) {
-                    ActiveToolContent(
-                        destination = selectedDestination,
-                        isEs = isEs,
-                        currentInstant = currentInstant,
-                        prefs = prefs,
-                        prefsRepository = prefsRepository,
-                        onOpenPlanSheet = { showJsonPortabilitySheet = true },
-                        onNavigateToDestination = { navigateTo(it) }
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        AppUpdateBanner(
+                            uiState = updateUiState,
+                            isEs = isEs,
+                            onOpenDetails = { appUpdateViewModel.openUpdateDialog() },
+                            onRemindLater = { appUpdateViewModel.remindMeLater() }
+                        )
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                            ActiveToolContent(
+                                destination = selectedDestination,
+                                isEs = isEs,
+                                currentInstant = currentInstant,
+                                prefs = prefs,
+                                prefsRepository = prefsRepository,
+                                onOpenPlanSheet = { showJsonPortabilitySheet = true },
+                                onNavigateToDestination = { navigateTo(it) },
+                                updateViewModel = appUpdateViewModel,
+                                installedCertFingerprint = installedCertFingerprint
+                            )
+                        }
+                    }
+                    AppUpdateModalHost(
+                        viewModel = appUpdateViewModel,
+                        installExecutor = installExecutor,
+                        isEs = isEs
                     )
                 }
             }
@@ -1010,7 +1080,9 @@ private fun ActiveToolContent(
     prefs: UserPreferences,
     prefsRepository: DefaultUserPreferencesRepository,
     onOpenPlanSheet: () -> Unit,
-    onNavigateToDestination: (JapanDrawerDestination) -> Unit
+    onNavigateToDestination: (JapanDrawerDestination) -> Unit,
+    updateViewModel: AppUpdateViewModel,
+    installedCertFingerprint: String
 ) {
     when (destination) {
         JapanDrawerDestination.CURRENCY -> CurrencyToolScreen(isEs = isEs, prefs = prefs, prefsRepository = prefsRepository)
@@ -1030,7 +1102,13 @@ private fun ActiveToolContent(
         JapanDrawerDestination.PASSPORT_CUSTOMS -> PassportAndCustomsScreen(isEs = isEs, prefs = prefs, prefsRepository = prefsRepository)
         JapanDrawerDestination.BOOKINGS_VAULT -> BookingsVaultScreen(isEs = isEs)
         JapanDrawerDestination.TRAVEL_GUIDES -> TravelGuidesScreen(isEs = isEs)
-        JapanDrawerDestination.SETTINGS -> SettingsPreferencesScreen(isEs = isEs, prefs = prefs, prefsRepository = prefsRepository)
+        JapanDrawerDestination.SETTINGS -> SettingsPreferencesScreen(
+            isEs = isEs,
+            prefs = prefs,
+            prefsRepository = prefsRepository,
+            updateViewModel = updateViewModel,
+            installedCertFingerprint = installedCertFingerprint
+        )
         JapanDrawerDestination.ABOUT -> AboutAppScreen(isEs = isEs)
     }
 }
@@ -1450,47 +1528,11 @@ private fun WeatherToolScreen(isEs: Boolean) {
     ) {
         item {
             KotlinConfCard {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (isEs) "Previsión Open-Meteo" else "Open-Meteo Forecast",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(
-                            onClick = {
-                                val addedCount = SharedWeatherForecastStore.syncCitiesFromPlan(
-                                    stops = portablePlan.itineraryStops,
-                                    segments = portablePlan.transportSegments,
-                                    forceResetDeleted = true
-                                )
-                                statusMessage = if (isEs) {
-                                    if (addedCount > 0) "✅ Se añadieron $addedCount ciudades del plan"
-                                    else "ℹ️ Todas las ciudades del plan ya están añadidas (${allCities.size} activas)"
-                                } else {
-                                    if (addedCount > 0) "✅ Added $addedCount cities from trip plan"
-                                    else "ℹ️ All trip plan cities already added (${allCities.size} active)"
-                                }
-                            },
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
-                            Text(if (isEs) "➕ Ciudades del Plan" else "➕ Plan Cities", fontSize = 12.sp)
-                        }
-                        Button(
-                            onClick = {
-                                editingCity = null
-                                isCreatingCity = true
-                            },
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Text(if (isEs) "➕ Ciudad" else "➕ City", fontSize = 12.sp)
-                        }
-                    }
-                }
+                Text(
+                    text = if (isEs) "Previsión Open-Meteo" else "Open-Meteo Forecast",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
                 Spacer(Modifier.height(6.dp))
                 Text(
                     text = if (isEs) {
@@ -1501,6 +1543,53 @@ private fun WeatherToolScreen(isEs: Boolean) {
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            val addedCount = SharedWeatherForecastStore.syncCitiesFromPlan(
+                                stops = portablePlan.itineraryStops,
+                                segments = portablePlan.transportSegments,
+                                forceResetDeleted = true
+                            )
+                            statusMessage = if (isEs) {
+                                if (addedCount > 0) "✅ Se añadieron $addedCount ciudades del plan"
+                                else "ℹ️ Todas las ciudades del plan ya están añadidas (${allCities.size} activas)"
+                            } else {
+                                if (addedCount > 0) "✅ Added $addedCount cities from trip plan"
+                                else "ℹ️ All trip plan cities already added (${allCities.size} active)"
+                            }
+                        },
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = if (isEs) "➕ Ciudades del Plan" else "➕ Plan Cities",
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Button(
+                        onClick = {
+                            editingCity = null
+                            isCreatingCity = true
+                        },
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = if (isEs) "➕ Añadir Ciudad" else "➕ Add City",
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
 
                 if (statusMessage != null) {
                     Spacer(Modifier.height(10.dp))
@@ -2298,7 +2387,7 @@ private fun TripPlannerTabScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 6.dp)
     ) {
         // TOP CARD: ACTIVE TRAVEL PLAN & COMPACT ACTIONS (CON INTEGRACIÓN JSON)
         KotlinConfCard {
@@ -2690,7 +2779,9 @@ private fun TripPlannerTabScreen(
                     }
                 },
                 isEs = isEs,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
             )
         } else if (dayStops.isEmpty()) {
             KotlinConfCard {
@@ -2733,7 +2824,10 @@ private fun TripPlannerTabScreen(
             }
         } else {
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentPadding = PaddingValues(bottom = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 items(dayStops, key = { it.item.id }) { evaluated ->
@@ -8798,8 +8892,11 @@ private fun TravelGuidesScreen(isEs: Boolean) {
                         InfoTagPill(text = guide.cityRegion)
                     }
                     Spacer(Modifier.height(8.dp))
+                    val cleanPreview = remember(guide.markdownSummary) {
+                        MarkdownTextParser.extractPlainTextPreview(guide.markdownSummary, maxChars = 220)
+                    }
                     Text(
-                        text = guide.markdownSummary,
+                        text = cleanPreview,
                         fontSize = 14.sp,
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
@@ -8919,11 +9016,11 @@ private fun FullGuideReaderDialog(
                         .weight(1f)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    Text(
-                        text = guide.markdownSummary,
-                        fontSize = 16.sp,
-                        lineHeight = 25.sp,
-                        color = MaterialTheme.colorScheme.onSurface
+                    MarkdownText(
+                        markdown = guide.markdownSummary,
+                        baseFontSize = 15.5.sp,
+                        baseLineHeight = 23.5.sp,
+                        textColor = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
@@ -8956,6 +9053,7 @@ private fun GuideEditorModalSheet(
     var titleText by rememberSaveable { mutableStateOf(initialGuide.title) }
     var cityText by rememberSaveable { mutableStateOf(initialGuide.cityRegion) }
     var contentText by rememberSaveable { mutableStateOf(initialGuide.markdownSummary) }
+    var isPreviewMode by remember { mutableStateOf(false) }
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
 
     AppConfirmationDialog(
@@ -9002,14 +9100,55 @@ private fun GuideEditorModalSheet(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            OutlinedTextField(
-                value = contentText,
-                onValueChange = { contentText = it },
-                label = { Text(if (isEs) "Consejos, recomendaciones y apuntes" else "Tips & notes", fontSize = 15.sp) },
-                minLines = 4,
-                maxLines = 8,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AppOptionButton(
+                    text = if (isEs) "✏️ Editar" else "✏️ Edit",
+                    selected = !isPreviewMode,
+                    onClick = { isPreviewMode = false },
+                    height = 36.dp,
+                    fontSize = 13.sp,
+                    modifier = Modifier.weight(1f)
+                )
+                AppOptionButton(
+                    text = if (isEs) "👁️ Vista previa" else "👁️ Preview",
+                    selected = isPreviewMode,
+                    onClick = { isPreviewMode = true },
+                    height = 36.dp,
+                    fontSize = 13.sp,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            if (isPreviewMode && contentText.isNotBlank()) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(modifier = Modifier.padding(14.dp)) {
+                        MarkdownText(
+                            markdown = contentText,
+                            baseFontSize = 14.5.sp,
+                            baseLineHeight = 21.5.sp,
+                            textColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            } else {
+                OutlinedTextField(
+                    value = contentText,
+                    onValueChange = { contentText = it },
+                    label = { Text(if (isEs) "Consejos, recomendaciones y apuntes" else "Tips & notes", fontSize = 15.sp) },
+                    minLines = 4,
+                    maxLines = 8,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
             AppButtonRow(
                 primaryText = if (isEs) "💾 Guardar Guía" else "💾 Save Guide",
@@ -9060,7 +9199,9 @@ private fun GuideEditorModalSheet(
 private fun SettingsPreferencesScreen(
     isEs: Boolean,
     prefs: UserPreferences,
-    prefsRepository: DefaultUserPreferencesRepository
+    prefsRepository: DefaultUserPreferencesRepository,
+    updateViewModel: AppUpdateViewModel,
+    installedCertFingerprint: String
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -9125,6 +9266,15 @@ private fun SettingsPreferencesScreen(
                     }
                 }
             }
+        }
+
+        item {
+            SettingsUpdateSection(
+                viewModel = updateViewModel,
+                installedCertShortFingerprint = installedCertFingerprint,
+                forceOfflineByApp = prefs.forceOfflineMode,
+                isEs = isEs
+            )
         }
 
         item {

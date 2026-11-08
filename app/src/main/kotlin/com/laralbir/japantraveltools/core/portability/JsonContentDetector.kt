@@ -37,7 +37,7 @@ object JsonContentDetector {
         }
 
         // 1. Full Backup Bundle Check
-        if (trimmed.contains("\"cloudBackupVersion\"") || (trimmed.contains("\"syncData\"") && trimmed.contains("\"plans\""))) {
+        if (trimmed.contains("\"cloudBackupVersion\"") || (trimmed.contains("\"syncData\"") && trimmed.contains("\"plans\"")) || (trimmed.contains("\"backupId\"") && (trimmed.contains("\"travelPlans\"") || trimmed.contains("\"travelGuides\"")))) {
             return DetectedJsonContent(
                 type = JsonContentType.FULL_BACKUP,
                 title = "Copia de Seguridad Completa",
@@ -54,13 +54,31 @@ object JsonContentDetector {
                 val title = bundle.tripTitle.ifBlank { "Plan de Viaje" }
                 val stops = bundle.itineraryStops.size
                 val transport = bundle.transportSegments.size
+                val guideCount = if (trimmed.contains("\"guides\"")) runCatching { DocumentsAndGuidesJsonCodec.importGuidesJson(json).size }.getOrDefault(0) else 0
+                val docCount = if (trimmed.contains("\"documents\"")) runCatching { DocumentsAndGuidesJsonCodec.importDocumentsJson(json).size }.getOrDefault(0) else 0
+
+                val summaryEs = buildString {
+                    append("Plan de viaje con $stops paradas de itinerario y $transport tramos de transporte")
+                    if (guideCount > 0) append(", $guideCount guías")
+                    if (docCount > 0) append(" y $docCount documentos/billetes")
+                    append(".")
+                }
+                val summaryEn = buildString {
+                    append("Travel plan with $stops itinerary stops and $transport transport segments")
+                    if (guideCount > 0) append(", $guideCount guides")
+                    if (docCount > 0) append(" and $docCount documents/tickets")
+                    append(".")
+                }
+
                 DetectedJsonContent(
                     type = JsonContentType.TRAVEL_PLAN,
                     title = title,
-                    summaryEs = "Plan de viaje con $stops paradas de itinerario y $transport tramos de transporte.",
-                    summaryEn = "Travel plan with $stops itinerary stops and $transport transport segments.",
+                    summaryEs = summaryEs,
+                    summaryEn = summaryEn,
                     stopCount = stops,
                     transportCount = transport,
+                    guideCount = guideCount,
+                    documentCount = docCount,
                     rawJson = json
                 )
             }.getOrElse {

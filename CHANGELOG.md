@@ -7,6 +7,33 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-08
+
+### Corrección de Versión en Pantalla "Acerca de" ⚙️🏷️
+- **Sincronización Dinámica de Versión (`OpenSourceLibrariesCatalog`)**: Delegación directa en `BuildConfig.VERSION_NAME` y `BuildConfig.VERSION_CODE`, garantizando concordancia absoluta (`1.3.1`, build 37) entre la pantalla de **Acerca de** y el panel de **Actualizaciones**.
+
+### Renderizado Nativo de Markdown en Guías de Viaje y Vista Previa en Editor 📖✨
+- **Lector Enriquecido 100% Offline (`FullGuideReaderDialog` & `MarkdownText`)**: Renderizado nativo en Jetpack Compose + Material Design 3 del contenido `markdownSummary` de las Guías de Viaje (`TravelGuideArticle`), tanto al abrirlas desde la pestaña de **Guías** como desde una parada vinculada del **Mapa del Día (`StopDetailMapModalSheet`)**.
+- **Soporte Completo de Bloques y Formato Inline (`MarkdownTextParser`)**: Interpretación sin sintaxis cruda de encabezados jerárquicos (`H1`–`H6`), negritas, cursivas, código inline y bloques cercados, listas con viñetas y sublistas indentadas multinivel, listas numeradas, casillas de verificación (`- [ ]` / `- [x]`), citas y bloques de aviso (`>`), separadores horizontales (`---`), enlaces interactivos seguros (`[texto](url)`) y tablas Markdown (`|...|`) con desplazamiento horizontal.
+- **Extractos Limpios en Tarjetas (`extractPlainTextPreview`)**: Limpieza automática de sintaxis Markdown cruda en las vistas previas de 2–3 líneas de las tarjetas del listado de Guías y de las fichas vinculadas del Mapa del Día.
+- **Pestaña de Vista Previa en el Editor (`GuideEditorModalSheet`)**: Conmutador directo `✍️ Editar` / `👁️ Vista previa` para comprobar el resultado visual exacto del Markdown antes de guardar la guía.
+
+### Importación Unificada Todo en Uno de Plan, Guías y Documentos en JSON 📦🇯🇵
+- **Importación en un Solo Paso (`SharedTravelPlanStore.importJson`)**: Si un archivo JSON de plan de viaje (`japan-travel-plan.v1`) incluye secciones `"guides"` y/o `"documents"`, la aplicación importa automáticamente el itinerario, los tramos de transporte, las guías de viaje y los billetes/documentos en `SharedDocumentsAndGuidesStore` respetando el modo reemplazo o fusión.
+- **Detección Inteligente Mejorada (`JsonContentDetector` & `JsonDataPortabilityCard`)**: Reconocimiento preciso de copias de seguridad completas de Google Drive (`backupId` + `travelPlans`) y recuento detallado de paradas, transportes, guías y documentos en el diálogo de confirmación y mensaje final de importación.
+
+### Mapa del Día con Etiquetas Compactas Anticolisión (`🏷️`) y Ajustes Ergonómicos de Layout 🗺️📐
+- **Etiquetas Compactas Multilínea y Anticolisión Automática (`DayItineraryMapView`)**: Limitación de las etiquetas de paradas en el mapa a un formato compacto de máximo 2 líneas con elipsis y ocultación automática anticolisión por proximidad en píxeles de pantalla al cambiar el zoom (`zoomend`), manteniendo siempre visible la parada seleccionada.
+- **Botón Conmutador Global de Etiquetas (`🏷️`)**: Nuevo control en la botonera lateral del mapa para mostrar u ocultar con un toque todas las etiquetas de texto de las paradas.
+- **Eliminación de Margen Inferior Duplicado y Botonera Horizontal en Meteorología (`MainScreen`)**: Consumo adecuado de insets de ventana (`consumeWindowInsets`) en el `Scaffold` principal para maximizar el espacio vertical útil sobre la barra inferior y disposición en una fila horizontal simétrica de los botones `➕ Ciudades del Plan` y `➕ Añadir Ciudad` en la pantalla de Meteorología.
+
+### Sistema de Actualizaciones Automáticas vía GitHub Releases y Firma Criptográfica de Producción (`SPEC-10`) 🔐⬇️
+- **Firma Criptográfica Oficial PKCS#12 (APK Signature Scheme v2 y v3) y Pipeline CI/CD (`release-apk.yml`)**: Endurecimiento de `signingConfigs.release` en `app/build.gradle.kts` eliminando contraseñas por defecto y el fallback a `debug.keystore`, plantilla segura `keystore.example.properties` y workflow automatizado en GitHub Actions que ejecuta la suite unitaria, decodifica `SIGNING_KEYSTORE_BASE64` en memoria efímera (`$RUNNER_TEMP`), verifica los esquemas v2/v3 con `apksigner` y publica el `.apk` junto a su suma `.apk.sha256`.
+- **Descubrimiento Inteligente Offline-First y SemVer 2.0.0 (`GitHubAutoUpdateRepository` & `SemanticVersionComparator`)**: Comprobación automática no bloqueante cada 12 horas respetando estrictamente `Modo Solo Offline`, política de red (`Solo Wi-Fi` por defecto frente a `Wi-Fi y Datos / eSIM`) y bloqueo en Roaming, optimizada con cabeceras `ETag` (`HTTP 304`), persistencia de versiones omitidas (`dismissedVersionTag`) y búsqueda manual inmediata desde Ajustes.
+- **Doble Verificación Criptográfica Pre-Instalación (`ApkSignatureVerifier`) e Instalador Nativo (`PackageInstallerUpdateExecutor`)**: Descarga atómica cancelable en `Context.cacheDir/updates/`, validación secuencial del hash `SHA-256` del binario y coincidencia exacta de `packageName`, `versionCode` creciente y huella `SHA-256` del certificado X.509 instalado (con autolimpieza de artefactos al actualizar), más sesión `PackageInstaller` (`USER_ACTION_NOT_REQUIRED` en Android 12+ y reanudación automática en `ON_RESUME` tras autorizar fuentes desconocidas) preservando intacto `Context.filesDir`.
+- **Interfaz Material 3 Bilingüe EN/ES (`AppUpdateComponents` & `MainScreen`)**: Aviso compacto no intrusivo en cabecera (`AppUpdateBanner`), diálogo modal con comparativa tabular `tnum`, notas del `CHANGELOG` renderizadas nativamente con `MarkdownText`, progreso en tiempo real y tarjeta completa en **Ajustes** (`SettingsUpdateSection`) con huella corta del certificado y controles de red/versiones preliminares.
+
+
 ## [1.3.0] - 2026-11-05
 
 ### Mapa Integrado de Visitas del Día, Selector de Capas Cartográficas, Ubicación GPS y Detalle de Guías y Billetes 🗺️📍🎫✨

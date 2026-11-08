@@ -113,6 +113,25 @@ Permitir al viajero llevar siempre a mano y **100% offline**:
 3. **Acceso Centralizado desde Ajustes**:
    - Estas funciones están integradas en la pantalla de Ajustes para garantizar un punto de control unificado junto con la portabilidad del itinerario.
 
+### RF-03.6: Renderizado Nativo de Markdown en Guías de Viaje
+1. **Lector Enriquecido 100% Offline (`FullGuideReaderDialog`)**:
+   - El contenido `markdownSummary` de cualquier guía de viaje (`TravelGuideArticle`), tanto si se abre desde la pestaña de **Guías de Viaje** como desde la ficha de detalle de una parada en el **Mapa del Día (`StopDetailMapModalSheet`)**, debe interpretarse y renderizarse de forma nativa en Jetpack Compose + Material Design 3 sin mostrar sintaxis Markdown en crudo ni requerir conexión a internet.
+   - Elementos de bloque soportados:
+     - **Encabezados jerárquicos (`H1`–`H6`)**: `#` a `######` con escala tipográfica decreciente, peso destacado y colores acordes al tema Claro (*Washi*) / Oscuro (*Sumi*).
+     - **Listas con viñetas y sublistas indentadas**: elementos con `- `, `* ` o `• `, respetando niveles de sangrado por espacios/tabuladores para representar jerarquías multinivel.
+     - **Listas numeradas**: elementos `1. `, `2. `, etc. con numeración destacada y sangrado opcional.
+     - **Listas de tareas / casillas (`Task Lists`)**: elementos `- [ ]` (pendiente) y `- [x]` / `- [X]` (completada) con indicador visual diferenciado de verificación.
+     - **Citas y bloques de aviso (`Blockquotes`)**: líneas iniciadas con `>` agrupadas visualmente con barra lateral vertical de acento y superficie sutil para resaltar consejos prácticos o advertencias al viajero.
+     - **Separadores horizontales**: reglas `---`, `***` o `___` renderizadas como divisores limpios entre secciones.
+     - **Bloques de código cercados (`Fenced Code Blocks`)**: bloques ```` ```lenguaje ... ``` ```` con cabecera opcional de lenguaje, tipografía monoespaciada, contenedor diferenciado y desplazamiento horizontal.
+     - **Tablas Markdown (`|...|`)**: tablas estructuradas con fila de cabecera y fila divisoria (`| --- | :---: | ---: |`), renderizadas con cabeceras resaltadas, bordes definidos, formato inline en celdas y desplazamiento horizontal fluido cuando superen el ancho de pantalla.
+   - Elementos en línea (*inline*) soportados dentro de párrafos, cabeceras, listas, citas y celdas de tabla:
+     - **Negrita y cursiva combinadas** (`***texto***`), **negrita** (`**texto**` / `__texto__`), **cursiva** (`*texto*` / `_texto_`), **código inline** (`` `término` `` con fondo sutil monoespaciado) y **enlaces** (`[texto](url)` mostrando únicamente la etiqueta legible con estilo interactivo y apertura externa segura cuando el usuario toque el enlace).
+2. **Extractos Limpios sin Sintaxis Cruda en Tarjetas y Resúmenes**:
+   - En las tarjetas del listado de Guías de Viaje y en las tarjetas de guías vinculadas del Mapa del Día (`StopDetailMapModalSheet`), la previsualización resumida (2–3 líneas) debe generarse eliminando marcas Markdown crudas (`#`, `**`, `*`, `` ` ``, `>`, `---`, `- [ ]`, enlaces `[texto](url)` -> `texto` y separadores de tabla `|`), ofreciendo un resumen limpio y legible de inmediato.
+3. **Pestaña de Vista Previa en el Editor de Guías (`GuideEditorModalSheet`)**:
+   - Al crear o editar una guía de viaje, el modal debe ofrecer un conmutador estilo pestaña (`✍️ Editar` / `👁️ Vista previa`) que permita al viajero alternar en tiempo real entre el campo de redacción Markdown multilínea y la previsualización exacta renderizada con el motor nativo antes de guardar.
+
 ---
 
 ## 3. Criterios de Aceptación (Gherkin / BDD)
@@ -131,3 +150,8 @@ Permitir al viajero llevar siempre a mano y **100% offline**:
 - **Dado** que el usuario ha importado una guía en PDF de Kioto (marcando la página 14) y ha creado una guía propia de *"Dónde comer Ramen en Shinjuku"* con 3 fotos adjuntas
 - **Cuando** consulta la sección de Guías de Viaje en el tren sin cobertura
 - **Entonces** puede abrir el PDF directamente en la página 14 y visualizar su guía personalizada de Shinjuku con todo el texto y las fotos almacenadas localmente.
+
+### Escenario 4: Renderizado enriquecido de Markdown en Guías de Viaje y vista previa en el editor offline
+- **Dado** que el viajero está en Modo Avión y dispone de una guía de viaje cuyo `markdownSummary` incluye encabezados (`#`–`######`), negritas, cursivas, código inline, bloques de código, listas con sublistas indentadas, listas numeradas, casillas `- [ ]` / `- [x]`, citas `>`, separadores `---`, enlaces `[texto](url)` y tablas `|...|`
+- **Cuando** consulta el listado de Guías o una parada vinculada en el Mapa del Día y pulsa *"📖 Leer Guía"* (o conmuta a *"👁️ Vista previa"* dentro del editor de guías)
+- **Entonces** las tarjetas de resumen muestran un extracto limpio sin caracteres Markdown crudos, y tanto el lector completo como la pestaña de vista previa del editor renderizan todos los bloques, tablas y estilos tipográficos Material 3 de forma nativa y 100% offline.

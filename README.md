@@ -2,7 +2,7 @@
 
 Aplicación Android **offline-first** con la suite definitiva de herramientas esenciales para viajar a Japón, desarrollada en **Kotlin** y **Jetpack Compose** siguiendo metodologías estrictas de **Spec-Driven Development (SDD)** y **Test-Driven Development (TDD)**.
 
-> **Estado actual del proyecto**: `v1.3.0` (Versión Oficial Estable de Producción). Publicada con APK firmado adjunto en [GitHub Releases](https://github.com/laralbir/japan-travel-tools/releases/tag/v1.3.0).
+> **Estado actual del proyecto**: `v1.4.0` (Versión Oficial Estable de Producción). Publicada con APK firmado adjunto en [GitHub Releases](https://github.com/laralbir/japan-travel-tools/releases/tag/v1.4.0).
 
 ---
 
@@ -18,7 +18,8 @@ Aplicación Android **offline-first** con la suite definitiva de herramientas es
   - **Smartphones Pro XL (Google Pixel 10 Pro XL y Pixel 9 Pro XL)**: Diseño *Edge-to-Edge*, ergonomía a una mano con controles en la zona inferior y modo oscuro OLED de alto contraste.
   - **Tablets (TCL NXTPAPER 11 Plus)**: Interfaz adaptativa con barra de navegación lateral (`NavigationRail`), vista de doble panel en el Planificador (Horario + Mapa de Google Maps interactivo en paralelo), vista Maestro-Detalle para Guías y lectura optimizada para *Ink Paper* y *Color Paper*.
 - **Indicador de Conexión en Vivo y Selector Rápido (`Wi-Fi / SIM / eSIM / Offline`)**: Píldora interactiva en la cabecera que detecta la conexión activa y abre de inmediato el panel de conectividad nativo de Android (`Settings.Panel.ACTION_INTERNET_CONNECTIVITY`).
-- **Portabilidad JSON y Copia de Seguridad en Google Drive**: Exportación e importación completa de planes, transportes, guías y reservas mediante archivos `.json` legibles mediante Storage Access Framework (SAF) local o en Google Drive.
+- **Portabilidad JSON Unificada y Copia de Seguridad en Google Drive**: Exportación e importación todo en uno de planes, transportes, guías y reservas/billetes en un solo archivo `.json` legible (`japan-travel-plan.v1` o backup completo) mediante Storage Access Framework (SAF) local o en Google Drive, con detección inteligente automática de entidades (`JsonContentDetector`).
+- **Actualizador OTA Integrado vía GitHub Releases y Firma Criptográfica de Producción (`SPEC-10`)**: Comprobación automática (cada 12 h respetando Modo Offline, Wi-Fi/eSIM y Roaming) y manual desde Ajustes con soporte `ETag` y comparación estricta SemVer 2.0.0, visor de novedades (`CHANGELOG`) renderizado con `MarkdownText`, descarga en caché privada con doble verificación criptográfica (**hash `SHA-256` + certificado X.509 PKCS#12 con APK Signature Scheme v2/v3**) e instalación *in-place* mediante `PackageInstaller` conservando intactos todos los datos locales (`Context.filesDir`).
 - **Seguridad y Privacidad Local**: Almacenamiento seguro en directorio privado de la aplicación (`Context.filesDir`). Sin telemetría invasiva, sin trackers y con protección biométrica para documentos confidenciales.
 
 ---
@@ -45,15 +46,15 @@ Aplicación Android **offline-first** con la suite definitiva de herramientas es
 - Gestión offline de billetes de vuelo, reservas de hotel, pases JR Pass y entradas a atracciones.
 - **Pases Digitales Estilo Wallet Offline (`WalletTicketPassDialog`)**: Visor de alta legibilidad con código localizador QR para escaneo rápido en tornos o controles.
 - Captura directa con la cámara nativa de Android (`FileProvider`) para fotografiar tickets de papel o entradas físicas.
-- **Gestor y Lector Cómodo de Guías de Viaje**: Importación y redacción de guías enriquecidas en Markdown, visor modal de lectura (`FullGuideReaderDialog`) y ordenación dinámica (*Fijadas*, *A-Z*, *Por Ciudad*).
-- Exportación e importación modular en formato JSON desde Ajustes.
+- **Gestor y Lector Nativo de Guías de Viaje en Markdown (`FullGuideReaderDialog` & `MarkdownText`)**: Renderizado enriquecido 100% offline con encabezados `H1`–`H6`, negritas, cursivas, código inline/bloques, listas con sublistas indentadas, casillas `- [ ]`/`- [x]`, citas `>`, separadores `---`, enlaces `[texto](url)` y tablas Markdown desplazables, extractos limpios sin sintaxis cruda en tarjetas de resumen, pestaña conmutable `✍️ Editar` / `👁️ Vista previa` en el editor y ordenación dinámica (*Fijadas*, *A-Z*, *Por Ciudad*).
+- Exportación e importación modular o unificada en formato JSON desde Ajustes.
 
 ### 5. 🗺️ Planificador de Viaje con Fotos, Horarios y Google Maps (`SPEC-04`)
-- Itinerario interactivo por días con alternador de vista superior: **`[ 📋 Horario | 🗺️ Mapa del Día ]`**.
+- Itinerario interactivo por días con alternador de vista superior: **`[ 📋 Horario | 🗺️ Mapa del Día ]`** y aprovechamiento máximo del alto de pantalla sin márgenes inferiores duplicados en el `Scaffold`.
 - **Mapa Integrado del Día con Selector de Capas Cartográficas (`DayItineraryMapView`)**:
-  - Proyección Web Mercator sobre lienzo Compose con caché local en disco y memoria, gestos fluidos de arrastre y zoom, y respaldo vectorial offline automático.
+  - Proyección Web Mercator con caché local, gestos fluidos de arrastre y zoom, y respaldo vectorial offline automático.
   - **Selector de Capas Cartográficas**: Conmutador interactivo entre **`🗺️ Google Maps`** (por defecto, con nombres de calles y estaciones en español/romaji + japonés), **`🛰️ Google Satélite Híbrido`** y **`🌍 OpenStreetMap`**.
-  - **Marcadores Numerados Limpios y Controles Laterales del Mapa**: Visualización despejada de las paradas numeradas (`1..N`) por orden cronológico sin líneas conectoras que saturen el mapa, y columna de controles en la esquina inferior derecha con zoom (`[+]`, `[—]`), botón `[📍]` para encuadrar y centrar todas las visitas del día (`fitToMarkers`) e icono vectorial GPS (*My Location*) para centrar en la ubicación en tiempo real del viajero (`📍 Tú estás aquí`).
+  - **Marcadores Numerados, Etiquetas Compactas Anticolisión y Controles Laterales**: Visualización despejada de las paradas numeradas (`1..N`) por orden cronológico con etiquetas compactas multilínea (máx. 2 líneas) que se ocultan selectivamente de forma automática al aproximarse en pantalla (`zoomend` / distancia en píxeles) para evitar solapamientos, y columna de controles en la esquina inferior derecha con conmutador global de etiquetas (`[🏷️]`), zoom (`[+]`, `[—]`), botón `[📍]` para encuadrar todas las visitas (`fitToMarkers`) e icono vectorial GPS (*My Location*) para centrar en la ubicación en tiempo real del viajero (`📍 Tú estás aquí`).
 - **Ficha Modal de Detalle Interactivo de Parada (`StopDetailMapModalSheet`)**: Al pulsar cualquier punto del mapa, se despliega una ficha con nombre en japonés en gran formato con botón de copia rápida para taxistas/locales, vinculación inteligente de Guías de Viaje (`TravelGuideArticle`) con botón para leer la guía completa, billetes digitales asociados (`TravelDocumentItem` / `TransportSegmentItem`) con visor QR ampliado y brillo al 100%, y botón para navegación paso a paso en Google Maps.
 - **Formateo Regional de Fechas y Husos Locales (`TravelDateTimeFormatter`)**: Fechas completas en formato regional del sistema (`FormatStyle.FULL`) y horas en el huso local de cada destino (ej. Múnich `UTC+1`, Tokio `UTC+9`) con indicación del desfase.
 - **Persistencia Canónica en ISO UTC**: Almacenamiento estándar en formato UTC (`Instant.toString()`) con compatibilidad retroactiva total en `TravelPlanJsonCodec`.
@@ -81,7 +82,7 @@ Aplicación Android **offline-first** con la suite definitiva de herramientas es
   - Análisis multimodal de cartas de restaurantes y optimizador inteligente de planes de viaje (`AI Plan Builder`).
 
 ### 8. ⛅ Previsión Meteorológica y Planificación Climática (`SPEC-07`)
-- Integración con **Open-Meteo API** (modelos globales + JMA de Japón) sin requerir API Key, con caché offline persistente para Tokio, Kioto, Osaka, Hakone y destinos del viaje.
+- Integración con **Open-Meteo API** (modelos globales + JMA de Japón) sin requerir API Key, con caché offline persistente para Tokio, Kioto, Osaka, Hakone y destinos del viaje, y botonera horizontal rápida (`➕ Ciudades del Plan` / `➕ Añadir Ciudad`).
 - Sincronización automática periódica en segundo plano mediante WorkManager (cada 6 horas).
 - Catálogo geográfico predictivo offline con más de 50 ciudades y destinos turísticos de Japón e internacionales.
 - Índices de actividad (`⛩️ Ideal Exterior` vs. `🏛️ Recomendado Cubierto`), alertas de lluvia y probabilidad de visibilidad del Monte Fuji (`🗻 %`).
@@ -111,8 +112,8 @@ Este proyecto se desarrolla bajo estrictas directrices de ingeniería de softwar
    - `develop`: Rama de integración continua de desarrollo.
    - `feature/*`, `release/*`, `hotfix/*`: Ramas de trabajo.
 3. **Conventional Commits v1.0.0**: Historial semántico estandarizado (`feat`, `fix`, `docs`, `test`, `refactor`, `chore`).
-4. **Política de Releases**:
-   - Cada publicación en `main` genera su tag anotado y una **GitHub Release** oficial con el APK compilado y firmado adjunto.
+4. **Política de Releases y Firma Criptográfica de Producción (`PKCS#12` v2/v3)**:
+   - Toda release publicada en GitHub se compila con `./gradlew assembleRelease` firmada con el Keystore oficial PKCS#12 (`enableV1Signing`, `enableV2Signing` y `enableV3Signing`, sin secretos en Git mediante `keystore.properties` local ignorado o GitHub Secrets efímeros en `.github/workflows/release-apk.yml`), adjuntando el `.apk` verificado con `apksigner` y su archivo `.apk.sha256` para garantizar continuidad criptográfica perpetua y actualizaciones *in-place* sin perder datos.
 5. **Prevención de Reinicio de App y Bloqueo de Orientación Vertical en Android**:
    - Configuración de `singleTask` y bloqueo de orientación vertical (`android:screenOrientation="portrait"`) en `AndroidManifest.xml` con manejo de `onNewIntent` en `MainActivity`, evitando rotaciones accidentales de la interfaz al sujetar el teléfono durante el viaje.
    - Control de `configChanges` y persistencia de pantalla activa en `UserPreferencesRepository`.
@@ -137,12 +138,22 @@ Toda la documentación técnica y funcional se encuentra detallada en español d
   - [06 - Herramienta: Asistente IA con Gemini y Traductor Simultáneo](docs/specs/06-gemini-ai-and-translator-spec.md)
   - [07 - Herramienta: Previsión Meteorológica con Open-Meteo y Planificación Climática](docs/specs/07-weather-open-meteo-spec.md)
   - [08 - Herramienta: Tickets de Compra, Tax-Free y Control de Gastos del Viaje](docs/specs/08-shopping-receipts-tax-free-spec.md)
-  - [09 - Guía y Esquema JSON para Generación con IA y Portabilidad](docs/specs/08-travel-plan-json-schema-guide.md)
+  - [08B - Guía y Esquema JSON Todo en Uno (`japan-travel-plan.v1`) para IA y Portabilidad](docs/specs/08-travel-plan-json-schema-guide.md)
+  - [09 - Herramienta: Importación de Billetes Apple Wallet (`.pkpass`) y Visor QR/Aztec](docs/specs/09-apple-wallet-pkpass-import-spec.md)
+  - [10 - Sistema: Actualizaciones Automáticas vía GitHub Releases y Firma Criptográfica](docs/specs/10-github-releases-auto-updater-spec.md)
 - **Análisis Técnico**:
   - [Arquitectura, Stack Tecnológico y Estrategia TDD](docs/analysis/architecture-and-tech-stack.md)
-  - [Análisis Técnico Módulo Tax-Free y Gastos](docs/analysis/08-shopping-receipts-tax-free-analysis.md)
+  - [04 - Análisis Técnico: Mapa del Día, Etiquetas Anticolisión y Detalle con Guías/Billetes](docs/analysis/04-day-itinerary-map-and-linked-details-analysis.md)
+  - [08 - Análisis Técnico: Módulo Tax-Free y Gastos](docs/analysis/08-shopping-receipts-tax-free-analysis.md)
+  - [09 - Análisis Técnico: Importación Apple Wallet (`.pkpass`)](docs/analysis/09-apple-wallet-pkpass-import-analysis.md)
+  - [10 - Análisis Técnico: Importación Unificada de Plan, Guías y Documentos JSON](docs/analysis/10-unified-travel-plan-guides-and-documents-analysis.md)
+  - [11 - Análisis Técnico: Renderizado Nativo de Markdown en Guías de Viaje](docs/analysis/11-travel-guides-markdown-rendering-analysis.md)
+  - [12 - Análisis Técnico: Actualizador Automático vía GitHub Releases y Firma de Producción](docs/analysis/12-github-releases-auto-updater-analysis.md)
 - **Planificación de Tareas**:
   - [Backlog y Desglose de Tareas SDD + TDD](docs/tasks/backlog.md)
+  - [Tareas: Renderizado Nativo de Markdown en Guías de Viaje](docs/tasks/tasks-travel-guides-markdown-rendering.md)
+  - [Tareas: Importación Unificada JSON](docs/tasks/tasks-unified-travel-plan-import.md)
+  - [Tareas: Actualizador Automático vía GitHub Releases y Firma Criptográfica](docs/tasks/tasks-github-releases-auto-updater.md)
 - **Guías**:
   - [Guía de Usuario Completa](docs/user-guide.md)
   - [Flujo de Trabajo: Gitflow, Conventional Commits y Releases](docs/development-workflow.md)
@@ -161,6 +172,7 @@ Toda la documentación técnica y funcional se encuentra detallada en español d
 - [x] **Hito 8 - Módulo de Tickets de Compra, Tax-Free y Control de Gastos** (`SPEC-08`): Escaneo híbrido con IA y OCR trilingüe local, soporte multidivisa JPY/EUR/USD, selector de origen y exportación de informes para aduanas.
 - [x] **Hito 9 - Validación y Despliegue en Dispositivos Físicos Autorizados**: Verificación directa por ADB en Google Pixel y Tablet TCL NXTPAPER 11 Plus.
 - [x] **Hito 10 - Publicación de Versión de Producción v1.3.0**: Publicada en GitHub Releases con APK firmado adjunto.
+- [x] **Hito 11 - Publicación de Versión de Producción v1.4.0**: Actualizador OTA integrado vía GitHub Releases (`SPEC-10`), renderizado nativo de Markdown en Guías (`SPEC-03`), importación unificada JSON (`ANALYSIS-10`), etiquetas anticolisión en mapa del día y APK oficial firmado con esquemas v1/v2/v3.
 
 ---
 
