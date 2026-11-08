@@ -2,13 +2,18 @@ package com.laralbir.japantraveltools.feature.planner.pdf.data
 
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.DashPathEffect
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import com.laralbir.japantraveltools.core.datetime.TravelDateTimeFormatter
 import com.laralbir.japantraveltools.feature.planner.ItineraryStopItem
+import com.laralbir.japantraveltools.feature.planner.map.GeoProjectionUtils
 import com.laralbir.japantraveltools.feature.planner.pdf.domain.PdfDocumentLayoutCalculator
+import com.laralbir.japantraveltools.feature.planner.pdf.domain.PdfMapLayout
+import com.laralbir.japantraveltools.feature.planner.pdf.domain.PdfMapProjectionCalculator
 import com.laralbir.japantraveltools.feature.planner.pdf.domain.repository.ItineraryPdfExporter
 import com.laralbir.japantraveltools.feature.planner.pdf.model.PdfExportOptions
 import com.laralbir.japantraveltools.feature.planner.pdf.model.PdfExportResult
@@ -49,9 +54,33 @@ class AndroidItineraryPdfExporter(
         val targetFile = File(exportDir, fileName)
 
         val relevantTransports = if (options.includeTransportSegments) transports else emptyList()
+
+        val mapLayout = if (options.includeDayMap) {
+            PdfMapProjectionCalculator.projectStopsToCanvas(
+                stops = stops,
+                width = PdfDocumentLayoutCalculator.PRINTABLE_WIDTH.toFloat(),
+                height = PdfDocumentLayoutCalculator.MAP_CARD_HEIGHT
+            )
+        } else null
+        val hasMap = mapLayout != null && mapLayout.hasValidCoordinates
+
+        var firstPageAvailableHeight = PdfDocumentLayoutCalculator.USABLE_PAGE_HEIGHT
+        if (relevantTransports.isNotEmpty()) {
+            val transH = relevantTransports.take(2).sumOf {
+                PdfDocumentLayoutCalculator.calculateTransportHeight(it).toDouble()
+            }.toFloat() + (relevantTransports.take(2).size * PdfDocumentLayoutCalculator.ITEM_SPACING)
+            firstPageAvailableHeight -= transH
+        }
+        if (hasMap) {
+            firstPageAvailableHeight -= (PdfDocumentLayoutCalculator.MAP_CARD_HEIGHT + PdfDocumentLayoutCalculator.ITEM_SPACING)
+        }
+        firstPageAvailableHeight = firstPageAvailableHeight.coerceAtLeast(100f)
+
         val paginatedStops = PdfDocumentLayoutCalculator.paginateStops(
             stops = stops,
-            includeJapaneseNames = options.includeJapaneseNames
+            includeJapaneseNames = options.includeJapaneseNames,
+            firstPageAvailableHeight = firstPageAvailableHeight,
+            subsequentPagesAvailableHeight = PdfDocumentLayoutCalculator.USABLE_PAGE_HEIGHT
         )
         val totalPages = paginatedStops.size.coerceAtLeast(1)
 
@@ -84,6 +113,12 @@ class AndroidItineraryPdfExporter(
                         drawTransportCard(canvas, transport, cursorY, tHeight)
                         cursorY += tHeight + PdfDocumentLayoutCalculator.ITEM_SPACING
                     }
+                }
+
+                // Draw daily route map on first page if available
+                if (pageNumber == 1 && hasMap) {
+                    drawDayMapCard(canvas, mapLayout, cursorY)
+                    cursorY += PdfDocumentLayoutCalculator.MAP_CARD_HEIGHT + PdfDocumentLayoutCalculator.ITEM_SPACING
                 }
 
                 // Draw stops
@@ -144,13 +179,44 @@ class AndroidItineraryPdfExporter(
 
         // Pre-calculate page count: Cover (1) + Day pages + Emergency contacts (1 if enabled)
         val dayPagePlans = mutableMapOf<Int, List<PdfDocumentLayoutCalculator.PageLayoutPlan<ItineraryStopItem>>>()
+        val dayMapLayouts = mutableMapOf<Int, PdfMapLayout?>()
         var estimatedPages = 1 // Cover page
 
         for (dayIdx in 1..totalDays) {
             val dayStops = stopsByDay[dayIdx] ?: emptyList()
+            val dayTransports = if (options.includeTransportSegments) {
+                transports.filter { it.order == dayIdx || transports.size <= 3 }
+            } else emptyList()
+
+            val mapLayout = if (options.includeDayMap) {
+                PdfMapProjectionCalculator.projectStopsToCanvas(
+                    stops = dayStops,
+                    width = PdfDocumentLayoutCalculator.PRINTABLE_WIDTH.toFloat(),
+                    height = PdfDocumentLayoutCalculator.MAP_CARD_HEIGHT
+                )
+            } else null
+            val hasMap = mapLayout != null && mapLayout.hasValidCoordinates
+            if (hasMap) {
+                dayMapLayouts[dayIdx] = mapLayout
+            }
+
+            var firstPageH = PdfDocumentLayoutCalculator.USABLE_PAGE_HEIGHT
+            if (dayTransports.isNotEmpty()) {
+                val transH = dayTransports.take(2).sumOf {
+                    PdfDocumentLayoutCalculator.calculateTransportHeight(it).toDouble()
+                }.toFloat() + (dayTransports.take(2).size * PdfDocumentLayoutCalculator.ITEM_SPACING)
+                firstPageH -= transH
+            }
+            if (hasMap) {
+                firstPageH -= (PdfDocumentLayoutCalculator.MAP_CARD_HEIGHT + PdfDocumentLayoutCalculator.ITEM_SPACING)
+            }
+            firstPageH = firstPageH.coerceAtLeast(100f)
+
             val pages = PdfDocumentLayoutCalculator.paginateStops(
                 stops = dayStops,
-                includeJapaneseNames = options.includeJapaneseNames
+                includeJapaneseNames = options.includeJapaneseNames,
+                firstPageAvailableHeight = firstPageH,
+                subsequentPagesAvailableHeight = PdfDocumentLayoutCalculator.USABLE_PAGE_HEIGHT
             )
             dayPagePlans[dayIdx] = pages
             estimatedPages += pages.size
@@ -221,6 +287,13 @@ class AndroidItineraryPdfExporter(
                             drawTransportCard(canvas, transport, cursorY, tHeight)
                             cursorY += tHeight + PdfDocumentLayoutCalculator.ITEM_SPACING
                         }
+                    }
+
+                    // If first subpage of the day and map exists, draw
+                    val currentDayMap = dayMapLayouts[dayIdx]
+                    if (subIdx == 0 && currentDayMap != null && currentDayMap.hasValidCoordinates) {
+                        drawDayMapCard(canvas, currentDayMap, cursorY)
+                        cursorY += PdfDocumentLayoutCalculator.MAP_CARD_HEIGHT + PdfDocumentLayoutCalculator.ITEM_SPACING
                     }
 
                     for (stop in pagePlan.items) {
@@ -502,6 +575,231 @@ class AndroidItineraryPdfExporter(
         }
         val detailStr = "Salida: ${transport.departureTimeIso.takeLast(5)} (${transport.departureTerminalOrPlatform}) • Asiento: ${transport.seatOrCarInfo.ifBlank { "Libre" }}"
         canvas.drawText(detailStr, margin + 14f, topY + 46f, detailPaint)
+    }
+
+    private fun drawDayMapCard(
+        canvas: Canvas,
+        mapLayout: PdfMapLayout,
+        topY: Float
+    ) {
+        val margin = PdfDocumentLayoutCalculator.MARGIN.toFloat()
+        val printableWidth = PdfDocumentLayoutCalculator.PRINTABLE_WIDTH.toFloat()
+        val cardHeight = PdfDocumentLayoutCalculator.MAP_CARD_HEIGHT
+        val cardRect = RectF(margin, topY, margin + printableWidth, topY + cardHeight)
+
+        // Card background (clean cartographic off-white/washi tone)
+        val bgPaint = Paint().apply {
+            color = 0xFFFBFBF9.toInt()
+            style = Paint.Style.FILL
+            isAntiAlias = true
+        }
+        canvas.drawRoundRect(cardRect, 6f, 6f, bgPaint)
+
+        // Card border
+        val borderPaint = Paint().apply {
+            color = PdfDocumentLayoutCalculator.COLOR_BORDER
+            strokeWidth = 1f
+            style = Paint.Style.STROKE
+            isAntiAlias = true
+        }
+        canvas.drawRoundRect(cardRect, 6f, 6f, borderPaint)
+
+        // Left accent strip (Ai-iro indigo)
+        val stripPaint = Paint().apply {
+            color = PdfDocumentLayoutCalculator.COLOR_AI_IRO
+            style = Paint.Style.FILL
+            isAntiAlias = true
+        }
+        canvas.drawRoundRect(RectF(margin, topY, margin + 4f, topY + cardHeight), 2f, 2f, stripPaint)
+
+        // Header Title
+        val titlePaint = Paint().apply {
+            color = PdfDocumentLayoutCalculator.COLOR_AI_IRO
+            textSize = 9.5f
+            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+            isAntiAlias = true
+        }
+        val headerText = "MAPA ESQUEMÁTICO DE VISITAS DEL DÍA (${mapLayout.points.size} PARADAS)"
+        canvas.drawText(headerText, margin + 14f, topY + 16f, titlePaint)
+
+        // Distance & Scale metric in header
+        if (mapLayout.approxScaleLabel.isNotBlank()) {
+            val distPaint = Paint().apply {
+                color = PdfDocumentLayoutCalculator.COLOR_TEXT_MUTED
+                textSize = 8.5f
+                typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+                isAntiAlias = true
+            }
+            canvas.drawText(mapLayout.approxScaleLabel, margin + 260f, topY + 16f, distPaint)
+        }
+
+        // Minimalist North Compass in top-right
+        val compassCenterX = margin + printableWidth - 20f
+        val compassCenterY = topY + 14f
+
+        val compassBorder = Paint().apply {
+            color = PdfDocumentLayoutCalculator.COLOR_BORDER
+            strokeWidth = 1f
+            style = Paint.Style.STROKE
+            isAntiAlias = true
+        }
+        canvas.drawCircle(compassCenterX, compassCenterY, 8f, compassBorder)
+
+        // Upward arrow
+        val arrowPaint = Paint().apply {
+            color = PdfDocumentLayoutCalculator.COLOR_AKABENI
+            style = Paint.Style.FILL
+            isAntiAlias = true
+        }
+        val arrowPath = Path().apply {
+            moveTo(compassCenterX, compassCenterY - 7f)
+            lineTo(compassCenterX - 3.5f, compassCenterY + 1f)
+            lineTo(compassCenterX + 3.5f, compassCenterY + 1f)
+            close()
+        }
+        canvas.drawPath(arrowPath, arrowPaint)
+
+        val nPaint = Paint().apply {
+            color = PdfDocumentLayoutCalculator.COLOR_TEXT_PRIMARY
+            textSize = 5.5f
+            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+            textAlign = Paint.Align.CENTER
+            isAntiAlias = true
+        }
+        canvas.drawText("N", compassCenterX, compassCenterY + 6.5f, nPaint)
+
+        // Subtle topographic grid lines
+        val gridPaint = Paint().apply {
+            color = 0xFFEBECEF.toInt()
+            strokeWidth = 0.75f
+            style = Paint.Style.STROKE
+            pathEffect = DashPathEffect(floatArrayOf(3f, 4f), 0f)
+            isAntiAlias = true
+        }
+        val gridY1 = topY + 55f
+        val gridY2 = topY + 105f
+        canvas.drawLine(margin + 14f, gridY1, margin + printableWidth - 14f, gridY1, gridPaint)
+        canvas.drawLine(margin + 14f, gridY2, margin + printableWidth - 14f, gridY2, gridPaint)
+
+        val gridX1 = margin + (printableWidth * 0.33f)
+        val gridX2 = margin + (printableWidth * 0.66f)
+        canvas.drawLine(gridX1, topY + 24f, gridX1, topY + cardHeight - 20f, gridPaint)
+        canvas.drawLine(gridX2, topY + 24f, gridX2, topY + cardHeight - 20f, gridPaint)
+
+        // Connecting route line
+        if (mapLayout.points.size >= 2) {
+            val routePath = Path()
+            val firstPt = mapLayout.points.first()
+            routePath.moveTo(margin + firstPt.x, topY + firstPt.y)
+            for (i in 1 until mapLayout.points.size) {
+                val pt = mapLayout.points[i]
+                routePath.lineTo(margin + pt.x, topY + pt.y)
+            }
+            val routePaint = Paint().apply {
+                color = PdfDocumentLayoutCalculator.COLOR_AI_IRO
+                strokeWidth = 1.75f
+                style = Paint.Style.STROKE
+                pathEffect = DashPathEffect(floatArrayOf(5f, 4f), 0f)
+                isAntiAlias = true
+            }
+            canvas.drawPath(routePath, routePaint)
+        }
+
+        // Draw Pins and Callout Labels
+        val pinHaloPaint = Paint().apply {
+            color = PdfDocumentLayoutCalculator.COLOR_WHITE
+            style = Paint.Style.FILL
+            isAntiAlias = true
+        }
+        val pinFillPaint = Paint().apply {
+            color = PdfDocumentLayoutCalculator.COLOR_AKABENI
+            style = Paint.Style.FILL
+            isAntiAlias = true
+        }
+        val pinBorderPaint = Paint().apply {
+            color = PdfDocumentLayoutCalculator.COLOR_WHITE
+            strokeWidth = 1.25f
+            style = Paint.Style.STROKE
+            isAntiAlias = true
+        }
+        val pinTextPaint = Paint().apply {
+            color = PdfDocumentLayoutCalculator.COLOR_WHITE
+            textSize = 7.5f
+            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+            textAlign = Paint.Align.CENTER
+            isAntiAlias = true
+        }
+
+        val pillBgPaint = Paint().apply {
+            color = PdfDocumentLayoutCalculator.COLOR_WHITE
+            style = Paint.Style.FILL
+            isAntiAlias = true
+        }
+        val pillBorderPaint = Paint().apply {
+            color = PdfDocumentLayoutCalculator.COLOR_BORDER
+            strokeWidth = 0.75f
+            style = Paint.Style.STROKE
+            isAntiAlias = true
+        }
+        val pillTextPaint = Paint().apply {
+            color = PdfDocumentLayoutCalculator.COLOR_TEXT_PRIMARY
+            textSize = 7.5f
+            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+            isAntiAlias = true
+        }
+
+        for (pt in mapLayout.points) {
+            val cx = margin + pt.x
+            val cy = topY + pt.y
+
+            // Pin badge
+            canvas.drawCircle(cx, cy, 9f, pinHaloPaint)
+            canvas.drawCircle(cx, cy, 7.5f, pinFillPaint)
+            canvas.drawCircle(cx, cy, 7.5f, pinBorderPaint)
+            canvas.drawText(pt.orderIndex.toString(), cx, cy + 2.8f, pinTextPaint)
+
+            // Label callout pill
+            val labelStr = GeoProjectionUtils.formatCompactStopLabel(
+                startTime = pt.stop.startTime,
+                title = pt.stop.title,
+                maxChars = 20
+            )
+            val textWidth = pillTextPaint.measureText(labelStr)
+            val pillWidth = textWidth + 8f
+            val pillHeight = 12f
+
+            val placeRight = cx + 10f + pillWidth <= margin + printableWidth - 8f
+            val pillLeft = if (placeRight) cx + 9f else cx - 9f - pillWidth
+            val pillTop = (cy - 6f).coerceIn(topY + 22f, topY + cardHeight - 28f)
+
+            val pillRect = RectF(pillLeft, pillTop, pillLeft + pillWidth, pillTop + pillHeight)
+            canvas.drawRoundRect(pillRect, 3f, 3f, pillBgPaint)
+            canvas.drawRoundRect(pillRect, 3f, 3f, pillBorderPaint)
+            canvas.drawText(labelStr, pillLeft + 4f, pillTop + 9f, pillTextPaint)
+        }
+
+        // Bottom legend bar
+        val legendY = topY + cardHeight - 16f
+        val legendLine = Paint().apply {
+            color = PdfDocumentLayoutCalculator.COLOR_BORDER
+            strokeWidth = 0.5f
+            style = Paint.Style.STROKE
+            isAntiAlias = true
+        }
+        canvas.drawLine(margin + 10f, legendY, margin + printableWidth - 10f, legendY, legendLine)
+
+        val legendTextPaint = Paint().apply {
+            color = PdfDocumentLayoutCalculator.COLOR_TEXT_MUTED
+            textSize = 7f
+            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+            isAntiAlias = true
+        }
+        canvas.drawText(
+            "🔴 Paradas numeradas en orden cronológico • ─── Trayecto secuencial entre visitas • 100% Offline",
+            margin + 14f,
+            legendY + 10f,
+            legendTextPaint
+        )
     }
 
     private fun drawEmptyStateNotice(canvas: Canvas, topY: Float) {
