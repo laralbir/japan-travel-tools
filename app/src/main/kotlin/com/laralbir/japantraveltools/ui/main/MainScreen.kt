@@ -2291,13 +2291,15 @@ private fun TripPlannerTabScreen(
                 }
             },
             onOpenInGoogleMaps = { stop ->
-                val uri = Uri.parse("geo:${stop.latitude},${stop.longitude}?q=${Uri.encode(stop.placeNameJapanese.ifBlank { stop.title })}")
+                val sLat = stop.latitude ?: 0.0
+                val sLng = stop.longitude ?: 0.0
+                val uri = Uri.parse("geo:$sLat,$sLng?q=${Uri.encode(stop.placeNameJapanese.ifBlank { stop.title })}")
                 val mapIntent = Intent(Intent.ACTION_VIEW, uri)
                 mapIntent.setPackage("com.google.android.apps.maps")
                 try {
                     context.startActivity(mapIntent)
                 } catch (_: Exception) {
-                    val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=${stop.latitude},${stop.longitude}"))
+                    val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=$sLat,$sLng"))
                     context.startActivity(webIntent)
                 }
             },
@@ -2768,9 +2770,9 @@ private fun TripPlannerTabScreen(
                     )
                 },
                 onOpenExternalRoute = {
-                    val valid = dayStops.map { it.item }.filter { it.latitude != 0.0 && it.longitude != 0.0 }
+                    val valid = dayStops.map { it.item }.filter { (it.latitude ?: 0.0) != 0.0 && (it.longitude ?: 0.0) != 0.0 }
                     if (valid.isNotEmpty()) {
-                        val wp = valid.joinToString("/") { "${it.latitude},${it.longitude}" }
+                        val wp = valid.joinToString("/") { "${it.latitude ?: 0.0},${it.longitude ?: 0.0}" }
                         val uri = Uri.parse("https://www.google.com/maps/dir/$wp")
                         runCatching {
                             context.startActivity(Intent(Intent.ACTION_VIEW, uri))
@@ -2848,8 +2850,10 @@ private fun TripPlannerTabScreen(
                             )
                         },
                         onOpenGoogleMaps = { stop ->
+                            val sLat = stop.latitude ?: 0.0
+                            val sLng = stop.longitude ?: 0.0
                             val geoUri = Uri.parse(
-                                "geo:${stop.latitude},${stop.longitude}?q=${Uri.encode(stop.placeNameJapanese.ifBlank { stop.title })}"
+                                "geo:$sLat,$sLng?q=${Uri.encode(stop.placeNameJapanese.ifBlank { stop.title })}"
                             )
                             runCatching {
                                 context.startActivity(Intent(Intent.ACTION_VIEW, geoUri))
@@ -3189,8 +3193,8 @@ private fun ItineraryStopEditorModalSheet(
                     val endClean = endTimeText.ifBlank { "11:30" }
                     val finalZoneId = selectedZoneId.ifBlank {
                         TravelDateTimeFormatter.inferZoneIdFromCoordinatesOrLocation(
-                            initialStop.latitude,
-                            initialStop.longitude,
+                            initialStop.latitude ?: 0.0,
+                            initialStop.longitude ?: 0.0,
                             "$titleText $notesText"
                         )
                     }

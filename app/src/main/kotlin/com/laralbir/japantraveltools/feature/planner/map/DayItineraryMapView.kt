@@ -76,7 +76,7 @@ fun DayItineraryMapView(
 ) {
     val context = LocalContext.current
     val validStops = remember(stops) {
-        stops.filter { it.latitude != 0.0 && it.longitude != 0.0 }
+        stops.filter { (it.latitude ?: 0.0) != 0.0 && (it.longitude ?: 0.0) != 0.0 }
     }
 
     if (validStops.isEmpty()) {
@@ -152,8 +152,8 @@ fun DayItineraryMapView(
                 put("title", stop.title)
                 put("time", stop.startTime)
                 put("label", GeoProjectionUtils.formatCompactStopLabel(stop.startTime, stop.title))
-                put("lat", stop.latitude)
-                put("lng", stop.longitude)
+                put("lat", stop.latitude ?: 0.0)
+                put("lng", stop.longitude ?: 0.0)
                 put("color", color)
             }
             array.put(obj)

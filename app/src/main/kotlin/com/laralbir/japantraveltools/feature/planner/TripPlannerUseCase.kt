@@ -18,15 +18,27 @@ data class ItineraryStopItem(
     val title: String,
     val category: StopCategory,
     val placeNameJapanese: String,
-    val latitude: Double,
-    val longitude: Double,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
     val notes: String = "",
     val photoLabels: List<String> = emptyList(),
     val linkedDocumentTitle: String? = null,
     val timeZoneId: String = "Asia/Tokyo",
     val startTimeUtcIso: String? = null,
-    val endTimeUtcIso: String? = null
-)
+    val endTimeUtcIso: String? = null,
+    val isTimeFixed: Boolean = false,
+    val order: Int = 0
+) {
+    val durationMinutes: Int
+        get() {
+            val sParts = startTime.split(":")
+            val eParts = endTime.split(":")
+            val sMin = (sParts.getOrNull(0)?.toIntOrNull() ?: 0) * 60 + (sParts.getOrNull(1)?.toIntOrNull() ?: 0)
+            val eMin = (eParts.getOrNull(0)?.toIntOrNull() ?: 0) * 60 + (eParts.getOrNull(1)?.toIntOrNull() ?: 0)
+            val diff = eMin - sMin
+            return if (diff > 0) diff else 60
+        }
+}
 
 data class AnalyzedItineraryStop(
     val item: ItineraryStopItem,

@@ -153,14 +153,14 @@ object GeoProjectionUtils {
      * Calculates the cumulative total distance of consecutive stops along an itinerary route.
      */
     fun calculateRouteTotalDistanceKm(stops: List<ItineraryStopItem>): Double {
-        val validPoints = stops.filter { it.latitude != 0.0 && it.longitude != 0.0 }
+        val validPoints = stops.filter { (it.latitude ?: 0.0) != 0.0 && (it.longitude ?: 0.0) != 0.0 }
         if (validPoints.size < 2) return 0.0
 
         var total = 0.0
         for (i in 0 until validPoints.size - 1) {
             val p1 = validPoints[i]
             val p2 = validPoints[i + 1]
-            total += haversineDistanceKm(p1.latitude, p1.longitude, p2.latitude, p2.longitude)
+            total += haversineDistanceKm(p1.latitude ?: 0.0, p1.longitude ?: 0.0, p2.latitude ?: 0.0, p2.longitude ?: 0.0)
         }
         return total
     }
