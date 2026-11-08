@@ -7,6 +7,10 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Corregido
+- **Persistencia Directa de Ediciones en Planificador, Guías y Documentos (#11)**: Eliminación de diálogos de confirmación modales redundantes al pulsar "Guardar" en las hojas inferiores (`ModalBottomSheet`) de paradas de itinerario, detalles del viaje, tramos de transporte, ciudades de meteorología, documentos y guías. En Jetpack Compose, el diálogo de confirmación quedaba bloqueado u oculto tras el scrim de la hoja modal, impidiendo guardar los cambios (por ejemplo, cambios de horario en las visitas).
+- **Diagnóstico y Mensaje Amigable en Verificación de Actualizaciones**: Sustitución de excepciones genéricas (`APK verification rejected`) por mensajes claros y localizados que explican la causa técnica exacta, en particular la incompatibilidad entre compilaciones de desarrollo (*Debug*, firmadas con el keystore de debug) y versiones oficiales de producción (*Release*, firmadas con la clave de GitHub Releases).
+
 ## [1.4.0] - 2026-11-08
 
 ### Corrección de Versión en Pantalla "Acerca de" ⚙️🏷️

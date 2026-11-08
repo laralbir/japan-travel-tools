@@ -243,7 +243,21 @@ class GitHubAutoUpdateRepository(
                         partFile.delete()
                     }
                     preferencesDataStore.setPendingVerifiedApkPath(null)
-                    Result.failure(SecurityException("APK verification rejected: $verificationResult"))
+                    val failureMessage = when (verificationResult) {
+                        is ApkVerificationResult.SignatureMismatch ->
+                            "La firma criptográfica del paquete no coincide con la versión instalada en este dispositivo (tienes instalada una versión de desarrollo 'Debug'). Desinstala primero la versión Debug para poder instalar la versión oficial de GitHub."
+                        is ApkVerificationResult.VersionDowngradeBlocked ->
+                            "La versión descargada es igual o anterior a la versión ya instalada en este dispositivo."
+                        is ApkVerificationResult.ChecksumMismatch ->
+                            "La suma de verificación SHA-256 no coincide con la publicada en GitHub."
+                        is ApkVerificationResult.PackageNameMismatch ->
+                            "El paquete descargado no corresponde a Japan Travel Tools."
+                        is ApkVerificationResult.InvalidArchive ->
+                            "El archivo APK descargado no es válido: ${verificationResult.reason}"
+                        is ApkVerificationResult.Verified ->
+                            "Verificado con éxito."
+                    }
+                    Result.failure(SecurityException(failureMessage))
                 }
             }
         } catch (t: Throwable) {
