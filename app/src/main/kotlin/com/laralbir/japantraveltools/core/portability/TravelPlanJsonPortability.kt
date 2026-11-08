@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
+import java.time.LocalDate
+import java.time.LocalDateTime
 import java.util.Locale
 
 data class PortableTravelPlanBundle(
@@ -91,11 +93,14 @@ object SharedTravelPlanStore {
 
     fun createPlan(title: String, startDateIso: String = "2026-11-11", daysCount: Int = 7): PortableTravelPlanBundle {
         val newId = "plan-${System.currentTimeMillis()}"
-        val initialStops = (1..daysCount.coerceIn(1, 30)).map { day ->
+        val finalStartIso = startDateIso.ifBlank { "2026-11-11" }
+        val parsedStart = runCatching { LocalDate.parse(finalStartIso) }.getOrNull() ?: LocalDate.of(2026, 11, 11)
+        val initialStops = (1..daysCount.coerceIn(1, 45)).map { day ->
+            val stopDateIso = parsedStart.plusDays((day - 1).toLong()).toString()
             ItineraryStopItem(
                 id = "stop-$newId-$day-1",
                 dayNumber = day,
-                dateIso = String.format(Locale.US, "2026-11-%02d", (10 + day).coerceAtMost(30)),
+                dateIso = stopDateIso,
                 startTime = "10:00",
                 endTime = "12:00",
                 title = if (day == 1) "Llegada y check-in" else "Exploración Día $day",
@@ -103,7 +108,10 @@ object SharedTravelPlanStore {
                 placeNameJapanese = if (day == 1) "東京" else "",
                 latitude = 35.6762,
                 longitude = 139.6503,
-                notes = "Día $day"
+                notes = "Día $day",
+                timeZoneId = "Asia/Tokyo",
+                startTimeUtcIso = TravelDateTimeFormatter.localToUtcIso(stopDateIso, "10:00", "Asia/Tokyo"),
+                endTimeUtcIso = TravelDateTimeFormatter.localToUtcIso(stopDateIso, "12:00", "Asia/Tokyo")
             )
         }
         val newPlan = PortableTravelPlanBundle(
@@ -112,8 +120,8 @@ object SharedTravelPlanStore {
             itineraryStops = initialStops,
             transportSegments = emptyList(),
             id = newId,
-            startDateIso = startDateIso.ifBlank { "2026-11-11" },
-            totalDays = daysCount.coerceIn(1, 30)
+            startDateIso = finalStartIso,
+            totalDays = daysCount.coerceIn(1, 45)
         )
         val updatedPlans = _allPlansState.value.toMutableList()
         updatedPlans.add(0, newPlan)
@@ -131,10 +139,61 @@ object SharedTravelPlanStore {
 
     fun editCurrentPlan(newTitle: String, newStartDateIso: String = "", newTotalDays: Int = 0) {
         val current = _planState.value
+        val oldStartDateIso = current.startDateIso
+        val finalTitle = newTitle.ifBlank { current.tripTitle }
+        val finalStartDate = if (newStartDateIso.isNotBlank()) newStartDateIso else current.startDateIso
+        val finalDays = if (newTotalDays > 0) newTotalDays else current.totalDays
+
+        val oldStart = runCatching { LocalDate.parse(oldStartDateIso) }.getOrNull()
+        val newStart = runCatching { LocalDate.parse(finalStartDate) }.getOrNull()
+        val daysOffset = if (oldStart != null && newStart != null) {
+            java.time.temporal.ChronoUnit.DAYS.between(oldStart, newStart)
+        } else {
+            0L
+        }
+
+        val updatedStops = if (daysOffset != 0L) {
+            current.itineraryStops.map { stop ->
+                val newStopDate = runCatching {
+                    LocalDate.parse(stop.dateIso).plusDays(daysOffset).toString()
+                }.getOrDefault(stop.dateIso)
+                val newStartUtc = TravelDateTimeFormatter.localToUtcIso(newStopDate, stop.startTime, stop.timeZoneId)
+                val newEndUtc = TravelDateTimeFormatter.localToUtcIso(newStopDate, stop.endTime, stop.timeZoneId)
+                stop.copy(
+                    dateIso = newStopDate,
+                    startTimeUtcIso = newStartUtc,
+                    endTimeUtcIso = newEndUtc
+                )
+            }
+        } else {
+            current.itineraryStops
+        }
+
+        val updatedSegments = if (daysOffset != 0L) {
+            current.transportSegments.map { seg ->
+                val newDepTimeIso = runCatching {
+                    val dt = LocalDateTime.parse(seg.departureTimeIso)
+                    dt.plusDays(daysOffset).toString()
+                }.getOrDefault(seg.departureTimeIso)
+                val newArrTimeIso = runCatching {
+                    val dt = LocalDateTime.parse(seg.arrivalTimeIso)
+                    dt.plusDays(daysOffset).toString()
+                }.getOrDefault(seg.arrivalTimeIso)
+                seg.copy(
+                    departureTimeIso = newDepTimeIso,
+                    arrivalTimeIso = newArrTimeIso
+                )
+            }
+        } else {
+            current.transportSegments
+        }
+
         val updated = current.copy(
-            tripTitle = newTitle.ifBlank { current.tripTitle },
-            startDateIso = if (newStartDateIso.isNotBlank()) newStartDateIso else current.startDateIso,
-            totalDays = if (newTotalDays > 0) newTotalDays else current.totalDays
+            tripTitle = finalTitle,
+            startDateIso = finalStartDate,
+            totalDays = finalDays,
+            itineraryStops = updatedStops,
+            transportSegments = updatedSegments
         )
         _planState.value = updated
         updatePlanInList(updated)
@@ -559,17 +618,34 @@ object TravelPlanJsonCodec {
         val result = mutableListOf<String>()
         var depth = 0
         var objStart = -1
+        var inQuotes = false
+        var isEscaped = false
         for (i in arrayContent.indices) {
-            when (arrayContent[i]) {
-                '{' -> {
-                    if (depth == 0) objStart = i
-                    depth++
-                }
-                '}' -> {
-                    depth--
-                    if (depth == 0 && objStart != -1) {
-                        result.add(arrayContent.substring(objStart, i + 1))
-                        objStart = -1
+            val c = arrayContent[i]
+            if (isEscaped) {
+                isEscaped = false
+                continue
+            }
+            if (c == '\\') {
+                isEscaped = true
+                continue
+            }
+            if (c == '"') {
+                inQuotes = !inQuotes
+                continue
+            }
+            if (!inQuotes) {
+                when (c) {
+                    '{' -> {
+                        if (depth == 0) objStart = i
+                        depth++
+                    }
+                    '}' -> {
+                        depth--
+                        if (depth == 0 && objStart != -1) {
+                            result.add(arrayContent.substring(objStart, i + 1))
+                            objStart = -1
+                        }
                     }
                 }
             }

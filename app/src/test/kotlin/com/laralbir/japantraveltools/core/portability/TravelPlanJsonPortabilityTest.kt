@@ -230,10 +230,12 @@ class TravelPlanJsonPortabilityTest {
         assertEquals("Viaje a Kioto y Alpes 2027", newPlan.tripTitle)
         assertEquals("2027-04-10", newPlan.startDateIso)
         assertEquals(5, newPlan.totalDays)
+        assertEquals("2027-04-10", newPlan.itineraryStops[0].dateIso)
+        assertEquals("2027-04-11", newPlan.itineraryStops[1].dateIso)
         assertEquals(initialPlanCount + 1, SharedTravelPlanStore.allPlansState.value.size)
         assertEquals(newPlan.id, SharedTravelPlanStore.planState.value.id)
 
-        // 2. Edit metadata of the active plan
+        // 2. Edit metadata of the active plan (shifting start date by +2 days)
         SharedTravelPlanStore.editCurrentPlan(
             newTitle = "Viaje a Kioto, Takayama y Shirakawago",
             newStartDateIso = "2027-04-12",
@@ -242,6 +244,9 @@ class TravelPlanJsonPortabilityTest {
         assertEquals("Viaje a Kioto, Takayama y Shirakawago", SharedTravelPlanStore.planState.value.tripTitle)
         assertEquals("2027-04-12", SharedTravelPlanStore.planState.value.startDateIso)
         assertEquals(7, SharedTravelPlanStore.planState.value.totalDays)
+        // Verify stops shifted +2 days
+        assertEquals("2027-04-12", SharedTravelPlanStore.planState.value.itineraryStops[0].dateIso)
+        assertEquals("2027-04-13", SharedTravelPlanStore.planState.value.itineraryStops[1].dateIso)
 
         // 3. Switch back to first plan
         val firstPlan = SharedTravelPlanStore.allPlansState.value.last()
@@ -286,6 +291,38 @@ class TravelPlanJsonPortabilityTest {
         assertEquals("plan-2", activeId)
         assertEquals("Plan Tokio 2026", importedPlans[0].tripTitle)
         assertEquals("Plan Kioto 2027", importedPlans[1].tripTitle)
+    }
+
+    @Test
+    fun `TravelPlanJsonCodec correctly imports JSON with notes containing braces or quotes`() {
+        val plan = PortableTravelPlanBundle(
+            id = "plan-braces",
+            tripTitle = "Plan with {braces} in title",
+            startDateIso = "2027-05-01",
+            totalDays = 3,
+            itineraryStops = listOf(
+                ItineraryStopItem(
+                    id = "stop-b1",
+                    dayNumber = 1,
+                    dateIso = "2027-05-01",
+                    startTime = "10:00",
+                    endTime = "11:00",
+                    title = "Stop with {special} notes",
+                    category = StopCategory.SIGHTSEEING,
+                    placeNameJapanese = "テスト",
+                    latitude = 35.0,
+                    longitude = 135.0,
+                    notes = "Check {key: value} and \"quoted\" tokens"
+                )
+            ),
+            transportSegments = emptyList()
+        )
+        val json = TravelPlanJsonCodec.exportMultiPlanJson(listOf(plan), activePlanId = "plan-braces")
+        val (imported, activeId) = TravelPlanJsonCodec.importMultiPlanJson(json)
+        assertEquals(1, imported.size)
+        assertEquals("plan-braces", activeId)
+        assertEquals("Plan with {braces} in title", imported[0].tripTitle)
+        assertEquals("Check {key: value} and \"quoted\" tokens", imported[0].itineraryStops[0].notes)
     }
 
     @Test
