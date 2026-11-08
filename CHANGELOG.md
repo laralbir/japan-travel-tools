@@ -10,7 +10,7 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 ## [1.4.0] - 2026-11-08
 
 ### Corrección de Versión en Pantalla "Acerca de" ⚙️🏷️
-- **Sincronización Dinámica de Versión (`OpenSourceLibrariesCatalog`)**: Delegación directa en `BuildConfig.VERSION_NAME` y `BuildConfig.VERSION_CODE`, garantizando concordancia absoluta (`1.3.1`, build 37) entre la pantalla de **Acerca de** y el panel de **Actualizaciones**.
+- **Sincronización Dinámica de Versión (`OpenSourceLibrariesCatalog`)**: Delegación directa en `BuildConfig.VERSION_NAME` y `BuildConfig.VERSION_CODE`, garantizando concordancia absoluta (`1.4.0`, build 37) entre la pantalla de **Acerca de** y el panel de **Actualizaciones**.
 
 ### Renderizado Nativo de Markdown en Guías de Viaje y Vista Previa en Editor 📖✨
 - **Lector Enriquecido 100% Offline (`FullGuideReaderDialog` & `MarkdownText`)**: Renderizado nativo en Jetpack Compose + Material Design 3 del contenido `markdownSummary` de las Guías de Viaje (`TravelGuideArticle`), tanto al abrirlas desde la pestaña de **Guías** como desde una parada vinculada del **Mapa del Día (`StopDetailMapModalSheet`)**.
