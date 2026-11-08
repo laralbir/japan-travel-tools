@@ -7,9 +7,15 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
-### Corregido
-- **Persistencia Directa de Ediciones en Planificador, Guías y Documentos (#11)**: Eliminación de diálogos de confirmación modales redundantes al pulsar "Guardar" en las hojas inferiores (`ModalBottomSheet`) de paradas de itinerario, detalles del viaje, tramos de transporte, ciudades de meteorología, documentos y guías. En Jetpack Compose, el diálogo de confirmación quedaba bloqueado u oculto tras el scrim de la hoja modal, impidiendo guardar los cambios (por ejemplo, cambios de horario en las visitas).
-- **Diagnóstico y Mensaje Amigable en Verificación de Actualizaciones**: Sustitución de excepciones genéricas (`APK verification rejected`) por mensajes claros y localizados que explican la causa técnica exacta, en particular la incompatibilidad entre compilaciones de desarrollo (*Debug*, firmadas con el keystore de debug) y versiones oficiales de producción (*Release*, firmadas con la clave de GitHub Releases).
+## [1.4.1] - 2026-11-08
+
+### Persistencia Directa de Ediciones en Planificador, Guías y Documentos (#11) 💾✏️
+- **Eliminación de Diálogos de Confirmación Bloqueantes (`MainScreen`)**: Supresión de los diálogos modales de confirmación intermedios (`buildEditConfirmation`) al pulsar `💾 Guardar` en las hojas inferiores (`ModalBottomSheet`) de paradas de itinerario, detalles del viaje, tramos de transporte, ciudades meteorológicas, documentos y guías. Al encontrarse dentro de una ventana modal de Compose con capa de *scrim*, el diálogo quedaba inaccesible o bloqueado impidiendo guardar las modificaciones (como cambios en los horarios o títulos de las visitas). Las ediciones ahora se persisten de inmediato en la base de datos local y la hoja modal se cierra de forma reactiva.
+- **Reserva de Confirmaciones para Acciones Destructivas**: Los diálogos modales de alerta se mantienen exclusivamente para acciones no reversibles como la eliminación definitiva (`🗑️ Eliminar`).
+
+### Diagnóstico Informativo y Seguridad en Actualizador OTA 🔐⬇️
+- **Mensajes de Verificación Localizados (`GitHubAutoUpdateRepository`)**: Sustitución de la excepción técnica genérica `APK verification rejected` por diagnósticos detallados y comprensibles en pantalla ante rechazos de firma criptográfica (`SignatureMismatch`), informando al usuario cuando tiene instalada una versión de desarrollo (*Debug*) firmada con la clave local de pruebas y orientándole para pasar a la versión oficial de GitHub Releases.
+- **Cobertura de Tests Criptográficos (`GitHubAutoUpdateRepositoryTest`)**: Nuevas aserciones unitarias que verifican el mensaje descriptivo y la purga inmediata del archivo temporal `.part` ante discrepancias de firma o certificado X.509.
 
 ## [1.4.0] - 2026-11-08
 
