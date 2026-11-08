@@ -57,4 +57,80 @@
     <string name="updater_settings_network_wifi_cellular">📲 Wi-Fi &amp; Data / eSIM</string>
     <string name="updater_settings_preview_releases_title">Include preview releases</string>
     <string name="updater_settings_preview_releases_desc">Receive early preview builds published on GitHub before general release.</string>
+
+    <!-- PDF Export & Offline Sharing (SPEC-14) -->
+    <string name="share_pdf_title">Share Itinerary PDF</string>
+    <string name="pdf_export_sheet_title">Export Itinerary to PDF</string>
+    <string name="pdf_export_sheet_subtitle">Generate a printable, 100% offline document to share or carry on paper</string>
+    <string name="pdf_export_scope_title">Export Scope</string>
+    <string name="pdf_export_scope_day">📅 Day %1$d Summary</string>
+    <string name="pdf_export_scope_full">🗺️ Complete Trip Dossier (%1$d days)</string>
+    <string name="pdf_export_options_title">Included Content</string>
+    <string name="pdf_export_opt_japanese">Prominent Japanese names (Kanji / Kana for taxi &amp; stations)</string>
+    <string name="pdf_export_opt_transport">Transport segments (Flights &amp; Shinkansen)</string>
+    <string name="pdf_export_opt_emergency">Emergency contacts &amp; Consular assistance</string>
+    <string name="pdf_export_action_button">📤 Generate &amp; Share PDF</string>
+    <string name="pdf_export_generating">Generating PDF offline…</string>
+    <string name="pdf_export_error">Could not generate PDF document. Please try again.</string>
+
+    <!-- Emergency and Consular Assistance (SPEC-11) -->
+    <string name="emergency_title">Emergency &amp; Consular Assistance</string>
+    <string name="emergency_subtitle">Official emergency hotlines, consular missions, private medical profile, and offline distress phrases in Japanese.</string>
+    <string name="emergency_tab_numbers">📞 Hotlines</string>
+    <string name="emergency_tab_consulates">🏛️ Consulates</string>
+    <string name="emergency_tab_medical">🏥 Medical &amp; Insurance</string>
+    <string name="emergency_tab_phrases">🚨 Audio Phrases</string>
+    <string name="emergency_numbers_title">Official Emergency Lines in Japan</string>
+    <string name="emergency_numbers_desc">Tap the direct dial button to call immediately. No internet connection required.</string>
+    <string name="emergency_action_call">Call</string>
+    <string name="emergency_primary_badge">Primary</string>
+    <string name="emergency_consulates_title">Consular &amp; Diplomatic Missions in Japan</string>
+    <string name="emergency_consulates_desc">Direct access to 24h consular emergency hotlines and Japanese addresses for taxi drivers.</string>
+    <string name="emergency_country_selector_label">Home Country</string>
+    <string name="emergency_country_all">All countries</string>
+    <string name="emergency_action_call_24h">📞 24h Emergency</string>
+    <string name="emergency_action_call_standard">General line</string>
+    <string name="emergency_action_copy_address">📋 Copy Address (JA)</string>
+    <string name="emergency_action_directions">🗺️ Get directions</string>
+    <string name="emergency_address_copied_toast">Japanese address copied to show to the taxi driver!</string>
+    <string name="emergency_medical_title">Emergency Medical Profile &amp; Travel Insurance</string>
+    <string name="emergency_medical_desc">Data stored privately on your device for immediate emergency medical care.</string>
+    <string name="emergency_medical_fullname">Full name</string>
+    <string name="emergency_medical_blood_type">Blood type</string>
+    <string name="emergency_medical_allergies">Known allergies (comma-separated)</string>
+    <string name="emergency_medical_conditions">Pre-existing medical conditions</string>
+    <string name="emergency_medical_medications">Current medications</string>
+    <string name="emergency_medical_insurance_company">Travel insurance company</string>
+    <string name="emergency_medical_policy_number">Policy number</string>
+    <string name="emergency_medical_insurance_phone">Insurance 24h emergency phone</string>
+    <string name="emergency_medical_contact_name">Emergency family contact</string>
+    <string name="emergency_medical_contact_phone">Contact phone (with country code)</string>
+    <string name="emergency_medical_contact_relation">Relationship</string>
+    <string name="emergency_medical_save_action">💾 Save Medical Profile</string>
+    <string name="emergency_medical_saved_toast">Emergency medical profile saved locally!</string>
+    <string name="emergency_medical_call_insurance">📞 Call 24h Insurance</string>
+    <string name="emergency_medical_call_contact">📞 Call SOS Contact</string>
+    <string name="emergency_phrases_title">Immediate Distress Cards with Japanese Audio (TTS)</string>
+    <string name="emergency_phrases_desc">Show these cards to bystanders, paramedics, or police, or play the clear native audio with one tap.</string>
+    <string name="emergency_filter_all">All</string>
+    <string name="emergency_filter_medical">Medical</string>
+    <string name="emergency_filter_police">Police</string>
+    <string name="emergency_filter_disaster">Disasters</string>
+    <string name="emergency_filter_allergy">Allergies</string>
+    <string name="emergency_action_listen">🔊 Listen</string>
+    <string name="emergency_tts_error">Japanese speech engine not available on this device</string>
+
+    <!-- Route Optimizer (SPEC-13 / ANALYSIS-15) -->
+    <string name="route_optimizer_title">🧭 Optimize Day Route</string>
+    <string name="route_optimizer_subtitle">Geodesic reordering to minimize transit distances</string>
+    <string name="route_optimizer_current_distance">Current route</string>
+    <string name="route_optimizer_optimized_distance">Optimized route</string>
+    <string name="route_optimizer_savings_badge">⚡ Save %1$.1f km (%2$d%%)</string>
+    <string name="route_optimizer_time_saved">⏱️ ~%1$d min saved in transfers</string>
+    <string name="route_optimizer_already_optimal">✅ Your route is already optimal</string>
+    <string name="route_optimizer_suggested_sequence">Suggested sequence (%1$d stops)</string>
+    <string name="route_optimizer_fixed_badge">🔒 Fixed-time reservation</string>
+    <string name="route_optimizer_no_coords_badge">📍 No coordinates (fixed slot)</string>
+    <string name="route_optimizer_apply_button">🧭 Apply New Order</string>
+    <string name="route_optimizer_discard_button">✕ Keep Current Order</string>
 </resources>

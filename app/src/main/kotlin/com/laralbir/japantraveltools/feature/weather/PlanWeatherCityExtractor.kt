@@ -194,11 +194,15 @@ object PlanWeatherCityExtractor {
         for (stop in stops) {
             val combinedText = "${stop.title} ${stop.placeNameJapanese} ${stop.notes}"
             val matchedByText = matchCity(combinedText)
-            val matchedCity = matchedByText ?: findClosestKnownCity(stop.latitude, stop.longitude)
+            val stopLat = stop.latitude
+            val stopLng = stop.longitude
+            val matchedCity = matchedByText ?: if (stopLat != null && stopLng != null) {
+                findClosestKnownCity(stopLat, stopLng)
+            } else null
 
             if (matchedCity != null) {
                 resultMap[matchedCity.id] = matchedCity
-            } else if (stop.latitude != 0.0 && stop.longitude != 0.0 && stop.title.isNotBlank()) {
+            } else if (stopLat != null && stopLng != null && stopLat != 0.0 && stopLng != 0.0 && stop.title.isNotBlank()) {
                 val cleanTitle = stop.title.take(30).trim()
                 val customId = "CITY_" + cleanTitle.uppercase(Locale.ROOT).replace("[^A-Z0-9]".toRegex(), "_")
                 if (!resultMap.containsKey(customId)) {
@@ -206,8 +210,8 @@ object PlanWeatherCityExtractor {
                         id = customId,
                         nameEs = cleanTitle,
                         nameEn = cleanTitle,
-                        latitude = stop.latitude,
-                        longitude = stop.longitude,
+                        latitude = stopLat,
+                        longitude = stopLng,
                         isDefault = false
                     )
                 }

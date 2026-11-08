@@ -24,7 +24,7 @@ Aplicación Android **offline-first** con la suite definitiva de herramientas es
 
 ---
 
-## 🧰 Suite de Herramientas Integradas (9 Herramientas)
+## 🧰 Suite de Herramientas Integradas (10 Herramientas)
 
 ### 1. 🕒 Relojes y Ubicación (`SPEC-01`)
 - Visualización simultánea de la hora local por red/GPS, hora de Japón (`Asia/Tokyo`) y hora del país de origen seleccionado.
@@ -49,8 +49,10 @@ Aplicación Android **offline-first** con la suite definitiva de herramientas es
 - **Gestor y Lector Nativo de Guías de Viaje en Markdown (`FullGuideReaderDialog` & `MarkdownText`)**: Renderizado enriquecido 100% offline con encabezados `H1`–`H6`, negritas, cursivas, código inline/bloques, listas con sublistas indentadas, casillas `- [ ]`/`- [x]`, citas `>`, separadores `---`, enlaces `[texto](url)` y tablas Markdown desplazables, extractos limpios sin sintaxis cruda en tarjetas de resumen, pestaña conmutable `✍️ Editar` / `👁️ Vista previa` en el editor y ordenación dinámica (*Fijadas*, *A-Z*, *Por Ciudad*).
 - Exportación e importación modular o unificada en formato JSON desde Ajustes.
 
-### 5. 🗺️ Planificador de Viaje con Fotos, Horarios y Google Maps (`SPEC-04`)
+### 5. 🗺️ Planificador de Viaje con Fotos, Horarios, Google Maps, Optimización Geodésica y Exportación PDF (`SPEC-04`, `SPEC-13`, `SPEC-14`)
 - Itinerario interactivo por días con alternador de vista superior: **`[ 📋 Horario | 🗺️ Mapa del Día ]`** y aprovechamiento máximo del alto de pantalla sin márgenes inferiores duplicados en el `Scaffold`.
+- **Optimizador Geodésico de Rutas del Día (`SPEC-13`)**: Algoritmo heurístico offline (Nearest Neighbor + 2-opt local search) que detecta y corrige trayectos en zig-zag en Tokio o Kioto, respetando paradas con horario cerrado obligatorio (`isTimeFixed = true`) y recalculando tiempos con comparativa visual antes/después en `DayRouteOptimizationModalSheet`.
+- **Generador Nativo de Documentos PDF y Compartición Offline (`SPEC-14`)**: Motor gráfico 100% offline con `android.graphics.pdf.PdfDocument` para exportar la ficha de la jornada o el dossier completo del viaje con tipografía japonesa CJK destacada, transportes y colores tradicionales, compartible de inmediato vía `FileProvider` y Android Sharesheet (`Intent.ACTION_SEND`).
 - **Mapa Integrado del Día con Selector de Capas Cartográficas (`DayItineraryMapView`)**:
   - Proyección Web Mercator con caché local, gestos fluidos de arrastre y zoom, y respaldo vectorial offline automático.
   - **Selector de Capas Cartográficas**: Conmutador interactivo entre **`🗺️ Google Maps`** (por defecto, con nombres de calles y estaciones en español/romaji + japonés), **`🛰️ Google Satélite Híbrido`** y **`🌍 OpenStreetMap`**.
@@ -60,11 +62,12 @@ Aplicación Android **offline-first** con la suite definitiva de herramientas es
 - **Persistencia Canónica en ISO UTC**: Almacenamiento estándar en formato UTC (`Instant.toString()`) con compatibilidad retroactiva total en `TravelPlanJsonCodec`.
 - Sincronización directa con el Calendario de Android / Google Calendar y exportación/importación en formato JSON (`japan-travel-plan.v1`).
 
-### 6. 🚆 Planificador Multimodal de Transportes (`SPEC-05`)
+### 6. 🚆 Planificador Multimodal de Transportes y Alarmas en Segundo Plano (`SPEC-05`, `SPEC-12`)
 - Gestión integral de trayectos: vuelos internacionales y domésticos, trenes bala **Shinkansen / JR**, líneas de metro y autobuses.
 - **Vuelos**: Tiempos de facturación en mostrador, apertura y cierre de embarque, terminales, puertas, asientos, zonas horarias y duración real de vuelo.
 - **Trenes y Metros**: Línea y color oficial, códigos de estación (`G19` ➔ `G01`), andenes recomendados, coche/vagón, reserva de equipaje voluminoso en Shinkansen, cobertura JR Pass / Suica y número exacto de salida de estación (`Exit`).
 - **Calculador de Escalas y Transbordos (`Layovers & Transfers`)**: Cálculo automático de tiempos de conexión, alertas de conexión ajustada y vinculación directa con billetes QR.
+- **Motor de Alarmas Nativas en Segundo Plano con AlarmManager (`SPEC-12`)**: Programación exacta con `AlarmManager.setExactAndAllowWhileIdle` para avisos de apertura de check-in (24h/2h antes de vuelos), salida inminente (60 min y 15 min antes de trenes/vuelos) y alerta despertador de proximidad a la estación de destino (5 min antes de la llegada) para no pasarse de parada en Shinkansen, con botón directo `📱 Ver Billete / QR` en la notificación y sincronización automática ante cualquier cambio en el itinerario.
 
 ### 7. 🤖 Asistente de Viaje IA (Gemini) y Traductor Simultáneo (`SPEC-06`)
 - **Traductor Simultáneo en 3 Pestañas (`🎙️ Voz`, `✍️ Texto`, `📷 Carteles / Cámara`)**:
@@ -95,6 +98,13 @@ Aplicación Android **offline-first** con la suite definitiva de herramientas es
 - **Reglas Fiscales Tax-Free de Japón**: Comprobación automática del umbral de 5.000 ¥ sin tasas, desglose de consumibles (8%), bienes generales (10%) y seguimiento del estado aduanero (*Pendiente*, *Sellado*, *Reembolsado*).
 - **Control de Presupuesto del Viaje**: Cuadro de mando analítico de gastos acumulados en ¥ y EUR, categorización (Compras, Comida, Transporte, Ocio, etc.) y balances diarios por ciudad.
 - **Generador de Informes para Aduanas**: Exportación consolidada de compras Tax-Free en formato Texto, Markdown y JSON con copia rápida al portapapeles.
+
+### 10. 🚨 Botón de Emergencia y Asistencia Consular Offline (`SPEC-11`)
+- **Acceso Inmediato en 1 Toque (`🚨 SOS`)**: Píldora persistente en la cabecera superior disponible en cualquier pantalla de la app, sin requerir internet ni pantallas de espera.
+- **Números de Urgencia Oficiales de Japón**: Marcación directa (`Intent.ACTION_DIAL`) a Policía (`110`), Bomberos y Ambulancias (`119`), Guardia Costera (`118`), Japan Visitor Hotline multilingüe 24/7 (`0570-000-911`), Policía de Tokio en inglés (`03-3501-0110`) y consulta médica no urgente (`#7119`).
+- **Red Diplomática y Consular**: Directorio offline de la Embajada de España en Tokio, Consulados Generales y Honorarios (Tokio, Osaka, Fukuoka, Nagoya, Takayama, Sapporo) y misiones de México, Colombia, Argentina, Chile y Perú, con teléfono de emergencia consular 24h, botón de cómo llegar en mapa y dirección oficial en kanji para taxistas con botón de copia rápida.
+- **Ficha Médica y Seguro SOS**: Registro privado en `Context.filesDir` de grupo sanguíneo, alergias graves, afecciones, medicación, póliza de seguro de viaje con teléfono de asistencia 24h y contacto familiar de emergencia.
+- **Tarjetas de Auxilio Crítico con Audio (TTS)**: Frases esenciales médicas, policiales, extravío de pasaporte y desastres con kanji grande de alta visibilidad para mostrar a transeúntes y locución de voz nativa en japonés.
 
 ---
 
@@ -141,6 +151,10 @@ Toda la documentación técnica y funcional se encuentra detallada en español d
   - [08B - Guía y Esquema JSON Todo en Uno (`japan-travel-plan.v1`) para IA y Portabilidad](docs/specs/08-travel-plan-json-schema-guide.md)
   - [09 - Herramienta: Importación de Billetes Apple Wallet (`.pkpass`) y Visor QR/Aztec](docs/specs/09-apple-wallet-pkpass-import-spec.md)
   - [10 - Sistema: Actualizaciones Automáticas vía GitHub Releases y Firma Criptográfica](docs/specs/10-github-releases-auto-updater-spec.md)
+  - [11 - Herramienta: Botón de Emergencia, Directorio Consular y Asistencia Médica](docs/specs/11-emergency-consular-assistance-spec.md)
+  - [12 - Sistema: Alarmas y Notificaciones de Transporte en Segundo Plano con AlarmManager](docs/specs/12-transport-alarms-spec.md)
+  - [13 - Herramienta: Optimizador Geodésico y Reordenación Inteligente de Visitas](docs/specs/13-day-itinerary-optimizer-spec.md)
+  - [14 - Herramienta: Exportación de Itinerarios y Guías a Documento PDF Compartible](docs/specs/14-itinerary-pdf-export-spec.md)
 - **Análisis Técnico**:
   - [Arquitectura, Stack Tecnológico y Estrategia TDD](docs/analysis/architecture-and-tech-stack.md)
   - [04 - Análisis Técnico: Mapa del Día, Etiquetas Anticolisión y Detalle con Guías/Billetes](docs/analysis/04-day-itinerary-map-and-linked-details-analysis.md)
@@ -149,8 +163,12 @@ Toda la documentación técnica y funcional se encuentra detallada en español d
   - [10 - Análisis Técnico: Importación Unificada de Plan, Guías y Documentos JSON](docs/analysis/10-unified-travel-plan-guides-and-documents-analysis.md)
   - [11 - Análisis Técnico: Renderizado Nativo de Markdown en Guías de Viaje](docs/analysis/11-travel-guides-markdown-rendering-analysis.md)
   - [12 - Análisis Técnico: Actualizador Automático vía GitHub Releases y Firma de Producción](docs/analysis/12-github-releases-auto-updater-analysis.md)
+  - [13 - Análisis Técnico: Emergencias, Directorio Consular y Asistencia Médica Offline](docs/analysis/13-emergency-consular-assistance-analysis.md)
+  - [14 - Análisis Técnico: Motor de Alarmas y Notificaciones de Transporte Offline](docs/analysis/14-transport-alarms-analysis.md)
+  - [15 - Análisis Técnico: Optimizador Geodésico de Rutas del Día](docs/analysis/15-day-itinerary-optimizer-analysis.md)
+  - [16 - Análisis Técnico: Generador Nativo de PDF para Itinerarios y Guías](docs/analysis/16-itinerary-pdf-export-analysis.md)
 - **Planificación de Tareas**:
-  - [Backlog y Desglose de Tareas SDD + TDD](docs/tasks/backlog.md)
+  - [Backlog Maestro y Desglose de Tareas SDD + TDD](docs/tasks/backlog.md)
   - [Tareas: Renderizado Nativo de Markdown en Guías de Viaje](docs/tasks/tasks-travel-guides-markdown-rendering.md)
   - [Tareas: Importación Unificada JSON](docs/tasks/tasks-unified-travel-plan-import.md)
   - [Tareas: Actualizador Automático vía GitHub Releases y Firma Criptográfica](docs/tasks/tasks-github-releases-auto-updater.md)
@@ -175,6 +193,7 @@ Toda la documentación técnica y funcional se encuentra detallada en español d
 - [x] **Hito 11 - Publicación de Versión de Producción v1.4.0**: Actualizador OTA integrado vía GitHub Releases (`SPEC-10`), renderizado nativo de Markdown en Guías (`SPEC-03`), importación unificada JSON (`ANALYSIS-10`), etiquetas anticolisión en mapa del día y APK oficial firmado con esquemas v1/v2/v3.
 - [x] **Hito 12 - Publicación de Versión de Producción v1.4.1**: Corrección de persistencia directa al guardar paradas de itinerario y planes de viaje sin bloqueos de diálogo modal (`#11`) y diagnósticos explicativos ante discrepancias de firma en el actualizador OTA.
 - [x] **Hito 13 - Publicación de Versión de Producción v1.4.2**: Sincronización integral y reactiva de fechas al editar planes de viaje (`#11`), soporte de días dinámicos (`1..totalDays`) en el selector de agenda y robustez de serialización JSON con caracteres especiales.
+- [x] **Hito 14 - Emergencias Consulares, Alarmas de Transporte, Optimizador de Rutas y Exportación PDF** (`SPEC-11`–`SPEC-14` / Hitos 21–24): Módulo SOS 100% offline con marcación directa y ficha médica privada, alarmas exactas nativas de transporte con AlarmManager, optimizador heurístico geodésico TSP y generador nativo de PDF en A4 con compartición directa por Sharesheet, con 331 tests unitarios pasando al 100%.
 
 ---
 

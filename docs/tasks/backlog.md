@@ -384,13 +384,13 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 
 - [x] **TASK-920 (SDD & Analysis)**: Especificación y diseño arquitectónico de Emergencias y Asistencia Consular:
   - Crear [`docs/specs/11-emergency-consular-assistance-spec.md`](../specs/11-emergency-consular-assistance-spec.md) y [`docs/analysis/13-emergency-consular-assistance-analysis.md`](../analysis/13-emergency-consular-assistance-analysis.md).
-- [ ] **TASK-921 (TDD/Domain)**: Modelos de Dominio y Contratos de Repositorio:
+- [x] **TASK-921 (TDD/Domain)**: Modelos de Dominio y Contratos de Repositorio:
   - Definir `EmergencyContactNumber`, `ConsularMissionItem`, `MedicalEmergencyProfile`, `EmergencyPhraseItem` y repositorios en `feature.emergency.domain`.
-- [ ] **TASK-922 (TDD/Data)**: Catálogo Semilla Preinstalado y Almacén Médico Privado:
+- [x] **TASK-922 (TDD/Data)**: Catálogo Semilla Preinstalado y Almacén Médico Privado:
   - Implementar `SeedEmergencyContacts` (110, 119, 118, JNTO Hotline, Policía inglés), `SeedConsularMissions` (España en Tokio, Osaka, Fukuoka, Nagoya y países hispanohablantes) y `LocalMedicalProfileStore` con serialización JSON privada en `filesDir`.
-- [ ] **TASK-923 (TDD/Audio)**: Tarjetas de Auxilio Crítico en Japonés con TTS Offline:
+- [x] **TASK-923 (TDD/Audio)**: Tarjetas de Auxilio Crítico en Japonés con TTS Offline:
   - Integrar frases de emergencia (médicas, policía, alergias, desastres) con kanji grande, romaji y locución nativa de un toque mediante `OfflineTranslatorEngine` / `TextToSpeechHelper`.
-- [ ] **TASK-924 (UI/Compose)**: Pantalla Completa de Emergencias y Asistencia Consular (`EmergencyScreen`):
+- [x] **TASK-924 (UI/Compose)**: Pantalla Completa de Emergencias y Asistencia Consular (`EmergencyScreen`):
   - Diseñar vista adaptativa con pestañas (Llamadas de Urgencia con marcación directa `Intent.ACTION_DIAL`, Red Consular con mapa offline, Ficha Médica/Seguro SOS editable y Frases de Auxilio con audio).
   - Integrar acceso directo rápido y visible en cabecera y barra de navegación (`EMERGENCY_ASSISTANCE`).
 
@@ -400,13 +400,13 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 
 - [x] **TASK-930 (SDD & Analysis)**: Especificación y diseño técnico de Alarmas con AlarmManager:
   - Crear [`docs/specs/12-transport-alarms-spec.md`](../specs/12-transport-alarms-spec.md) y [`docs/analysis/14-transport-alarms-analysis.md`](../analysis/14-transport-alarms-analysis.md).
-- [ ] **TASK-931 (TDD/Domain)**: Calculador Horario de Alarmas de Transporte (`CalculateTransportAlarmsUseCase`):
+- [x] **TASK-931 (TDD/Domain)**: Calculador Horario de Alarmas de Transporte (`CalculateTransportAlarmsUseCase`):
   - Cálculo determinista de instantes UTC de disparo para check-in (24h/2h antes de vuelos), salida inminente (60m/15m antes de trenes/vuelos) y alerta de llegada a estación de destino (5m antes de `arrivalTimeIso`).
-- [ ] **TASK-932 (TDD/Platform)**: Programador Nativo con Android `AlarmManager` (`AndroidTransportAlarmScheduler`):
+- [x] **TASK-932 (TDD/Platform)**: Programador Nativo con Android `AlarmManager` (`AndroidTransportAlarmScheduler`):
   - Programación exacta con `setExactAndAllowWhileIdle` / `setAlarmClock`, verificación de permisos Android 12-15 (`SCHEDULE_EXACT_ALARM`) y cancelación atómica de `PendingIntents`.
-- [ ] **TASK-933 (TDD/Platform)**: Receptores de Sistema y Despacho de Notificaciones:
+- [x] **TASK-933 (TDD/Platform)**: Receptores de Sistema y Despacho de Notificaciones:
   - Implementar `TransportAlarmReceiver`, receptor de reinicio de dispositivo `TransportBootReceiver` (`BOOT_COMPLETED`) y canal de notificaciones prioritarias con botón directo `📱 Ver Billete / QR`.
-- [ ] **TASK-934 (UI/Integration)**: Sincronización Automática con Planes y Configuración:
+- [x] **TASK-934 (UI/Integration)**: Sincronización Automática con Planes y Configuración:
   - Reprogramación y cancelación automática ante ediciones o desplazamientos dinámicos de fechas en `SharedTravelPlanStore`.
   - Controles de activación y preferencias de alarmas en Ajustes y en el editor de transporte.
 
@@ -416,11 +416,11 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 
 - [x] **TASK-940 (SDD & Analysis)**: Especificación y análisis técnico del Optimizador Geodésico:
   - Crear [`docs/specs/13-day-itinerary-optimizer-spec.md`](../specs/13-day-itinerary-optimizer-spec.md) y [`docs/analysis/15-day-itinerary-optimizer-analysis.md`](../analysis/15-day-itinerary-optimizer-analysis.md).
-- [ ] **TASK-941 (TDD/Domain)**: Motor Algorítmico Heurístico TSP Offline (`DayRouteOptimizer`):
+- [x] **TASK-941 (TDD/Domain)**: Motor Algorítmico Heurístico TSP Offline (`DayRouteOptimizer`):
   - Algoritmo híbrido Nearest Neighbor + 2-opt con matriz de distancias Haversine (`GeoProjectionUtils`), preservación de paradas fijadas (`isTimeFixed`) y manejo de paradas sin coordenadas.
-- [ ] **TASK-942 (TDD/Domain)**: Evaluador de Métricas de Ahorro y Horarios Tentativos:
+- [x] **TASK-942 (TDD/Domain)**: Evaluador de Métricas de Ahorro y Horarios Tentativos:
   - Cálculo de distancia original vs. optimizada, porcentaje de ahorro en km, tiempo estimado ganado y reajuste de horarios de visitas preservando duraciones.
-- [ ] **TASK-943 (UI/Compose)**: Hoja Modal de Optimización de Ruta del Día (`DayRouteOptimizationSheet`):
+- [x] **TASK-943 (UI/Compose)**: Hoja Modal de Optimización de Ruta del Día (`DayRouteOptimizationSheet`):
   - Integración en `TripPlannerTabScreen` con botón `🧭 Optimizar Ruta`, comparativa visual interactiva antes/después y botón de confirmación para persistir el nuevo orden en `SharedTravelPlanStore`.
 
 ---
@@ -429,10 +429,10 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 
 - [x] **TASK-950 (SDD & Analysis)**: Especificación y análisis técnico del Generador PDF:
   - Crear [`docs/specs/14-itinerary-pdf-export-spec.md`](../specs/14-itinerary-pdf-export-spec.md) y [`docs/analysis/16-itinerary-pdf-export-analysis.md`](../analysis/16-itinerary-pdf-export-analysis.md).
-- [ ] **TASK-951 (TDD/Domain)**: Modelos de Exportación y Calculador de Paginación A4:
+- [x] **TASK-951 (TDD/Domain)**: Modelos de Exportación y Calculador de Paginación A4:
   - Definición de `PdfExportOptions`, `PdfExportScope` (Día o Viaje Completo) y lógica de maquetación y salto de página.
-- [ ] **TASK-952 (TDD/Platform)**: Generador Nativo con `android.graphics.pdf.PdfDocument` (`AndroidItineraryPdfExporter`):
+- [x] **TASK-952 (TDD/Platform)**: Generador Nativo con `android.graphics.pdf.PdfDocument` (`AndroidItineraryPdfExporter`):
   - Renderizado 100% offline de portada, calendario, tablas de itinerario con tipografía japonesa CJK destacada, transportes y paleta tradicional (Akabeni / Ai-iro / Washi).
-- [ ] **TASK-953 (UI/Platform)**: Integración con `FileProvider` y Android Sharesheet:
+- [x] **TASK-953 (UI/Platform)**: Integración con `FileProvider` y Android Sharesheet:
   - Escritura segura en caché privada, diálogo de progreso y lanzamiento de `Intent.ACTION_SEND` para compartir con WhatsApp, Telegram, correo o imprimir.
 

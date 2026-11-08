@@ -7,11 +7,25 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
-### Especificaciones Funcionales y Análisis Técnico de Nuevas Capacidades (Hitos 21–24) 📐📋
-- **Botón de Emergencia y Asistencia Consular Offline (`SPEC-11` / `ANALYSIS-13`)**: Especificación completa y diseño arquitectónico del nuevo módulo de seguridad y emergencias en Japón: números oficiales de socorro (`110`, `119`, `118`, JNTO Helpline multilingüe) con marcación directa `Intent.ACTION_DIAL`, directorio de Embajadas y red consular con enlace cartográfico offline y dirección en kanji para taxistas, ficha médica privada en `filesDir` (grupo sanguíneo, alergias, póliza de seguro SOS con teléfono 24h) y tarjetas de auxilio crítico con kanji grande y locución TTS nativa de un toque.
-- **Motor de Alarmas y Notificaciones de Transporte en Segundo Plano con AlarmManager (`SPEC-12` / `ANALYSIS-14`)**: Especificación de programación exacta nativa con `AlarmManager.setExactAndAllowWhileIdle` / `setAlarmClock` y `NotificationManager.IMPORTANCE_HIGH` para avisos de apertura de check-in (24h/2h antes de vuelos), alertas de salida inminente (60 min y 15 min antes) y alarma despertador de proximidad a la estación de destino (5 min antes de `arrivalTimeIso`), con reprogramación reactiva ante cambios de fechas y restauración automática tras reinicios (`BOOT_COMPLETED`).
-- **Optimizador Geodésico y Reordenación Inteligente de Visitas del Día (`SPEC-13` / `ANALYSIS-15`)**: Algoritmo heurístico offline (Nearest Neighbor + 2-opt local search) sobre coordenadas geodésicas (Haversine) para eliminar rutas en zig-zag en Tokio o Kioto, con soporte para paradas con horario fijo inamovible (reservas de restaurantes, franjas horarias estrictas de museos), comparativa interactiva antes/después con cálculo de ahorro en km/tiempo y aplicación reactiva en `SharedTravelPlanStore`.
-- **Exportación de Itinerarios y Guías a Documento PDF Compartible 100% Offline (`SPEC-14` / `ANALYSIS-16`)**: Motor nativo sin librerías externas pesadas utilizando `android.graphics.pdf.PdfDocument`, con soporte para glifos japoneses CJK, maquetación tradicional japonesa (*Akabeni / Ai-iro / Washi*), opciones de exportación para la jornada seleccionada o el dossier completo del viaje, y compartición directa mediante `FileProvider` y Android Sharesheet (`Intent.ACTION_SEND`).
+### Suite Inteligente de Seguridad y Planificación de Viaje (Hitos 21–24) 🚨⏰🧭📄✨
+- **Módulo de Emergencias y Asistencia Consular Offline (`SPEC-11` / `ANALYSIS-13`)**:
+  - Pantalla dedicada `EmergencyScreen` estructurada en 4 pestañas: `📞 Urgencias` con números de socorro (`110`, `119`, `118`, JNTO Hotline, Policía en inglés, #7119) y marcación directa `Intent.ACTION_DIAL`; `🏛️ Consulados` con filtro por país (España, México, Colombia, Argentina, Chile, Perú), dirección en kanji para taxistas con botón de copia, llamadas 24h y enlace al mapa; `🏥 Ficha Médica y Seguro` con persistencia privada en `filesDir` para grupo sanguíneo, alergias, póliza SOS y contacto familiar; y `🚨 Auxilio con Audio` con tarjetas de kanji grande y locución TTS nativa en japonés.
+  - Píldora de acceso rápido `🚨 SOS` en la barra superior (`TopHeaderBar`), garantizando socorro inmediato en 1 toque desde cualquier pantalla de la app.
+- **Motor de Alarmas y Notificaciones de Transporte Offline (`SPEC-12` / `ANALYSIS-14`)**:
+  - Programación nativa mediante Android `AlarmManager` (`AndroidTransportAlarmScheduler`) con verificación de permisos en Android 12–15 (`canScheduleExactAlarms`), `setExactAndAllowWhileIdle` y request codes deterministas.
+  - Receptores de sistema `TransportAlarmReceiver` (notificación de alta prioridad con sonido, vibración y botón directo `📱 Ver Billete / QR`) y `TransportBootReceiver` (reprogramación automática tras reiniciar el teléfono con `BOOT_COMPLETED`).
+  - Sincronización automática de alarmas en `SharedTravelPlanStore` ante altas, ediciones, desplazamientos de fecha o bajas de tramos de vuelos y Shinkansen.
+- **Optimizador Geodésico y Reordenación Inteligente de Visitas (`SPEC-13` / `ANALYSIS-15`)**:
+  - Motor algorítmico heurístico TSP (`DayRouteOptimizer`: Nearest Neighbor + 2-opt local search) que detecta y corrige rutas en zig-zag en Tokio o Kioto, respetando paradas con horario cerrado obligatorio (`isTimeFixed = true`) y paradas sin coordenadas.
+  - Hoja modal interactiva `DayRouteOptimizationModalSheet` con comparativa visual antes/después, cálculo de ahorro en kilómetros y porcentaje, estimación de tiempo ganado en traslados y aplicación del nuevo orden con recálculo de horarios.
+  - Acceso directo en el Planificador del Día mediante el botón `🧭 Optimizar Ruta` y en el menú contextual de jornada `⋮`.
+- **Generador Nativo de PDF y Compartición en Android Sharesheet (`SPEC-14` / `ANALYSIS-16`)**:
+  - Motor de maquetación nativo 100% offline con `android.graphics.pdf.PdfDocument`, cero librerías pesadas, paleta tradicional (*Akabeni / Ai-iro / Washi*), tipografía CJK destacada (>=12pt) y paginación matemática sin solapamientos.
+  - Opciones de exportación en `PdfExportModalSheet` para la ficha del día seleccionado o el dossier completo del viaje con opciones configurables.
+  - Compartición segura mediante `FileProvider` y Android Sharesheet (`PdfShareHelper` / `Intent.ACTION_SEND`) para enviar por WhatsApp, Telegram, correo o imprimir.
+  - Botón de acceso directo `📄 Exportar PDF` en la barra de herramientas del Planificador y en el menú contextual de jornada `⋮`.
+- **Suite de Tests Unitarios**:
+  - Ampliación masiva de la batería de pruebas de **282 a 331 tests unitarios** (+49 nuevos tests) pasando al 100% en verde.
 
 ## [1.4.2] - 2026-11-08
 
