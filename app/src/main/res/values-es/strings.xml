@@ -68,6 +68,7 @@
     <string name="pdf_export_options_title">Contenido Incluido</string>
     <string name="pdf_export_opt_japanese">Nombres en japonés (Kanji/Kana destacados para taxistas y estaciones)</string>
     <string name="pdf_export_opt_transport">Tramos de transporte (Vuelos y Shinkansen)</string>
+    <string name="pdf_export_opt_map">Mapa esquemático con las paradas de cada día</string>
     <string name="pdf_export_opt_emergency">Teléfonos de emergencia y asistencia consular</string>
     <string name="pdf_export_action_button">📤 Generar y Compartir PDF</string>
     <string name="pdf_export_generating">Generando PDF offline…</string>

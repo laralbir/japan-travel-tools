@@ -66,6 +66,24 @@ Desarrollar un **Generador de Documentos PDF 100% Offline** utilizando la API na
    - Permiso `Intent.FLAG_GRANT_READ_URI_PERMISSION` y tipo MIME `application/pdf`.
    - Lanzador del diálogo nativo del sistema `Intent.createChooser` con opciones para WhatsApp, Telegram, Gmail, Drive o apps de visualización de PDF.
 
+### RF-14.4: Inclusión de Mapa Vectorial de Ruta Diario Offline en PDF
+1. **Representación Cartográfica Esquemática 100% Offline**:
+   - Para cada jornada con paradas geolocalizadas (`latitude != null && longitude != null`), el PDF renderiza una tarjeta de mapa esquemático vectorial maquetada en el encabezado de las visitas del día.
+   - **Proyección Local Acotada**: Centrado en las coordenadas del día mediante proyección equirrectangular calibrada para la latitud de Japón ($\approx 35^\circ$ N) con ratio de aspecto geodésico preservado.
+   - **Trazado de Ruta y Pines Numerados**:
+     - Línea discontinua con estilo japonés que une las paradas consecutivas en orden cronológico (1 $\to$ 2 $\to$ ... $\to$ N).
+     - Pines circulares con fondo `Akabeni` (rojo Torii `#C93A40`), borde blanco y numeración secuencial idéntica a la lista de visitas.
+     - Etiquetas flotantes legibles con nombre del lugar y hora prevista.
+   - **Metadatos y Orientación**:
+     - Indicador de orientación Norte (flecha / rosa de los vientos minimalista).
+     - Métrica de distancia acumulada de la ruta diaria en kilómetros.
+   - **Casos Límite**:
+     - Si la jornada cuenta con una sola parada geolocalizada, se dibuja centrada con área de contexto.
+     - Si ninguna parada del día posee coordenadas, se omite limpiamente el mapa sin generar espacios vacíos espurios.
+2. **Control en Opciones de Exportación**:
+   - Campo `includeDayMap: Boolean = true` en `PdfExportOptions`.
+   - Selector interactivo mediante casilla de verificación en `PdfExportModalSheet`.
+
 ---
 
 ## 3. Reglas de Negocio y Offline-First
@@ -84,7 +102,8 @@ data class PdfExportOptions(
     val targetDayIndex: Int? = null,
     val includeJapaneseNames: Boolean = true,
     val includeTransportSegments: Boolean = true,
-    val includeEmergencyContacts: Boolean = true
+    val includeEmergencyContacts: Boolean = true,
+    val includeDayMap: Boolean = true
 )
 
 enum class PdfExportScope {

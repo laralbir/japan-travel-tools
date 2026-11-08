@@ -88,6 +88,36 @@ class PdfDocumentLayoutCalculatorTest {
     }
 
     @Test
+    fun testPaginateStops_withReducedFirstPageHeight_forMapCard() {
+        val stops = (1..6).map { i ->
+            createSampleStop(
+                id = "$i",
+                title = "Stop $i",
+                startTime = "${8 + i}:00",
+                endTime = "${9 + i}:00",
+                japanese = "寺 $i",
+                notes = "Recomendaciones de visita."
+            )
+        }
+
+        // Without map, 6 stops fit on 1 page
+        val pagesNormal = PdfDocumentLayoutCalculator.paginateStops(stops, includeJapaneseNames = true)
+
+        // With map card occupying height on page 1, stops overflow to page 2
+        val reducedHeight = 250f // Enough for ~2-3 stops
+        val pagesWithMap = PdfDocumentLayoutCalculator.paginateStops(
+            stops = stops,
+            includeJapaneseNames = true,
+            firstPageAvailableHeight = reducedHeight,
+            subsequentPagesAvailableHeight = PdfDocumentLayoutCalculator.USABLE_PAGE_HEIGHT
+        )
+
+        assertTrue("Pages with reduced first page should have at least 2 pages", pagesWithMap.size >= 2)
+        assertTrue("Page 1 height should be within reduced height", pagesWithMap[0].totalHeight <= reducedHeight)
+        assertEquals("All stops must still be present across pages", 6, pagesWithMap.sumOf { it.items.size })
+    }
+
+    @Test
     fun testPaginateStops_multiplePages_whenManyStops() {
         // Create 16 stops with notes, which cannot fit on a single A4 page
         val manyStops = (1..16).map { i ->

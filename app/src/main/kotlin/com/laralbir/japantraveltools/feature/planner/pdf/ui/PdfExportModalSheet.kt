@@ -76,6 +76,7 @@ fun PdfExportModalSheet(
     var selectedScope by remember { mutableStateOf(PdfExportScope.SINGLE_DAY) }
     var includeJapaneseNames by remember { mutableStateOf(true) }
     var includeTransportSegments by remember { mutableStateOf(true) }
+    var includeDayMap by remember { mutableStateOf(true) }
     var includeEmergencyContacts by remember { mutableStateOf(true) }
 
     var isExporting by remember { mutableStateOf(false) }
@@ -184,6 +185,13 @@ fun PdfExportModalSheet(
                 onCheckedChange = { includeTransportSegments = it }
             )
 
+            // Checkbox: Daily Route Map
+            OptionCheckboxRow(
+                text = stringResource(R.string.pdf_export_opt_map),
+                checked = includeDayMap,
+                onCheckedChange = { includeDayMap = it }
+            )
+
             // Checkbox: Emergency Contacts
             OptionCheckboxRow(
                 text = stringResource(R.string.pdf_export_opt_emergency),
@@ -222,7 +230,8 @@ fun PdfExportModalSheet(
                                 targetDayIndex = if (selectedScope == PdfExportScope.SINGLE_DAY) currentDayIndex else null,
                                 includeJapaneseNames = includeJapaneseNames,
                                 includeTransportSegments = includeTransportSegments,
-                                includeEmergencyContacts = includeEmergencyContacts
+                                includeEmergencyContacts = includeEmergencyContacts,
+                                includeDayMap = includeDayMap
                             )
                             val result = onExportPdf(options)
                             if (result != null && result.exists) {

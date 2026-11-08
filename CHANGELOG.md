@@ -7,7 +7,19 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
-## [1.5.0] - 2026-11-08
+## [1.5.1] - 2026-11-08
+
+### Mapa Vectorial de Ruta Diario en Exportación PDF 100% Offline (Hito 25) 🗺️📄✨
+- **Renderizado Cartográfico Nativo en Documentos PDF (`SPEC-14 RF-14.4` / `ANALYSIS-16`)**:
+  - Incorporación de tarjeta de mapa esquemático vectorial en la cabecera de cada jornada planificada con paradas geolocalizadas, tanto en la exportación de la **Ficha del Día** como en el **Dossier Completo del Viaje**.
+  - **Proyección Cartográfica Equirrectangular 100% Offline**: Motor matemático puro (`PdfMapProjectionCalculator`) calibrado con corrección geodésica para la latitud de Japón (~35° N), preservando el ratio de aspecto 1:1 sin distorsiones en ciudades como Tokio, Kioto u Osaka, sin consumir batería ni depender de conexión de red o APIs externas.
+  - **Trazado Secuencial de Ruta**: Línea discontinua con estilo japonés en índigo Ai-iro (`#1E3A5F`) que une cronológicamente las visitas del día (1 $\to$ 2 $\to$ ... $\to$ N).
+  - **Pines y Etiquetas Callout Inteligentes**: Pines circulares en rojo Torii Akabeni (`#C93A40`) con numeración blanca correspondiente a la lista de visitas, y etiquetas emergentes con el nombre compacto y hora de cada parada colocadas para evitar desbordamientos.
+  - **Orientación y Métricas de Escala**: Rosa de los vientos minimalista con indicador Norte y cálculo de la distancia total acumulada de la ruta en kilómetros.
+  - **Paginación Dinámica y Adaptativa**: `PdfDocumentLayoutCalculator` ajusta matemáticamente el espacio útil de la primera página (`firstPageAvailableHeight`) al incluir la tarjeta de mapa (`160 pt`), garantizando que las paradas salten limpiamente a la siguiente página sin colisiones.
+  - **Control de Configuración en UI**: Nueva opción `includeDayMap: Boolean = true` en `PdfExportOptions` y casilla interactiva en `PdfExportModalSheet` ("Mapa esquemático con las paradas de cada día").
+- **Suite de Tests Unitarios**:
+  - Ampliación de la batería de pruebas de **331 a 337 tests unitarios** (+6 nuevos tests en `PdfMapProjectionCalculatorTest` y `PdfDocumentLayoutCalculatorTest`) pasando al 100% en verde.
 
 ### Suite Inteligente de Seguridad y Planificación de Viaje (Hitos 21–24) 🚨⏰🧭📄✨
 - **Módulo de Emergencias y Asistencia Consular Offline (`SPEC-11` / `ANALYSIS-13`)**:
