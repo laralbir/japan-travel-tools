@@ -235,6 +235,13 @@ import com.laralbir.japantraveltools.feature.weather.WeatherCityCatalog
 import com.laralbir.japantraveltools.feature.weather.WeatherCityItem
 import com.laralbir.japantraveltools.feature.weather.CityGeocodingHelper
 import com.laralbir.japantraveltools.feature.weather.GeocodedCity
+import com.laralbir.japantraveltools.feature.emergency.ui.EmergencyScreen
+import com.laralbir.japantraveltools.feature.planner.optimizer.DayRouteOptimizer
+import com.laralbir.japantraveltools.feature.planner.optimizer.model.RouteOptimizationResult
+import com.laralbir.japantraveltools.feature.planner.optimizer.ui.DayRouteOptimizationModalSheet
+import com.laralbir.japantraveltools.feature.planner.pdf.data.AndroidItineraryPdfExporter
+import com.laralbir.japantraveltools.feature.planner.pdf.model.PdfExportScope
+import com.laralbir.japantraveltools.feature.planner.pdf.ui.PdfExportModalSheet
 import com.laralbir.japantraveltools.ui.theme.JapanTravelToolsTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -262,6 +269,7 @@ enum class JapanDrawerDestination(
     CLOCKS(DrawerSection.QUICK_TOOLS, "Relojes y Husos", "Clocks & Timezones", "🕒"),
     WEATHER(DrawerSection.QUICK_TOOLS, "Tiempo (Open-Meteo)", "Weather (Open-Meteo)", "🌦️"),
     TAX_FREE_RECEIPTS(DrawerSection.QUICK_TOOLS, "Tickets y Tax-Free", "Receipts & Tax-Free", "🧾"),
+    EMERGENCY(DrawerSection.QUICK_TOOLS, "Emergencias y Asistencia", "Emergency & Assistance", "🚨"),
 
     PLANNER(DrawerSection.PLANNING, "Planificador de Viaje", "Trip Planner", "🗓️"),
     TRANSPORT(DrawerSection.PLANNING, "Transporte y Trenes", "Trains & Flights", "🚄"),
@@ -759,7 +767,8 @@ fun JapanTravelToolsAppContent(
                         activeIcon = selectedDestination.iconSymbol,
                         connectionKind = connectivitySnapshot.kind,
                         onOpenDrawer = {},
-                        onOpenConnectionSettings = { showConnectivitySheet = true }
+                        onOpenConnectionSettings = { showConnectivitySheet = true },
+                        onOpenEmergency = { navigateTo(JapanDrawerDestination.EMERGENCY) }
                     )
                 }
             ) { innerPadding ->
@@ -831,7 +840,8 @@ fun JapanTravelToolsAppContent(
                         onOpenDrawer = {
                             coroutineScope.launch { drawerState.open() }
                         },
-                        onOpenConnectionSettings = { showConnectivitySheet = true }
+                        onOpenConnectionSettings = { showConnectivitySheet = true },
+                        onOpenEmergency = { navigateTo(JapanDrawerDestination.EMERGENCY) }
                     )
                 }
             ) { innerPadding ->
@@ -968,7 +978,8 @@ private fun TopHeaderBar(
     activeIcon: String,
     connectionKind: ActiveConnectionKind,
     onOpenDrawer: () -> Unit,
-    onOpenConnectionSettings: () -> Unit
+    onOpenConnectionSettings: () -> Unit,
+    onOpenEmergency: () -> Unit = {}
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
@@ -1028,6 +1039,11 @@ private fun TopHeaderBar(
                 }
 
                 Spacer(Modifier.width(8.dp))
+                SosEmergencyPill(
+                    isEs = isEs,
+                    onClick = onOpenEmergency
+                )
+                Spacer(Modifier.width(8.dp))
                 ConnectionStatusPill(
                     isEs = isEs,
                     kind = connectionKind,
@@ -1035,6 +1051,34 @@ private fun TopHeaderBar(
                 )
             }
             HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline)
+        }
+    }
+}
+
+@Composable
+private fun SosEmergencyPill(
+    isEs: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = androidx.compose.ui.graphics.Color(0xFFC93A40).copy(alpha = 0.12f),
+        border = BorderStroke(1.dp, androidx.compose.ui.graphics.Color(0xFFC93A40)),
+        modifier = Modifier
+            .height(42.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.padding(horizontal = 10.dp)
+        ) {
+            Text(
+                text = "🚨 SOS",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = androidx.compose.ui.graphics.Color(0xFFC93A40),
+                maxLines = 1
+            )
         }
     }
 }
@@ -1086,6 +1130,7 @@ private fun ActiveToolContent(
         JapanDrawerDestination.CLOCKS -> ClocksToolScreen(isEs = isEs, currentInstant = currentInstant, prefs = prefs, prefsRepository = prefsRepository)
         JapanDrawerDestination.WEATHER -> WeatherToolScreen(isEs = isEs)
         JapanDrawerDestination.TAX_FREE_RECEIPTS -> ShoppingReceiptsScreen(isEs = isEs, prefs = prefs)
+        JapanDrawerDestination.EMERGENCY -> EmergencyScreen(onBack = { onNavigateToDestination(JapanDrawerDestination.PLANNER) })
         JapanDrawerDestination.PLANNER -> TripPlannerTabScreen(isEs = isEs, onOpenJsonPortability = onOpenPlanSheet)
         JapanDrawerDestination.TRANSPORT -> TransportTabScreen(isEs = isEs, onOpenJsonPortability = onOpenPlanSheet)
         JapanDrawerDestination.VOICE_TRANSLATOR -> VoiceTranslatorScreen(isEs = isEs, prefs = prefs)
@@ -2216,6 +2261,8 @@ private fun TripPlannerTabScreen(
     var isEditingPlan by remember { mutableStateOf<Boolean>(false) }
     var isSwitchingPlan by remember { mutableStateOf(false) }
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
+    var optimizationResult by remember { mutableStateOf<RouteOptimizationResult?>(null) }
+    var showPdfExportSheet by remember { mutableStateOf(false) }
 
     AppConfirmationDialog(
         state = confirmationDialogState,
@@ -2291,13 +2338,15 @@ private fun TripPlannerTabScreen(
                 }
             },
             onOpenInGoogleMaps = { stop ->
-                val uri = Uri.parse("geo:${stop.latitude},${stop.longitude}?q=${Uri.encode(stop.placeNameJapanese.ifBlank { stop.title })}")
+                val sLat = stop.latitude ?: 0.0
+                val sLng = stop.longitude ?: 0.0
+                val uri = Uri.parse("geo:$sLat,$sLng?q=${Uri.encode(stop.placeNameJapanese.ifBlank { stop.title })}")
                 val mapIntent = Intent(Intent.ACTION_VIEW, uri)
                 mapIntent.setPackage("com.google.android.apps.maps")
                 try {
                     context.startActivity(mapIntent)
                 } catch (_: Exception) {
-                    val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=${stop.latitude},${stop.longitude}"))
+                    val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=$sLat,$sLng"))
                     context.startActivity(webIntent)
                 }
             },
@@ -2344,6 +2393,59 @@ private fun TripPlannerTabScreen(
                 selectedDay = 1
                 isSwitchingPlan = false
             }
+        )
+    }
+
+    if (optimizationResult != null) {
+        DayRouteOptimizationModalSheet(
+            result = optimizationResult!!,
+            onApplyOptimization = { optimizedStops ->
+                val otherDaysStops = portablePlan.itineraryStops.filter { it.dayNumber != selectedDay }
+                val updatedStops = otherDaysStops + optimizedStops
+                SharedTravelPlanStore.updatePlan(
+                    portablePlan.copy(itineraryStops = updatedStops)
+                )
+                optimizationResult = null
+            },
+            onDismiss = { optimizationResult = null }
+        )
+    }
+
+    if (showPdfExportSheet) {
+        PdfExportModalSheet(
+            planTitle = portablePlan.tripTitle,
+            currentDayIndex = selectedDay,
+            totalDays = portablePlan.totalDays,
+            onExportPdf = { options ->
+                val exporter = AndroidItineraryPdfExporter(context)
+                if (options.scope == PdfExportScope.SINGLE_DAY) {
+                    val dateLabel = formatDayDateLabel(
+                        dayNum = selectedDay,
+                        startDateIso = portablePlan.startDateIso,
+                        allStops = allStops,
+                        isEs = isEs
+                    ) ?: if (isEs) "Día $selectedDay" else "Day $selectedDay"
+                    exporter.exportDayItinerary(
+                        planTitle = portablePlan.tripTitle,
+                        dayIndex = selectedDay,
+                        dateLabel = dateLabel,
+                        stops = dayStops.map { it.item },
+                        transports = portablePlan.transportSegments,
+                        options = options
+                    )
+                } else {
+                    val stopsByDay = portablePlan.itineraryStops.groupBy { it.dayNumber }
+                    exporter.exportFullTrip(
+                        planTitle = portablePlan.tripTitle,
+                        startDateIso = portablePlan.startDateIso,
+                        totalDays = portablePlan.totalDays,
+                        stopsByDay = stopsByDay,
+                        transports = portablePlan.transportSegments,
+                        options = options
+                    )
+                }
+            },
+            onDismiss = { showPdfExportSheet = false }
         )
     }
 
@@ -2657,6 +2759,27 @@ private fun TripPlannerTabScreen(
                             isCreatingStop = true
                         }
                     )
+                    DropdownMenuItem(
+                        text = {
+                            Text(if (isEs) "🧭 Optimizar Ruta del Día" else "🧭 Optimize Day Route")
+                        },
+                        onClick = {
+                            isDayMenuOpen = false
+                            val optimizer = DayRouteOptimizer()
+                            optimizationResult = optimizer.optimize(
+                                stops = dayStops.map { it.item }
+                            )
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(if (isEs) "📄 Exportar a PDF" else "📄 Export to PDF")
+                        },
+                        onClick = {
+                            isDayMenuOpen = false
+                            showPdfExportSheet = true
+                        }
+                    )
                     if (availableDays.size > 1) {
                         DropdownMenuItem(
                             text = {
@@ -2750,6 +2873,57 @@ private fun TripPlannerTabScreen(
             }
         }
 
+        Spacer(Modifier.height(8.dp))
+
+        // Barra rápida de herramientas de itinerario: Optimizar Ruta y Exportar PDF
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(34.dp)
+                    .clickable {
+                        val optimizer = DayRouteOptimizer()
+                        optimizationResult = optimizer.optimize(
+                            stops = dayStops.map { it.item }
+                        )
+                    }
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = if (isEs) "🧭 Optimizar Ruta" else "🧭 Optimize Route",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(34.dp)
+                    .clickable { showPdfExportSheet = true }
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = if (isEs) "📄 Exportar PDF" else "📄 Export PDF",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
         Spacer(Modifier.height(10.dp))
 
         if (isMapViewActive) {
@@ -2768,9 +2942,9 @@ private fun TripPlannerTabScreen(
                     )
                 },
                 onOpenExternalRoute = {
-                    val valid = dayStops.map { it.item }.filter { it.latitude != 0.0 && it.longitude != 0.0 }
+                    val valid = dayStops.map { it.item }.filter { (it.latitude ?: 0.0) != 0.0 && (it.longitude ?: 0.0) != 0.0 }
                     if (valid.isNotEmpty()) {
-                        val wp = valid.joinToString("/") { "${it.latitude},${it.longitude}" }
+                        val wp = valid.joinToString("/") { "${it.latitude ?: 0.0},${it.longitude ?: 0.0}" }
                         val uri = Uri.parse("https://www.google.com/maps/dir/$wp")
                         runCatching {
                             context.startActivity(Intent(Intent.ACTION_VIEW, uri))
@@ -2848,8 +3022,10 @@ private fun TripPlannerTabScreen(
                             )
                         },
                         onOpenGoogleMaps = { stop ->
+                            val sLat = stop.latitude ?: 0.0
+                            val sLng = stop.longitude ?: 0.0
                             val geoUri = Uri.parse(
-                                "geo:${stop.latitude},${stop.longitude}?q=${Uri.encode(stop.placeNameJapanese.ifBlank { stop.title })}"
+                                "geo:$sLat,$sLng?q=${Uri.encode(stop.placeNameJapanese.ifBlank { stop.title })}"
                             )
                             runCatching {
                                 context.startActivity(Intent(Intent.ACTION_VIEW, geoUri))
@@ -3189,8 +3365,8 @@ private fun ItineraryStopEditorModalSheet(
                     val endClean = endTimeText.ifBlank { "11:30" }
                     val finalZoneId = selectedZoneId.ifBlank {
                         TravelDateTimeFormatter.inferZoneIdFromCoordinatesOrLocation(
-                            initialStop.latitude,
-                            initialStop.longitude,
+                            initialStop.latitude ?: 0.0,
+                            initialStop.longitude ?: 0.0,
                             "$titleText $notesText"
                         )
                     }

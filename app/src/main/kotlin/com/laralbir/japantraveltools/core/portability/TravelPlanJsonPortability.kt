@@ -10,6 +10,8 @@ import com.laralbir.japantraveltools.feature.planner.TripPlannerUseCase
 import com.laralbir.japantraveltools.feature.transport.TransportMode
 import com.laralbir.japantraveltools.feature.transport.TransportPlannerUseCase
 import com.laralbir.japantraveltools.feature.transport.TransportSegmentItem
+import com.laralbir.japantraveltools.feature.transport.alarm.domain.usecase.CalculateTransportAlarmsUseCase
+import com.laralbir.japantraveltools.feature.transport.alarm.platform.AndroidTransportAlarmScheduler
 import com.laralbir.japantraveltools.feature.weather.PlanningSuitability
 import com.laralbir.japantraveltools.feature.weather.WeatherDayForecast
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -197,6 +199,20 @@ object SharedTravelPlanStore {
         )
         _planState.value = updated
         updatePlanInList(updated)
+
+        if (daysOffset != 0L) {
+            storageContext?.let { ctx ->
+                runCatching {
+                    val scheduler = AndroidTransportAlarmScheduler(ctx)
+                    val calculator = CalculateTransportAlarmsUseCase()
+                    val now = System.currentTimeMillis()
+                    updatedSegments.forEach { seg ->
+                        scheduler.cancelAlarmsForSegment(seg.id)
+                        scheduler.scheduleAlarms(calculator.execute(seg, now))
+                    }
+                }
+            }
+        }
     }
 
     fun deleteCurrentPlan() {
@@ -215,6 +231,12 @@ object SharedTravelPlanStore {
             _allPlansState.value = listOf(cleared)
         }
         saveToDisk()
+
+        storageContext?.let { ctx ->
+            runCatching {
+                AndroidTransportAlarmScheduler(ctx).cancelAllAlarms()
+            }
+        }
     }
 
     fun replaceAllPlans(plans: List<PortableTravelPlanBundle>, activePlanId: String? = null) {
@@ -307,6 +329,17 @@ object SharedTravelPlanStore {
         val updated = current.copy(transportSegments = reordered)
         _planState.value = updated
         updatePlanInList(updated)
+
+        storageContext?.let { ctx ->
+            runCatching {
+                val scheduler = AndroidTransportAlarmScheduler(ctx)
+                if (existingIndex >= 0) {
+                    scheduler.cancelAlarmsForSegment(segment.id)
+                }
+                val alarms = CalculateTransportAlarmsUseCase().execute(segment, System.currentTimeMillis())
+                scheduler.scheduleAlarms(alarms)
+            }
+        }
     }
 
     fun deleteTransportSegment(segmentId: String) {
@@ -316,6 +349,13 @@ object SharedTravelPlanStore {
         )
         _planState.value = updated
         updatePlanInList(updated)
+
+        storageContext?.let { ctx ->
+            runCatching {
+                val scheduler = AndroidTransportAlarmScheduler(ctx)
+                scheduler.cancelAlarmsForSegment(segmentId)
+            }
+        }
     }
 
     fun exportCurrentJson(): String = TravelPlanJsonCodec.exportToPrettyJson(_planState.value)
