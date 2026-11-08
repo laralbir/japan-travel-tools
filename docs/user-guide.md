@@ -18,7 +18,7 @@ Al abrir **Japan Travel Tools** por primera vez:
 
 ### ¿Cómo ver la versión de la app y las librerías Open Source utilizadas?
 1. Entra en **Ajustes (⚙️) > Acerca de (About)**.
-2. Verás el número de versión exacto instalado (ej. `v1.3.0`) y las fuentes de datos abiertas empleadas.
+2. Verás el número de versión exacto instalado (ej. `v1.4.0`) y las fuentes de datos abiertas empleadas.
 3. Toca en **"Librerías Open Source de terceros"** para consultar la lista completa de todas las bibliotecas de código abierto utilizadas en la app junto con sus autores, versiones y textos de licencia (disponible sin conexión a internet).
 
 ### ¿Cómo actualizar la aplicación directamente desde GitHub Releases sin perder tus datos?
