@@ -7,6 +7,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-08
+
 ### Suite Inteligente de Seguridad y Planificación de Viaje (Hitos 21–24) 🚨⏰🧭📄✨
 - **Módulo de Emergencias y Asistencia Consular Offline (`SPEC-11` / `ANALYSIS-13`)**:
   - Pantalla dedicada `EmergencyScreen` estructurada en 4 pestañas: `📞 Urgencias` con números de socorro (`110`, `119`, `118`, JNTO Hotline, Policía en inglés, #7119) y marcación directa `Intent.ACTION_DIAL`; `🏛️ Consulados` con filtro por país (España, México, Colombia, Argentina, Chile, Perú), dirección en kanji para taxistas con botón de copia, llamadas 24h y enlace al mapa; `🏥 Ficha Médica y Seguro` con persistencia privada en `filesDir` para grupo sanguíneo, alergias, póliza SOS y contacto familiar; y `🚨 Auxilio con Audio` con tarjetas de kanji grande y locución TTS nativa en japonés.
