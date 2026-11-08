@@ -49,7 +49,7 @@
   - Implementar `MapTileLayerType` y el selector visual de capas en `DayItineraryMapView.kt` con cambio en caliente mediante `setTileLayer()` en Leaflet (GREEN).
   - Desplegar y verificar en Google Pixel 9 Pro XL (REFACTOR).
 
-- [ ] **Tarea 8: Etiquetas Compactas Anticolisión (`🏷️`) y Ajustes Ergonómicos de Layout**
+- [x] **Tarea 8: Etiquetas Compactas Anticolisión (`🏷️`) y Ajustes Ergonómicos de Layout**
   - Limitar las etiquetas de paradas en `DayItineraryMapView.kt` a formato compacto multilínea (máx. 2 líneas con elipsis).
   - Implementar ocultación automática anticolisión por proximidad en píxeles de pantalla al actualizar marcadores y en eventos `zoomend`, respetando siempre la parada seleccionada.
   - Añadir botón conmutador de etiquetas (`🏷️`) en la botonera del mapa para mostrar/ocultar globalmente los textos de paradas.

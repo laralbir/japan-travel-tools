@@ -357,13 +357,13 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 ### Renderizado Nativo de Markdown en Guías de Viaje (`SPEC-03 RF-03.6` / `ANALYSIS-11`)
 - [x] **TASK-902 (SDD & Analysis)**: Especificación y Diseño Arquitectónico de Markdown en Guías:
   - Actualizar `docs/specs/03-documents-and-id-vault-spec.md` (`RF-03.6` y `Escenario 4`), crear `docs/analysis/11-travel-guides-markdown-rendering-analysis.md` y actualizar `docs/analysis/architecture-and-tech-stack.md` (`Sección 3.3` y `3.14`).
-- [ ] **TASK-903 (TDD/Domain)**: Extensión de `MarkdownTextParser` y Suite Unitaria (`docs/tasks/tasks-travel-guides-markdown-rendering.md` `T-11.1`–`T-11.5`):
+- [x] **TASK-903 (TDD/Domain)**: Extensión de `MarkdownTextParser` y Suite Unitaria (`docs/tasks/tasks-travel-guides-markdown-rendering.md` `T-11.1`–`T-11.5`):
   - Escribir tests unitarios (RED) e implementar soporte para encabezados `H1`–`H6`, sublistas indentadas, casillas `- [ ]` / `- [x]`, citas `>`, separadores `---`, tablas `|...|`, enlaces `[texto](url)`, negrita+cursiva y `extractPlainTextPreview(...)` (GREEN).
-- [ ] **TASK-904 (UI/Compose)**: Renderizador Material 3 Extendido e Integración en Guías y Mapa (`T-11.6`–`T-11.9`):
+- [x] **TASK-904 (UI/Compose)**: Renderizador Material 3 Extendido e Integración en Guías y Mapa (`T-11.6`–`T-11.9`):
   - Actualizar `MarkdownTextRenderer.kt` para renderizar todos los nuevos bloques e integrar `MarkdownText` en `FullGuideReaderDialog` (`MainScreen.kt`), extractos limpios en tarjetas de Guías y `StopDetailMapModalSheet.kt`, y pestaña `✍️ Editar` / `👁️ Vista previa` en `GuideEditorModalSheet`.
 
 ### Mapa del Día y Refinamientos de Layout (`SPEC-04 RF-04.10` / `ANALYSIS-04`)
-- [ ] **TASK-905 (UI/Map & Layout)**: Etiquetas Compactas Anticolisión (`🏷️`), Márgenes de `Scaffold` y Botonera Horizontal en Meteorología (`docs/tasks/tasks-day-itinerary-map.md` `Tarea 8`):
+- [x] **TASK-905 (UI/Map & Layout)**: Etiquetas Compactas Anticolisión (`🏷️`), Márgenes de `Scaffold` y Botonera Horizontal en Meteorología (`docs/tasks/tasks-day-itinerary-map.md` `Tarea 8`):
   - Etiquetas multilínea compactas (máx. 2 líneas), ocultación automática anticolisión por distancia en píxeles (`zoomend`) y botón conmutador `🏷️` en `DayItineraryMapView.kt`.
   - Ajuste de márgenes inferiores con `consumeWindowInsets` en `MainScreen.kt` y fila horizontal simétrica de botones (`➕ Ciudades del Plan` / `➕ Añadir Ciudad`) en `WeatherToolScreen`.
 
