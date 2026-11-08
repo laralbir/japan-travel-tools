@@ -1,3 +1,60 @@
 <resources>
     <string name="app_name">Japan Travel Tools</string>
+
+    <!-- GitHub Releases Auto-Updater (SPEC-10) -->
+    <string name="updater_banner_title">Update available</string>
+    <string name="updater_banner_version_transition">v%1$s ➔ v%2$s</string>
+    <string name="updater_banner_downloading">Downloading update v%1$s…</string>
+    <string name="updater_banner_permission_needed">Install permission required for v%1$s</string>
+    <string name="updater_banner_view_action">View update</string>
+    <string name="updater_banner_dismiss_cd">Remind me later</string>
+
+    <string name="updater_dialog_available_title">🚀 New Version Available</string>
+    <string name="updater_dialog_current_version_label">Installed</string>
+    <string name="updater_dialog_new_version_label">New version</string>
+    <string name="updater_dialog_size_and_date">APK size: %1$s · Published: %2$s</string>
+    <string name="updater_dialog_changelog_header">What\'s new in this release</string>
+    <string name="updater_dialog_changelog_empty">Maintenance improvements, security verification, and offline stability fixes.</string>
+    <string name="updater_dialog_data_safe_note">🔒 Signed in-place update: your passport vault, tickets, guides, and travel plans remain completely intact.</string>
+
+    <string name="updater_action_download_install">⬇️ Download &amp; install</string>
+    <string name="updater_action_remind_later">Remind me later</string>
+    <string name="updater_action_skip_version">Skip this version</string>
+    <string name="updater_action_cancel">Cancel</string>
+    <string name="updater_action_retry">🔄 Retry</string>
+    <string name="updater_action_close">Close</string>
+
+    <string name="updater_dialog_downloading_title">⬇️ Downloading Update</string>
+    <string name="updater_dialog_downloading_security_hint">Saving to private app cache. SHA-256 checksum and X.509 signing certificate will be verified before installation.</string>
+    <string name="updater_dialog_verifying_title">🛡️ Verifying Cryptographic Signature</string>
+    <string name="updater_dialog_verifying_message">Validating binary SHA-256 integrity and matching X.509 production signing certificate…</string>
+
+    <string name="updater_dialog_permission_title">🔐 Allow App Updates</string>
+    <string name="updater_dialog_permission_body">The update package (v%1$s) passed SHA-256 and X.509 certificate verification. Enable \"Allow from this source\" once in Android Settings; installation will resume automatically when you return.</string>
+    <string name="updater_action_open_install_settings">⚙️ Allow from this source</string>
+
+    <string name="updater_dialog_installing_title">📦 Installing Update</string>
+    <string name="updater_dialog_installing_body">Handing verified package v%1$s to Android PackageInstaller. Confirm the system prompt if requested.</string>
+
+    <string name="updater_dialog_error_title">⚠️ Update Notice</string>
+
+    <string name="updater_settings_title">🔄 App Updates (GitHub Releases)</string>
+    <string name="updater_settings_subtitle">Direct OTA updates verified with SHA-256 checksum and X.509 signing certificate while keeping all local travel data intact.</string>
+    <string name="updater_settings_installed_version">Installed version</string>
+    <string name="updater_settings_cert_fingerprint">Signing cert (SHA-256)</string>
+    <string name="updater_settings_cert_unavailable">Unavailable</string>
+    <string name="updater_settings_last_checked">Last checked</string>
+    <string name="updater_settings_never_checked">Never</string>
+    <string name="updater_settings_status_checking">⏳ Checking GitHub Releases…</string>
+    <string name="updater_settings_status_up_to_date">✅ You\'re on the latest version</string>
+    <string name="updater_settings_status_available">🚀 Version v%1$s is ready to install</string>
+    <string name="updater_settings_check_button">🔄 Check for updates</string>
+    <string name="updater_settings_offline_hint">Offline-Only mode is active. Disable it to check GitHub Releases.</string>
+    <string name="updater_settings_auto_check_title">Automatic check (every 12 h)</string>
+    <string name="updater_settings_auto_check_desc">Checks silently in the background respecting Offline Mode and Roaming.</string>
+    <string name="updater_settings_network_policy_label">Auto-check network policy</string>
+    <string name="updater_settings_network_wifi_only">📶 Wi-Fi only</string>
+    <string name="updater_settings_network_wifi_cellular">📲 Wi-Fi &amp; Data / eSIM</string>
+    <string name="updater_settings_preview_releases_title">Include preview releases</string>
+    <string name="updater_settings_preview_releases_desc">Receive early preview builds published on GitHub before general release.</string>
 </resources>

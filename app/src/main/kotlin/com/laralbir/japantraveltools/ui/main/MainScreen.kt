@@ -152,6 +152,15 @@ import com.laralbir.japantraveltools.feature.ai.GeminiApiKeySetupCard
 import com.laralbir.japantraveltools.feature.ai.GeminiApiKeyHelper
 import com.laralbir.japantraveltools.feature.ai.MarkdownText
 import com.laralbir.japantraveltools.feature.ai.MarkdownTextParser
+import com.laralbir.japantraveltools.BuildConfig
+import com.laralbir.japantraveltools.feature.updater.data.GitHubAutoUpdateRepository
+import com.laralbir.japantraveltools.feature.updater.platform.PackageInstallerUpdateExecutor
+import com.laralbir.japantraveltools.feature.updater.security.AndroidPackageSignatureInspector
+import com.laralbir.japantraveltools.feature.updater.security.ApkSignatureVerifier
+import com.laralbir.japantraveltools.feature.updater.ui.AppUpdateBanner
+import com.laralbir.japantraveltools.feature.updater.ui.AppUpdateModalHost
+import com.laralbir.japantraveltools.feature.updater.ui.AppUpdateViewModel
+import com.laralbir.japantraveltools.feature.updater.ui.SettingsUpdateSection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -633,11 +642,35 @@ fun JapanTravelToolsAppContent(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val appUpdateRepository = remember(context) {
+        GitHubAutoUpdateRepository.createDefault(context)
+    }
+    val installExecutor = remember(context) {
+        PackageInstallerUpdateExecutor(context)
+    }
+    val installedCertFingerprint = remember(context) {
+        val inspector = AndroidPackageSignatureInspector(context)
+        val meta = inspector.getInstalledSignatureMetadata(context.packageName)
+        val firstCert = meta?.certSha256Fingerprints?.firstOrNull().orEmpty()
+        ApkSignatureVerifier.formatShortFingerprint(firstCert)
+    }
+    val appUpdateViewModel = remember(context, appUpdateRepository, installExecutor) {
+        AppUpdateViewModel(
+            repository = appUpdateRepository,
+            installExecutor = installExecutor,
+            installedVersionName = BuildConfig.VERSION_NAME,
+            installedVersionCode = BuildConfig.VERSION_CODE.toLong()
+        )
+    }
+    val updateUiState by appUpdateViewModel.uiState.collectAsState()
+
     LaunchedEffect(Unit) {
         SharedTravelPlanStore.init(context)
         SharedDocumentsAndGuidesStore.init(context)
         SharedWeatherForecastStore.init(context)
         SharedShoppingReceiptsStore.init(context)
+        appUpdateViewModel.onStartupCleanup()
+        appUpdateViewModel.checkForUpdates(forceOfflineByApp = prefs.forceOfflineMode, manual = false)
     }
     val configuration = LocalConfiguration.current
     val isTabletExpanded = configuration.screenWidthDp >= 720
@@ -740,14 +773,31 @@ fun JapanTravelToolsAppContent(
                         .consumeWindowInsets(innerPadding)
                         .imePadding()
                 ) {
-                    ActiveToolContent(
-                        destination = selectedDestination,
-                        isEs = isEs,
-                        currentInstant = currentInstant,
-                        prefs = prefs,
-                        prefsRepository = prefsRepository,
-                        onOpenPlanSheet = { showJsonPortabilitySheet = true },
-                        onNavigateToDestination = { navigateTo(it) }
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        AppUpdateBanner(
+                            uiState = updateUiState,
+                            isEs = isEs,
+                            onOpenDetails = { appUpdateViewModel.openUpdateDialog() },
+                            onRemindLater = { appUpdateViewModel.remindMeLater() }
+                        )
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                            ActiveToolContent(
+                                destination = selectedDestination,
+                                isEs = isEs,
+                                currentInstant = currentInstant,
+                                prefs = prefs,
+                                prefsRepository = prefsRepository,
+                                onOpenPlanSheet = { showJsonPortabilitySheet = true },
+                                onNavigateToDestination = { navigateTo(it) },
+                                updateViewModel = appUpdateViewModel,
+                                installedCertFingerprint = installedCertFingerprint
+                            )
+                        }
+                    }
+                    AppUpdateModalHost(
+                        viewModel = appUpdateViewModel,
+                        installExecutor = installExecutor,
+                        isEs = isEs
                     )
                 }
             }
@@ -795,14 +845,31 @@ fun JapanTravelToolsAppContent(
                         .consumeWindowInsets(innerPadding)
                         .imePadding()
                 ) {
-                    ActiveToolContent(
-                        destination = selectedDestination,
-                        isEs = isEs,
-                        currentInstant = currentInstant,
-                        prefs = prefs,
-                        prefsRepository = prefsRepository,
-                        onOpenPlanSheet = { showJsonPortabilitySheet = true },
-                        onNavigateToDestination = { navigateTo(it) }
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        AppUpdateBanner(
+                            uiState = updateUiState,
+                            isEs = isEs,
+                            onOpenDetails = { appUpdateViewModel.openUpdateDialog() },
+                            onRemindLater = { appUpdateViewModel.remindMeLater() }
+                        )
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                            ActiveToolContent(
+                                destination = selectedDestination,
+                                isEs = isEs,
+                                currentInstant = currentInstant,
+                                prefs = prefs,
+                                prefsRepository = prefsRepository,
+                                onOpenPlanSheet = { showJsonPortabilitySheet = true },
+                                onNavigateToDestination = { navigateTo(it) },
+                                updateViewModel = appUpdateViewModel,
+                                installedCertFingerprint = installedCertFingerprint
+                            )
+                        }
+                    }
+                    AppUpdateModalHost(
+                        viewModel = appUpdateViewModel,
+                        installExecutor = installExecutor,
+                        isEs = isEs
                     )
                 }
             }
@@ -1013,7 +1080,9 @@ private fun ActiveToolContent(
     prefs: UserPreferences,
     prefsRepository: DefaultUserPreferencesRepository,
     onOpenPlanSheet: () -> Unit,
-    onNavigateToDestination: (JapanDrawerDestination) -> Unit
+    onNavigateToDestination: (JapanDrawerDestination) -> Unit,
+    updateViewModel: AppUpdateViewModel,
+    installedCertFingerprint: String
 ) {
     when (destination) {
         JapanDrawerDestination.CURRENCY -> CurrencyToolScreen(isEs = isEs, prefs = prefs, prefsRepository = prefsRepository)
@@ -1033,7 +1102,13 @@ private fun ActiveToolContent(
         JapanDrawerDestination.PASSPORT_CUSTOMS -> PassportAndCustomsScreen(isEs = isEs, prefs = prefs, prefsRepository = prefsRepository)
         JapanDrawerDestination.BOOKINGS_VAULT -> BookingsVaultScreen(isEs = isEs)
         JapanDrawerDestination.TRAVEL_GUIDES -> TravelGuidesScreen(isEs = isEs)
-        JapanDrawerDestination.SETTINGS -> SettingsPreferencesScreen(isEs = isEs, prefs = prefs, prefsRepository = prefsRepository)
+        JapanDrawerDestination.SETTINGS -> SettingsPreferencesScreen(
+            isEs = isEs,
+            prefs = prefs,
+            prefsRepository = prefsRepository,
+            updateViewModel = updateViewModel,
+            installedCertFingerprint = installedCertFingerprint
+        )
         JapanDrawerDestination.ABOUT -> AboutAppScreen(isEs = isEs)
     }
 }
@@ -9124,7 +9199,9 @@ private fun GuideEditorModalSheet(
 private fun SettingsPreferencesScreen(
     isEs: Boolean,
     prefs: UserPreferences,
-    prefsRepository: DefaultUserPreferencesRepository
+    prefsRepository: DefaultUserPreferencesRepository,
+    updateViewModel: AppUpdateViewModel,
+    installedCertFingerprint: String
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -9189,6 +9266,15 @@ private fun SettingsPreferencesScreen(
                     }
                 }
             }
+        }
+
+        item {
+            SettingsUpdateSection(
+                viewModel = updateViewModel,
+                installedCertShortFingerprint = installedCertFingerprint,
+                forceOfflineByApp = prefs.forceOfflineMode,
+                isEs = isEs
+            )
         }
 
         item {

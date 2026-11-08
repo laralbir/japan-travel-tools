@@ -1,0 +1,119 @@
+name: Build, Sign & Publish Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Existing Git tag to build and attach (e.g. v1.3.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release-signed-apk:
+    name: Test, Sign Release APK (v2/v3) & Publish GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag_name || github.ref }}
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Accept Android SDK Licenses
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          if [ -x "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" ]; then
+            yes | "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
+          fi
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run JVM Unit Test Suite (Quality Gate)
+        run: ./gradlew testDebugUnitTest --no-daemon
+
+      - name: Decode Production PKCS#12 Keystore to ephemeral runner temp
+        env:
+          SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$SIGNING_KEYSTORE_BASE64" ]; then
+            echo "::error::Missing SIGNING_KEYSTORE_BASE64 repository secret."
+            exit 1
+          fi
+          printf '%s' "$SIGNING_KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode > "$RUNNER_TEMP/release-production.jks"
+          chmod 600 "$RUNNER_TEMP/release-production.jks"
+
+      - name: Assemble Signed Production Release APK
+        env:
+          CI: 'true'
+          SIGNING_KEYSTORE_PATH: ${{ runner.temp }}/release-production.jks
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Verify APK Signature Schemes v2 & v3 and Prepare Checksum
+        id: artifact
+        run: |
+          TAG="${{ github.event.inputs.tag_name || github.ref_name }}"
+          RAW_APK="app/build/outputs/apk/release/app-release.apk"
+          OUT_APK="japan-travel-tools-${TAG}.apk"
+          cp "$RAW_APK" "$OUT_APK"
+
+          SDK_ROOT="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          APKSIGNER=$(find "$SDK_ROOT/build-tools" -name apksigner | sort -V | tail -n 1)
+          VERIFY_OUT=$("$APKSIGNER" verify --verbose --print-certs "$OUT_APK")
+          echo "$VERIFY_OUT"
+          echo "$VERIFY_OUT" | grep -q "Verified using v2 scheme (APK Signature Scheme v2): true"
+          echo "$VERIFY_OUT" | grep -q "Verified using v3 scheme (APK Signature Scheme v3): true"
+
+          sha256sum "$OUT_APK" > "${OUT_APK}.sha256"
+          IS_PRERELEASE="false"
+          if [[ "$TAG" == *"-beta"* || "$TAG" == *"-alpha"* || "$TAG" == *"-rc"* ]]; then
+            IS_PRERELEASE="true"
+          fi
+          echo "apk_file=${OUT_APK}" >> "$GITHUB_OUTPUT"
+          echo "sha_file=${OUT_APK}.sha256" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "is_prerelease=${IS_PRERELEASE}" >> "$GITHUB_OUTPUT"
+
+      - name: Extract Release Notes from CHANGELOG.md
+        run: |
+          TAG="${{ steps.artifact.outputs.tag }}"
+          VERSION_NO_V="${TAG#v}"
+          awk -v ver="$VERSION_NO_V" '
+            index($0, "## [" ver "]") == 1 || index($0, "## [v" ver "]") == 1 { found=1; next }
+            found && index($0, "## [") == 1 { exit }
+            found { print }
+          ' CHANGELOG.md > release_notes.md
+          if [ ! -s release_notes.md ]; then
+            echo "Release ${TAG} of Japan Travel Tools." > release_notes.md
+          fi
+
+      - name: Publish GitHub Release with Signed APK & SHA-256
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.artifact.outputs.tag }}
+          name: Japan Travel Tools ${{ steps.artifact.outputs.tag }}
+          body_path: release_notes.md
+          prerelease: ${{ steps.artifact.outputs.is_prerelease == 'true' }}
+          draft: false
+          files: |
+            ${{ steps.artifact.outputs.apk_file }}
+            ${{ steps.artifact.outputs.sha_file }}
+
+      - name: Scrub Ephemeral Keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release-production.jks"

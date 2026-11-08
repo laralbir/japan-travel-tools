@@ -18,8 +18,20 @@ Al abrir **Japan Travel Tools** por primera vez:
 
 ### ¿Cómo ver la versión de la app y las librerías Open Source utilizadas?
 1. Entra en **Ajustes (⚙️) > Acerca de (About)**.
-2. Verás el número de versión exacto instalado (ej. `v0.0.1-beta.1` o `v0.0.1`) y las fuentes de datos abiertas empleadas.
+2. Verás el número de versión exacto instalado (ej. `v1.3.0`) y las fuentes de datos abiertas empleadas.
 3. Toca en **"Librerías Open Source de terceros"** para consultar la lista completa de todas las bibliotecas de código abierto utilizadas en la app junto con sus autores, versiones y textos de licencia (disponible sin conexión a internet).
+
+### ¿Cómo actualizar la aplicación directamente desde GitHub Releases sin perder tus datos?
+**Japan Travel Tools** incorpora un actualizador seguro integrado que mantiene intactos tu pasaporte, billetes `.pkpass`, PDFs, guías, recibos Tax-Free y planes de viaje:
+1. Entra en **Ajustes (⚙️)** y localiza la tarjeta **🔄 Actualizaciones de la App (GitHub Releases)**.
+2. Allí verás tu **versión instalada**, la **huella abreviada `SHA-256` del certificado oficial de firma** y la fecha/hora de la última comprobación.
+3. Puedes configurar tres preferencias pensadas para el viaje:
+   - **Comprobación automática (cada 12 h)**: busca silenciosamente nuevas versiones en segundo plano sin afectar al arranque ni funcionar cuando tengas activo el *Modo Solo Offline* o *Roaming*.
+   - **Red permitida en modo automático**: elige **📶 Solo Wi-Fi** (por defecto, para proteger los megabytes de tu eSIM en Japón) o **📲 Wi-Fi y Datos / eSIM**.
+   - **Incluir versiones preliminares**: actívalo si deseas recibir compilaciones preliminares publicadas antes de una versión general.
+4. Pulsa **«🔄 Buscar actualizaciones»** en cualquier momento (o toca **«Ver novedades»** en el aviso discreto de la pantalla principal cuando haya una nueva versión):
+   - Podrás leer todas las novedades del `CHANGELOG` formateadas en Markdown, ver el tamaño en MB y elegir **«⬇️ Descargar e instalar»**, **«Recordar más tarde»** u **«Omitir esta versión»**.
+   - Antes de instalar, la app verifica automáticamente tanto la suma criptográfica **`SHA-256`** como el **certificado oficial `X.509` (esquemas v2/v3)**. La primera vez que actualices, Android te pedirá activar una sola vez *«Permitir desde esta fuente»*; al regresar a la app, la instalación continuará sola sin volver a descargar el archivo.
 
 ### Experiencia Optimizada en Smartphones Grandes y Tablets (Pixel 9/10 Pro XL y TCL NXTPAPER 11 Plus)
 - **En Google Pixel 10 Pro XL y Pixel 9 Pro XL**:

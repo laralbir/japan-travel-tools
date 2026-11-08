@@ -373,7 +373,7 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 
 - [x] **TASK-910 (SDD & Analysis)**: Especificación y Diseño Arquitectónico del Auto-Updater y Firma v2/v3:
   - Crear [`docs/specs/10-github-releases-auto-updater-spec.md`](../specs/10-github-releases-auto-updater-spec.md), [`docs/analysis/12-github-releases-auto-updater-analysis.md`](../analysis/12-github-releases-auto-updater-analysis.md) y [`docs/tasks/tasks-github-releases-auto-updater.md`](tasks-github-releases-auto-updater.md).
-- [ ] **TASK-911 (Build & CI/CD)**: Firma Criptográfica PKCS#12 (`enableV2Signing` / `enableV3Signing`), plantilla `keystore.example.properties` y workflow `.github/workflows/release-apk.yml` (`T-12.1`–`T-12.3`).
-- [ ] **TASK-912 (TDD/Domain & Data)**: Comparador estricto SemVer 2.0.0 (`SemanticVersionComparator`), parser de GitHub Releases con `ETag`/`SHA-256` y repositorio offline-first con cooldown de 12 h (`T-12.4`–`T-12.9`).
-- [ ] **TASK-913 (TDD/Security & Platform)**: Doble verificación criptográfica (`ApkSignatureVerifier`: hash `SHA-256` + certificado X.509) e instalación *in-place* con `PackageInstaller` (`T-12.10`–`T-12.15`).
-- [ ] **TASK-914 (UI/i18n)**: Banner no intrusivo, diálogo Material 3 con notas `CHANGELOG` en `MarkdownText` y sección de actualizaciones en Ajustes (`T-12.16`–`T-12.20`).
+- [x] **TASK-911 (Build & CI/CD)**: Firma Criptográfica PKCS#12 (`enableV2Signing` / `enableV3Signing`), plantilla `keystore.example.properties` y workflow `.github/workflows/release-apk.yml` (`T-12.1`–`T-12.3`).
+- [x] **TASK-912 (TDD/Domain & Data)**: Comparador estricto SemVer 2.0.0 (`SemanticVersionComparator`), parser de GitHub Releases con `ETag`/`SHA-256` y repositorio offline-first con cooldown de 12 h (`T-12.4`–`T-12.9`).
+- [x] **TASK-913 (TDD/Security & Platform)**: Doble verificación criptográfica (`ApkSignatureVerifier`: hash `SHA-256` + certificado X.509) e instalación *in-place* con `PackageInstaller` (`T-12.10`–`T-12.15`).
+- [x] **TASK-914 (UI/i18n)**: Banner no intrusivo, diálogo Material 3 con notas `CHANGELOG` en `MarkdownText` y sección de actualizaciones en Ajustes (`T-12.16`–`T-12.20`).

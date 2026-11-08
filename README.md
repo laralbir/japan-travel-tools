@@ -19,6 +19,7 @@ Aplicación Android **offline-first** con la suite definitiva de herramientas es
   - **Tablets (TCL NXTPAPER 11 Plus)**: Interfaz adaptativa con barra de navegación lateral (`NavigationRail`), vista de doble panel en el Planificador (Horario + Mapa de Google Maps interactivo en paralelo), vista Maestro-Detalle para Guías y lectura optimizada para *Ink Paper* y *Color Paper*.
 - **Indicador de Conexión en Vivo y Selector Rápido (`Wi-Fi / SIM / eSIM / Offline`)**: Píldora interactiva en la cabecera que detecta la conexión activa y abre de inmediato el panel de conectividad nativo de Android (`Settings.Panel.ACTION_INTERNET_CONNECTIVITY`).
 - **Portabilidad JSON Unificada y Copia de Seguridad en Google Drive**: Exportación e importación todo en uno de planes, transportes, guías y reservas/billetes en un solo archivo `.json` legible (`japan-travel-plan.v1` o backup completo) mediante Storage Access Framework (SAF) local o en Google Drive, con detección inteligente automática de entidades (`JsonContentDetector`).
+- **Actualizador OTA Integrado vía GitHub Releases y Firma Criptográfica de Producción (`SPEC-10`)**: Comprobación automática (cada 12 h respetando Modo Offline, Wi-Fi/eSIM y Roaming) y manual desde Ajustes con soporte `ETag` y comparación estricta SemVer 2.0.0, visor de novedades (`CHANGELOG`) renderizado con `MarkdownText`, descarga en caché privada con doble verificación criptográfica (**hash `SHA-256` + certificado X.509 PKCS#12 con APK Signature Scheme v2/v3**) e instalación *in-place* mediante `PackageInstaller` conservando intactos todos los datos locales (`Context.filesDir`).
 - **Seguridad y Privacidad Local**: Almacenamiento seguro en directorio privado de la aplicación (`Context.filesDir`). Sin telemetría invasiva, sin trackers y con protección biométrica para documentos confidenciales.
 
 ---
@@ -111,8 +112,8 @@ Este proyecto se desarrolla bajo estrictas directrices de ingeniería de softwar
    - `develop`: Rama de integración continua de desarrollo.
    - `feature/*`, `release/*`, `hotfix/*`: Ramas de trabajo.
 3. **Conventional Commits v1.0.0**: Historial semántico estandarizado (`feat`, `fix`, `docs`, `test`, `refactor`, `chore`).
-4. **Política de Releases**:
-   - Cada publicación en `main` genera su tag anotado y una **GitHub Release** oficial con el APK compilado y firmado adjunto.
+4. **Política de Releases y Firma Criptográfica de Producción (`PKCS#12` v2/v3)**:
+   - Toda release publicada en GitHub se compila con `./gradlew assembleRelease` firmada con el Keystore oficial PKCS#12 (`enableV1Signing`, `enableV2Signing` y `enableV3Signing`, sin secretos en Git mediante `keystore.properties` local ignorado o GitHub Secrets efímeros en `.github/workflows/release-apk.yml`), adjuntando el `.apk` verificado con `apksigner` y su archivo `.apk.sha256` para garantizar continuidad criptográfica perpetua y actualizaciones *in-place* sin perder datos.
 5. **Prevención de Reinicio de App y Bloqueo de Orientación Vertical en Android**:
    - Configuración de `singleTask` y bloqueo de orientación vertical (`android:screenOrientation="portrait"`) en `AndroidManifest.xml` con manejo de `onNewIntent` en `MainActivity`, evitando rotaciones accidentales de la interfaz al sujetar el teléfono durante el viaje.
    - Control de `configChanges` y persistencia de pantalla activa en `UserPreferencesRepository`.

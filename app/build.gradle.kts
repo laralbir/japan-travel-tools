@@ -1,5 +1,6 @@
-import java.util.Properties
 import java.io.FileInputStream
+import java.util.Properties
+import org.gradle.api.GradleException
 
 plugins {
   alias(libs.plugins.android.application)
@@ -22,31 +23,42 @@ android {
   signingConfigs {
     create("release") {
       val keystorePropsFile = rootProject.file("keystore.properties")
-      if (keystorePropsFile.exists()) {
-        val properties = Properties().apply {
-          FileInputStream(keystorePropsFile).use { stream ->
-            load(stream)
-          }
+      val localProps = Properties().apply {
+        if (keystorePropsFile.exists()) {
+          FileInputStream(keystorePropsFile).use { load(it) }
         }
-        storeFile = file(properties.getProperty("storeFile") ?: "${rootProject.projectDir}/release.keystore")
-        storePassword = properties.getProperty("storePassword") ?: System.getenv("KEYSTORE_PASSWORD") ?: "japantraveltools"
-        keyAlias = properties.getProperty("keyAlias") ?: System.getenv("KEY_ALIAS") ?: "japantraveltools"
-        keyPassword = properties.getProperty("keyPassword") ?: System.getenv("KEY_PASSWORD") ?: "japantraveltools"
+      }
+
+      val resolvedStorePath = localProps.getProperty("storeFile")
+        ?: System.getenv("SIGNING_KEYSTORE_PATH")
+      val resolvedStorePassword = localProps.getProperty("storePassword")
+        ?: System.getenv("SIGNING_STORE_PASSWORD")
+      val resolvedKeyAlias = localProps.getProperty("keyAlias")
+        ?: System.getenv("SIGNING_KEY_ALIAS")
+      val resolvedKeyPassword = localProps.getProperty("keyPassword")
+        ?: System.getenv("SIGNING_KEY_PASSWORD")
+
+      if (!resolvedStorePath.isNullOrBlank() &&
+          !resolvedStorePassword.isNullOrBlank() &&
+          !resolvedKeyAlias.isNullOrBlank() &&
+          !resolvedKeyPassword.isNullOrBlank()
+      ) {
+        storeFile = rootProject.file(resolvedStorePath)
+        storePassword = resolvedStorePassword
+        keyAlias = resolvedKeyAlias
+        keyPassword = resolvedKeyPassword
+        enableV1Signing = true
+        enableV2Signing = true
+        enableV3Signing = true
       } else {
-        val defaultReleaseKeystore = rootProject.file("release.keystore")
-        if (defaultReleaseKeystore.exists()) {
-          storeFile = defaultReleaseKeystore
-          storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "japantraveltools"
-          keyAlias = System.getenv("KEY_ALIAS") ?: "japantraveltools"
-          keyPassword = System.getenv("KEY_PASSWORD") ?: "japantraveltools"
-        } else {
-          val debugKeystore = file("${System.getProperty("user.home")}/.android/debug.keystore")
-          if (debugKeystore.exists()) {
-            storeFile = debugKeystore
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
-          }
+        val isReleaseTaskRequested = gradle.startParameter.taskNames.any { task ->
+          task.contains("Release", ignoreCase = true)
+        }
+        if (System.getenv("CI") == "true" && isReleaseTaskRequested) {
+          throw GradleException(
+            "Missing release signing credentials in CI. Configure SIGNING_KEYSTORE_PATH, " +
+              "SIGNING_STORE_PASSWORD, SIGNING_KEY_ALIAS, and SIGNING_KEY_PASSWORD."
+          )
         }
       }
     }
