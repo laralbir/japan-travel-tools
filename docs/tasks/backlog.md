@@ -436,3 +436,16 @@ Este documento define la fase de **Tareas** del flujo SDD. Todas las tareas est�
 - [x] **TASK-953 (UI/Platform)**: Integración con `FileProvider` y Android Sharesheet:
   - Escritura segura en caché privada, diálogo de progreso y lanzamiento de `Intent.ACTION_SEND` para compartir con WhatsApp, Telegram, correo o imprimir.
 
+---
+
+## Hito 25: Mapa Vectorial de Ruta Diario en Exportación PDF Offline (`SPEC-14 RF-14.4` / `ANALYSIS-16`)
+
+- [ ] **TASK-960 (TDD/Domain)**: Modelado de Proyección Cartográfica en Canvas (`PdfMapProjectionCalculatorTest` / `PdfMapProjectionCalculator`):
+  - Escribir tests unitarios y calcular bounding box, relación de aspecto geodésica con corrección por latitud de Japón, proyección a coordenadas $(x, y)$ dentro de `RectF` objetivo, distancia acumulada de la ruta y manejo de casos límite (0 puntos, 1 punto, puntos idénticos).
+- [ ] **TASK-961 (TDD/Domain)**: Paginación Adaptativa con Altura de Mapa Diario (`PdfDocumentLayoutCalculator`):
+  - Actualizar `paginateStops` para admitir altura disponible diferenciada en la primera página (`firstPageAvailableHeight`) al renderizar el mapa (`MAP_CARD_HEIGHT = 160f`), distribuyendo paradas de manera matemática y sin solapamientos.
+- [ ] **TASK-962 (TDD/Platform)**: Renderizado Cartográfico Vectorial Nativo en Canvas (`AndroidItineraryPdfExporter`):
+  - Implementar `drawDayMapCard` en Canvas con fondo de cuadrícula cartográfica sutil, trazado de ruta con `DashPathEffect` uniendo paradas consecutivas, pines circulares en `COLOR_AKABENI` con números blancos, callouts con nombres y horarios de paradas, indicador de Norte y leyenda con distancia en km.
+- [ ] **TASK-963 (UI/Integration)**: Controles de Configuración y Textos Bilingües:
+  - Integrar `includeDayMap: Boolean = true` en `PdfExportOptions`, añadir casilla de verificación en `PdfExportModalSheet` y registrar cadenas en `values/strings.xml` y `values-es/strings.xml`.
+

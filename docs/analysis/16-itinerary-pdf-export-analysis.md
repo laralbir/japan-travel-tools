@@ -77,7 +77,32 @@ feature.planner.pdf/
 1. **`PdfDocumentLayoutCalculatorTest`**:
    - Validar que el cálculo de paginación divide adecuadamente días con 1 a 20 paradas sin solapamiento de textos.
    - Validar formateo de fechas en español e inglés y preservación de cadenas kanji.
-2. **`ItineraryPdfExporterTest`**:
+   - Validar que `paginateStops` ajusta la altura disponible de la primera página cuando se incluye el mapa diario (`MAP_CARD_HEIGHT = 160f`).
+2. **`PdfMapProjectionTest`**:
+   - Validar cálculo de bounding box geográfico y proyección equirrectangular dentro del área de dibujo (`RectF`).
+   - Validar preservación de aspecto longitudinal considerando la latitud media de Japón.
+   - Validar manejo determinista de casos límite: 0 puntos, 1 punto, puntos colineales o idénticos.
+3. **`ItineraryPdfExporterTest`**:
    - En test de integración / unitario con `Robolectric` o utilidades de archivo:
      - Generar el PDF en memoria/disco temporal.
      - Validar que el archivo resultante tiene cabecera `%PDF-1.`, tamaño superior a 10 KB y páginas válidas.
+
+---
+
+## 5. Diseño del Motor Cartográfico Vectorial Nativo en Canvas (`PdfMapRenderer`)
+
+1. **Proyección Equirrectangular Calibrada para Japón**:
+   - Dado el centroide $(\phi_0, \lambda_0)$ y la caja envolvente $(\phi_{\min}, \phi_{\max}, \lambda_{\min}, \lambda_{\max})$:
+     $$\Delta x_{\text{geo}} = (\lambda - \lambda_0) \cdot \cos(\phi_0) \cdot R_{\text{earth}}$$
+     $$\Delta y_{\text{geo}} = (\phi - \phi_0) \cdot R_{\text{earth}}$$
+   - Escala $S = \min\left(\frac{W_{\text{plot}}}{\Delta x_{\text{span}}}, \frac{H_{\text{plot}}}{\Delta y_{\text{span}}}\right)$ para garantizar relación de aspecto 1:1 sin deformar la geografía de ciudades como Tokio o Kioto.
+   - Mapeo a píxeles/puntos PostScript:
+     $$X = X_{\text{center}} + \Delta x_{\text{geo}} \cdot S$$
+     $$Y = Y_{\text{center}} - \Delta y_{\text{geo}} \cdot S$$
+2. **Capas Gráficas Renderizadas en Secuencia**:
+   - **Fondo de Mapa**: Tarjeta blanca con marco `COLOR_BORDER` y cuadrícula suave de coordenadas con meridianos y paralelos discontinuos.
+   - **Trayectoria Secuencial de Ruta**: `android.graphics.Path` trazado de $P_1 \to P_2 \to \dots \to P_N$ mediante `DashPathEffect(floatArrayOf(6f, 4f), 0f)` con color `COLOR_AI_IRO` (índigo `#1E3A5F`, grosor 2 pt).
+   - **Pines Marcadores**: Círculo de radio 8.5 pt con color `COLOR_AKABENI` (rojo Torii `#C93A40`), borde exterior blanco de 1.5 pt y número secuencial en blanco (1, 2, ...).
+   - **Etiquetas de Parada (Callouts)**: Píldoras compactas adyacentes a cada pin con el nombre y hora de la parada, desplazadas para evitar solapamiento.
+   - **Brújula / Indicador Norte**: Rosa minimalista con flecha hacia el Norte en la esquina superior derecha.
+   - **Pie de Mapa / Escala**: Distancia total acumulada en km y leyenda informativa.
