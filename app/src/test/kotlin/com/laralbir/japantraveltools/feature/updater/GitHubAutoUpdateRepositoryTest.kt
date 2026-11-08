@@ -448,6 +448,10 @@ class GitHubAutoUpdateRepositoryTest {
                 onProgress = { _, _ -> }
             )
             assertTrue(mitmResult.isFailure)
+            assertTrue(mitmResult.exceptionOrNull() is SecurityException)
+            assertTrue(
+                mitmResult.exceptionOrNull()?.message?.contains("La firma criptográfica") == true
+            )
             assertEquals(emptyList<String>(), tempDir.list()?.toList().orEmpty())
             assertNull(mitmRepo.preferencesFlow.value.pendingVerifiedApkPath)
         } finally {
