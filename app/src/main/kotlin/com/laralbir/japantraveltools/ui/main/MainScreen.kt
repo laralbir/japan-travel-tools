@@ -429,16 +429,13 @@ private fun formatDayDateLabel(
     allStops: List<ItineraryStopItem>,
     isEs: Boolean
 ): String? {
-    val stopDate = allStops.firstOrNull { it.dayNumber == dayNum && it.dateIso.isNotBlank() }?.dateIso
-    val dateString = if (!stopDate.isNullOrBlank()) {
-        stopDate
-    } else if (startDateIso.isNotBlank()) {
+    val dateString = if (startDateIso.isNotBlank()) {
         runCatching {
             val start = LocalDate.parse(startDateIso)
             start.plusDays((dayNum - 1).toLong()).toString()
-        }.getOrNull()
+        }.getOrNull() ?: allStops.firstOrNull { it.dayNumber == dayNum && it.dateIso.isNotBlank() }?.dateIso
     } else {
-        null
+        allStops.firstOrNull { it.dayNumber == dayNum && it.dateIso.isNotBlank() }?.dateIso
     }
 
     if (dateString.isNullOrBlank()) return null
@@ -1820,13 +1817,22 @@ private fun CityWeatherEditorModalSheet(
     onSave: (WeatherCityItem) -> Unit,
     onDelete: (String) -> Unit
 ) {
-    var nameEsText by rememberSaveable { mutableStateOf(initialCity.nameEs) }
-    var nameEnText by rememberSaveable { mutableStateOf(initialCity.nameEn) }
-    var latText by rememberSaveable { mutableStateOf(initialCity.latitude.toString()) }
-    var lonText by rememberSaveable { mutableStateOf(initialCity.longitude.toString()) }
+    var nameEsText by rememberSaveable(initialCity.id, isNew) { mutableStateOf(initialCity.nameEs) }
+    var nameEnText by rememberSaveable(initialCity.id, isNew) { mutableStateOf(initialCity.nameEn) }
+    var latText by rememberSaveable(initialCity.id, isNew) { mutableStateOf(initialCity.latitude.toString()) }
+    var lonText by rememberSaveable(initialCity.id, isNew) { mutableStateOf(initialCity.longitude.toString()) }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var geocodeNotice by rememberSaveable { mutableStateOf<String?>(null) }
     var isGeocoding by remember { mutableStateOf(false) }
+
+    LaunchedEffect(initialCity.id, isNew) {
+        nameEsText = initialCity.nameEs
+        nameEnText = initialCity.nameEn
+        latText = initialCity.latitude.toString()
+        lonText = initialCity.longitude.toString()
+        errorMessage = null
+        geocodeNotice = null
+    }
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -1867,15 +1873,14 @@ private fun CityWeatherEditorModalSheet(
         }
     }
 
-    AppConfirmationDialog(
-        state = confirmationDialogState,
-        onDismiss = { confirmationDialogState = null }
-    )
-
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surface
     ) {
+        AppConfirmationDialog(
+            state = confirmationDialogState,
+            onDismiss = { confirmationDialogState = null }
+        )
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2164,8 +2169,10 @@ private fun TripPlannerTabScreen(
     val portablePlan by SharedTravelPlanStore.planState.collectAsState()
     val weatherForecasts by SharedWeatherForecastStore.forecastsState.collectAsState()
     val allStops = portablePlan.itineraryStops
-    val availableDays = remember(allStops) {
-        allStops.map { it.dayNumber }.distinct().sorted().ifEmpty { listOf(1) }
+    val availableDays = remember(allStops, portablePlan.totalDays) {
+        val stopDays = allStops.map { it.dayNumber }
+        val planDays = (1..portablePlan.totalDays.coerceIn(1, 45)).toList()
+        (stopDays + planDays).distinct().sorted().ifEmpty { listOf(1) }
     }
     var selectedDay by rememberSaveable { mutableIntStateOf(1) }
     if (selectedDay !in availableDays) {
@@ -2397,7 +2404,7 @@ private fun TripPlannerTabScreen(
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        text = "${availableDays.size} días · ${allStops.size} paradas" +
+                        text = "${portablePlan.totalDays.coerceAtLeast(availableDays.size)} días · ${allStops.size} paradas" +
                             if (portablePlan.startDateIso.isNotBlank()) " · Inicio: ${portablePlan.startDateIso}" else "",
                         fontSize = 12.5.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -3004,28 +3011,39 @@ private fun ItineraryStopEditorModalSheet(
     onSave: (ItineraryStopItem) -> Unit,
     onDelete: (String) -> Unit
 ) {
-    var stopDateText by rememberSaveable(initialStop.id) {
+    var stopDateText by rememberSaveable(initialStop.id, isNew) {
         mutableStateOf(if (isNew) "" else initialStop.dateIso)
     }
-    var dayText by rememberSaveable(initialStop.id) { mutableStateOf(if (isNew) "" else initialStop.dayNumber.toString()) }
-    var startTimeText by rememberSaveable(initialStop.id) { mutableStateOf(if (isNew) "" else initialStop.startTime) }
-    var endTimeText by rememberSaveable(initialStop.id) { mutableStateOf(if (isNew) "" else initialStop.endTime) }
-    var titleText by rememberSaveable(initialStop.id) { mutableStateOf(if (isNew) "" else initialStop.title) }
-    var japaneseNameText by rememberSaveable(initialStop.id) { mutableStateOf(if (isNew) "" else initialStop.placeNameJapanese) }
-    var notesText by rememberSaveable(initialStop.id) { mutableStateOf(if (isNew) "" else initialStop.notes) }
-    var selectedCategory by rememberSaveable(initialStop.id) { mutableStateOf(initialStop.category) }
-    var selectedZoneId by rememberSaveable(initialStop.id) { mutableStateOf(initialStop.timeZoneId) }
+    var dayText by rememberSaveable(initialStop.id, isNew) { mutableStateOf(if (isNew) "" else initialStop.dayNumber.toString()) }
+    var startTimeText by rememberSaveable(initialStop.id, isNew) { mutableStateOf(if (isNew) "" else initialStop.startTime) }
+    var endTimeText by rememberSaveable(initialStop.id, isNew) { mutableStateOf(if (isNew) "" else initialStop.endTime) }
+    var titleText by rememberSaveable(initialStop.id, isNew) { mutableStateOf(if (isNew) "" else initialStop.title) }
+    var japaneseNameText by rememberSaveable(initialStop.id, isNew) { mutableStateOf(if (isNew) "" else initialStop.placeNameJapanese) }
+    var notesText by rememberSaveable(initialStop.id, isNew) { mutableStateOf(if (isNew) "" else initialStop.notes) }
+    var selectedCategory by rememberSaveable(initialStop.id, isNew) { mutableStateOf(initialStop.category) }
+    var selectedZoneId by rememberSaveable(initialStop.id, isNew) { mutableStateOf(initialStop.timeZoneId) }
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
 
-    AppConfirmationDialog(
-        state = confirmationDialogState,
-        onDismiss = { confirmationDialogState = null }
-    )
+    LaunchedEffect(initialStop.id, isNew) {
+        stopDateText = if (isNew) "" else initialStop.dateIso
+        dayText = if (isNew) "" else initialStop.dayNumber.toString()
+        startTimeText = if (isNew) "" else initialStop.startTime
+        endTimeText = if (isNew) "" else initialStop.endTime
+        titleText = if (isNew) "" else initialStop.title
+        japaneseNameText = if (isNew) "" else initialStop.placeNameJapanese
+        notesText = if (isNew) "" else initialStop.notes
+        selectedCategory = initialStop.category
+        selectedZoneId = initialStop.timeZoneId
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surface
     ) {
+        AppConfirmationDialog(
+            state = confirmationDialogState,
+            onDismiss = { confirmationDialogState = null }
+        )
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -3228,15 +3246,15 @@ private fun PlanEditorModalSheet(
     onDismiss: () -> Unit,
     onSave: (title: String, startDate: String, days: Int) -> Unit
 ) {
-    var titleText by rememberSaveable { mutableStateOf(initialTitle) }
-    var startDateText by rememberSaveable { mutableStateOf(initialStartDate) }
-    var daysText by rememberSaveable { mutableStateOf(initialDays.toString()) }
-    var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
+    var titleText by rememberSaveable(initialTitle, isNew) { mutableStateOf(initialTitle) }
+    var startDateText by rememberSaveable(initialStartDate, isNew) { mutableStateOf(initialStartDate) }
+    var daysText by rememberSaveable(initialDays, isNew) { mutableStateOf(initialDays.toString()) }
 
-    AppConfirmationDialog(
-        state = confirmationDialogState,
-        onDismiss = { confirmationDialogState = null }
-    )
+    LaunchedEffect(initialTitle, initialStartDate, initialDays, isNew) {
+        titleText = initialTitle
+        startDateText = initialStartDate
+        daysText = initialDays.toString()
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -3965,12 +3983,12 @@ private fun TransportSegmentEditorModalSheet(
     onSave: (TransportSegmentItem) -> Unit,
     onDelete: (String) -> Unit
 ) {
-    var selectedType by rememberSaveable(initialSegment.id) { mutableStateOf(initialSegment.type) }
-    var operatorText by rememberSaveable(initialSegment.id) { mutableStateOf(if (isNew) "" else initialSegment.operatorName) }
-    var lineNumberText by rememberSaveable(initialSegment.id) { mutableStateOf(if (isNew) "" else initialSegment.lineOrNumber) }
-    var depNameText by rememberSaveable(initialSegment.id) { mutableStateOf(if (isNew) "" else initialSegment.departureName) }
-    var arrNameText by rememberSaveable(initialSegment.id) { mutableStateOf(if (isNew) "" else initialSegment.arrivalName) }
-    var depDateText by rememberSaveable(initialSegment.id) {
+    var selectedType by rememberSaveable(initialSegment.id, isNew) { mutableStateOf(initialSegment.type) }
+    var operatorText by rememberSaveable(initialSegment.id, isNew) { mutableStateOf(if (isNew) "" else initialSegment.operatorName) }
+    var lineNumberText by rememberSaveable(initialSegment.id, isNew) { mutableStateOf(if (isNew) "" else initialSegment.lineOrNumber) }
+    var depNameText by rememberSaveable(initialSegment.id, isNew) { mutableStateOf(if (isNew) "" else initialSegment.departureName) }
+    var arrNameText by rememberSaveable(initialSegment.id, isNew) { mutableStateOf(if (isNew) "" else initialSegment.arrivalName) }
+    var depDateText by rememberSaveable(initialSegment.id, isNew) {
         mutableStateOf(
             if (isNew) {
                 ""
@@ -3981,31 +3999,51 @@ private fun TransportSegmentEditorModalSheet(
             }
         )
     }
-    var depTimeText by rememberSaveable(initialSegment.id) {
+    var depTimeText by rememberSaveable(initialSegment.id, isNew) {
         mutableStateOf(if (isNew || !initialSegment.departureTimeIso.contains('T')) "" else initialSegment.departureTimeIso.substringAfter('T'))
     }
-    var arrTimeText by rememberSaveable(initialSegment.id) {
+    var arrTimeText by rememberSaveable(initialSegment.id, isNew) {
         mutableStateOf(if (isNew || !initialSegment.arrivalTimeIso.contains('T')) "" else initialSegment.arrivalTimeIso.substringAfter('T'))
     }
-    var checkInTimeText by rememberSaveable(initialSegment.id) {
+    var checkInTimeText by rememberSaveable(initialSegment.id, isNew) {
         mutableStateOf(if (isNew || initialSegment.checkInTime == null || !initialSegment.checkInTime.contains('T')) "" else initialSegment.checkInTime.substringAfter('T'))
     }
-    var boardingTimeText by rememberSaveable(initialSegment.id) {
+    var boardingTimeText by rememberSaveable(initialSegment.id, isNew) {
         mutableStateOf(if (isNew || initialSegment.boardingTime == null || !initialSegment.boardingTime.contains('T')) "" else initialSegment.boardingTime.substringAfter('T'))
     }
-    var platformText by rememberSaveable(initialSegment.id) { mutableStateOf(if (isNew) "" else initialSegment.departureTerminalOrPlatform) }
-    var seatText by rememberSaveable(initialSegment.id) { mutableStateOf(if (isNew) "" else initialSegment.seatOrCarInfo) }
+    var platformText by rememberSaveable(initialSegment.id, isNew) { mutableStateOf(if (isNew) "" else initialSegment.departureTerminalOrPlatform) }
+    var seatText by rememberSaveable(initialSegment.id, isNew) { mutableStateOf(if (isNew) "" else initialSegment.seatOrCarInfo) }
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
 
-    AppConfirmationDialog(
-        state = confirmationDialogState,
-        onDismiss = { confirmationDialogState = null }
-    )
+    LaunchedEffect(initialSegment.id, isNew) {
+        selectedType = initialSegment.type
+        operatorText = if (isNew) "" else initialSegment.operatorName
+        lineNumberText = if (isNew) "" else initialSegment.lineOrNumber
+        depNameText = if (isNew) "" else initialSegment.departureName
+        arrNameText = if (isNew) "" else initialSegment.arrivalName
+        depDateText = if (isNew) {
+            ""
+        } else if (initialSegment.departureTimeIso.contains('T')) {
+            initialSegment.departureTimeIso.substringBefore('T')
+        } else {
+            initialSegment.departureTimeIso
+        }
+        depTimeText = if (isNew || !initialSegment.departureTimeIso.contains('T')) "" else initialSegment.departureTimeIso.substringAfter('T')
+        arrTimeText = if (isNew || !initialSegment.arrivalTimeIso.contains('T')) "" else initialSegment.arrivalTimeIso.substringAfter('T')
+        checkInTimeText = if (isNew || initialSegment.checkInTime == null || !initialSegment.checkInTime.contains('T')) "" else initialSegment.checkInTime.substringAfter('T')
+        boardingTimeText = if (isNew || initialSegment.boardingTime == null || !initialSegment.boardingTime.contains('T')) "" else initialSegment.boardingTime.substringAfter('T')
+        platformText = if (isNew) "" else initialSegment.departureTerminalOrPlatform
+        seatText = if (isNew) "" else initialSegment.seatOrCarInfo
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surface
     ) {
+        AppConfirmationDialog(
+            state = confirmationDialogState,
+            onDismiss = { confirmationDialogState = null }
+        )
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -8477,19 +8515,23 @@ private fun DocumentEditorModalSheet(
     onDelete: (String) -> Unit
 ) {
     val context = LocalContext.current
-    var titleText by rememberSaveable { mutableStateOf(initialDoc.title) }
-    var notesText by rememberSaveable { mutableStateOf(initialDoc.referenceOrNotes) }
-    var locatorText by rememberSaveable { mutableStateOf(initialDoc.locatorCode ?: "") }
-    var selectedCategory by rememberSaveable { mutableStateOf(initialDoc.category) }
-    var isPinned by rememberSaveable { mutableStateOf(initialDoc.isPinned) }
-    var attachedFilePath by rememberSaveable { mutableStateOf(initialDoc.fileUri ?: initialDoc.internalUriPath) }
+    var titleText by rememberSaveable(initialDoc.id, isNew) { mutableStateOf(initialDoc.title) }
+    var notesText by rememberSaveable(initialDoc.id, isNew) { mutableStateOf(initialDoc.referenceOrNotes) }
+    var locatorText by rememberSaveable(initialDoc.id, isNew) { mutableStateOf(initialDoc.locatorCode ?: "") }
+    var selectedCategory by rememberSaveable(initialDoc.id, isNew) { mutableStateOf(initialDoc.category) }
+    var isPinned by rememberSaveable(initialDoc.id, isNew) { mutableStateOf(initialDoc.isPinned) }
+    var attachedFilePath by rememberSaveable(initialDoc.id, isNew) { mutableStateOf(initialDoc.fileUri ?: initialDoc.internalUriPath) }
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
 
-    AppConfirmationDialog(
-        state = confirmationDialogState,
-        onDismiss = { confirmationDialogState = null }
-    )
+    LaunchedEffect(initialDoc.id, isNew) {
+        titleText = initialDoc.title
+        notesText = initialDoc.referenceOrNotes
+        locatorText = initialDoc.locatorCode ?: ""
+        selectedCategory = initialDoc.category
+        isPinned = initialDoc.isPinned
+        attachedFilePath = initialDoc.fileUri ?: initialDoc.internalUriPath
+    }
 
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
@@ -8527,6 +8569,10 @@ private fun DocumentEditorModalSheet(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surface
     ) {
+        AppConfirmationDialog(
+            state = confirmationDialogState,
+            onDismiss = { confirmationDialogState = null }
+        )
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -9009,21 +9055,27 @@ private fun GuideEditorModalSheet(
     onSave: (TravelGuideArticle) -> Unit,
     onDelete: (String) -> Unit
 ) {
-    var titleText by rememberSaveable { mutableStateOf(initialGuide.title) }
-    var cityText by rememberSaveable { mutableStateOf(initialGuide.cityRegion) }
-    var contentText by rememberSaveable { mutableStateOf(initialGuide.markdownSummary) }
+    var titleText by rememberSaveable(initialGuide.id, isNew) { mutableStateOf(initialGuide.title) }
+    var cityText by rememberSaveable(initialGuide.id, isNew) { mutableStateOf(initialGuide.cityRegion) }
+    var contentText by rememberSaveable(initialGuide.id, isNew) { mutableStateOf(initialGuide.markdownSummary) }
     var isPreviewMode by remember { mutableStateOf(false) }
     var confirmationDialogState by remember { mutableStateOf<ConfirmationDialogState?>(null) }
 
-    AppConfirmationDialog(
-        state = confirmationDialogState,
-        onDismiss = { confirmationDialogState = null }
-    )
+    LaunchedEffect(initialGuide.id, isNew) {
+        titleText = initialGuide.title
+        cityText = initialGuide.cityRegion
+        contentText = initialGuide.markdownSummary
+        isPreviewMode = false
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surface
     ) {
+        AppConfirmationDialog(
+            state = confirmationDialogState,
+            onDismiss = { confirmationDialogState = null }
+        )
         Column(
             modifier = Modifier
                 .fillMaxWidth()
