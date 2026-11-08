@@ -1,5 +1,7 @@
 package com.laralbir.japantraveltools.feature.settings
 
+import com.laralbir.japantraveltools.BuildConfig
+
 data class OpenSourceLibraryNotice(
     val name: String,
     val artifactId: String,
@@ -11,8 +13,8 @@ data class OpenSourceLibraryNotice(
 )
 
 object OpenSourceLibrariesCatalog {
-    const val APP_VERSION_NAME = "1.1.0"
-    const val APP_VERSION_CODE = 34
+    val APP_VERSION_NAME: String = BuildConfig.VERSION_NAME
+    val APP_VERSION_CODE: Int = BuildConfig.VERSION_CODE
 
     val thirdPartyLibraries: List<OpenSourceLibraryNotice> = listOf(
         OpenSourceLibraryNotice(
