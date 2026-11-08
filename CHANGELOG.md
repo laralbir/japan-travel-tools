@@ -7,6 +7,12 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 
 ## [Unreleased]
 
+### Especificaciones Funcionales y Análisis Técnico de Nuevas Capacidades (Hitos 21–24) 📐📋
+- **Botón de Emergencia y Asistencia Consular Offline (`SPEC-11` / `ANALYSIS-13`)**: Especificación completa y diseño arquitectónico del nuevo módulo de seguridad y emergencias en Japón: números oficiales de socorro (`110`, `119`, `118`, JNTO Helpline multilingüe) con marcación directa `Intent.ACTION_DIAL`, directorio de Embajadas y red consular con enlace cartográfico offline y dirección en kanji para taxistas, ficha médica privada en `filesDir` (grupo sanguíneo, alergias, póliza de seguro SOS con teléfono 24h) y tarjetas de auxilio crítico con kanji grande y locución TTS nativa de un toque.
+- **Motor de Alarmas y Notificaciones de Transporte en Segundo Plano con AlarmManager (`SPEC-12` / `ANALYSIS-14`)**: Especificación de programación exacta nativa con `AlarmManager.setExactAndAllowWhileIdle` / `setAlarmClock` y `NotificationManager.IMPORTANCE_HIGH` para avisos de apertura de check-in (24h/2h antes de vuelos), alertas de salida inminente (60 min y 15 min antes) y alarma despertador de proximidad a la estación de destino (5 min antes de `arrivalTimeIso`), con reprogramación reactiva ante cambios de fechas y restauración automática tras reinicios (`BOOT_COMPLETED`).
+- **Optimizador Geodésico y Reordenación Inteligente de Visitas del Día (`SPEC-13` / `ANALYSIS-15`)**: Algoritmo heurístico offline (Nearest Neighbor + 2-opt local search) sobre coordenadas geodésicas (Haversine) para eliminar rutas en zig-zag en Tokio o Kioto, con soporte para paradas con horario fijo inamovible (reservas de restaurantes, franjas horarias estrictas de museos), comparativa interactiva antes/después con cálculo de ahorro en km/tiempo y aplicación reactiva en `SharedTravelPlanStore`.
+- **Exportación de Itinerarios y Guías a Documento PDF Compartible 100% Offline (`SPEC-14` / `ANALYSIS-16`)**: Motor nativo sin librerías externas pesadas utilizando `android.graphics.pdf.PdfDocument`, con soporte para glifos japoneses CJK, maquetación tradicional japonesa (*Akabeni / Ai-iro / Washi*), opciones de exportación para la jornada seleccionada o el dossier completo del viaje, y compartición directa mediante `FileProvider` y Android Sharesheet (`Intent.ACTION_SEND`).
+
 ## [1.4.2] - 2026-11-08
 
 ### Sincronización Integral y Persistencia al Editar Planes de Viaje (#11) 🗓️🔄
